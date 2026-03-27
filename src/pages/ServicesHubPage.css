@@ -1,0 +1,225 @@
+.services-hub {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+  font-family: "Inter", system-ui, sans-serif;
+  /* Same tile size for every tab: Services, OPD Claims, Account, Help, Medical Records */
+  --service-hub-card-width: 124px;
+  --service-hub-card-height: 115px;
+}
+
+.services-hub__top {
+  flex-shrink: 0;
+  padding: 8px 0 0;
+}
+
+.services-hub__back {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 44px;
+  height: 44px;
+  margin-left: 10px;
+  border: none;
+  background: none;
+  color: #111111;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.services-hub__back:active {
+  opacity: 0.65;
+}
+
+.services-hub__tabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 14px 0;
+  scrollbar-width: none;
+}
+
+.services-hub__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.services-hub__tab {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 64px;
+  max-width: 88px;
+  padding: 6px 8px 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  color: #9e9e9e;
+}
+
+.services-hub__tab--active {
+  font-weight: 700;
+  color: #111111;
+  border-bottom-color: #111111;
+}
+
+.services-hub__tab-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.services-hub__tab-icon--asset {
+  display: block;
+  object-fit: contain;
+}
+
+.services-hub__tab:not(.services-hub__tab--active)
+  .services-hub__tab-icon--asset {
+  opacity: 0.45;
+}
+
+.services-hub__tab-label {
+  display: block;
+  word-break: break-word;
+}
+
+.services-hub__main {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 18px calc(20px + env(safe-area-inset-bottom, 0));
+}
+
+.services-hub__title {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111111;
+}
+
+.service-hub-grid {
+  display: grid;
+  gap: 10px;
+  justify-content: center;
+  justify-items: center;
+}
+
+.service-hub-grid--cols-3 {
+  grid-template-columns: repeat(
+    3,
+    minmax(0, var(--service-hub-card-width))
+  );
+}
+
+.service-hub-grid--cols-2 {
+  grid-template-columns: repeat(
+    2,
+    minmax(0, var(--service-hub-card-width))
+  );
+  /* Fill from the left; avoids centered block when fewer columns than container */
+  justify-content: start;
+  justify-items: start;
+}
+
+.service-hub-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--service-hub-card-width);
+  height: var(--service-hub-card-height);
+  min-height: var(--service-hub-card-height);
+  margin: 0;
+  padding: 8px 8px 6px;
+  border: none;
+  border-radius: 10px;
+  background: #f4f4f4;
+  text-align: left;
+  overflow: hidden;
+  opacity: 1;
+}
+
+.service-hub-card--interactive {
+  cursor: pointer;
+}
+
+.service-hub-card--interactive:focus-visible {
+  outline: 2px solid #0088ff;
+  outline-offset: 2px;
+}
+
+.service-hub-card--selected {
+  box-shadow: 0 0 0 2px #0088ff;
+}
+
+/* Vaccination, Chronic, Prescriptions — pill, white text, orange-red → black */
+.service-hub-card__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: linear-gradient(to right, #e34a26, #000000);
+}
+
+.service-hub-card__icon {
+  display: flex;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+  color: #111111;
+}
+
+.service-hub-card__icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.service-hub-card__img-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.service-hub-card__title {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111111;
+}
+
+.service-hub-card__desc {
+  margin: 0;
+  font-size: 8px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: #757575;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
