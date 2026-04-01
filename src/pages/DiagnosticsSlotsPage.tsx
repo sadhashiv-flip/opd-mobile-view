@@ -1,10 +1,12 @@
 import { ROUTES } from "@/constants";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./DiagnosticsSlotsPage.css";
 
 export function DiagnosticsSlotsPage() {
   const navigate = useNavigate();
+  const params = useParams();
+  const type = typeof params.type === "string" ? params.type : "health-checkups";
   const vendorId = useMemo(() => {
     try {
       return localStorage.getItem("opd-mobile-view.diagnostics.vendorId") ?? "";
@@ -28,7 +30,11 @@ export function DiagnosticsSlotsPage() {
   return (
     <div className="dslot-page">
       <header className="dslot-top">
-        <Link to={ROUTES.diagnosticsScreen} className="dslot-back" aria-label="Back to vendors">
+        <Link
+          to={generatePath(ROUTES.diagnosticsVendors, { type })}
+          className="dslot-back"
+          aria-label="Back to vendors"
+        >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -80,7 +86,7 @@ export function DiagnosticsSlotsPage() {
             } catch {
               // ignore storage errors
             }
-            navigate(ROUTES.healthCheckupsOverview);
+            navigate(generatePath(ROUTES.diagnosticsOverview, { type }));
           }}
         >
           Confirm

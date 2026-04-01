@@ -398,7 +398,7 @@ export function HomePage() {
                 description="Avail Free Health Checkups"
                 onClick={() => {
                   setIsDiagnosticsSheetOpen(false);
-                  navigate(ROUTES.healthCheckups);
+                  navigate("/Diagnostics/health-checkups");
                 }}
               />
               <ServiceHubCard
@@ -416,7 +416,7 @@ export function HomePage() {
                 description="Fully sponsored"
                 onClick={() => {
                   setIsDiagnosticsSheetOpen(false);
-                  navigate(ROUTES.healthCheckups, { state: { title: "Lab Tests" } });
+                  navigate("/Diagnostics/lab-tests");
                 }}
               />
             </div>

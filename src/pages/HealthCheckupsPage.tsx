@@ -1,7 +1,7 @@
 import { ROUTES } from "@/constants";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, generatePath, useLocation, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 
@@ -35,10 +35,27 @@ const SEED_MEMBERS: readonly PersonCard[] = [
 export function HealthCheckupsPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const pageTitle =
-    typeof (location.state as { title?: unknown } | null)?.title === "string"
-      ? ((location.state as { title?: string }).title ?? "Health Checkups")
-      : "Health Checkups";
+  const params = useParams();
+  const type = typeof params.type === "string" ? params.type : "health-checkups";
+  const isConsultation = location.pathname.toLowerCase().startsWith("/consultation/");
+  const pageTitle = (() => {
+    if (isConsultation) return "Consultation";
+    if (type === "lab-tests") return "Lab Tests";
+    return "Health Checkups";
+  })();
+  const consultationKind = isConsultation ? (type === "at_hospital" ? "at_hospital" : "virtual") : null;
+  const consultationLabel =
+    consultationKind === "at_hospital" ? "At Hospital" : consultationKind === "virtual" ? "Virtual" : "";
+  const forYouHint = isConsultation
+    ? consultationKind === "at_hospital"
+      ? "Book your OPD consultations at hospital"
+      : "Connecting care, virtually everywhere"
+    : "Book free health checkups";
+  const forFamilyHint = isConsultation
+    ? consultationKind === "at_hospital"
+      ? "Book paid OPD consultations for family members"
+      : "Add family members for virtual consultations"
+    : "Book polik health checkups for family members";
 
   const [familyMembers, setFamilyMembers] = useState<PersonCard[]>([]);
   const [selectedId, setSelectedId] = useState<string>(SEED_MEMBERS[0].id);
@@ -141,6 +158,7 @@ export function HealthCheckupsPage() {
           </svg>
         </Link>
         <h1 className="hc-title">{pageTitle}</h1>
+        {isConsultation ? <span className="hc-mode">{consultationLabel}</span> : null}
       </header>
 
       <main className="hc-main">
@@ -150,7 +168,7 @@ export function HealthCheckupsPage() {
             <span className="hc-check" aria-hidden="true">
               ✓
             </span>
-            Book free health checkups
+            {forYouHint}
           </p>
 
           {selfMembers.map((member) => (
@@ -184,7 +202,7 @@ export function HealthCheckupsPage() {
             <span className="hc-check" aria-hidden="true">
               ✓
             </span>
-            Book polik health checkups for family members
+            {forFamilyHint}
           </p>
 
           {familyMembersList.map((member) => (
@@ -218,7 +236,13 @@ export function HealthCheckupsPage() {
           <button
             type="button"
             className="hc-add-family"
-            onClick={() => navigate(ROUTES.addFamilyMember, { state: { title: pageTitle } })}
+            onClick={() =>
+              navigate(
+                isConsultation
+                  ? generatePath(ROUTES.consultationAddFamilyMember, { type })
+                  : generatePath(ROUTES.diagnosticsAddFamilyMember, { type }),
+              )
+            }
           >
             <span className="hc-add-family__ic" aria-hidden="true">
               +
@@ -238,7 +262,11 @@ export function HealthCheckupsPage() {
             } catch {
               // ignore storage errors
             }
-            navigate(ROUTES.healthCheckupsPlan);
+            if (isConsultation) {
+              navigate(generatePath(ROUTES.consultationSpecialties, { type }));
+              return;
+            }
+            navigate(generatePath(ROUTES.diagnosticsPlan, { type }));
           }}
         >
           Continue

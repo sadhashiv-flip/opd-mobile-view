@@ -1,0 +1,119 @@
+.sort-sheet-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0 14px calc(12px + env(safe-area-inset-bottom, 0));
+  border: none;
+  background: rgba(0, 0, 0, 0.28);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 60;
+}
+
+.sort-sheet-dialog::backdrop {
+  background: transparent;
+}
+
+.sort-sheet {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.12);
+  padding: 14px 14px 14px;
+}
+
+.sort-sheet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sort-sheet__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #111111;
+}
+
+.sort-sheet__ic {
+  color: #ff541e;
+  display: inline-flex;
+}
+
+.sort-sheet__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 999px;
+  background: #f3f3f3;
+  color: #111111;
+  cursor: pointer;
+}
+
+.sort-sheet__sub {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #6f6f6f;
+}
+
+.sort-sheet__list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sort-sheet__row {
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sort-sheet__row--active {
+  color: #ff541e;
+}
+
+.sort-sheet__radio {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.sort-sheet__radio--active {
+  background: #ff541e;
+}
+
+.sort-sheet__confirm {
+  margin-top: 14px;
+  width: 100%;
+  height: 46px;
+  border: none;
+  border-radius: 12px;
+  background: #ff541e;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+

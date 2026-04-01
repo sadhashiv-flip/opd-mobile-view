@@ -1,5 +1,5 @@
 import { ROUTES } from "@/constants";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./AddFamilyMemberPage.css";
 
@@ -8,10 +8,14 @@ const FAMILY_STORAGE_KEY = "opd-mobile-view.health-checkups.family";
 export function AddFamilyMemberPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const parentTitle =
-    typeof (location.state as { title?: unknown } | null)?.title === "string"
-      ? ((location.state as { title?: string }).title ?? "Health Checkups")
-      : "Health Checkups";
+  const params = useParams();
+  const type = typeof params.type === "string" ? params.type : "health-checkups";
+  const isConsultation = location.pathname.toLowerCase().startsWith("/consultation/");
+  const parentTitle = (() => {
+    if (isConsultation) return "Consultation";
+    if (type === "lab-tests") return "Lab Tests";
+    return "Health Checkups";
+  })();
 
   const [relationship, setRelationship] = useState("");
   const [name, setName] = useState("");
@@ -39,15 +43,22 @@ export function AddFamilyMemberPage() {
     } catch {
       // ignore storage errors
     }
-    navigate(ROUTES.healthCheckups, { state: { title: parentTitle } });
+    navigate(
+      isConsultation
+        ? generatePath(ROUTES.consultation, { type })
+        : generatePath(ROUTES.diagnosticsType, { type }),
+    );
   };
 
   return (
     <div className="afm-page">
       <header className="afm-top">
         <Link
-          to={ROUTES.healthCheckups}
-          state={{ title: parentTitle }}
+          to={
+            isConsultation
+              ? generatePath(ROUTES.consultation, { type })
+              : generatePath(ROUTES.diagnosticsType, { type })
+          }
           className="afm-back"
           aria-label={`Back to ${parentTitle}`}
         >

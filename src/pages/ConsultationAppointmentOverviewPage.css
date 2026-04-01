@@ -1,0 +1,217 @@
+.cao-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+}
+
+.cao-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+}
+
+.cao-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #111111;
+  text-decoration: none;
+}
+
+.cao-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.cao-main {
+  flex: 1;
+  padding: 8px 14px 96px;
+}
+
+.cao-doc {
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.cao-doc__top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cao-doc__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #f1f1f1;
+  border: 1px solid #e9e9e9;
+  flex-shrink: 0;
+}
+
+.cao-doc__meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.cao-doc__name {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cao-doc__sub {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #9a9a9a;
+}
+
+.cao-chip {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #12b10f;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.cao-tags {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cao-tag {
+  font-size: 9px;
+  font-weight: 800;
+  color: #ff541e;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cao-tag--pill {
+  color: #1a73e8;
+  border: 1px solid #d7e6ff;
+  background: #f3f8ff;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.cao-fees {
+  margin-top: 10px;
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.cao-fees__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+  background: #ffffff;
+}
+
+.cao-fees__row + .cao-fees__row {
+  border-top: 1px solid #efefef;
+}
+
+.cao-fees__row--total {
+  background: #ffffff;
+}
+
+.cao-field {
+  margin-top: 12px;
+}
+
+.cao-field__label {
+  font-size: 11px;
+  font-weight: 900;
+  color: #111111;
+  margin-bottom: 6px;
+}
+
+.cao-field__row {
+  border: 1px solid #ededed;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #ffffff;
+}
+
+.cao-field__value {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.cao-edit {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.cao-disc {
+  margin-top: 12px;
+  border: 1px solid #ededed;
+  border-radius: 10px;
+  background: #f0f3f3;
+  padding: 12px;
+}
+
+.cao-disc__title {
+  font-size: 11px;
+  font-weight: 900;
+  color: #111111;
+  margin-bottom: 8px;
+}
+
+.cao-disc__list {
+  margin: 0;
+  padding-left: 18px;
+  color: #6f6f6f;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.cao-footer {
+  padding: 14px 14px calc(18px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+}
+
+.cao-confirm {
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
