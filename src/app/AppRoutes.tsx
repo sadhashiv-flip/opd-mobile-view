@@ -22,11 +22,8 @@ import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
 import { GymMembershipOverviewPage } from "@/pages/GymMembershipOverviewPage";
 import { GymSelectClinicPage } from "@/pages/GymSelectClinicPage";
 import { SplashPage } from "@/pages/SplashPage";
-<<<<<<< HEAD
 import { CartOverviewPage } from "@/pages/CartOverviewPage";
-=======
 import { ProfilePage } from "@/pages/ProfilePage";
->>>>>>> 66438b79260872f8eafbb79cd28cef19284daf55
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
