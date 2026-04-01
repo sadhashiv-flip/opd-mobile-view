@@ -23,6 +23,7 @@ export const ROUTES = {
   pharmacy: "/pharmacy",
   orders: "/orders",
   help: "/help",
+  gymMembership: "/gym-membership",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

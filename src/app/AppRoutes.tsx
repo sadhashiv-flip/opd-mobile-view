@@ -16,6 +16,7 @@ import { LoginPage } from "../pages/LoginPage";
 import { OtpPage } from "../pages/OtpPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
+import { GymMembershipPage } from "@/pages/GymMembershipPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -66,6 +67,10 @@ export function AppRoutes() {
       <Route
         path={ROUTES.help}
         element={<PlaceholderPage title="Need Help?" />}
+      />
+      <Route
+        path={ROUTES.gymMembership}
+        element={<GymMembershipPage />}
       />
       <Route path="*" element={<Navigate to={ROUTES.root} replace />} />
     </Routes>

@@ -1,0 +1,339 @@
+.gym-membership-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #f9f9f9;
+  color: #111;
+}
+
+.gym-membership-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 6px;
+}
+
+.gym-back-button {
+  border: none;
+  background: #000;
+  color: #fff;
+  font-size: 1.2rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.gym-membership-main {
+  padding: 8px 16px 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.gym-plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gym-continue-footer {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  z-index: 20;
+  padding: 12px 16px 16px;
+  background: #ffffff;
+  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.gym-plan-card {
+  min-height: 160px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  display: block;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gym-plan-card__background {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.55) contrast(1.08);
+  opacity: 0.9;
+}
+
+.gym-plan-card__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 0;
+}
+
+.gym-plan-card__overlay--black {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.gym-plan-card__overlay--blue {
+  background: rgba(30, 100, 200, 0.45);
+}
+
+.gym-plan-card__check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border: 2px solid #f2f2f2;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.gym-plan-card__check--active {
+  background: rgba(255, 82, 36, 0.96);
+  border-color: #fff;
+}
+
+.gym-plan-card__content {
+  position: relative;
+  z-index: 1;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 10px;
+  height: 100%;
+}
+
+.gym-plan-card__divider {
+  width: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.gym-plan-card--orange .gym-plan-card__divider {
+  background: #ff9944;
+}
+
+.gym-plan-card--blue .gym-plan-card__divider {
+  background: #4da6ff;
+}
+
+.gym-plan-card__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.gym-plan-card__tier {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: #fff;
+}
+
+.gym-plan-card__tier-text {
+  color: #fff;
+}
+
+.gym-plan-card__tier-highlight {
+  font-weight: 700;
+  font-size: 18px;
+  display: inline-block;
+}
+
+.gym-plan-card--orange .gym-plan-card__tier-highlight {
+  color: #FFD062;
+}
+
+.gym-plan-card--blue .gym-plan-card__tier-highlight {
+  color: #60b5ff;
+}
+
+.gym-plan-card__term {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 6px;
+  color: #fff;
+}
+
+.gym-plan-card--orange .gym-plan-card__term {
+  color: #FFD062;
+}
+
+.gym-plan-card--blue .gym-plan-card__term {
+  color: #60b5ff;
+}
+
+.gym-plan-card__pricing {
+  margin-top: 8px;
+}
+
+.gym-plan-card__old-price {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 2px;
+}
+
+.gym-plan-card__price {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.gym-plan-card--orange .gym-plan-card__price {
+  color: #FFD062;
+}
+
+.gym-plan-card--blue .gym-plan-card__price {
+  color: #60b5ff;
+}
+
+.gym-plan-card__price-suffix {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  margin-left: 2px;
+}
+
+.gym-plan-card--orange .gym-plan-card__price-suffix {
+  color: rgba(255, 208, 98, 0.8);
+}
+
+.gym-plan-card--blue .gym-plan-card__price-suffix {
+  color: rgba(96, 181, 255, 0.8);
+}
+
+.gym-plan-card__tax-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+}
+
+.gym-plan-card__meta {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.gym-plan-card--selected {
+  border-color: #ff5224;
+  box-shadow: 0 4px 16px rgba(255, 82, 36, 0.3);
+}
+
+
+
+.gym-plan-card__benefits {
+  color: #fff;
+  font-size: 11px;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+
+
+.gym-continue-button {
+  border: none;
+  border-radius: 18px;
+  padding: 14px;
+  background: #ff5224;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
+
+.gym-continue-button--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gym-plan-card__tier {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.gym-plan-card__badge {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-bottom: 8px;
+}
+
+.gym-plan-card__term {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.gym-plan-card__price {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.gym-plan-card__sub {
+  font-size: 0.83rem;
+  opacity: 0.9;
+}
+
+.gym-plan-card__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  /* height: 100%; */
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.gym-plan-card__meta > span {
+  color: #fff;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.gym-continue-button {
+  border: none;
+  border-radius: 18px;
+  padding: 14px;
+  background: #000;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+}
