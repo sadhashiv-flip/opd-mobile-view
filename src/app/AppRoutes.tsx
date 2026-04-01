@@ -18,12 +18,13 @@ import { GymMembershipSelectPeoplePage } from "@/pages/GymMembershipSelectPeople
 import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
 import { GymMembershipOverviewPage } from "@/pages/GymMembershipOverviewPage";
 import { GymSelectClinicPage } from "@/pages/GymSelectClinicPage";
+import { SplashPage } from "@/pages/SplashPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path={ROUTES.root} element={<LoginPage />} />
+      <Route path={ROUTES.root} element={<SplashPage />} />
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.otp} element={<OtpPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
@@ -71,7 +72,7 @@ export function AppRoutes() {
         path={ROUTES.gymMembershipSelectClinic}
         element={<GymSelectClinicPage />}
       />
-      <Route path="*" element={<Navigate to={ROUTES.root} replace />} />
+      <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>
   );
 }

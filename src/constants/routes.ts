@@ -1,5 +1,6 @@
 /** Application route paths — single source of truth for navigation (OCP: extend here). */
 export const ROUTES = {
+  /** Onboarding carousel; use `login` for the auth screen. */
   root: "/",
   login: "/login",
   otp: "/otp",
