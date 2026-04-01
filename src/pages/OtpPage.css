@@ -13,6 +13,24 @@
   padding: 0 22px 24px;
 }
 
+.otp-page__brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.otp-page__logo {
+  display: block;
+  max-width: min(200px, 52vw);
+  width: auto;
+  height: auto;
+  max-height: 40px;
+  object-fit: contain;
+  object-position: center;
+}
+
 .otp-page__title {
   margin: 0 auto 10px;
   max-width: 20em;

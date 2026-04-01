@@ -1,14 +1,20 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { verifyPatientLogin } from "@/api/patientVerify";
 import { DEMO_PHONE, ROUTES } from "@/constants";
+import { saveAuthSession } from "@/lib/authStorage";
+import { digitsOnly } from "@/lib/digits";
 import type { OtpLocationState } from "@/types/navigation";
+import { useToast } from "@/hooks/useToast";
 import { useOtpInput } from "./useOtpInput";
 
 type OtpPageController = Omit<ReturnType<typeof useOtpInput>, "resend"> &
   Readonly<{
     phone: string;
     handleEdit: () => void;
-    handleConfirm: () => void;
+    handleConfirm: () => void | Promise<void>;
     handleResend: () => void;
+    isSubmitting: boolean;
   }>;
 
 /**
@@ -16,20 +22,38 @@ type OtpPageController = Omit<ReturnType<typeof useOtpInput>, "resend"> &
  */
 export function useOtpPage(): OtpPageController {
   const navigate = useNavigate();
+  const toast = useToast();
   const location = useLocation();
   const state = location.state as OtpLocationState | null;
   const phone = state?.phone ?? DEMO_PHONE;
 
   const input = useOtpInput();
   const { resend, ...inputRest } = input;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEdit = () => {
     navigate(ROUTES.login);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!input.otpComplete) return;
-    navigate(ROUTES.dashboard);
+    const code = input.digits.join("");
+    setIsSubmitting(true);
+    try {
+      const data = await verifyPatientLogin({
+        action: "RLOGIN",
+        value: digitsOnly(phone),
+        code,
+        fcm_token: "",
+      });
+      await saveAuthSession(data);
+      toast.success(data.message?.trim() || "Login successful");
+      navigate(ROUTES.dashboard);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Verification failed");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return {
@@ -38,5 +62,6 @@ export function useOtpPage(): OtpPageController {
     handleEdit,
     handleConfirm,
     handleResend: resend,
+    isSubmitting,
   };
 }

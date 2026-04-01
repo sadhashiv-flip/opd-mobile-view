@@ -1,10 +1,15 @@
 import { MobileShell } from "@/components/layout/MobileShell";
+import { ToastProvider } from "@/components/toast";
+import { AuthSessionListener } from "./AuthSessionListener";
 import { AppRoutes } from "./AppRoutes";
 
 export default function App() {
   return (
-    <MobileShell>
-      <AppRoutes />
-    </MobileShell>
+    <ToastProvider>
+      <MobileShell>
+        <AuthSessionListener />
+        <AppRoutes />
+      </MobileShell>
+    </ToastProvider>
   );
 }

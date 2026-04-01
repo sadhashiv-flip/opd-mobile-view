@@ -5,6 +5,7 @@ export const ROUTES = {
   login: "/login",
   otp: "/otp",
   dashboard: "/dashboard",
+  profile: "/profile",
   services: "/services",
   diagnosticsType: "/Diagnostics/:type",
   diagnosticsAddFamilyMember: "/Diagnostics/:type/add-family-member",

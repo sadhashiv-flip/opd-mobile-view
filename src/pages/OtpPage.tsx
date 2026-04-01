@@ -1,3 +1,4 @@
+import logoDark from "@/assets/images/logos/logo-dark.png";
 import { useOtpPage } from "@/hooks/useOtpPage";
 import "./OtpPage.css";
 
@@ -13,6 +14,7 @@ export function OtpPage() {
     handleResend,
     handleEdit,
     handleConfirm,
+    isSubmitting,
     slotKeys,
     otpLen,
   } = useOtpPage();
@@ -21,6 +23,14 @@ export function OtpPage() {
     <main className="page otp-page">
       <div className="otp-page__body">
         <div className="otp-page__spacer">
+          <div className="otp-page__brand">
+            <img
+              className="otp-page__logo"
+              src={logoDark}
+              alt="OPD Mobile"
+              decoding="async"
+            />
+          </div>
           <h1 className="otp-page__title">Enter OTP</h1>
           <p className="otp-page__subtitle">
             An OTP has been sent to the below mobile number
@@ -80,10 +90,10 @@ export function OtpPage() {
           <button
             type="button"
             className="otp-page__confirm"
-            disabled={!otpComplete}
-            onClick={handleConfirm}
+            disabled={!otpComplete || isSubmitting}
+            onClick={() => void handleConfirm()}
           >
-            Confirm
+            {isSubmitting ? "Please wait…" : "Confirm"}
           </button>
         </footer>
       </div>
