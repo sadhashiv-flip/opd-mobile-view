@@ -4,7 +4,7 @@ import {
   NavIconOrders,
   NavIconPharmacyFab,
   NavIconServices,
-} from "@/assets/icons";
+} from "@/assets/icons/react";
 import { ROUTES } from "@/constants";
 import { NavLink } from "react-router-dom";
 

@@ -1,5 +1,5 @@
 import type { ComponentPropsWithoutRef } from "react";
-import profileSvg from "./Dashboard/Profile.svg";
+import profileSvg from "../Dashboard/Profile.svg";
 
 export type HomeProfileIconProps = Readonly<
   Omit<ComponentPropsWithoutRef<"img">, "src" | "alt">

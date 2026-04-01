@@ -1,0 +1,118 @@
+.dslot-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+}
+
+.dslot-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 6px;
+}
+
+.dslot-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #111111;
+  text-decoration: none;
+}
+
+.dslot-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.dslot-main {
+  flex: 1;
+  padding: 14px;
+}
+
+.dslot-vendor {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8e8e8e;
+  margin: 6px 0 14px;
+}
+
+.dslot-vendor__id {
+  color: #111111;
+  font-weight: 800;
+}
+
+.dslot-sub {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dslot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dslot-item {
+  width: 100%;
+  border: 1px solid #e6e6e6;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dslot-item--selected {
+  border-color: #ff541e;
+}
+
+.dslot-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #ff541e;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dslot-item--selected .dslot-dot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #ff541e;
+}
+
+.dslot-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.dslot-footer {
+  padding: 14px 14px calc(18px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+}
+
+.dslot-continue {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+

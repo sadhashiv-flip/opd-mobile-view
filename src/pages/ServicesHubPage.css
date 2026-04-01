@@ -4,7 +4,6 @@
   min-height: 100dvh;
   background: #ffffff;
   color: #111111;
-  font-family: "Inter", system-ui, sans-serif;
   /* Same tile size for every tab: Services, OPD Claims, Account, Help, Medical Records */
   --service-hub-card-width: 124px;
   --service-hub-card-height: 115px;

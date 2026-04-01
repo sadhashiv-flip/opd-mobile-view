@@ -5,16 +5,24 @@ import {
   HomeVoiceRecordIcon,
   HomeSearchIcon,
   HomeWalletIcon,
-} from "@/assets/icons";
+} from "@/assets/icons/react";
 import atCenterSvg from "@/assets/icons/Dashboard/AtCenter.svg";
 import wpfOnlineSvg from "@/assets/icons/Dashboard/wpf_online.svg";
+import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
+import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
+import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
+import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import { HOME_BANNER_SLIDES, HOME_IMAGE_URLS, ROUTES } from "@/constants";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
+import "./ServicesHubPage.css";
 
 export function HomePage() {
+  const navigate = useNavigate();
   const bannerCount = HOME_BANNER_SLIDES.length;
   const {
     activeIndex: activeBanner,
@@ -22,6 +30,19 @@ export function HomePage() {
     onTouchStart: onBannerTouchStart,
     onTouchEnd: onBannerTouchEnd,
   } = useHomeBannerCarousel({ slideCount: bannerCount });
+
+  const [isDiagnosticsSheetOpen, setIsDiagnosticsSheetOpen] = useState(false);
+  const [isConsultationSheetOpen, setIsConsultationSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const isAnySheetOpen = isDiagnosticsSheetOpen || isConsultationSheetOpen;
+    if (!isAnySheetOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen]);
 
   return (
     <div className="home-page">
@@ -79,7 +100,12 @@ export function HomePage() {
             Medical services
           </h2>
 
-          <article className="home-card home-card--featured">
+          <button
+            type="button"
+            className="home-card home-card--featured home-card--clickable home-card--btn"
+            aria-label="Open Diagnostics options"
+            onClick={() => setIsDiagnosticsSheetOpen(true)}
+          >
             <div className="home-card__body">
               <h3 className="home-card__title">Diagnostics</h3>
               <div className="home-card__slot-row">
@@ -140,11 +166,16 @@ export function HomePage() {
               className="home-card__media home-card__media--lg"
               style={{ backgroundImage: `url(${HOME_IMAGE_URLS.diagnostics})` }}
             />
-          </article>
+          </button>
 
           <div className="home-grid-wrap">
             <div className="home-grid">
-              <article className="home-card home-card--tile home-card--tile-consult">
+              <button
+                type="button"
+                className="home-card home-card--tile home-card--tile-consult home-card--btn home-card--clickable"
+                aria-label="Open Consultation options"
+                onClick={() => setIsConsultationSheetOpen(true)}
+              >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Consultation</h3>
                   <p className="home-card__meta">INSTANT APPOINTMENT</p>
@@ -200,8 +231,13 @@ export function HomePage() {
                   className="home-card__media"
                   style={{ backgroundImage: `url(${HOME_IMAGE_URLS.consultation})` }}
                 />
-              </article>
-              <article className="home-card home-card--tile">
+              </button>
+              <button
+                type="button"
+                className="home-card home-card--tile home-card--btn home-card--clickable"
+                aria-label="Open Dental"
+                onClick={() => navigate(ROUTES.dental)}
+              >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Dental</h3>
                   <p className="home-card__meta">LOREM IPSUM</p>
@@ -211,8 +247,13 @@ export function HomePage() {
                   className="home-card__media"
                   style={{ backgroundImage: `url(${HOME_IMAGE_URLS.dental})` }}
                 />
-              </article>
-              <article className="home-card home-card--tile">
+              </button>
+              <button
+                type="button"
+                className="home-card home-card--tile home-card--btn home-card--clickable"
+                aria-label="Open Vision"
+                onClick={() => navigate(ROUTES.vision)}
+              >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Vision</h3>
                   <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
@@ -221,8 +262,13 @@ export function HomePage() {
                   className="home-card__media"
                   style={{ backgroundImage: `url(${HOME_IMAGE_URLS.vision})` }}
                 />
-              </article>
-              <article className="home-card home-card--tile">
+              </button>
+              <button
+                type="button"
+                className="home-card home-card--tile home-card--btn home-card--clickable"
+                aria-label="Open Pharmacy"
+                onClick={() => navigate(ROUTES.pharmacy)}
+              >
                 <div className="home-card__body">
                   <h3 className="home-card__title home-card__title--lower">pharmacy</h3>
                   <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
@@ -231,7 +277,7 @@ export function HomePage() {
                   className="home-card__media"
                   style={{ backgroundImage: `url(${HOME_IMAGE_URLS.pharmacy})` }}
                 />
-              </article>
+              </button>
             </div>
           </div>
 
@@ -303,6 +349,154 @@ export function HomePage() {
           </div>
         </section>
       </main>
+
+      {isDiagnosticsSheetOpen ? (
+        <dialog
+          className="home-sheet-dialog"
+          open
+          aria-label="Diagnostics"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsDiagnosticsSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setIsDiagnosticsSheetOpen(false);
+          }}
+        >
+          <section className="home-sheet">
+            <header className="home-sheet__header">
+              <h3 className="home-sheet__title">Diagnostics</h3>
+              <button
+                type="button"
+                className="home-sheet__close"
+                aria-label="Close"
+                onClick={() => setIsDiagnosticsSheetOpen(false)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </header>
+
+            <div className="service-hub-grid service-hub-grid--cols-2">
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={healthCheckupSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="Health Checkups"
+                description="Avail Free Health Checkups"
+                onClick={() => {
+                  setIsDiagnosticsSheetOpen(false);
+                  navigate(ROUTES.healthCheckups);
+                }}
+              />
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={labTestsSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="Lab Tests"
+                description="Fully sponsored"
+                onClick={() => {
+                  setIsDiagnosticsSheetOpen(false);
+                  navigate(ROUTES.healthCheckups, { state: { title: "Lab Tests" } });
+                }}
+              />
+            </div>
+          </section>
+        </dialog>
+      ) : null}
+
+      {isConsultationSheetOpen ? (
+        <dialog
+          className="home-sheet-dialog"
+          open
+          aria-label="Consultation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsConsultationSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setIsConsultationSheetOpen(false);
+          }}
+        >
+          <section className="home-sheet">
+            <header className="home-sheet__header">
+              <h3 className="home-sheet__title">Consultation</h3>
+              <button
+                type="button"
+                className="home-sheet__close"
+                aria-label="Close"
+                onClick={() => setIsConsultationSheetOpen(false)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </header>
+
+            <div className="service-hub-grid service-hub-grid--cols-2">
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={atHospitalSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="At Hospital"
+                description="Book Your OPD Consultations Here"
+                onClick={() => {
+                  setIsConsultationSheetOpen(false);
+                  navigate("/consultation/at_hospital");
+                }}
+              />
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={virtualSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="Virtual"
+                description="Connecting Care, Virtually Everywhere"
+                onClick={() => {
+                  setIsConsultationSheetOpen(false);
+                  navigate("/consultation/virtual");
+                }}
+              />
+            </div>
+          </section>
+        </dialog>
+      ) : null}
 
       <HomeBottomNav />
     </div>

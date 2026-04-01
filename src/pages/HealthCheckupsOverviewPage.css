@@ -1,0 +1,425 @@
+.hco-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+}
+
+.hco-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+}
+
+.hco-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #111111;
+  text-decoration: none;
+}
+
+.hco-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.hco-orders {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e4e4e4;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hco-orders__ic {
+  display: inline-flex;
+}
+
+.hco-orders__ic img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.hco-loc {
+  margin: 0 14px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.hco-loc__pin {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.hco-loc__title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+  flex-shrink: 0;
+}
+
+.hco-loc__sep {
+  color: #d0d0d0;
+  font-weight: 700;
+}
+
+.hco-loc__addr {
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hco-loc__chev {
+  display: inline-flex;
+  color: #111111;
+  flex-shrink: 0;
+}
+
+.hco-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hco-main__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 14px 12px;
+}
+
+.hco-subhead {
+  margin: 4px 0 10px;
+  color: #6f6f6f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hco-item {
+  padding: 10px 0 14px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.hco-item__row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.hco-item__text {
+  min-width: 0;
+}
+
+.hco-item__name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.hco-item__meta {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+}
+
+.hco-item__price {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hco-block {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.hco-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.hco-help {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+}
+
+.hco-alt {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  border: 1px solid #e1e1e1;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.hco-alt__cc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f6f6;
+  font-size: 11px;
+  font-weight: 800;
+  color: #8e8e8e;
+}
+
+.hco-alt__input {
+  border: none;
+  padding: 10px 10px;
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.hco-dt {
+  margin-top: 10px;
+  border: 1px solid #e1e1e1;
+  border-radius: 6px;
+  padding: 10px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hco-dt__value {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.hco-dt__edit {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  padding: 0;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.hco-totals {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.hco-totals__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.hco-totals__k {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hco-totals__v {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hco-totals__muted .hco-totals__k,
+.hco-totals__muted .hco-totals__v {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8e8e8e;
+}
+
+.hco-wallet {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0 6px;
+}
+
+.hco-wallet__k {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.hco-wallet__sub {
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+}
+
+.hco-wallet__v {
+  font-size: 12px;
+  font-weight: 900;
+  color: #ff541e;
+}
+
+.hco-net {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 0 0;
+}
+
+.hco-net__k {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hco-net__v {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.hco-net__strike {
+  color: #7c7c7c;
+  text-decoration: line-through;
+  margin-right: 8px;
+  font-weight: 800;
+}
+
+.hco-coins {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hco-coins__text {
+  font-size: 10px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.hco-coins__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eaffea;
+  color: #2e7d32;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.hco-coins__coin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #2e7d32;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.hco-coins__worth {
+  margin-left: 6px;
+  font-weight: 800;
+}
+
+.hco-coins__note {
+  margin: 8px 0 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+}
+
+.hco-remarks {
+  margin-top: 12px;
+  border: 1px solid #eeeeee;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.hco-remarks__k {
+  font-size: 9px;
+  font-weight: 900;
+  color: #ff541e;
+}
+
+.hco-remarks__v {
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+}
+
+.hco-paybar {
+  flex-shrink: 0;
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+  display: block;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.06);
+}
+
+.hco-paybar__amt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  min-width: 72px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #0b0b0b;
+  color: #ff541e;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.hco-paybar__btn {
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 10px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+}
+
+.hco-paybar__label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 300;
+  color: #ffffff;
+  text-align: right;
+  margin-right: 10px;
+}
+
