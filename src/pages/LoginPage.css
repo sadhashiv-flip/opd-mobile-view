@@ -13,6 +13,24 @@
   padding: 0 20px 24px;
 }
 
+.login-page__brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.login-page__logo {
+  display: block;
+  max-width: min(200px, 52vw);
+  width: auto;
+  height: auto;
+  max-height: 40px;
+  object-fit: contain;
+  object-position: center;
+}
+
 .login-page__header {
   margin-bottom: 28px;
   text-align: center;

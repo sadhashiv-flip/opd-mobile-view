@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { LoginFieldValidIcon } from "@/assets/icons/react";
+import logoDark from "@/assets/images/logos/logo-dark.png";
 import { useLoginPage } from "@/hooks/useLoginPage";
 import "./LoginPage.css";
 
@@ -14,6 +15,7 @@ export function LoginPage() {
     canProceed,
     handleConfirm,
     labelText,
+    isSubmitting,
   } = useLoginPage();
 
   return (
@@ -22,6 +24,14 @@ export function LoginPage() {
     >
       <div className="login-page__body">
         <div className="login-page__spacer">
+          <div className="login-page__brand">
+            <img
+              className="login-page__logo"
+              src={logoDark}
+              alt="OPD Mobile"
+              decoding="async"
+            />
+          </div>
           <header className="login-page__header">
             <h1 className="login-page__title">
               Enter Mobile/Email to Login/Signup
@@ -73,10 +83,10 @@ export function LoginPage() {
           <button
             type="button"
             className="login-page__confirm"
-            disabled={!filled && !canProceed}
-            onClick={handleConfirm}
+            disabled={isSubmitting || !canProceed}
+            onClick={() => void handleConfirm()}
           >
-            Confirm
+            {isSubmitting ? "Please wait…" : "Confirm"}
           </button>
         </footer>
       </div>

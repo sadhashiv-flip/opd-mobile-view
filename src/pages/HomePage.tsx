@@ -73,6 +73,7 @@ export function HomePage() {
               type="button"
               className="home-icon-btn home-icon-btn--round"
               aria-label="Profile"
+              onClick={() => navigate(ROUTES.profile)}
             >
               <HomeProfileIcon />
             </button>
