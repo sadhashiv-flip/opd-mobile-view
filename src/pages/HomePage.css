@@ -466,7 +466,8 @@
 .home-card--tile {
   display: flex;
   flex-direction: column;
-  min-height: 91px;
+  height: 100px;
+  min-height: 0;
 }
 
 .home-card--tile .home-card__body {
@@ -500,7 +501,7 @@
 }
 
 .home-card--tile-consult .home-card__body {
-  padding: 8px 8px 4px;
+  padding: 10px 10px 6px;
 }
 
 .home-card--tile-consult .home-card__loc-row--tile {
@@ -536,7 +537,7 @@
   line-height: 1;
   text-transform: uppercase;
   color: var(--color-brand-orange);
-  background: linear-gradient(180deg, #ffc0ac 0%, #ffffff 100%);
+  background: linear-gradient(90deg, #ffc0ac 0%, #ffffff 100%);
 }
 
 /* Orange pill, white bolt + label (Consultation) — gradient border via clip (works with radius) */

@@ -60,6 +60,9 @@
 .hcp-main {
   flex: 1;
   padding: 8px 14px 18px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .hcp-loc {
@@ -106,12 +109,95 @@
 }
 
 .hcp-card {
-  margin-top: 28px;
+  margin-top: 16px;
   border: 1.5px solid #ff541e;
   border-radius: 20px;
   padding: 14px 14px 0;
   background: #ffffff;
   overflow: hidden;
+}
+
+.hcp-plans {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.28) transparent;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.hcp-plans__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #ffffff;
+  padding: 10px 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.hcp-plans__title {
+  font-size: 12px;
+  font-weight: 900;
+  color: #111111;
+}
+
+.hcp-plans__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hcp-pagebtn {
+  border: 1px solid #e6e6e6;
+  background: #ffffff;
+  border-radius: 10px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hcp-pagebtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hcp-pagecount {
+  font-size: 10px;
+  font-weight: 800;
+  color: #6f6f6f;
+}
+
+.hcp-plans::-webkit-scrollbar {
+  width: 8px;
+}
+
+.hcp-plans::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hcp-plans::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.hcp-plans::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.32);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.hcp-plans .hcp-card:first-child {
+  margin-top: 28px;
 }
 
 .hcp-card--interactive {

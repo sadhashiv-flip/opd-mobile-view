@@ -1,11 +1,14 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
 
 export function HealthCheckupsOverviewPage() {
   const navigate = useNavigate();
+  const params = useParams();
+  const type = typeof params.type === "string" ? params.type : "health-checkups";
+  const pageTitle = type === "lab-tests" ? "Lab Tests" : "Health Checkups";
   const vendorId = useMemo(() => {
     try {
       return localStorage.getItem("opd-mobile-view.diagnostics.vendorId") ?? "";
@@ -27,7 +30,11 @@ export function HealthCheckupsOverviewPage() {
   return (
     <div className="hco-page">
       <header className="hco-top">
-        <Link to={ROUTES.diagnosticsSlots} className="hco-back" aria-label="Back to slots">
+        <Link
+          to={generatePath(ROUTES.diagnosticsSlots, { type })}
+          className="hco-back"
+          aria-label="Back to slots"
+        >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -38,7 +45,7 @@ export function HealthCheckupsOverviewPage() {
             />
           </svg>
         </Link>
-        <h1 className="hco-title">Health Checkups</h1>
+        <h1 className="hco-title">{pageTitle}</h1>
         <Link to={ROUTES.orders} className="hco-orders">
           <span className="hco-orders__ic" aria-hidden="true">
             <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
@@ -177,7 +184,7 @@ export function HealthCheckupsOverviewPage() {
           <button
             type="button"
             className="hco-paybar__btn"
-            onClick={() => navigate(ROUTES.bookingSuccess)}
+            onClick={() => navigate(generatePath(ROUTES.diagnosticsBookingSuccess, { type }))}
           >
             <span className="hco-paybar__amt">₹ 0</span>
             <span className="hco-paybar__label">Confirm and pay</span>

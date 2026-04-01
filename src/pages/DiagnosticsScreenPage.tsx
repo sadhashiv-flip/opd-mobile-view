@@ -1,10 +1,12 @@
 import { ROUTES } from "@/constants";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./DiagnosticsScreenPage.css";
 
 export function DiagnosticsScreenPage() {
   const navigate = useNavigate();
+  const params = useParams();
+  const type = typeof params.type === "string" ? params.type : "health-checkups";
   const vendors = useMemo(
     () => [
       { id: "thyrocare", name: "Thyrocare", meta: "Home collection available" },
@@ -19,7 +21,7 @@ export function DiagnosticsScreenPage() {
     <div className="ds-page">
       <header className="ds-top">
         <Link
-          to={ROUTES.healthCheckupsPlan}
+          to={generatePath(ROUTES.diagnosticsPlan, { type })}
           className="ds-back"
           aria-label="Back to Health Checkups plan"
         >
@@ -72,7 +74,7 @@ export function DiagnosticsScreenPage() {
             } catch {
               // ignore storage errors
             }
-            navigate(ROUTES.diagnosticsSlots);
+            navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
           }}
         >
           Continue

@@ -17,7 +17,7 @@ export function BookingSuccessPage() {
             />
           </svg>
         </div>
-        <h1 className="bs-title">Booking Successfully</h1>
+        <h1 className="bs-title">Appointment booking successfully.</h1>
         <p className="bs-sub">
           Your booking has been confirmed. You can track it in My Orders.
         </p>

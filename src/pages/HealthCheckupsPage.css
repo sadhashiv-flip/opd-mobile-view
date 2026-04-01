@@ -31,6 +31,17 @@
   line-height: 1.2;
 }
 
+.hc-mode {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ff541e;
+  padding: 6px 10px;
+  border: 1px solid #ffe2d8;
+  background: #fff7f3;
+  border-radius: 999px;
+}
+
 .hc-main {
   flex: 1;
   padding: 8px 14px 18px;
