@@ -1,0 +1,387 @@
+.gmo-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.gmo-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.gmo-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #111111;
+  text-decoration: none;
+}
+
+.gmo-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.gmo-main {
+  flex: 1;
+  padding: 14px 14px 100px;
+  overflow: auto;
+}
+
+.gmo-section-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9a9a9a;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.gmo-section-label--spaced {
+  margin-top: 22px;
+}
+
+.gmo-pu-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.gmo-pu-ic {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: #ff6b2c;
+}
+
+/* Beneficiary cards — white card + gradient banners only (not configure shell) */
+.gmo-ben {
+  border: 1px solid #3a3a3a;
+  border-radius: 12px;
+  background: #ffffff;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.gmo-ben__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 10px 8px;
+  padding: 14px 12px 12px;
+  align-items: stretch;
+}
+
+.gmo-ben__col--left {
+  min-width: 0;
+}
+
+.gmo-ben__col--center {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 2px;
+}
+
+.gmo-ben__col--right {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.gmo-ben__row {
+  display: grid;
+  grid-template-columns: 40px 10px minmax(0, 1fr);
+  column-gap: 4px;
+  align-items: baseline;
+  margin-bottom: 9px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gmo-ben__row:last-child {
+  margin-bottom: 0;
+}
+
+.gmo-ben__k {
+  font-weight: 600;
+  color: #888888;
+  text-align: left;
+}
+
+.gmo-ben__sep {
+  font-weight: 600;
+  color: #888888;
+  text-align: center;
+}
+
+.gmo-ben__v {
+  font-weight: 600;
+  color: #000000;
+  word-break: break-word;
+  min-width: 0;
+  width: max-content;
+}
+
+.gmo-ben__city-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
+  width: max-content;
+}
+
+.gmo-ben__pencil {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1565c0;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.gmo-ben__tier {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111111;
+  line-height: 1.2;
+}
+
+.gmo-ben__tier-muted {
+  font-weight: 600;
+  color: #000000;
+}
+
+.gmo-ben__tier-accent {
+  font-weight: 800;
+  text-transform: uppercase;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.gmo-ben__tier-accent--elite {
+  background-image: linear-gradient(
+    118deg,
+    #fff9e6 0%,
+    #ffe08a 22%,
+    #f5c542 48%,
+    #ff9a3c 72%,
+    #ff6b2c 100%
+  );
+}
+
+.gmo-ben__tier-accent--pro {
+  background-image: linear-gradient(
+    118deg,
+    #e8f7ff 0%,
+    #9fd9ff 28%,
+    #4da3ff 58%,
+    #1e6ef5 100%
+  );
+}
+
+.gmo-ben__months {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.gmo-ben__price {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #000000;
+  line-height: 1.2;
+}
+
+.gmo-ben__tax {
+  margin: 4px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #888888;
+}
+
+.gmo-ben__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.gmo-ben__action {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gmo-ben__action--remove {
+  color: #ff6b2c;
+}
+
+.gmo-ben__action--edit {
+  color: #1565c0;
+}
+
+/* Gradient banner strips (green / orange) */
+.gmo-ben__banner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.gmo-ben__banner--primary {
+  background: linear-gradient(260.79deg, #000000 0%, #1aad0d 98.43%);
+}
+
+.gmo-ben__banner--secondary {
+  background: linear-gradient(260.79deg, #000000 0%, #ff541e 98.43%);
+}
+
+.gmo-ben__banner svg {
+  flex-shrink: 0;
+  color: #ffffff;
+  opacity: 1;
+}
+
+.gmo-note {
+  margin: 14px 0 0;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 600;
+  color: #777;
+}
+
+/* Payment */
+.gmo-pay-title {
+  margin: 24px 0 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #111;
+}
+
+.gmo-pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gmo-pay-row--muted .gmo-pay-label {
+  color: #555;
+}
+
+.gmo-pay-label {
+  color: #333;
+}
+
+.gmo-pay-value {
+  color: #111;
+}
+
+.gmo-pay-value--wallet {
+  color: #ff6b2c;
+}
+
+.gmo-pay-sep {
+  height: 1px;
+  background: #e8e8e8;
+  margin: 12px 0;
+}
+
+.gmo-pay-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 15px;
+  font-weight: 800;
+  color: #111;
+}
+
+/* Remarks */
+.gmo-remarks {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: #f3f3f3;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #111;
+}
+
+.gmo-remarks strong {
+  color: #ff6b2c;
+  font-weight: 800;
+}
+
+/* Fixed bar aligned to mobile column */
+.gmo-footer {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(100%, var(--mobile-frame-max-width, 430px));
+  box-sizing: border-box;
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0));
+  padding-left: calc(14px + env(safe-area-inset-left, 0px));
+  padding-right: calc(14px + env(safe-area-inset-right, 0px));
+  background: #ffffff;
+  border-top: 1px solid #ececec;
+}
+
+.gmo-pay-btn {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.gmo-pay-btn:focus-visible {
+  outline: 2px solid rgba(255, 84, 30, 0.5);
+  outline-offset: 2px;
+}

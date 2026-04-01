@@ -1,0 +1,409 @@
+.gmc-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #f5f5f5;
+  color: #111111;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.gmc-main {
+  flex: 1;
+  padding: 8px 14px 12px;
+  overflow: auto;
+}
+
+.gmc-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/*
+ * Full-card 1px gradient border (same gradients as border-image; background-clip keeps rounded corners).
+ * Primary: border-image-source: linear-gradient(260.79deg, #000000 0%, #1AAD0D 98.43%);
+ * Secondary: border-image-source: linear-gradient(260.79deg, #000000 0%, #FF541E 98.43%);
+ */
+.gmc-card {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.gmc-card--primary {
+  background-image:
+    linear-gradient(#ffffff, #ffffff),
+    linear-gradient(260.79deg, #000000 0%, #1aad0d 98.43%);
+}
+
+.gmc-card--secondary {
+  background-image:
+    linear-gradient(#ffffff, #ffffff),
+    linear-gradient(260.79deg, #000000 0%, #ff541e 98.43%);
+}
+
+.gmc-card__inner {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gmc-card__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: #e0e0e0;
+  color: #111111;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.gmc-card__close:focus-visible {
+  outline: 2px solid rgba(0, 123, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.gmc-card__body {
+  padding: 18px 44px 28px 18px;
+}
+
+/* Label | : | value — fixed label width so colons line up (matches reference) */
+.gmc-card__row {
+  display: grid;
+  grid-template-columns: 4.75rem 12px minmax(0, 1fr);
+  column-gap: 4px;
+  align-items: baseline;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.gmc-card__row:last-of-type {
+  margin-bottom: 0;
+}
+
+/* Package + Center List on one line; Center List right-aligned with value column */
+.gmc-card__row--package {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.gmc-card__package-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.gmc-card__package-value {
+  flex: 1;
+  min-width: 0;
+}
+
+
+.gmc-card__label {
+  margin: 0;
+  font-weight: 500;
+  color: #808080;
+  text-align: left;
+}
+
+.gmc-card__sep {
+  color: #808080;
+  font-weight: 500;
+  text-align: center;
+  justify-self: stretch;
+  width: 12px;
+}
+
+.gmc-card__value {
+  margin: 0;
+  font-weight: 600;
+  color: #111111;
+  text-align: left;
+  word-break: break-word;
+}
+
+.gmc-card__link {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #007bff;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  justify-self: start;
+}
+
+.gmc-card__center-list {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  margin-left: auto;
+  text-align: right;
+}
+
+.gmc-card__center-list-pin {
+  flex-shrink: 0;
+  color: #007bff;
+}
+
+/* Footer band: thicker bar, gradient aligned with card theme */
+.gmc-card__band {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 5px;
+  margin-top: 0;
+  color: #ffffff;
+}
+
+.gmc-card--primary .gmc-card__band {
+  background: linear-gradient(260.79deg, #000000 0%, #1aad0d 98.43%);
+}
+
+.gmc-card--secondary .gmc-card__band {
+  background: linear-gradient(260.79deg, #000000 0%, #ff541e 98.43%);
+}
+
+.gmc-card__band-shield {
+  flex-shrink: 0;
+  color: #ffffff;
+  opacity: 0.95;
+}
+
+.gmc-card__band-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+}
+
+.gmc-footer {
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+  border-top: 1px solid #ececec;
+}
+
+.gmc-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.4;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.gmc-terms input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: #111;
+  cursor: pointer;
+}
+
+.gmc-terms__text {
+  user-select: none;
+}
+
+.gmc-terms__link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: #007bff;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gmc-continue {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.gmc-continue:disabled {
+  background: #c4c4c4;
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+/* —— Select Package bottom sheet (inset: not full viewport) —— */
+.gmc-pkg-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 12px;
+  padding-top: max(48px, calc(env(safe-area-inset-top, 0px) + 24px));
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.gmc-pkg-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.gmc-pkg-sheet {
+  --gmc-pkg-sheet-top-reserve: max(48px, calc(env(safe-area-inset-top, 0px) + 24px));
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: min(440px, 100%);
+  /* Cap height so dimmed area stays visible; sheet sits above safe areas */
+  max-height: min(72dvh, calc(100dvh - var(--gmc-pkg-sheet-top-reserve) - 12px));
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 16px 16px 12px 12px;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18);
+  animation: gmc-pkg-sheet-in 0.22s ease-out;
+  min-height: 0;
+}
+
+@keyframes gmc-pkg-sheet-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0.96;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.gmc-pkg-sheet__header {
+  position: relative;
+  flex-shrink: 0;
+  padding: 16px 44px 12px;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.gmc-pkg-sheet__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #111;
+}
+
+.gmc-pkg-sheet__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: #e8e8e8;
+  color: #333;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.gmc-pkg-sheet__close:focus-visible {
+  outline: 2px solid rgba(0, 123, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.gmc-pkg-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 12px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gmc-pkg-sheet__body .gym-plan-list {
+  gap: 12px;
+}
+
+.gmc-pkg-sheet__footer {
+  flex-shrink: 0;
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+}
+
+.gmc-pkg-sheet__proceed {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.gmc-pkg-sheet__proceed:disabled {
+  background: #c4c4c4;
+  color: #ffffff;
+  cursor: not-allowed;
+}

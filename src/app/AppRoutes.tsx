@@ -14,6 +14,10 @@ import { OtpPage } from "../pages/OtpPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
 import { GymMembershipPage } from "@/pages/GymMembershipPage";
+import { GymMembershipSelectPeoplePage } from "@/pages/GymMembershipSelectPeoplePage";
+import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
+import { GymMembershipOverviewPage } from "@/pages/GymMembershipOverviewPage";
+import { GymSelectClinicPage } from "@/pages/GymSelectClinicPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -50,6 +54,22 @@ export function AppRoutes() {
       <Route
         path={ROUTES.gymMembership}
         element={<GymMembershipPage />}
+      />
+      <Route
+        path={ROUTES.gymMembershipSelectPeople}
+        element={<GymMembershipSelectPeoplePage />}
+      />
+      <Route
+        path={ROUTES.gymMembershipConfigure}
+        element={<GymMembershipConfigurePage />}
+      />
+      <Route
+        path={ROUTES.gymMembershipOverview}
+        element={<GymMembershipOverviewPage />}
+      />
+      <Route
+        path={ROUTES.gymMembershipSelectClinic}
+        element={<GymSelectClinicPage />}
       />
       <Route path="*" element={<Navigate to={ROUTES.root} replace />} />
     </Routes>

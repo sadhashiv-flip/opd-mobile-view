@@ -41,6 +41,7 @@ body {
 
 .mobile-frame {
   width: 100%;
+  max-width: var(--mobile-frame-max-width, 430px);
   min-height: 100dvh;
   box-sizing: border-box;
   background: #ffffff;

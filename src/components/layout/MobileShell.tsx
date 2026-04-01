@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 const MOBILE_MAX_WIDTH = 430;
 
@@ -9,10 +9,15 @@ type MobileShellProps = Readonly<{
 /** Layout shell: constrains the app to a phone-width column (SRP: layout only). */
 export function MobileShell({ children }: MobileShellProps) {
   return (
-    <div className="mobile-app-root">
-      <div className="mobile-frame" style={{ maxWidth: MOBILE_MAX_WIDTH }}>
-        {children}
-      </div>
+    <div
+      className="mobile-app-root"
+      style={
+        {
+          "--mobile-frame-max-width": `${MOBILE_MAX_WIDTH}px`,
+        } as CSSProperties
+      }
+    >
+      <div className="mobile-frame">{children}</div>
     </div>
   );
 }
