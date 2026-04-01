@@ -17,20 +17,6 @@ export function AddFamilyMemberPage() {
     return "Health Checkups";
   })();
 
-  const returnPath =
-    typeof (location.state as { returnPath?: unknown } | null)?.returnPath === "string"
-      ? (location.state as { returnPath: string }).returnPath
-      : ROUTES.healthCheckups;
-
-  const returnState =
-    location.state &&
-    typeof location.state === "object" &&
-    "returnState" in location.state &&
-    location.state.returnState !== null &&
-    typeof (location.state as { returnState?: unknown }).returnState === "object"
-      ? ((location.state as { returnState: Record<string, unknown> }).returnState ?? {})
-      : {};
-
   const [relationship, setRelationship] = useState("");
   const [name, setName] = useState("");
   const [dob, setDob] = useState("");

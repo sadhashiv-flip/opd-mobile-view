@@ -22,6 +22,7 @@ import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
 import { GymMembershipOverviewPage } from "@/pages/GymMembershipOverviewPage";
 import { GymSelectClinicPage } from "@/pages/GymSelectClinicPage";
 import { SplashPage } from "@/pages/SplashPage";
+import { CartOverviewPage } from "@/pages/CartOverviewPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -42,6 +43,7 @@ export function AppRoutes() {
       <Route path={ROUTES.diagnosticsSlots} element={<DiagnosticsSlotsPage />} />
       <Route path={ROUTES.diagnosticsOverview} element={<HealthCheckupsOverviewPage />} />
       <Route path={ROUTES.diagnosticsBookingSuccess} element={<BookingSuccessPage />} />
+      <Route path={ROUTES.cartOverview} element={<CartOverviewPage />} />
 
       {/* Legacy redirects */}
       <Route path="/health-checkups" element={<Navigate to="/Diagnostics/health-checkups" replace />} />

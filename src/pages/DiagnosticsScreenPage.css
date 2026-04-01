@@ -35,71 +35,238 @@
   padding: 14px;
 }
 
-.ds-subtitle {
-  margin: 10px 0 12px;
-  font-size: 12px;
+.ds-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.ds-location__pin {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.ds-location__title {
+  font-size: 11px;
   font-weight: 800;
   color: #111111;
+  flex-shrink: 0;
+}
+
+.ds-location__sep {
+  color: #d0d0d0;
+  font-weight: 700;
+}
+
+.ds-location__addr {
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-location__chev {
+  display: inline-flex;
+  color: #111111;
+  flex-shrink: 0;
+}
+
+.ds-mode {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.ds-mode__pill {
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+  cursor: pointer;
+}
+
+.ds-mode__pill--active {
+  background: #0b0b0b;
+  border-color: #0b0b0b;
+  color: #ffffff;
 }
 
 .ds-vendors {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
-.ds-vendor {
+.ds-vendor-card {
   width: 100%;
-  border: 1px solid #e6e6e6;
+  border: 1px solid #dcdcdc;
   background: #ffffff;
-  border-radius: 14px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  border-radius: 18px;
+  padding: 14px;
   text-align: left;
   cursor: pointer;
 }
 
-.ds-vendor--selected {
+.ds-vendor-card--selected {
   border-color: #ff541e;
-  box-shadow: 0 0 0 1px rgba(255, 84, 30, 0.2);
 }
 
-.ds-vendor__dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid #ff541e;
-  position: relative;
+.ds-vendor-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ds-vendor-card__brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ds-vendor-card__name {
+  font-size: 16px;
+  font-weight: 900;
+  color: #111111;
+}
+
+.ds-vendor-card__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #111111;
+  background: #f3f3f3;
+}
+
+.ds-vendor-card__check {
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  border: 1.5px solid #9f9f9f;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 900;
+  color: #ffffff;
+  background: transparent;
   flex-shrink: 0;
 }
 
-.ds-vendor--selected .ds-vendor__dot::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: #ff541e;
+.ds-vendor-card__check--on {
+  border-color: #0b0b0b;
+  background: #0b0b0b;
 }
 
-.ds-vendor__text {
-  min-width: 0;
+.ds-vendor-card__addr {
+  margin-top: 6px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.ds-vendor__name {
-  font-size: 12px;
+.ds-vendor-card__addr-text {
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+  line-height: 1.25;
+}
+
+.ds-vendor-card__distance {
+  font-size: 9px;
+  font-weight: 800;
+  color: #8e8e8e;
+  white-space: nowrap;
+}
+
+.ds-vendor-card__plan {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ds-vendor-card__plan-name {
+  font-size: 11px;
   font-weight: 800;
   color: #111111;
 }
 
-.ds-vendor__meta {
-  font-size: 10px;
+.ds-vendor-card__plan-for {
+  margin-top: 2px;
+  font-size: 9px;
   font-weight: 700;
   color: #8e8e8e;
+}
+
+.ds-vendor-card__free {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #2e7d32;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.ds-vendor-card__pay {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.ds-vendor-card__pay-label {
+  color: #111111;
+}
+
+.ds-vendor-card__pay-amt {
+  color: #111111;
+}
+
+.ds-vendor-card__footer {
+  margin: 12px -14px -14px;
+  padding: 12px 14px;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-vendor-card__footer--home {
+  background: #ff541e;
 }
 
 .ds-footer {
@@ -117,5 +284,10 @@
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.ds-continue:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 

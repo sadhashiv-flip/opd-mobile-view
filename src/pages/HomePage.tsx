@@ -270,7 +270,7 @@ export function HomePage() {
                 onClick={() => navigate(ROUTES.pharmacy)}
               >
                 <div className="home-card__body">
-                  <h3 className="home-card__title home-card__title--lower">pharmacy</h3>
+                  <h3 className="home-card__title">Pharmacy</h3>
                   <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
                 </div>
                 <div
@@ -382,7 +382,7 @@ export function HomePage() {
               </button>
             </header>
 
-            <div className="service-hub-grid service-hub-grid--cols-2">
+            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
               <ServiceHubCard
                 icon={
                   <img
@@ -456,7 +456,7 @@ export function HomePage() {
               </button>
             </header>
 
-            <div className="service-hub-grid service-hub-grid--cols-2">
+            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
               <ServiceHubCard
                 icon={
                   <img

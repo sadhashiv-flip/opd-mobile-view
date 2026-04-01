@@ -29,6 +29,7 @@ export const ROUTES = {
   gymMembershipConfigure: "/gym-membership/configure",
   gymMembershipOverview: "/gym-membership/overview",
   gymMembershipSelectClinic: "/gym-membership/select-clinic",
+  cartOverview: "/cart-overview",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

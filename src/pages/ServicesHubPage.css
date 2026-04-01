@@ -5,8 +5,10 @@
   background: #ffffff;
   color: #111111;
   /* Same tile size for every tab: Services, OPD Claims, Account, Help, Medical Records */
-  --service-hub-card-width: 124px;
+  --service-hub-card-width: 118px;
   --service-hub-card-height: 115px;
+  --service-hub-card-radius: 10px;
+  --service-hub-card-pad: 8px;
 }
 
 .services-hub__top {
@@ -75,8 +77,8 @@
 }
 
 .services-hub__tab-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   color: currentColor;
 }
@@ -113,21 +115,14 @@
 
 .service-hub-grid {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
   justify-items: center;
 }
 
-.service-hub-grid--cols-3 {
-  grid-template-columns: repeat(
-    3,
-    minmax(0, var(--service-hub-card-width))
-  );
-}
-
 .service-hub-grid--cols-2 {
   grid-template-columns: repeat(
-    2,
+    3,
     minmax(0, var(--service-hub-card-width))
   );
   /* Fill from the left; avoids centered block when fewer columns than container */
@@ -145,10 +140,10 @@
   height: var(--service-hub-card-height);
   min-height: var(--service-hub-card-height);
   margin: 0;
-  padding: 8px 8px 6px;
+  padding: var(--service-hub-card-pad);
   border: none;
-  border-radius: 10px;
-  background: #f4f4f4;
+  border-radius: var(--service-hub-card-radius);
+  background: #f3f3f3;
   text-align: left;
   overflow: hidden;
   opacity: 1;
@@ -180,42 +175,42 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #ffffff;
-  background: linear-gradient(to right, #e34a26, #000000);
+  background: linear-gradient(to right, #c53a1c, #000000);
 }
 
 .service-hub-card__icon {
   display: flex;
   flex-shrink: 0;
-  margin-bottom: 4px;
+  margin-bottom: 35px;
   color: #111111;
 }
 
 .service-hub-card__icon svg {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
 }
 
 .service-hub-card__img-icon {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
 }
 
 .service-hub-card__title {
-  margin: 0 0 2px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
+  margin: 0 0 8px;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.1;
   color: #111111;
 }
 
 .service-hub-card__desc {
   margin: 0;
-  font-size: 8px;
+  font-size: 6px;
   font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.25;
   color: #757575;
   display: -webkit-box;
   -webkit-box-orient: vertical;

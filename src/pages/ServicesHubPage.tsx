@@ -37,7 +37,8 @@ export function ServicesHubPage() {
 
   const items = getHubItems(tabId);
   const heading = getHubHeading(tabId);
-  const gridCols = tabId === "opd-claims" ? 2 : 3;
+  // Use 2 columns so cards can match the larger tile style consistently.
+  const gridCols = 2;
 
   const [medicalSelectedId, setMedicalSelectedId] = useState("lab");
 

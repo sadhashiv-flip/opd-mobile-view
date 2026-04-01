@@ -1,0 +1,148 @@
+.co-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+}
+
+.co-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 8px;
+}
+
+.co-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #111111;
+  text-decoration: none;
+}
+
+.co-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.co-main {
+  flex: 1;
+  padding: 6px 14px 18px;
+}
+
+.co-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #6f6f6f;
+  margin-bottom: 10px;
+}
+
+.co-info__ic {
+  display: inline-flex;
+}
+
+.co-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.co-item {
+  border: 1px solid #e6e6e6;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.co-item__text {
+  min-width: 0;
+}
+
+.co-item__title {
+  font-size: 10px;
+  font-weight: 900;
+  color: #111111;
+}
+
+.co-item__sub {
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #9a9a9a;
+}
+
+.co-item__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.co-icon-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.co-footer {
+  padding: 14px 14px calc(18px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+}
+
+.co-footer__inner {
+  border-radius: 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.co-footer__left {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.co-footer__btn {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.co-footer__go {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--color-brand-orange);
+  color: #0b0b0b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
