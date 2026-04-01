@@ -1,5 +1,5 @@
 import type { ComponentPropsWithoutRef } from "react";
-import walletSvg from "./Dashboard/Wallet.svg";
+import walletSvg from "../Dashboard/Wallet.svg";
 
 export type HomeWalletIconProps = Readonly<
   Omit<ComponentPropsWithoutRef<"img">, "src" | "alt">

@@ -1,5 +1,5 @@
 import type { ComponentPropsWithoutRef } from "react";
-import voiceRecordSvg from "./Dashboard/VoiceRecord.svg";
+import voiceRecordSvg from "../Dashboard/VoiceRecord.svg";
 
 export type HomeVoiceRecordIconProps = Readonly<
   Omit<ComponentPropsWithoutRef<"img">, "src" | "alt">

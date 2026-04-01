@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { LoginFieldValidIcon } from "@/assets/icons";
+import { LoginFieldValidIcon } from "@/assets/icons/react";
 import { useLoginPage } from "@/hooks/useLoginPage";
 import "./LoginPage.css";
 

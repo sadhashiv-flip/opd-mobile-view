@@ -197,7 +197,7 @@
 
 /* Second screen (validated) */
 .login-page--filled {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: inherit;
 }
 
 .login-page--filled .login-page__title,
@@ -205,7 +205,7 @@
 .login-page--filled .login-page__label,
 .login-page--filled .login-page__input,
 .login-page--filled .login-page__consent {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: inherit;
 }
 
 .login-page--filled .login-page__link {
