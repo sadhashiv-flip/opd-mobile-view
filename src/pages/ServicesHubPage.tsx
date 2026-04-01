@@ -9,7 +9,7 @@ import {
 } from "@/constants/servicesHubContent";
 import { ROUTES } from "@/constants";
 import { useCallback, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import "./ServicesHubPage.css";
 
 function parseTab(raw: string | null): HubTabId {
@@ -25,6 +25,8 @@ export function ServicesHubPage() {
     () => parseTab(searchParams.get("tab")),
     [searchParams],
   );
+
+  const navigate = useNavigate();
 
   const setTab = useCallback(
     (id: HubTabId) => {
@@ -123,7 +125,9 @@ export function ServicesHubPage() {
                 badge={item.badge}
                 selected={selected}
                 onClick={
-                  isMedical
+                  tabId === "services" && item.id === "gym"
+                    ? () => navigate(ROUTES.gymMembership)
+                    : isMedical
                     ? () => setMedicalSelectedId(item.id)
                     : undefined
                 }
