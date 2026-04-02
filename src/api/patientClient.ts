@@ -9,6 +9,18 @@ export function getPatientApiBase(): string {
   return base;
 }
 
+/**
+ * Base URL for `POST /upload` (e.g. cheque). Falls back to {@link getPatientApiBase} if unset.
+ * Set `VITE_API_UPLOAD_URL` when the upload service differs from the main patient API.
+ */
+export function getUploadApiBase(): string {
+  const raw = import.meta.env.VITE_API_UPLOAD_URL;
+  if (typeof raw === "string" && raw.trim()) {
+    return raw.trim().replace(/\/$/, "");
+  }
+  return getPatientApiBase();
+}
+
 export async function readPatientApiError(res: Response): Promise<string> {
   const text = await res.text();
   if (!text) return `Request failed (${res.status})`;

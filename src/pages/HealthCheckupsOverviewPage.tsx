@@ -99,7 +99,7 @@ export function HealthCheckupsOverviewPage() {
         </section>
 
         <section className="hco-block">
-          <div className="hco-label">Phone number : +91 9999999999</div>
+          <div className="hco-label">Phone number : +91 73********</div>
           <div className="hco-help">Booking related updates will be sent on this number</div>
         </section>
 

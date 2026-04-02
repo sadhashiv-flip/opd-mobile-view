@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ROUTES } from "../constants";
-import { AddFamilyMemberPage } from "../pages/AddFamilyMemberPage";
+import { ProfileMembersAddPage } from "@/pages/ProfileMembersAddPage";
 import { BookingSuccessPage } from "../pages/BookingSuccessPage";
 import { ConsultationAppointmentSlotsPage } from "../pages/ConsultationAppointmentSlotsPage";
 import { ConsultationAppointmentOverviewPage } from "../pages/ConsultationAppointmentOverviewPage";
@@ -24,6 +24,13 @@ import { GymSelectClinicPage } from "@/pages/GymSelectClinicPage";
 import { SplashPage } from "@/pages/SplashPage";
 import { CartOverviewPage } from "@/pages/CartOverviewPage";
 import { ProfilePage } from "@/pages/ProfilePage";
+import { ProfileAddressPage } from "@/pages/ProfileAddressPage";
+import { ProfileAddressFormPage } from "@/pages/ProfileAddressFormPage";
+import { ProfileBankPage } from "@/pages/ProfileBankPage";
+import { ProfileBankFormPage } from "@/pages/ProfileBankFormPage";
+import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
+import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
+import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -34,12 +41,26 @@ export function AppRoutes() {
       <Route path={ROUTES.otp} element={<OtpPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
       <Route path={ROUTES.profile} element={<ProfilePage />} />
+      <Route path={ROUTES.profileBank} element={<ProfileBankPage />} />
+      <Route path={ROUTES.profileBankAdd} element={<ProfileBankFormPage />} />
+      <Route path={ROUTES.profileBankView} element={<ProfileBankViewPage />} />
+      <Route path={ROUTES.profileBankEdit} element={<ProfileBankFormPage />} />
+      <Route path={ROUTES.profileAddress} element={<ProfileAddressPage />} />
+      <Route path={ROUTES.profileAddressAdd} element={<ProfileAddressFormPage />} />
+      <Route path={ROUTES.profileAddressEdit} element={<ProfileAddressFormPage />} />
+      <Route path={ROUTES.profileMembers} element={<ProfileMembersPage />} />
+      <Route path={ROUTES.profileMembersAdd} element={<ProfileMembersAddPage />} />
+      <Route path={ROUTES.profileMembersEdit} element={<ProfileMembersAddPage />} />
+      <Route path={ROUTES.profileSubscriptions} element={<ProfileSubscriptionsPage />} />
       <Route path="/home" element={<Navigate to={ROUTES.dashboard} replace />} />
       <Route path={ROUTES.services} element={<ServicesHubPage />} />
 
       {/* Diagnostics flows (Health Checkups, Lab Tests, etc.) */}
       <Route path={ROUTES.diagnosticsType} element={<HealthCheckupsPage />} />
-      <Route path={ROUTES.diagnosticsAddFamilyMember} element={<AddFamilyMemberPage />} />
+      <Route
+        path={ROUTES.diagnosticsAddFamilyMember}
+        element={<Navigate to={ROUTES.profileMembersAdd} replace />}
+      />
       <Route path={ROUTES.diagnosticsPlan} element={<HealthCheckupsPlanPage />} />
       <Route path={ROUTES.diagnosticsVendors} element={<DiagnosticsScreenPage />} />
       <Route path={ROUTES.diagnosticsSlots} element={<DiagnosticsSlotsPage />} />
@@ -49,7 +70,10 @@ export function AppRoutes() {
 
       {/* Legacy redirects */}
       <Route path="/health-checkups" element={<Navigate to="/Diagnostics/health-checkups" replace />} />
-      <Route path="/health-checkups/add-family-member" element={<Navigate to="/Diagnostics/health-checkups/add-family-member" replace />} />
+      <Route
+        path="/health-checkups/add-family-member"
+        element={<Navigate to={ROUTES.profileMembersAdd} replace />}
+      />
       <Route path="/health-checkups/plan" element={<Navigate to="/Diagnostics/health-checkups/plan" replace />} />
       <Route path="/health-checkups/diagnostics" element={<Navigate to="/Diagnostics/health-checkups/vendors" replace />} />
       <Route path="/health-checkups/diagnostics/slots" element={<Navigate to="/Diagnostics/health-checkups/slots" replace />} />
@@ -58,7 +82,10 @@ export function AppRoutes() {
 
       {/* Consultation uses same initial pages */}
       <Route path={ROUTES.consultation} element={<HealthCheckupsPage />} />
-      <Route path={ROUTES.consultationAddFamilyMember} element={<AddFamilyMemberPage />} />
+      <Route
+        path={ROUTES.consultationAddFamilyMember}
+        element={<Navigate to={ROUTES.profileMembersAdd} replace />}
+      />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />

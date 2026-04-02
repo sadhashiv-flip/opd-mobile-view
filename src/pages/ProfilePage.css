@@ -192,6 +192,25 @@
   line-height: 1.4;
 }
 
+.profile-page__hero-bmi {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  line-height: 1.35;
+}
+
+.profile-page__hero-bmi-label {
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9e9e9e;
+}
+
 .profile-page__card {
   border-radius: 16px;
   padding: 18px 18px 8px;
@@ -246,6 +265,104 @@
   word-break: break-word;
 }
 
+.profile-page__bmi-value {
+  font-weight: 600;
+}
+
+.profile-page__bmi-value--neutral {
+  color: #212121;
+}
+
+.profile-page__bmi-value--underweight {
+  color: #1565c0;
+}
+
+.profile-page__bmi-value--normal {
+  color: #2e7d32;
+}
+
+.profile-page__bmi-value--overweight {
+  color: #ef6c00;
+}
+
+.profile-page__bmi-value--obese {
+  color: #c62828;
+}
+
+.profile-page__hero-bmi .profile-page__hero-bmi-value {
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.profile-page__manage {
+  margin-top: 20px;
+  border-radius: 16px;
+  padding: 18px 18px 10px;
+  background: #ffffff;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 8px 32px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.profile-page__manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 14px 14px;
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
+  background: #fafafa;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.profile-page__manage-row:first-of-type {
+  margin-top: 0;
+}
+
+.profile-page__manage-row:hover {
+  background: #f3f3f3;
+}
+
+.profile-page__manage-row:active {
+  opacity: 0.92;
+}
+
+.profile-page__manage-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+.profile-page__manage-row-title {
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #212121;
+}
+
+.profile-page__manage-row-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: #757575;
+  line-height: 1.35;
+}
+
+.profile-page__manage-row-chevron {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: #bdbdbd;
+}
+
 .profile-page__account {
   margin-top: 20px;
   border-radius: 16px;
@@ -279,6 +396,12 @@
 
 .profile-page__account-btn:active {
   opacity: 0.88;
+}
+
+.profile-page__account-btn--logout {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  color: #424242;
 }
 
 .profile-page__account-btn--danger {

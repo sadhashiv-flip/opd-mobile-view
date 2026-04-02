@@ -1,0 +1,149 @@
+/* Address list — card UI (reference: light blue cards, primary / set primary) */
+.profile-address-page__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.profile-address-page__add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-brand-orange);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.profile-address-page__add-btn:active {
+  opacity: 0.92;
+}
+
+.profile-address-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 360px) {
+  .profile-address-page__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.profile-address-card {
+  position: relative;
+  padding: 14px 12px 44px;
+  border-radius: 12px;
+  background: #e8f4fc;
+  border: 1px solid rgba(25, 118, 210, 0.12);
+  min-height: 140px;
+  text-align: left;
+}
+
+.profile-address-card__actions {
+  position: absolute;
+  top: 10px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.profile-address-card__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #424242;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.profile-address-card__icon-btn:hover {
+  background: #ffffff;
+}
+
+.profile-address-card__icon-btn:active {
+  opacity: 0.85;
+}
+
+.profile-address-card__icon-btn--danger {
+  color: #c62828;
+}
+
+.profile-address-card__body {
+  padding-right: 56px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #212121;
+}
+
+.profile-address-card__street {
+  margin: 0 0 8px;
+  font-weight: 500;
+}
+
+.profile-address-card__row {
+  margin: 0;
+  font-size: 12px;
+  color: #424242;
+}
+
+.profile-address-card__footer {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.profile-address-card__primary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.profile-address-card__primary-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-brand-orange);
+  color: #ffffff;
+}
+
+.profile-address-card__primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.profile-address-card__tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #1976d2;
+  text-transform: uppercase;
+}

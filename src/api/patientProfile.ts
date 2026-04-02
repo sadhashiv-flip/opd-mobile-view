@@ -1,5 +1,12 @@
 import { patientJson } from "@/api/patientHttp";
 
+/** WHO-style bands for BMI coloring on the profile screen. */
+export type BmiCategory =
+  | "underweight"
+  | "normal"
+  | "overweight"
+  | "obese";
+
 /** Normalized fields for the profile screen (API shape may vary). */
 export type ProfileDisplay = Readonly<{
   name: string;
@@ -9,6 +16,13 @@ export type ProfileDisplay = Readonly<{
   gender: string | null;
   image: string | null;
   age: string | null;
+  /**
+   * Prefer `profile.health_score.value` when present; else other BMI fields or
+   * computed from height/weight.
+   */
+  bmi: string | null;
+  /** Derived from numeric BMI for UI color; null if unknown or out of range. */
+  bmiCategory: BmiCategory | null;
   occupation: string | null;
   bloodGroup: string | null;
   language: string | null;
@@ -38,6 +52,105 @@ function asRecord(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function coerceNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (t === "") return null;
+    const n = Number(t);
+    if (!Number.isNaN(n) && Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+/** Height in metres from `height` (m or cm) or `height_cm`. */
+function heightMetersFromProfile(o: Record<string, unknown>): number | null {
+  const cm = coerceNumber(o.height_cm) ?? coerceNumber(o.heightCm);
+  if (cm != null && cm > 0) return cm / 100;
+  const h = coerceNumber(o.height);
+  if (h == null || h <= 0) return null;
+  if (h > 30) return h / 100;
+  if (h < 4) return h;
+  return h / 100;
+}
+
+function computeBmiFromProfile(o: Record<string, unknown>): number | null {
+  const w =
+    coerceNumber(o.weight) ?? coerceNumber(o.weight_kg) ?? coerceNumber(o.weightKg);
+  const hm = heightMetersFromProfile(o);
+  if (w == null || hm == null || hm <= 0) return null;
+  const bmi = w / (hm * hm);
+  if (!Number.isFinite(bmi) || bmi < 10 || bmi > 65) return null;
+  return bmi;
+}
+
+function normalizeBmiDisplay(o: Record<string, unknown>): string | null {
+  const bmiIndex = coerceNumber(o.body_mass_index);
+  const fromIndex = typeof bmiIndex === "number" ? String(bmiIndex) : null;
+  const direct = str(o.bmi) ?? str(o.BMI) ?? fromIndex;
+  if (direct) {
+    const n = Number(direct.replace(",", "."));
+    if (Number.isNaN(n) || !Number.isFinite(n)) return direct;
+    return n.toFixed(1);
+  }
+  const computed = computeBmiFromProfile(o);
+  if (computed == null) return null;
+  return computed.toFixed(1);
+}
+
+function parseBmiStringToNumber(display: string | null): number | null {
+  if (typeof display === "string" && display.length > 0) {
+    const n = Number(display.replace(",", "."));
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+export function bmiCategoryFromNumeric(bmi: number): BmiCategory | null {
+  if (!Number.isFinite(bmi) || bmi < 10 || bmi > 65) return null;
+  if (bmi < 18.5) return "underweight";
+  if (bmi < 25) return "normal";
+  if (bmi < 30) return "overweight";
+  return "obese";
+}
+
+function resolveHealthScore(
+  root: Record<string, unknown>,
+  pickUser: Record<string, unknown>,
+): Record<string, unknown> | null {
+  return (
+    asRecord(pickUser.health_score) ??
+    asRecord(asRecord(root.profile)?.health_score) ??
+    asRecord(asRecord(root.data)?.health_score) ??
+    null
+  );
+}
+
+function resolveBmiDisplayAndCategory(
+  root: Record<string, unknown>,
+  pickUser: Record<string, unknown>,
+  pickForBmi: Record<string, unknown>,
+): { bmi: string | null; bmiCategory: BmiCategory | null } {
+  const healthScore = resolveHealthScore(root, pickUser);
+  const fromScore = healthScore ? coerceNumber(healthScore.value) : null;
+  if (fromScore != null && Number.isFinite(fromScore)) {
+    const formatted = fromScore.toFixed(1);
+    return {
+      bmi: formatted,
+      bmiCategory: bmiCategoryFromNumeric(fromScore),
+    };
+  }
+
+  const fallback = normalizeBmiDisplay(pickForBmi);
+  const n = parseBmiStringToNumber(fallback);
+  const categoryFromFallback =
+    typeof n === "number" ? bmiCategoryFromNumeric(n) : null;
+  return {
+    bmi: fallback,
+    bmiCategory: categoryFromFallback,
+  };
+}
+
 /**
  * Accepts `{ user }`, `{ profile }`, `{ data }`, or a flat user object.
  */
@@ -54,6 +167,16 @@ export function normalizeProfileResponse(body: unknown): ProfileDisplay {
   const combinedName = [first, last].filter(Boolean).join(" ").trim();
   const name = str(pickUser.name) ?? (combinedName || "Member");
 
+  const health = asRecord(pickUser.health) ?? asRecord(pickUser.health_score);
+  const healthDetails = health ? asRecord(health.details) : null;
+  const pickForBmi = healthDetails ? { ...pickUser, ...healthDetails } : pickUser;
+
+  const { bmi, bmiCategory } = resolveBmiDisplayAndCategory(
+    root,
+    pickUser,
+    pickForBmi,
+  );
+
   return {
     name,
     email: str(pickUser.email),
@@ -62,6 +185,8 @@ export function normalizeProfileResponse(body: unknown): ProfileDisplay {
     gender: str(pickUser.gender),
     image: str(pickUser.image) ?? str(pickUser.avatar) ?? str(pickUser.photo),
     age: strAge(pickUser.age),
+    bmi,
+    bmiCategory,
     occupation: str(pickUser.occupation),
     bloodGroup: str(pickUser.bloodGroup),
     language: str(pickUser.language),

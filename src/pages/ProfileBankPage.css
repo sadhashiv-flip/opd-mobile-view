@@ -1,0 +1,152 @@
+/* Bank list — card grid (reference: icon + holder / account / IFSC) */
+.profile-bank-page__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.profile-bank-page__add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-brand-orange);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.profile-bank-page__add-btn:active {
+  opacity: 0.92;
+}
+
+.profile-bank-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 360px) {
+  .profile-bank-page__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.profile-bank-card {
+  position: relative;
+  border-radius: 12px;
+  padding: 12px 10px 14px;
+  padding-top: 40px;
+  background: #eceff1;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  min-height: 128px;
+  text-align: left;
+}
+
+.profile-bank-card__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+
+.profile-bank-card__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #424242;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.profile-bank-card__icon-btn:active {
+  opacity: 0.85;
+}
+
+.profile-bank-card__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.profile-bank-card__icon-wrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #78909c;
+}
+
+.profile-bank-card__icon-svg {
+  display: block;
+}
+
+.profile-bank-card__text {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-bank-card__holder {
+  margin: 0 0 6px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #212121;
+  line-height: 1.3;
+}
+
+.profile-bank-card__line {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #424242;
+  word-break: break-word;
+}
+
+.profile-bank-card__lbl {
+  font-weight: 600;
+  color: #616161;
+}
+
+.profile-bank-card__meta {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #757575;
+}
+
+.profile-bank-card__badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: rgba(0, 0, 0, 0.06);
+  color: #616161;
+}
+
+.profile-bank-card__badge--ok {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+}

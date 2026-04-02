@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBankDetails";
+import { fetchPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { changePatientPassword } from "@/api/patientPassword";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import {
   fetchPatientProfile,
   resolveProfileImageUrl,
+  type BmiCategory,
   type ProfileDisplay,
 } from "@/api/patientProfile";
 import {
@@ -15,7 +18,10 @@ import {
 } from "@/components/profile";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
-import { clearSession } from "@/lib/authStorage";
+import {
+  clearClientStorageOnUnauthorized,
+  clearSession,
+} from "@/lib/authStorage";
 import "./ProfilePage.css";
 
 function initialsFromName(name: string): string {
@@ -38,9 +44,64 @@ function DetailRow({
   );
 }
 
+function HeroBmi({
+  value,
+  category,
+}: Readonly<{ value: string | null; category: BmiCategory | null }>) {
+  if (!value) return null;
+  const toneClass = category
+    ? `profile-page__bmi-value--${category}`
+    : "profile-page__bmi-value--neutral";
+  return (
+    <p className="profile-page__hero-bmi">
+      <span className="profile-page__hero-bmi-label">BMI</span>
+      <span className={`profile-page__hero-bmi-value profile-page__bmi-value ${toneClass}`}>
+        {value}
+      </span>
+    </p>
+  );
+}
+
 function formatGender(g: string | null): string | null {
   if (!g) return null;
   return g.charAt(0).toUpperCase() + g.slice(1).toLowerCase();
+}
+
+function parseAgeYears(ageStr: string | null): number | null {
+  if (ageStr == null || ageStr === "") return null;
+  const n = Math.trunc(Number(ageStr.trim()));
+  if (Number.isNaN(n) || n < 0 || n >= 150) return null;
+  return n;
+}
+
+function ageFromDob(dob: string | null): number | null {
+  if (dob == null || dob.trim() === "") return null;
+  const d = new Date(dob.trim());
+  if (Number.isNaN(d.getTime())) return null;
+  const today = new Date();
+  let years = today.getFullYear() - d.getFullYear();
+  const monthDiff = today.getMonth() - d.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) {
+    years -= 1;
+  }
+  if (years < 0 || years >= 130) return null;
+  return years;
+}
+
+/** e.g. `1994-04-09 (31 Years Old) / Male` */
+function formatDobAgeGenderLine(
+  dob: string | null,
+  age: string | null,
+): string | null {
+  const years = parseAgeYears(age) ?? ageFromDob(dob);
+  const dobTrim = dob?.trim() ?? "";
+
+  let line = dobTrim;
+  if (years != null) {
+    line += line ? ` (${years} Years Old)` : `(${years} Years Old)`;
+  }
+ 
+  return line.length > 0 ? line : null;
 }
 
 function formatLabel(s: string | null): string | null {
@@ -57,16 +118,35 @@ export function ProfilePage() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [manageExtras, setManageExtras] = useState({ bank: false, address: false });
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchPatientProfile();
-      setProfile(data);
+      const [profRes, banksRes, addrRes] = await Promise.allSettled([
+        fetchPatientProfile(),
+        fetchAllPatientBankRecords(),
+        fetchPatientAddresses(),
+      ]);
+
+      if (profRes.status === "rejected") {
+        const err = profRes.reason;
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+      setProfile(profRes.value);
+
+      const banks = banksRes.status === "fulfilled" ? banksRes.value : [];
+      const addresses = addrRes.status === "fulfilled" ? addrRes.value : [];
+      setManageExtras({
+        bank: hasAnyPatientBanks(banks),
+        address: hasAnySavedAddresses(addresses),
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not load profile";
       setError(msg);
+      setProfile(null);
+      setManageExtras({ bank: false, address: false });
     } finally {
       setLoading(false);
     }
@@ -77,6 +157,9 @@ export function ProfilePage() {
   }, [load]);
 
   const imageUrl = profile ? resolveProfileImageUrl(profile.image) : null;
+
+  const bankSaved = manageExtras.bank;
+  const addressSaved = manageExtras.address;
 
   return (
     <div className="profile-page">
@@ -142,26 +225,79 @@ export function ProfilePage() {
               <h2 id="profile-name" className="profile-page__name">
                 {profile.name}
               </h2>
+              <p className="profile-page__tagline">
+                  {profile.email}
+                </p>
               {(profile.relationship || profile.phone) && (
                 <p className="profile-page__tagline">
                   {[formatLabel(profile.relationship), profile.phone].filter(Boolean).join(" · ")}
                 </p>
               )}
+              <p className="profile-page__tagline">
+                  {profile.empId}
+                </p>
+              <HeroBmi value={profile.bmi} category={profile.bmiCategory} />
             </section>
 
             <section className="profile-page__card" aria-label="Your details">
               <h3 className="profile-page__card-title">Your details</h3>
               <div className="profile-page__rows">
-                <DetailRow label="Phone" value={profile.phone} />
-                <DetailRow label="Email" value={profile.email} />
-                <DetailRow label="Date of birth" value={profile.dob} />
-                <DetailRow label="Age" value={profile.age} />
+                <DetailRow
+                  label="Date of birth"
+                  value={formatDobAgeGenderLine(
+                    profile.dob,
+                    profile.age,
+                  )}
+                />
                 <DetailRow label="Gender" value={formatGender(profile.gender)} />
                 <DetailRow label="Occupation" value={profile.occupation} />
                 <DetailRow label="Blood group" value={profile.bloodGroup} />
-                <DetailRow label="Language" value={profile.language} />
-                <DetailRow label="Employee ID" value={profile.empId} />
+                <DetailRow label="Language" value={formatGender(profile.language)} />
               </div>
+            </section>
+
+            <section className="profile-page__manage" aria-label="Manage">
+              <h3 className="profile-page__card-title">Manage</h3>
+              <Link to={ROUTES.profileBank} className="profile-page__manage-row">
+                <span className="profile-page__manage-row-main">
+                  <span className="profile-page__manage-row-title">Bank details</span>
+                  {bankSaved ? (
+                    <span className="profile-page__manage-row-meta">Saved on this device</span>
+                  ) : null}
+                </span>
+                <span className="profile-page__manage-row-chevron" aria-hidden>
+                  ›
+                </span>
+              </Link>
+              <Link to={ROUTES.profileAddress} className="profile-page__manage-row">
+                <span className="profile-page__manage-row-main">
+                  <span className="profile-page__manage-row-title">Address</span>
+                  {addressSaved ? (
+                    <span className="profile-page__manage-row-meta">Saved on this device</span>
+                  ) : null}
+                </span>
+                <span className="profile-page__manage-row-chevron" aria-hidden>
+                  ›
+                </span>
+              </Link>
+              <Link to={ROUTES.profileMembers} className="profile-page__manage-row">
+                <span className="profile-page__manage-row-main">
+                  <span className="profile-page__manage-row-title">Members</span>
+                  <span className="profile-page__manage-row-meta">Add and view saved members</span>
+                </span>
+                <span className="profile-page__manage-row-chevron" aria-hidden>
+                  ›
+                </span>
+              </Link>
+              <Link to={ROUTES.profileSubscriptions} className="profile-page__manage-row">
+                <span className="profile-page__manage-row-main">
+                  <span className="profile-page__manage-row-title">Subscriptions</span>
+                  <span className="profile-page__manage-row-meta">Plans from your account</span>
+                </span>
+                <span className="profile-page__manage-row-chevron" aria-hidden>
+                  ›
+                </span>
+              </Link>
             </section>
 
             <section className="profile-page__account" aria-label="Account">
@@ -172,6 +308,17 @@ export function ProfilePage() {
                 onClick={() => setChangePasswordOpen(true)}
               >
                 Change password
+              </button>
+              <button
+                type="button"
+                className="profile-page__account-btn profile-page__account-btn--logout"
+                onClick={() => {
+                  clearClientStorageOnUnauthorized();
+                  toast.success("You have been logged out.");
+                  navigate(ROUTES.login, { replace: true });
+                }}
+              >
+                Log out
               </button>
               <button
                 type="button"

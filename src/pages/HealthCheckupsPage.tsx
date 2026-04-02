@@ -236,17 +236,11 @@ export function HealthCheckupsPage() {
           <button
             type="button"
             className="hc-add-family"
-            onClick={() =>
-              navigate(
-                isConsultation
-                  ? generatePath(ROUTES.consultationAddFamilyMember, { type })
-                  : generatePath(ROUTES.diagnosticsAddFamilyMember, { type }),
-              )
-            }
+            onClick={() => navigate(ROUTES.profileMembersAdd)}
           >
             <span className="hc-add-family__ic" aria-hidden="true">
               +
-            </span>
+            </span>{" "}
             Add new family member
           </button>
         </section>
