@@ -291,3 +291,264 @@
   cursor: not-allowed;
 }
 
+/* Lab Tests vendor selection (post cart) */
+.ds-page--lab .ds-top {
+  padding-right: 8px;
+}
+
+.ds-back--lab {
+  color: #1a73e8;
+}
+
+.ds-orders {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e4e4e4;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111111;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ds-orders__ic {
+  display: inline-flex;
+}
+
+.ds-orders__ic img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.ds-mode--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  gap: 8px;
+}
+
+.ds-mode--scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.ds-mode__pill--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 10px;
+}
+
+.ds-mode__pill-ic {
+  display: inline-flex;
+  color: currentColor;
+}
+
+.ds-vendors--lab {
+  margin-top: 12px;
+}
+
+.ds-lab-card {
+  width: 100%;
+  border: 1px solid #dcdcdc;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px 12px 0;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 14px;
+}
+
+button.ds-lab-card {
+  border: none;
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+}
+
+.ds-lab-card--wrap {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ds-lab-card__body-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 12px 12px 0;
+  cursor: pointer;
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.ds-lab-card:focus-visible {
+  outline: 2px solid rgba(255, 84, 30, 0.45);
+  outline-offset: 2px;
+}
+
+.ds-lab-card--selected {
+  border-color: #ff541e;
+}
+
+.ds-lab-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ds-lab-card__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ds-lab-card__logo {
+  font-size: 11px;
+  font-weight: 900;
+  color: #111111;
+}
+
+.ds-lab-card__logo--orange {
+  font-size: 10px;
+}
+
+.ds-lab-card__lines {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ececec;
+}
+
+.ds-lab-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid #ececec;
+  font-size: 10px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.ds-lab-line__name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.ds-lab-line__price {
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #111111;
+}
+
+.ds-lab-line--charge {
+  color: #ff541e;
+}
+
+.ds-lab-line--charge .ds-lab-line__price {
+  color: #ff541e;
+}
+
+.ds-lab-line--total {
+  border-bottom: none;
+  padding-top: 10px;
+  font-weight: 900;
+  font-size: 11px;
+}
+
+.ds-lab-line__total {
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.ds-lab-card__addr-row {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ds-lab-card__addr-text {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8e8e8e;
+  line-height: 1.35;
+}
+
+.ds-lab-card__directions {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 12px 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 800;
+  color: #1a73e8;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ds-lab-card__directions-ic {
+  display: inline-flex;
+}
+
+.ds-lab-card__footer {
+  margin: 12px -12px 0;
+  padding: 12px 14px;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffffff;
+}
+
+.ds-lab-card__footer--orange {
+  background: #ff541e;
+}
+
+.ds-lab-card__footer-ic {
+  display: inline-flex;
+}
+
+.ds-lab-card__footer--split {
+  background: #0b0b0b;
+  justify-content: space-around;
+  padding: 10px 8px;
+  gap: 0;
+}
+
+.ds-lab-card__footer-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.ds-lab-card__footer-seg svg {
+  flex-shrink: 0;
+}
+

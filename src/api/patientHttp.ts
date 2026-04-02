@@ -36,8 +36,19 @@ export async function patientFetch(
   const rel = path.replace(/^\//, "");
   const url = `${base}/${rel}`;
 
-  const res = await fetch(url, { ...rest, headers });
+  // Avoid stale API responses (304 + cached body) differing from Postman / server truth.
+  if (!headers.has("Cache-Control")) {
+    headers.set("Cache-Control", "no-cache");
+  }
+  if (!headers.has("Pragma")) {
+    headers.set("Pragma", "no-cache");
+  }
 
+  const res = await fetch(url, {
+    ...rest,
+    headers,
+    cache: rest.cache ?? "no-store",
+  });
   if (res.status === 401 && sentAuthorization) {
     clearSession();
     globalThis.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));

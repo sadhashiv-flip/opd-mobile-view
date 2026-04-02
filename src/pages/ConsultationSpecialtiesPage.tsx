@@ -1,13 +1,11 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
-import { useState } from "react";
-import { SortSheet, type SortOptionId } from "@/components/sort/SortSheet";
-import "@/components/sort/SortSheet.css";
-import sortSvg from "@/assets/icons/common/Sort.svg";
+import { useEffect, useState, type ReactNode } from "react";
+import { fetchPatientIssues, type PatientIssue } from "@/api/issues";
+import { resolveProfileImageUrl } from "@/api/patientProfile";
 import "./ConsultationSpecialtiesPage.css";
 
 type Spec = Readonly<{ id: string; label: string; icon: string }>;
-type Doctor = Readonly<{ id: string; name: string; degree: string; exp: string }>;
 
 const SPECS: readonly Spec[] = [
   { id: "gp", label: "General Physician", icon: "🩺" },
@@ -18,23 +16,7 @@ const SPECS: readonly Spec[] = [
   { id: "dent", label: "Dentist", icon: "🦷" },
 ] as const;
 
-const VIRTUAL_DOCTORS_BY_SPEC: Readonly<Record<string, readonly Doctor[]>> = {
-  gp: [
-    { 
-      id: "vd1", 
-      name: "Dr. Prananka Reddy", degree: "MBBS, MD", exp: "10+ years exp" }, 
-      { id: "vd2", name: "Dr. Pranavi Reddy", degree: "MBBS, MD", exp: "8+ years exp" }, 
-      { id: "vd3", name: "Dr. Sadha shiv", degree: "MBBS, MD", exp: "5+ years exp" },
-      { id: "vd4", name: "Dr. Manoj kumar", degree: "MBBS, MD", exp: "10+ years exp" },
-      { id: "vd5", name: "Dr. Suresh kumar", degree: "MBBS, MD", exp: "6+ years exp" },
-      { id: "vd6", name: "Dr. Ramesh kumar", degree: "MBBS, MD", exp: "5+ years exp" },
-    ],
-  diet: [],
-  derm: [],
-  pulm: [],
-  card: [],
-  dent: [],
-} as const;
+const VIRTUAL_SLOTS_STORAGE = "opd-mobile-view.virtualSlots.";
 
 export function ConsultationSpecialtiesPage() {
   const navigate = useNavigate();
@@ -42,97 +24,143 @@ export function ConsultationSpecialtiesPage() {
   const type = typeof params.type === "string" ? params.type : "virtual";
   const isHospital = type === "at_hospital";
   const [selectedId, setSelectedId] = useState<string>("");
-  const [isSortOpen, setIsSortOpen] = useState(false);
-  const [sortId, setSortId] = useState<SortOptionId>("relevance");
-  const virtualDoctors = selectedId ? VIRTUAL_DOCTORS_BY_SPEC[selectedId] ?? [] : [];
-  const showVirtualSelected = !isHospital && selectedId.length > 0;
-  const topArea = (() => {
-    if (isHospital) return null;
-    if (!showVirtualSelected) {
-      return (
-        <div className="csp-search">
-          <span className="csp-search__ic" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path
-                d="M20 20l-3.5-3.5"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </span>
-          <input
-            type="search"
-            className="csp-search__input"
-            placeholder="Search for doctors, symptoms, health concerns"
-            aria-label="Search"
-          />
-        </div>
-      );
-    }
+  const [virtualIssues, setVirtualIssues] = useState<readonly PatientIssue[]>([]);
+  const [issuesLoad, setIssuesLoad] = useState<"loading" | "error" | "ok">(
+    isHospital ? "ok" : "loading",
+  );
+  const [issuesError, setIssuesError] = useState<string | null>(null);
 
-    return (
-      <div className="csp-vtop">
-        <div className="csp-search-row">
-          <div className="csp-search csp-search--with-actions">
-            <span className="csp-search__ic" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                <path
-                  d="M20 20l-3.5-3.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            <input
-              type="search"
-              className="csp-search__input"
-              placeholder="Search for doctors, symptoms, health concerns"
-              aria-label="Search"
+  useEffect(() => {
+    if (isHospital) return;
+    let cancelled = false;
+    setIssuesLoad("loading");
+    setIssuesError(null);
+    fetchPatientIssues()
+      .then((list) => {
+        if (!cancelled) {
+          setVirtualIssues(list);
+          setIssuesLoad("ok");
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setIssuesLoad("error");
+          setIssuesError(e instanceof Error ? e.message : "Could not load specialties");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isHospital]);
+
+  const topArea =
+    isHospital ? null : (
+      <div className="csp-search">
+        <span className="csp-search__ic" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M20 20l-3.5-3.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
             />
-          </div>
-          {virtualDoctors.length ? (
-            <button
-              type="button"
-              className="csp-filter"
-              aria-label="Sort and filters"
-              onClick={() => setIsSortOpen(true)}
-            >
-              <img src={sortSvg} alt="" width={22} height={22} draggable={false} />
-            </button>
-          ) : null}
-        </div>
-
-        {virtualDoctors.length ? (
-          <section className="csp-topdocs" aria-label="Top Doctors">
-            <div className="csp-topdocs__title">Top Doctors</div>
-            <div className="csp-slider" aria-label="Doctors slider">
-              {virtualDoctors.map((d) => (
-                <div key={d.id} className="csp-slide">
-                  <div className="csp-doc">
-                    <div className="csp-doc__avatar" aria-hidden="true" />
-                    <div className="csp-doc__meta">
-                      <div className="csp-doc__name">{d.name}</div>
-                      <div className="csp-doc__deg">{d.degree}</div>
-                    </div>
-                  </div>
-                  <div className="csp-doc__tag">{d.exp}</div>
-                  <button type="button" className="csp-book">
-                    Book Appointment
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : (
-          <div className="csp-empty">No doctors available for this speciality.</div>
-        )}
+          </svg>
+        </span>
+        <input
+          type="search"
+          className="csp-search__input"
+          placeholder="Search for doctors, symptoms, health concerns"
+          aria-label="Search"
+        />
       </div>
     );
-  })();
+
+  const hospitalSpecialtiesList = (
+    <ul className="csp-list">
+      {SPECS.map((s) => (
+        <li key={s.id}>
+          <button
+            type="button"
+            className={`csp-item${selectedId === s.id ? " csp-item--selected" : ""}`}
+            onClick={() => {
+              setSelectedId(s.id);
+              navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: s.id }));
+            }}
+          >
+            <div className="csp-item__ic" aria-hidden="true">
+              {s.icon}
+            </div>
+            <div className="csp-item__label">{s.label}</div>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+
+  let virtualSpecialtiesBody: ReactNode;
+  if (issuesLoad === "loading") {
+    virtualSpecialtiesBody = <div className="csp-issues-msg">Loading specialties…</div>;
+  } else if (issuesLoad === "error") {
+    virtualSpecialtiesBody = (
+      <div className="csp-issues-msg csp-issues-msg--err" role="alert">
+        {issuesError ?? "Could not load specialties"}
+      </div>
+    );
+  } else if (virtualIssues.length === 0) {
+    virtualSpecialtiesBody = (
+      <div className="csp-issues-msg">No specialties available right now.</div>
+    );
+  } else {
+    virtualSpecialtiesBody = (
+      <ul className="csp-list" aria-label="Specialties">
+        {virtualIssues.map((issue) => {
+          const imgUrl = resolveProfileImageUrl(issue.image);
+          const slotState = {
+            parent: issue.parent,
+            issueTitle: issue.title,
+            /** `availableSlots?spid=` expects the issue’s `parent` (e.g. 1), not `id` (e.g. 132). */
+            spid: issue.parent,
+          };
+          return (
+            <li key={issue.id}>
+              <button
+                type="button"
+                className="csp-item"
+                onClick={() => {
+                  sessionStorage.setItem(
+                    `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
+                    JSON.stringify(slotState),
+                  );
+                  navigate(
+                    generatePath(ROUTES.consultationVirtualSlots, {
+                      issueId: String(issue.id),
+                    }),
+                    { state: slotState },
+                  );
+                }}
+              >
+                <div className="csp-item__ic" aria-hidden="true">
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt=""
+                      className="csp-item__thumb"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <span className="csp-item__ic-fallback">—</span>
+                  )}
+                </div>
+                <div className="csp-item__label">{issue.title}</div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
 
   return (
     <div className="csp-page">
@@ -197,52 +225,9 @@ export function ConsultationSpecialtiesPage() {
 
         <div className="csp-section">
           <div className="csp-section__title">Common specialties</div>
-          <ul className="csp-list">
-            {SPECS.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className={`csp-item${selectedId === s.id ? " csp-item--selected" : ""}`}
-                  onClick={() => {
-                    setSelectedId(s.id);
-                    if (isHospital) {
-                      navigate(
-                        generatePath(ROUTES.consultationHospitalResults, { specialtyId: s.id }),
-                      );
-                    }
-                  }}
-                >
-                <div className="csp-item__ic" aria-hidden="true">
-                  {s.icon}
-                </div>
-                <div className="csp-item__label">{s.label}</div>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {isHospital ? hospitalSpecialtiesList : virtualSpecialtiesBody}
         </div>
       </main>
-
-      <SortSheet
-        open={isSortOpen}
-        value={sortId}
-        onChange={setSortId}
-        onClose={() => setIsSortOpen(false)}
-        icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M4 6h16M7 12h10M10 18h4"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="8" cy="6" r="2" fill="#ffffff" stroke="currentColor" strokeWidth="2" />
-            <circle cx="14" cy="12" r="2" fill="#ffffff" stroke="currentColor" strokeWidth="2" />
-            <circle cx="12" cy="18" r="2" fill="#ffffff" stroke="currentColor" strokeWidth="2" />
-          </svg>
-        }
-      />
     </div>
   );
 }
-

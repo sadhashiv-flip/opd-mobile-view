@@ -1,5 +1,4 @@
 import type { ComponentType, SVGProps } from "react";
-import * as I from "@/components/services/serviceHubIcons";
 import bookConsultationSvg from "@/assets/icons/Services/BookConsultation.svg";
 import bookDiagnosticSvg from "@/assets/icons/Services/BookDiagnostic.svg";
 import chronicManagementSvg from "@/assets/icons/Services/ChronicManagement.svg";
@@ -11,6 +10,30 @@ import prescribedPharmacySvg from "@/assets/icons/Services/PrescribedPharmacy.sv
 import vaccinationServicesSvg from "@/assets/icons/Services/VaccinationServices.svg";
 import visionServicesSvg from "@/assets/icons/Services/VissionServices.svg";
 import viewServicesSvg from "@/assets/icons/Services/ViewServices.svg";
+
+import opdClaimsMainMenuSvg from "@/assets/icons/OPDClaims/MainMenu.svg";
+import opdClaimsClaimsSvg from "@/assets/icons/OPDClaims/Claims.svg";
+import opdClaimsBankDetailsSvg from "@/assets/icons/OPDClaims/BankDetails.svg";
+
+import accountMainMenuSvg from "@/assets/icons/AccountManagement/MainMenu.svg";
+import accountProfileSvg from "@/assets/icons/AccountManagement/Profile.svg";
+import accountSubscriptionsSvg from "@/assets/icons/AccountManagement/Subscriptions.svg";
+import accountFamilyAccountsSvg from "@/assets/icons/AccountManagement/FamilyAccounts.svg";
+import accountAddressBookSvg from "@/assets/icons/AccountManagement/AddressBook.svg";
+import accountOrdersSvg from "@/assets/icons/AccountManagement/Orders.svg";
+import accountSetPasswordSvg from "@/assets/icons/AccountManagement/SetPassword.svg";
+import accountDeleteAccountSvg from "@/assets/icons/AccountManagement/DeleteAccount.svg";
+import accountInvoicesSvg from "@/assets/icons/AccountManagement/Invoices.svg";
+
+import helpMainMenuSvg from "@/assets/icons/HelpAndSupport/MainMenu.svg";
+import helpSupportSvg from "@/assets/icons/HelpAndSupport/Support.svg";
+import helpFaqSvg from "@/assets/icons/HelpAndSupport/FAQ.svg";
+import helpTandCSvg from "@/assets/icons/HelpAndSupport/TandC.svg";
+import helpPrivacyAndPoliciesSvg from "@/assets/icons/HelpAndSupport/PrivacyAndPolicies.svg";
+import helpMedicalRecordsSvg from "@/assets/icons/HelpAndSupport/MedicalRecords.svg";
+import helpLabReportsSvg from "@/assets/icons/HelpAndSupport/LabReports.svg";
+import helpMyPrescriptionsSvg from "@/assets/icons/HelpAndSupport/MyPrescriptions.svg";
+import helpActivitiesSvg from "@/assets/icons/HelpAndSupport/Activities.svg";
 
 export type HubTabId =
   | "services"
@@ -41,13 +64,13 @@ export type HubTab = Readonly<{
 
 export const HUB_TABS: readonly HubTab[] = [
   { id: "services", label: "Services", iconSrc: viewServicesSvg },
-  { id: "opd-claims", label: "OPD Claims", Icon: I.IconTabOpd },
-  { id: "account", label: "Account Management", Icon: I.IconTabAccount },
-  { id: "help", label: "Help & Support", Icon: I.IconTabHelp },
+  { id: "opd-claims", label: "OPD Claims", iconSrc: opdClaimsMainMenuSvg },
+  { id: "account", label: "Account Management", iconSrc: accountMainMenuSvg },
+  { id: "help", label: "Help & Support", iconSrc: helpMainMenuSvg },
   {
     id: "medical-records",
     label: "medical Records",
-    Icon: I.IconTabRecords,
+    iconSrc: helpMedicalRecordsSvg,
   },
 ];
 
@@ -131,13 +154,13 @@ export const OPD_CLAIMS_ITEMS: readonly HubCardItem[] = [
     id: "claims",
     title: "Claims",
     description: "Raise claims, check status",
-    Icon: I.IconDocShield,
+    iconSrc: opdClaimsClaimsSvg,
   },
   {
     id: "bank",
     title: "Bank Details",
     description: "Add/edit bank details",
-    Icon: I.IconBank,
+    iconSrc: opdClaimsBankDetailsSvg,
   },
 ];
 
@@ -146,49 +169,49 @@ export const ACCOUNT_ITEMS: readonly HubCardItem[] = [
     id: "profile",
     title: "Profile",
     description: "Manage profile details",
-    Icon: I.IconProfile,
+    iconSrc: accountProfileSvg,
   },
   {
     id: "subs",
     title: "Subscriptions",
     description: "Manage subscriptions",
-    Icon: I.IconJarPlus,
+    iconSrc: accountSubscriptionsSvg,
   },
   {
     id: "family",
     title: "Family Accounts",
     description: "Manage family members",
-    Icon: I.IconFamily,
+    iconSrc: accountFamilyAccountsSvg,
   },
   {
     id: "address",
     title: "Address Book",
     description: "Manage address details",
-    Icon: I.IconAddressBook,
+    iconSrc: accountAddressBookSvg,
   },
   {
     id: "orders",
     title: "Orders",
     description: "Check order status",
-    Icon: I.IconCart,
+    iconSrc: accountOrdersSvg,
   },
   {
     id: "password",
     title: "Set Password",
     description: "Manage your passwords",
-    Icon: I.IconLock,
+    iconSrc: accountSetPasswordSvg,
   },
   {
     id: "delete",
     title: "Delete Account",
     description: "Delete your and family accounts",
-    Icon: I.IconTrash,
+    iconSrc: accountDeleteAccountSvg,
   },
   {
     id: "invoices",
     title: "Invoices",
     description: "Check your all invoices here",
-    Icon: I.IconInvoice,
+    iconSrc: accountInvoicesSvg,
   },
 ];
 
@@ -197,25 +220,25 @@ export const HELP_ITEMS: readonly HubCardItem[] = [
     id: "support",
     title: "Support",
     description: "For any queries or support tickets",
-    Icon: I.IconHeadset,
+    iconSrc: helpSupportSvg,
   },
   {
     id: "faq",
     title: "FAQ",
     description: "Refer FAQs here",
-    Icon: I.IconFaq,
+    iconSrc: helpFaqSvg,
   },
   {
     id: "tc",
     title: "T&C",
     description: "Read all the Terms & Conditions here",
-    Icon: I.IconTerms,
+    iconSrc: helpTandCSvg,
   },
   {
     id: "privacy",
     title: "Privacy Policies",
     description: "Refer all the privacy policies here",
-    Icon: I.IconPrivacy,
+    iconSrc: helpPrivacyAndPoliciesSvg,
   },
 ];
 
@@ -224,26 +247,26 @@ export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
     id: "appts",
     title: "My Appointments",
     description: "Check your appointments history/status here",
-    Icon: I.IconCalendarPerson,
+    iconSrc: helpMedicalRecordsSvg,
   },
   {
     id: "lab",
     title: "Lab Reports",
     description: "Check your lab test reports here",
-    Icon: I.IconLabClipboard,
+    iconSrc: helpLabReportsSvg,
   },
   {
     id: "rx",
     title: "My Prescriptions",
     description: "Check your prescriptions here",
-    Icon: I.IconRx,
+    iconSrc: helpMyPrescriptionsSvg,
     badge: "new",
   },
   {
     id: "activity",
     title: "Activities",
     description: "Check your activities",
-    Icon: I.IconActivity,
+    iconSrc: helpActivitiesSvg,
   },
 ];
 

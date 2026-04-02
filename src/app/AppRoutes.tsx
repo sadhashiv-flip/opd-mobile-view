@@ -8,6 +8,7 @@ import { ConsultationHospitalResultsPage } from "../pages/ConsultationHospitalRe
 import { DiagnosticsScreenPage } from "../pages/DiagnosticsScreenPage";
 import { DiagnosticsSlotsPage } from "../pages/DiagnosticsSlotsPage";
 import { ConsultationSpecialtiesPage } from "../pages/ConsultationSpecialtiesPage";
+import { ConsultationVirtualSlotsPage } from "../pages/ConsultationVirtualSlotsPage";
 import { HealthCheckupsOverviewPage } from "../pages/HealthCheckupsOverviewPage";
 import { HealthCheckupsPage } from "../pages/HealthCheckupsPage";
 import { HealthCheckupsPlanPage } from "../pages/HealthCheckupsPlanPage";
@@ -60,6 +61,7 @@ export function AppRoutes() {
       <Route path={ROUTES.consultation} element={<HealthCheckupsPage />} />
       <Route path={ROUTES.consultationAddFamilyMember} element={<AddFamilyMemberPage />} />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
+      <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />

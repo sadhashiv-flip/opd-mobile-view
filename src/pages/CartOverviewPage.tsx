@@ -1,5 +1,5 @@
 import { ROUTES } from "@/constants";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, generatePath, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import "./CartOverviewPage.css";
 
@@ -132,7 +132,11 @@ export function CartOverviewPage() {
       <footer className="co-footer" aria-label="Cart footer">
         <div className="co-footer__inner">
           <div className="co-footer__left">{countLabel}</div>
-          <button type="button" className="co-footer__btn" onClick={() => navigate(-1)}>
+          <button
+            type="button"
+            className="co-footer__btn"
+            onClick={() => navigate(generatePath(ROUTES.diagnosticsVendors, { type: "lab-tests" }))}
+          >
             <span>Continue</span>
             <span className="co-footer__go" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

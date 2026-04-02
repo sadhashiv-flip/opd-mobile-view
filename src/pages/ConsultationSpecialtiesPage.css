@@ -290,6 +290,10 @@
   color: #8f8f8f;
 }
 
+.csp-section {
+  padding-left: 10px;
+}
+
 .csp-section__title {
   font-size: 11px;
   font-weight: 700;
@@ -298,7 +302,20 @@
 }
 
 .csp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   border-top: 1px solid #efefef;
+  height: 300px;
+  max-height: 300px;
+  overflow-y: auto;
+  /* Keep scroll inside the list; avoids fighting the page scroll (feels “slow”). */
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  /* Isolate paint/layout work to this pane. */
+  contain: paint;
+  transform: translateZ(0);
 }
 
 .csp-item {
@@ -312,6 +329,9 @@
   border-bottom: 1px solid #efefef;
   text-align: left;
   cursor: pointer;
+  /* Skip work for rows far off-screen in long lists. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 44px;
 }
 
 .csp-item--selected .csp-item__label {
@@ -324,6 +344,17 @@
   border-radius: 10px;
 }
 
+.csp-issues-msg {
+  padding: 12px 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8f8f8f;
+}
+
+.csp-issues-msg--err {
+  color: #c41e1e;
+}
+
 .csp-item__ic {
   width: 30px;
   height: 30px;
@@ -333,6 +364,21 @@
   align-items: center;
   justify-content: center;
   font-size: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.csp-item__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.csp-item__ic-fallback {
+  font-size: 10px;
+  font-weight: 800;
+  color: #b6b6b6;
 }
 
 .csp-item__label {
