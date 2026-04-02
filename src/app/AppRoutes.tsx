@@ -12,6 +12,7 @@ import { HealthCheckupsOverviewPage } from "../pages/HealthCheckupsOverviewPage"
 import { HealthCheckupsPage } from "../pages/HealthCheckupsPage";
 import { HealthCheckupsPlanPage } from "../pages/HealthCheckupsPlanPage";
 import { HomePage } from "../pages/HomePage";
+import { AccountLinkPage } from "@/pages/AccountLinkPage";
 import { LoginPage } from "../pages/LoginPage";
 import { OtpPage } from "../pages/OtpPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
@@ -39,6 +40,7 @@ export function AppRoutes() {
       <Route path={ROUTES.root} element={<SplashPage />} />
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.otp} element={<OtpPage />} />
+      <Route path={ROUTES.accountLink} element={<AccountLinkPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
       <Route path={ROUTES.profile} element={<ProfilePage />} />
       <Route path={ROUTES.profileBank} element={<ProfileBankPage />} />

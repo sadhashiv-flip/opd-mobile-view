@@ -8,6 +8,7 @@ import {
   ROUTES,
 } from "@/constants";
 import { useToast } from "@/hooks/useToast";
+import { navigateAfterAuthVerify } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
 import { digitsOnly, takeDigits } from "@/lib/digits";
 
@@ -88,7 +89,7 @@ export function useLoginPage(): LoginPageController {
         });
         await saveAuthSession(data);
         toast.success(data.message?.trim() || "Login successful");
-        navigate(ROUTES.dashboard, { replace: true });
+        navigateAfterAuthVerify(navigate, data);
         return;
       }
 

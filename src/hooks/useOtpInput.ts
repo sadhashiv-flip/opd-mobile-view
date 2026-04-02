@@ -9,10 +9,16 @@ import type { KeyboardEvent } from "react";
 import { OTP_LEN, OTP_SLOT_KEYS } from "@/constants/otp";
 import { takeDigits } from "@/lib/digits";
 
+type UseOtpInputOptions = Readonly<{
+  /** When false, first box is not focused on mount (e.g. value step before OTP step). */
+  autoFocus?: boolean;
+}>;
+
 /**
  * Six-box OTP field: input, paste, backspace focus — isolated from routing (SRP).
  */
-export function useOtpInput() {
+export function useOtpInput(opts?: UseOtpInputOptions) {
+  const autoFocus = opts?.autoFocus !== false;
   const [digits, setDigits] = useState<string[]>(() =>
     Array.from({ length: OTP_LEN }, () => ""),
   );
@@ -56,8 +62,10 @@ export function useOtpInput() {
   );
 
   useEffect(() => {
-    inputsRef.current[0]?.focus();
-  }, []);
+    if (autoFocus) {
+      inputsRef.current[0]?.focus();
+    }
+  }, [autoFocus]);
 
   const otpComplete = useMemo(
     () => digits.every((c) => c.length === 1),

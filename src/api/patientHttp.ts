@@ -42,6 +42,7 @@ async function patientFetchWithBase(
 /**
  * Patient API fetch with request "interceptor" (Bearer token) and 401 handling.
  * Use `skipAuth: true` for register, verify, login, and other public endpoints.
+ * Authenticated: `link`, `vlink`, profile, etc.
  */
 export async function patientFetch(
   path: string,

@@ -1,0 +1,230 @@
+.account-link-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #000000;
+}
+
+.account-link-page__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px 24px;
+}
+
+.account-link-page__brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.account-link-page__logo {
+  display: block;
+  max-width: min(200px, 52vw);
+  width: auto;
+  height: auto;
+  max-height: 40px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.account-link-page__title {
+  margin: 0 auto 10px;
+  max-width: 20em;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: #000000;
+  text-align: center;
+}
+
+.account-link-page__subtitle {
+  margin: 0 auto 24px;
+  max-width: 26em;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #888888;
+  text-align: center;
+}
+
+.account-link-page__spacer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+
+.account-link-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-link-page__label {
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #616161;
+}
+
+.account-link-page__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 15px;
+  color: #000000;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.account-link-page__input:focus {
+  border-color: var(--color-brand-orange);
+}
+
+.account-link-page__top {
+  margin-bottom: 24px;
+}
+
+.account-link-page__value-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  justify-content: center;
+}
+
+.account-link-page__value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #000000;
+  word-break: break-all;
+  text-align: center;
+}
+
+.account-link-page__edit {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-brand-orange);
+  cursor: pointer;
+}
+
+.account-link-page__edit:active {
+  opacity: 0.85;
+}
+
+.account-link-page__digits {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: space-between;
+  margin: 0 0 22px;
+  padding: 0;
+  border: none;
+  min-inline-size: 0;
+}
+
+.account-link-page__digits legend {
+  padding: 0;
+}
+
+.account-link-page__digit {
+  flex: 1;
+  min-width: 0;
+  max-width: 48px;
+  aspect-ratio: 1;
+  height: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  color: #000000;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-link-page__digit:focus {
+  border-color: var(--color-brand-orange);
+  box-shadow: 0 0 0 1px rgba(var(--color-brand-orange-rgb), 0.35);
+}
+
+.account-link-page__resend {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #888888;
+  text-align: center;
+}
+
+.account-link-page__resend-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-brand-orange);
+  cursor: pointer;
+}
+
+.account-link-page__resend-btn:active {
+  opacity: 0.85;
+}
+
+.account-link-page__footer {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.account-link-page__confirm {
+  width: 100%;
+  height: 50px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-brand-orange);
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(var(--color-brand-orange-rgb), 0.35);
+}
+
+.account-link-page__confirm:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.account-link-page__confirm:not(:disabled):active {
+  transform: scale(0.99);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

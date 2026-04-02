@@ -1,9 +1,22 @@
+import { fetchPatientMembers } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
+import { readGymCheckSnapshot } from "@/constants/gymCheckStorage";
+import {
+  buildGymMemberSnapshotFromRow,
+  clearGymSelectedMemberSnapshot,
+  enrichGymMemberSnapshot,
+  readGymSelectedMembersSnapshots,
+  readGymSelectedPersonIds,
+  writeGymSelectedMembersSnapshots,
+  writeGymSelectedPersonIds,
+  type GymSelectedMemberSnapshot,
+} from "@/constants/gymSelectedMemberStorage";
 import {
   GYM_OVERVIEW_SNAPSHOT_KEY,
   type GymOverviewSnapshot,
 } from "@/constants/gymOverviewStorage";
 import { GymBenefitsModal } from "@/components/gym/GymBenefitsModal";
+import { GymPlanTierHeading } from "@/components/gym/GymPlanTierHeading";
 import { GymRemoveMemberConfirmModal } from "@/components/gym/GymRemoveMemberConfirmModal";
 import { GymTermsSheet } from "@/components/gym/GymTermsSheet";
 import {
@@ -12,6 +25,9 @@ import {
   getGymPlanPackageLabel,
   type GymMembershipPlan,
 } from "@/constants/gymPlans";
+import { gymPackageToMembershipPlan } from "@/lib/gymPackageToPlan";
+import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,19 +42,9 @@ function planAccentClass(accent: GymMembershipPlan["accent"]): string {
 }
 
 const FAMILY_STORAGE_KEY = "opd-mobile-view.health-checkups.family";
-const GYM_SELECTED_PERSON_KEY = "opd-mobile-view.gym-membership.selectedPersonId";
 const GYM_PLAN_ID_KEY = "opd-mobile-view.gym-membership.planId";
 
-type MemberRow = Readonly<{
-  id: string;
-  name: string;
-  subtitle: string;
-  section: "self" | "family";
-  phone?: string;
-  email?: string;
-}>;
-
-const SEED_MEMBERS: readonly MemberRow[] = [
+const SEED_MEMBERS: readonly GymMemberListRow[] = [
   {
     id: "self-1",
     name: "Gundari Abhinay",
@@ -66,8 +72,8 @@ function readStoredPlanId(): string | null {
   }
 }
 
-function loadMembers(): MemberRow[] {
-  const fromStorage: MemberRow[] = [];
+function loadMembers(): GymMemberListRow[] {
+  const fromStorage: GymMemberListRow[] = [];
   try {
     const raw = localStorage.getItem(FAMILY_STORAGE_KEY);
     if (raw) {
@@ -140,16 +146,85 @@ function ShieldIcon({ className }: Readonly<{ className?: string }>) {
   );
 }
 
-type CardRole = "primary" | "secondary";
+function dashField(v: string): string {
+  return v.trim() ? v.trim() : "—";
+}
+
+function GymConfigureMemberBlock({
+  member,
+  cityConfirmed,
+  cityDisplay,
+  onChooseCity,
+}: Readonly<{
+  member: GymSelectedMemberSnapshot;
+  cityConfirmed: boolean;
+  cityDisplay: string;
+  onChooseCity: () => void;
+}>) {
+  const showCityValue = cityConfirmed && Boolean(cityDisplay.trim());
+
+  return (
+    <div className="gmc-member-block">
+      <h3 className="gmc-member-block__title">Member details</h3>
+      <p className="gmc-member-block__name">{member.name}</p>
+      {member.relation ? <p className="gmc-member-block__relation">{member.relation}</p> : null}
+      <dl className="gmc-member-block__meta">
+        <div className="gmc-member-block__row gmc-member-block__row--triple">
+          <div className="gmc-member-block__cell">
+            <dt>Phone</dt>
+            <dd>{dashField(member.phone)}</dd>
+          </div>
+          <div className="gmc-member-block__cell">
+            <dt>Gender</dt>
+            <dd>{dashField(member.gender)}</dd>
+          </div>
+          <div className="gmc-member-block__cell">
+            <dt>DOB</dt>
+            <dd>{dashField(member.dob)}</dd>
+          </div>
+        </div>
+        <div className="gmc-member-block__row gmc-member-block__row--pair">
+          <div className="gmc-member-block__cell">
+            <dt>Email</dt>
+            <dd>{dashField(member.email)}</dd>
+          </div>
+          <div className="gmc-member-block__cell">
+            <dt>City</dt>
+            <dd className="gmc-member-block__dd--city">
+              {showCityValue ? (
+                <span>{cityDisplay.trim()}</span>
+              ) : (
+                <button type="button" className="gmc-card__link" onClick={onChooseCity}>
+                  Choose location
+                </button>
+              )}
+            </dd>
+          </div>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+/** Green (primary) vs orange (dependent) — by account role, not gym slot order. */
+function isAccountPrimaryMember(
+  member: GymSelectedMemberSnapshot,
+  accountPrimaryId: string | null,
+): boolean {
+  if (member.sourceSection === "self") return true;
+  if (member.sourceSection === "family") return false;
+  return Boolean(accountPrimaryId && member.id === accountPrimaryId);
+}
 
 type GymMemberCardProps = Readonly<{
-  role: CardRole;
-  name: string;
-  phone: string;
-  email: string;
-  cityChosen: boolean;
+  member: GymSelectedMemberSnapshot;
+  /** Id of the account holder row from GET /member (`section === "self"`), for legacy snapshots without `sourceSection`. */
+  accountPrimaryMemberId: string | null;
+  cityConfirmed: boolean;
+  cityDisplay: string;
   packageChosen: boolean;
   packageLabel: string;
+  resolvedPlan: GymMembershipPlan | null;
   onClose: () => void;
   showClose: boolean;
   onChooseCity: () => void;
@@ -158,22 +233,22 @@ type GymMemberCardProps = Readonly<{
 }>;
 
 function GymMemberConfigureCard({
-  role,
-  name,
-  phone,
-  email,
-  cityChosen,
+  member,
+  accountPrimaryMemberId,
+  cityConfirmed,
+  cityDisplay,
   packageChosen,
   packageLabel,
+  resolvedPlan,
   onClose,
   showClose,
   onChooseCity,
   onChoosePackage,
   onCenterList,
 }: GymMemberCardProps) {
-  const bandLabel = role === "primary" ? "Primary" : "Secondary";
-  const cardClass =
-    role === "primary" ? "gmc-card gmc-card--primary" : "gmc-card gmc-card--secondary";
+  const isPrimary = isAccountPrimaryMember(member, accountPrimaryMemberId);
+  const bandLabel = isPrimary ? "Primary" : "Dependent";
+  const cardClass = isPrimary ? "gmc-card gmc-card--primary" : "gmc-card gmc-card--secondary";
 
   return (
     <article className={cardClass}>
@@ -184,61 +259,72 @@ function GymMemberConfigureCard({
       ) : null}
       <div className="gmc-card__inner">
         <div className="gmc-card__body">
-          <div className="gmc-card__row">
-            <span className="gmc-card__label">Name</span>
-            <span className="gmc-card__sep" aria-hidden="true">
-              :
-            </span>
-            <span className="gmc-card__value">{name}</span>
-          </div>
-          <div className="gmc-card__row">
-            <span className="gmc-card__label">Phone</span>
-            <span className="gmc-card__sep" aria-hidden="true">
-              :
-            </span>
-            <span className="gmc-card__value">{phone}</span>
-          </div>
-          <div className="gmc-card__row">
-            <span className="gmc-card__label">Email</span>
-            <span className="gmc-card__sep" aria-hidden="true">
-              :
-            </span>
-            <span className="gmc-card__value">{email}</span>
-          </div>
-          <div className="gmc-card__row">
-            <span className="gmc-card__label">City</span>
-            <span className="gmc-card__sep" aria-hidden="true">
-              :
-            </span>
-            {cityChosen ? (
-              <span className="gmc-card__value">Indiranagar, Bengaluru</span>
-            ) : (
-              <button type="button" className="gmc-card__link" onClick={onChooseCity}>
-                Choose Location
-              </button>
-            )}
-          </div>
-          <div className="gmc-card__row gmc-card__row--package">
-            <span className="gmc-card__label">Package</span>
-            <span className="gmc-card__sep" aria-hidden="true">
-              :
-            </span>
-            <div className="gmc-card__package-line">
-              <div className="gmc-card__package-value">
-                {packageChosen ? (
-                  <span className="gmc-card__value">{packageLabel}</span>
-                ) : (
-                  <button type="button" className="gmc-card__link" onClick={onChoosePackage}>
-                    Select Package
-                  </button>
-                )}
+          <GymConfigureMemberBlock
+            member={member}
+            cityConfirmed={cityConfirmed}
+            cityDisplay={cityDisplay}
+            onChooseCity={onChooseCity}
+          />
+          {packageChosen && resolvedPlan ? (
+            <div className="gmc-plan-detail">
+              <div className="gmc-plan-detail__head">
+                <p className="gmc-plan-detail__heading">Selected package</p>
+                <button type="button" className="gmc-card__center-list" onClick={onCenterList}>
+                  <PinIcon className="gmc-card__center-list-pin" />
+                  Center List
+                </button>
               </div>
+              <div className="gmc-card__row gmc-card__row--plan-detail">
+                <span className="gmc-card__label">Name</span>
+                <span className="gmc-card__sep" aria-hidden="true">
+                  :
+                </span>
+                <span className="gmc-card__value">{resolvedPlan.cardTitle ?? packageLabel}</span>
+              </div>
+              <div className="gmc-card__row gmc-card__row--plan-detail">
+                <span className="gmc-card__label">Validity</span>
+                <span className="gmc-card__sep" aria-hidden="true">
+                  :
+                </span>
+                <span className="gmc-card__value">{resolvedPlan.months} months</span>
+              </div>
+              <div className="gmc-card__row gmc-card__row--plan-detail">
+                <span className="gmc-card__label">Price</span>
+                <span className="gmc-card__sep" aria-hidden="true">
+                  :
+                </span>
+                <span className="gmc-card__value gmc-card__value--price">
+                  {resolvedPlan.oldPrice > resolvedPlan.price ? (
+                    <>
+                      <del className="gmc-plan-detail__mrp">₹{resolvedPlan.oldPrice.toLocaleString()}</del>{" "}
+                    </>
+                  ) : null}
+                  ₹{resolvedPlan.price.toLocaleString()}
+                  <span className="gmc-plan-detail__per"> / person</span>
+                </span>
+              </div>
+              {resolvedPlan.packageCode ? (
+                <div className="gmc-card__row gmc-card__row--plan-detail">
+                  <span className="gmc-card__label">Code</span>
+                  <span className="gmc-card__sep" aria-hidden="true">
+                    :
+                  </span>
+                  <span className="gmc-card__value">{resolvedPlan.packageCode}</span>
+                </div>
+              ) : null}
+              <p className="gmc-plan-detail__note">{resolvedPlan.taxFeesLabel}</p>
+            </div>
+          ) : (
+            <div className="gmc-package-actions">
+              <button type="button" className="gmc-card__link" onClick={onChoosePackage}>
+                Select Package
+              </button>
               <button type="button" className="gmc-card__center-list" onClick={onCenterList}>
                 <PinIcon className="gmc-card__center-list-pin" />
                 Center List
               </button>
             </div>
-          </div>
+          )}
         </div>
         <div className="gmc-card__band">
           <ShieldIcon className="gmc-card__band-shield" />
@@ -258,8 +344,17 @@ export function GymMembershipConfigurePage() {
       : null;
   const planId = statePlanId ?? readStoredPlanId();
 
+  const gymCheck = useMemo(() => readGymCheckSnapshot(), [location.key]);
+
+  const displayPlans = useMemo((): readonly GymMembershipPlan[] => {
+    if (gymCheck?.packages.length) {
+      return gymCheck.packages.map((p, i) => gymPackageToMembershipPlan(p, i));
+    }
+    return GYM_MEMBERSHIP_PLANS;
+  }, [gymCheck]);
+
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [showSecondary, setShowSecondary] = useState(true);
+  const [storageEpoch, setStorageEpoch] = useState(0);
   const [primaryCity, setPrimaryCity] = useState(false);
   const [secondaryCity, setSecondaryCity] = useState(false);
   const [primaryMemberPlanId, setPrimaryMemberPlanId] = useState<string | null>(null);
@@ -274,36 +369,148 @@ export function GymMembershipConfigurePage() {
     null,
   );
 
-  const selectedPersonId = useMemo(() => {
-    try {
-      return localStorage.getItem(GYM_SELECTED_PERSON_KEY);
-    } catch {
-      return null;
-    }
-  }, []);
+  const [apiMemberRows, setApiMemberRows] = useState<GymMemberListRow[] | null>(null);
+  const [apiMembersReady, setApiMembersReady] = useState(false);
 
-  const { primaryMember, secondaryMember } = useMemo(() => {
-    const all = loadMembers();
-    const primary =
-      all.find((m) => m.id === selectedPersonId) ?? all[0] ?? SEED_MEMBERS[0];
-    const secondary =
-      all.find((m) => m.id !== primary.id) ?? all[1] ?? SEED_MEMBERS[1];
-    return { primaryMember: primary, secondaryMember: secondary };
-  }, [selectedPersonId]);
+  useEffect(() => {
+    let cancelled = false;
+    setApiMembersReady(false);
+    void fetchPatientMembers()
+      .then((list) => {
+        if (!cancelled) {
+          setApiMemberRows(patientMembersToGymRows(list));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setApiMemberRows(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setApiMembersReady(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location.key]);
+
+  const selectedPersonIds = useMemo(
+    () => readGymSelectedPersonIds(),
+    [location.key, storageEpoch],
+  );
+
+  const storedMemberSnapshots = useMemo(
+    () => readGymSelectedMembersSnapshots(),
+    [location.key, storageEpoch],
+  );
+
+  const primaryResolved = useMemo((): GymSelectedMemberSnapshot | null => {
+    const id = selectedPersonIds[0];
+    if (!id) return null;
+    const snapAligned = storedMemberSnapshots[0]?.id === id ? storedMemberSnapshots[0] : undefined;
+    const snap = snapAligned ?? storedMemberSnapshots.find((s) => s.id === id);
+    if (snap) {
+      return enrichGymMemberSnapshot(snap, gymCheck);
+    }
+    const all: GymMemberListRow[] =
+      apiMembersReady && apiMemberRows !== null ? apiMemberRows : loadMembers();
+    const row = all.find((m) => m.id === id);
+    if (!row) return null;
+    return enrichGymMemberSnapshot(buildGymMemberSnapshotFromRow(row, gymCheck), gymCheck);
+  }, [
+    selectedPersonIds,
+    storedMemberSnapshots,
+    gymCheck,
+    apiMembersReady,
+    apiMemberRows,
+    location.key,
+  ]);
+
+  const secondaryResolved = useMemo((): GymSelectedMemberSnapshot | null => {
+    const id = selectedPersonIds[1];
+    if (!id) return null;
+    const snapAligned = storedMemberSnapshots[1]?.id === id ? storedMemberSnapshots[1] : undefined;
+    const snap = snapAligned ?? storedMemberSnapshots.find((s) => s.id === id);
+    if (snap) {
+      return enrichGymMemberSnapshot(snap, gymCheck);
+    }
+    const all: GymMemberListRow[] =
+      apiMembersReady && apiMemberRows !== null ? apiMemberRows : loadMembers();
+    const row = all.find((m) => m.id === id);
+    if (!row) return null;
+    return enrichGymMemberSnapshot(buildGymMemberSnapshotFromRow(row, gymCheck), gymCheck);
+  }, [
+    selectedPersonIds,
+    storedMemberSnapshots,
+    gymCheck,
+    apiMembersReady,
+    apiMemberRows,
+    location.key,
+  ]);
+
+  /** Second configure card whenever two members were chosen on select-people. */
+  const showSecondary = useMemo(
+    () => selectedPersonIds.length >= 2 && secondaryResolved !== null,
+    [selectedPersonIds.length, secondaryResolved],
+  );
+
+  const accountPrimaryMemberId = useMemo((): string | null => {
+    if (!apiMembersReady || !apiMemberRows?.length) return null;
+    return apiMemberRows.find((r) => r.section === "self")?.id ?? null;
+  }, [apiMembersReady, apiMemberRows]);
 
   const primaryPackageLabel = useMemo(
-    () => getGymPlanPackageLabel(primaryMemberPlanId),
-    [primaryMemberPlanId],
+    () => getGymPlanPackageLabel(primaryMemberPlanId, gymCheck),
+    [primaryMemberPlanId, gymCheck],
   );
   const secondaryPackageLabel = useMemo(
-    () => getGymPlanPackageLabel(secondaryMemberPlanId),
-    [secondaryMemberPlanId],
+    () => getGymPlanPackageLabel(secondaryMemberPlanId, gymCheck),
+    [secondaryMemberPlanId, gymCheck],
   );
 
   const termsMembershipPhrase = useMemo(
-    () => getGymMembershipTermsProductPhrase(primaryMemberPlanId ?? planId),
-    [primaryMemberPlanId, planId],
+    () => getGymMembershipTermsProductPhrase(primaryMemberPlanId ?? planId, gymCheck),
+    [primaryMemberPlanId, planId, gymCheck],
   );
+
+  const termsPartnerTnc = useMemo(() => {
+    const pid = primaryMemberPlanId ?? planId;
+    if (!pid || !gymCheck?.packages.length) return null;
+    const pkg = gymCheck.packages.find((p) => p.package_code === pid);
+    return pkg?.tnc?.trim() ? pkg.tnc : null;
+  }, [primaryMemberPlanId, planId, gymCheck]);
+
+  const primaryResolvedPlan = useMemo(
+    () => resolveGymMembershipPlan(primaryMemberPlanId, gymCheck),
+    [primaryMemberPlanId, gymCheck],
+  );
+
+  const secondaryResolvedPlan = useMemo(
+    () => resolveGymMembershipPlan(secondaryMemberPlanId, gymCheck),
+    [secondaryMemberPlanId, gymCheck],
+  );
+
+  const orderLocationLabel = gymCheck?.order?.details?.location?.trim() ?? "";
+
+  const primaryCityDisplay = useMemo(() => {
+    if (!primaryResolved) return "";
+    if (primaryResolved.city.trim()) return primaryResolved.city.trim();
+    if (primaryCity) return orderLocationLabel || "Indiranagar, Bengaluru";
+    return "";
+  }, [primaryResolved, primaryCity, orderLocationLabel]);
+
+  const primaryCityConfirmed = Boolean(primaryResolved?.city.trim()) || primaryCity;
+
+  const secondaryCityDisplay = useMemo(() => {
+    if (!secondaryResolved) return "";
+    if (secondaryResolved.city.trim()) return secondaryResolved.city.trim();
+    if (secondaryCity) return orderLocationLabel || "Indiranagar, Bengaluru";
+    return "";
+  }, [secondaryResolved, secondaryCity, orderLocationLabel]);
+
+  const secondaryCityConfirmed = Boolean(secondaryResolved?.city.trim()) || secondaryCity;
 
   useEffect(() => {
     if (!planId) {
@@ -312,22 +519,39 @@ export function GymMembershipConfigurePage() {
   }, [planId, navigate]);
 
   useEffect(() => {
-    if (!selectedPersonId) {
+    if (selectedPersonIds.length === 0) {
       navigate(ROUTES.gymMembershipSelectPeople, {
         replace: true,
         state: planId ? { planId } : undefined,
       });
     }
-  }, [selectedPersonId, planId, navigate]);
+  }, [selectedPersonIds.length, planId, navigate]);
+
+  useEffect(() => {
+    if (selectedPersonIds.length === 0 || !apiMembersReady || !planId) return;
+    if (primaryResolved === null) {
+      navigate(ROUTES.gymMembershipSelectPeople, {
+        replace: true,
+        state: { planId },
+      });
+    }
+  }, [selectedPersonIds.length, apiMembersReady, primaryResolved, planId, navigate]);
 
   // Default each member's package to the plan already chosen on the plans screen so
   // Continue can enable after terms — users can still change packages via Select Package.
   useEffect(() => {
     if (!planId) return;
-    if (!GYM_MEMBERSHIP_PLANS.some((p) => p.id === planId)) return;
+    if (!displayPlans.some((p) => p.id === planId)) return;
     setPrimaryMemberPlanId((prev) => (prev === null ? planId : prev));
     setSecondaryMemberPlanId((prev) => (prev === null ? planId : prev));
-  }, [planId]);
+  }, [planId, displayPlans]);
+
+  useEffect(() => {
+    const loc = gymCheck?.order?.details?.location?.trim();
+    if (loc) {
+      setPrimaryCity(true);
+    }
+  }, [gymCheck]);
 
   const packagesReady =
     primaryMemberPlanId !== null &&
@@ -344,10 +568,10 @@ export function GymMembershipConfigurePage() {
     (target: "primary" | "secondary") => {
       setPackageSheetTarget(target);
       const existing = target === "primary" ? primaryMemberPlanId : secondaryMemberPlanId;
-      const fallback = planId ?? GYM_MEMBERSHIP_PLANS[0]?.id ?? null;
+      const fallback = planId ?? displayPlans[0]?.id ?? null;
       setSheetPlanId(existing ?? fallback);
     },
-    [primaryMemberPlanId, secondaryMemberPlanId, planId],
+    [primaryMemberPlanId, secondaryMemberPlanId, planId, displayPlans],
   );
 
   const confirmPackageSheet = useCallback(() => {
@@ -386,14 +610,67 @@ export function GymMembershipConfigurePage() {
 
   const confirmRemoveMember = useCallback(() => {
     if (removeConfirmTarget === "primary") {
+      clearGymSelectedMemberSnapshot();
       navigate(ROUTES.gymMembershipSelectPeople, { state: backState });
     } else if (removeConfirmTarget === "secondary") {
-      setShowSecondary(false);
+      const first = readGymSelectedPersonIds()[0];
+      if (first) {
+        writeGymSelectedPersonIds([first]);
+        const row = apiMemberRows?.find((r) => r.id === first);
+        if (row) {
+          writeGymSelectedMembersSnapshots([
+            buildGymMemberSnapshotFromRow(row, gymCheck),
+          ]);
+        } else {
+          const snaps = readGymSelectedMembersSnapshots();
+          const keep = snaps.find((s) => s.id === first);
+          if (keep) writeGymSelectedMembersSnapshots([keep]);
+        }
+        setStorageEpoch((e) => e + 1);
+      }
     }
     setRemoveConfirmTarget(null);
-  }, [removeConfirmTarget, navigate, backState]);
+  }, [removeConfirmTarget, navigate, backState, apiMemberRows, gymCheck]);
 
-  if (!planId || !selectedPersonId) {
+  if (!planId || selectedPersonIds.length === 0) {
+    return null;
+  }
+
+  if (!apiMembersReady) {
+    return (
+      <div className="gmc-page">
+        <header className="hco-top">
+          <Link
+            to={ROUTES.gymMembershipSelectPeople}
+            state={planId ? { planId } : undefined}
+            className="hco-back"
+            aria-label="Back to member selection"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+          <h1 className="hco-title">Gym Membership</h1>
+          <span className="hco-orders" style={{ visibility: "hidden" }} aria-hidden>
+            My Orders
+          </span>
+        </header>
+        <main className="gmc-main">
+          <p className="gmc-loading-msg" aria-busy="true">
+            Loading…
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!primaryResolved) {
     return null;
   }
 
@@ -426,30 +703,39 @@ export function GymMembershipConfigurePage() {
       </header>
 
       <main className="gmc-main">
+        <div className="gmc-selected-summary" role="status">
+          <span className="gmc-selected-summary__label">
+            {selectedPersonIds.length} member{selectedPersonIds.length === 1 ? "" : "s"} selected
+          </span>
+          <span className="gmc-selected-summary__names">
+            {primaryResolved.name}
+            {secondaryResolved ? ` · ${secondaryResolved.name}` : ""}
+          </span>
+        </div>
         <div className="gmc-cards">
           <GymMemberConfigureCard
-            role="primary"
-            name={primaryMember.name}
-            phone={primaryMember.phone ?? "9876543210"}
-            email={primaryMember.email ?? "xxxxxxx@email.com"}
-            cityChosen={primaryCity}
+            member={primaryResolved}
+            accountPrimaryMemberId={accountPrimaryMemberId}
+            cityConfirmed={primaryCityConfirmed}
+            cityDisplay={primaryCityDisplay}
             packageChosen={primaryMemberPlanId !== null}
             packageLabel={primaryPackageLabel}
+            resolvedPlan={primaryResolvedPlan}
             showClose
             onClose={() => setRemoveConfirmTarget("primary")}
             onChooseCity={() => setPrimaryCity(true)}
             onChoosePackage={() => openPackageSheet("primary")}
             onCenterList={onCenterList}
           />
-          {showSecondary ? (
+          {showSecondary && secondaryResolved ? (
             <GymMemberConfigureCard
-              role="secondary"
-              name={secondaryMember.name}
-              phone={secondaryMember.phone ?? "9876543210"}
-              email={secondaryMember.email ?? "xxxxxxx@email.com"}
-              cityChosen={secondaryCity}
+              member={secondaryResolved}
+              accountPrimaryMemberId={accountPrimaryMemberId}
+              cityConfirmed={secondaryCityConfirmed}
+              cityDisplay={secondaryCityDisplay}
               packageChosen={secondaryMemberPlanId !== null}
               packageLabel={secondaryPackageLabel}
+              resolvedPlan={secondaryResolvedPlan}
               showClose
               onClose={() => setRemoveConfirmTarget("secondary")}
               onChooseCity={() => setSecondaryCity(true)}
@@ -495,29 +781,54 @@ export function GymMembershipConfigurePage() {
           onClick={() => {
             if (!primaryMemberPlanId) return;
             if (showSecondary && !secondaryMemberPlanId) return;
+            const selfRow = apiMemberRows?.find((r) => r.section === "self");
+            const accountPrimaryUser = (() => {
+              if (selfRow) {
+                const snap = enrichGymMemberSnapshot(
+                  buildGymMemberSnapshotFromRow(selfRow, gymCheck),
+                  gymCheck,
+                );
+                return {
+                  name: snap.name,
+                  email:
+                    snap.email?.trim() ||
+                    `${snap.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
+                  phone: snap.phone?.trim() || "—",
+                };
+              }
+              return {
+                name: primaryResolved.name,
+                email:
+                  primaryResolved.email?.trim() ||
+                  `${primaryResolved.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
+                phone: primaryResolved.phone?.trim() || "—",
+              };
+            })();
             const snapshot: GymOverviewSnapshot = {
               planId,
-              primaryUserName: primaryMember.name,
-              primaryUserEmail:
-                primaryMember.email ??
-                `${primaryMember.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
+              accountPrimaryUser,
               showSecondary,
               primary: {
                 role: "primary",
-                name: primaryMember.name,
-                phone: primaryMember.phone ?? "9876543210",
-                email: primaryMember.email ?? "xxxxxxx@email.com",
-                cityChosen: primaryCity,
+                isAccountPrimary: isAccountPrimaryMember(primaryResolved, accountPrimaryMemberId),
+                name: primaryResolved.name,
+                phone: primaryResolved.phone?.trim() || "—",
+                email: primaryResolved.email?.trim() || "—",
+                cityChosen: primaryCityConfirmed,
                 planId: primaryMemberPlanId,
               },
               secondary:
-                showSecondary && secondaryMemberPlanId
+                showSecondary && secondaryMemberPlanId && secondaryResolved
                   ? {
                       role: "secondary",
-                      name: secondaryMember.name,
-                      phone: secondaryMember.phone ?? "9876543210",
-                      email: secondaryMember.email ?? "xxxxxxx@email.com",
-                      cityChosen: secondaryCity,
+                      isAccountPrimary: isAccountPrimaryMember(
+                        secondaryResolved,
+                        accountPrimaryMemberId,
+                      ),
+                      name: secondaryResolved.name,
+                      phone: secondaryResolved.phone?.trim() || "—",
+                      email: secondaryResolved.email?.trim() || "—",
+                      cityChosen: secondaryCityConfirmed,
                       planId: secondaryMemberPlanId,
                     }
                   : null,
@@ -563,7 +874,7 @@ export function GymMembershipConfigurePage() {
             </header>
             <div className="gmc-pkg-sheet__body">
               <div className="gym-plan-list">
-                {GYM_MEMBERSHIP_PLANS.map((plan) => {
+                {displayPlans.map((plan) => {
                   const isChecked = sheetPlanId === plan.id;
                   const selectedClass = isChecked ? " gym-plan-card--selected" : "";
                   const accentClass = planAccentClass(plan.accent);
@@ -571,6 +882,7 @@ export function GymMembershipConfigurePage() {
                     plan.accent === "blue"
                       ? "gym-plan-card__overlay--blue"
                       : "gym-plan-card__overlay--black";
+                  const showStrike = plan.oldPrice > plan.price;
                   return (
                     <button
                       key={plan.id}
@@ -592,18 +904,14 @@ export function GymMembershipConfigurePage() {
                       </span>
                       <div className="gym-plan-card__content">
                         <div className="gym-plan-card__info">
-                          <div className="gym-plan-card__tier">
-                            <span className="gym-plan-card__tier-text">Cult</span>
-                            <span className="gym-plan-card__tier-highlight">
-                              {plan.tier.split(" ")[1]}
-                            </span>
-                            <span className="gym-plan-card__tier-text">Membership</span>
-                          </div>
+                          <GymPlanTierHeading plan={plan} />
                           <div className="gym-plan-card__term">{plan.months} Months</div>
                           <div className="gym-plan-card__pricing">
-                            <del className="gym-plan-card__old-price">
-                              ₹{plan.oldPrice.toLocaleString()}+
-                            </del>
+                            {showStrike ? (
+                              <del className="gym-plan-card__old-price">
+                                ₹{plan.oldPrice.toLocaleString()}+
+                              </del>
+                            ) : null}
                             <div className="gym-plan-card__price">
                               ₹{plan.price.toLocaleString()}
                               <span className="gym-plan-card__price-suffix">/per person</span>
@@ -648,6 +956,7 @@ export function GymMembershipConfigurePage() {
       <GymTermsSheet
         open={termsSheetOpen}
         membershipPhrase={termsMembershipPhrase}
+        partnerTncHtml={termsPartnerTnc}
         onClose={() => setTermsSheetOpen(false)}
         onAccept={() => setTermsAccepted(true)}
       />

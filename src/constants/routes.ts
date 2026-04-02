@@ -4,6 +4,8 @@ export const ROUTES = {
   root: "/",
   login: "/login",
   otp: "/otp",
+  /** Link phone/email after verify when API returns `link`: PHONE | EMAIL */
+  accountLink: "/account/link",
   dashboard: "/dashboard",
   profile: "/profile",
   profileBank: "/profile/bank",
@@ -37,11 +39,11 @@ export const ROUTES = {
   pharmacy: "/pharmacy",
   orders: "/orders",
   help: "/help",
-  gymMembership: "services/gym-membership",
-  gymMembershipSelectPeople: "services/gym-membership/select-people",
-  gymMembershipConfigure: "services/gym-membership/configure",
-  gymMembershipOverview: "services/gym-membership/overview",
-  gymMembershipSelectClinic: "services/gym-membership/select-clinic",
+  gymMembership: "/services/gym-membership",
+  gymMembershipSelectPeople: "/services/gym-membership/select-people",
+  gymMembershipConfigure: "/services/gym-membership/configure",
+  gymMembershipOverview: "/services/gym-membership/overview",
+  gymMembershipSelectClinic: "/services/gym-membership/select-clinic",
   cartOverview: "/cart-overview",
 } as const;
 

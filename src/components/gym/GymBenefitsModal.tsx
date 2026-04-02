@@ -48,24 +48,38 @@ export function GymBenefitsModal({ plan, onClose }: GymBenefitsModalProps) {
       <div className="gbm-panel">
         <header className="gbm-header">
           <h2 id="gbm-dialog-title" className="gbm-title">
-            <span>Cult </span>
-            <span className={accentClass}>{tierWord}</span>
-            <span> Benefits</span>
+            {plan.cardTitle ? (
+              <span className="gbm-title-package">{plan.cardTitle}</span>
+            ) : (
+              <>
+                <span>Cult </span>
+                <span className={accentClass}>{tierWord}</span>
+                <span> Benefits</span>
+              </>
+            )}
           </h2>
           <button type="button" className="gbm-close" onClick={onClose} aria-label="Close">
             ×
           </button>
         </header>
-        <ul className="gbm-list">
-          {plan.benefits.map((line) => (
-            <li key={line} className="gbm-item">
-              <span className="gbm-check" aria-hidden="true">
-                ✓
-              </span>
-              {line}
-            </li>
-          ))}
-        </ul>
+        {plan.tncHtml ? (
+          <div
+            className="gbm-html"
+            // API terms HTML (partner-controlled)
+            dangerouslySetInnerHTML={{ __html: plan.tncHtml }}
+          />
+        ) : (
+          <ul className="gbm-list">
+            {plan.benefits.map((line) => (
+              <li key={line} className="gbm-item">
+                <span className="gbm-check" aria-hidden="true">
+                  ✓
+                </span>
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

@@ -52,30 +52,100 @@
   margin-top: 22px;
 }
 
+.gmo-pu-block {
+  margin-bottom: 4px;
+}
+
 .gmo-pu-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
   font-size: 13px;
   font-weight: 600;
   color: #111111;
+}
+
+.gmo-pu-row--name {
+  margin-bottom: 10px;
+}
+
+.gmo-pu-row--contact {
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.gmo-pu-name {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.gmo-pu-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111;
+  line-height: 1.4;
+}
+
+.gmo-pu-email,
+.gmo-pu-phone {
+  word-break: break-word;
+  min-width: 0;
+}
+
+.gmo-pu-divider {
+  flex-shrink: 0;
+  color: #c4c4c4;
+  font-weight: 700;
 }
 
 .gmo-pu-ic {
   width: 22px;
   height: 22px;
   flex-shrink: 0;
-  color: #ff6b2c;
+  color: #1aad0d;
 }
 
-/* Beneficiary cards — white card + gradient banners only (not configure shell) */
+.gmo-pu-ic--contact {
+  margin-top: 1px;
+}
+
+.gmo-subscription-id,
+.gmo-order-ref {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #555;
+  word-break: break-word;
+}
+
+/* Beneficiary cards — gradient border by account role (matches configure gmc-card) */
 .gmo-ben {
-  border: 1px solid #3a3a3a;
+  position: relative;
   border-radius: 12px;
-  background: #ffffff;
+  border: 1px solid transparent;
   margin-bottom: 12px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.gmo-ben--account-primary {
+  background-image:
+    linear-gradient(#ffffff, #ffffff),
+    linear-gradient(260.79deg, #000000 0%, #1aad0d 98.43%);
+}
+
+.gmo-ben--account-dependent {
+  background-image:
+    linear-gradient(#ffffff, #ffffff),
+    linear-gradient(260.79deg, #000000 0%, #ff541e 98.43%);
 }
 
 .gmo-ben__top {
@@ -265,11 +335,11 @@
   color: #ffffff;
 }
 
-.gmo-ben__banner--primary {
+.gmo-ben__banner--account-primary {
   background: linear-gradient(260.79deg, #000000 0%, #1aad0d 98.43%);
 }
 
-.gmo-ben__banner--secondary {
+.gmo-ben__banner--account-dependent {
   background: linear-gradient(260.79deg, #000000 0%, #ff541e 98.43%);
 }
 
@@ -352,6 +422,17 @@
   font-weight: 800;
 }
 
+.gmo-payment-gate {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff8f4;
+  border: 1px solid #ffd4bf;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #333;
+}
+
 /* Fixed bar aligned to mobile column */
 .gmo-footer {
   position: fixed;
@@ -384,4 +465,10 @@
 .gmo-pay-btn:focus-visible {
   outline: 2px solid rgba(255, 84, 30, 0.5);
   outline-offset: 2px;
+}
+
+.gmo-pay-btn:disabled {
+  background: #c4c4c4;
+  color: #ffffff;
+  cursor: not-allowed;
 }
