@@ -1,13 +1,19 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ROUTES } from "@/constants";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import type { GymCheckData } from "@/api/patientGym";
+import { getGymCheck } from "@/api/patientGym";
 import { GymBenefitsModal } from "@/components/gym/GymBenefitsModal";
+import { GymPlanTierHeading } from "@/components/gym/GymPlanTierHeading";
+import { writeGymCheckSnapshot, readGymCheckSnapshot } from "@/constants/gymCheckStorage";
+import { ROUTES } from "@/constants";
 import { GYM_MEMBERSHIP_PLANS, type GymMembershipPlan } from "@/constants/gymPlans";
+import { gymPackageToMembershipPlan } from "@/lib/gymPackageToPlan";
+import { useToast } from "@/hooks/useToast";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import "./GymMembershipPage.css";
 import "./HealthCheckupsOverviewPage.css";
 
-function planAccentClass(accent: (typeof GYM_MEMBERSHIP_PLANS)[number]["accent"]): string {
+function planAccentClass(accent: GymMembershipPlan["accent"]): string {
   if (accent === "gold") return " gym-plan-card--gold";
   if (accent === "orange") return " gym-plan-card--orange";
   return " gym-plan-card--blue";
@@ -16,14 +22,51 @@ function planAccentClass(accent: (typeof GYM_MEMBERSHIP_PLANS)[number]["accent"]
 export function GymMembershipPage() {
   const [checkedPlanId, setCheckedPlanId] = useState<string | null>(null);
   const [benefitsPlan, setBenefitsPlan] = useState<GymMembershipPlan | null>(null);
+  const [gymCheck, setGymCheck] = useState<GymCheckData | null>(() => readGymCheckSnapshot());
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  const toast = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      try {
+        const data = await getGymCheck();
+        if (cancelled) return;
+        writeGymCheckSnapshot(data);
+        setGymCheck(data);
+      } catch (e) {
+        if (cancelled) return;
+        toast.error(e instanceof Error ? e.message : "Could not verify gym access");
+        setGymCheck(readGymCheckSnapshot());
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [toast, location.key]);
+
+  const displayPlans = useMemo((): readonly GymMembershipPlan[] => {
+    if (gymCheck?.packages.length) {
+      return gymCheck.packages.map((p, i) => gymPackageToMembershipPlan(p, i));
+    }
+    return GYM_MEMBERSHIP_PLANS;
+  }, [gymCheck]);
 
   const selectedPlan = useMemo(
-    () => GYM_MEMBERSHIP_PLANS.find((plan) => plan.id === checkedPlanId) ?? null,
-    [checkedPlanId],
+    () => displayPlans.find((plan) => plan.id === checkedPlanId) ?? null,
+    [displayPlans, checkedPlanId],
   );
 
   const canContinue = checkedPlanId !== null;
+
+  const blockedByModule = gymCheck !== null && !gymCheck.gym_module;
+  const noPackages =
+    gymCheck !== null && gymCheck.gym_module && gymCheck.packages.length === 0 && !loading;
 
   return (
     <div className="gym-membership-page">
@@ -49,81 +92,111 @@ export function GymMembershipPage() {
       </header>
 
       <main className="gym-membership-main">
-        <div className="gym-plan-list">
-          {GYM_MEMBERSHIP_PLANS.map((plan) => {
-            const isChecked = checkedPlanId === plan.id;
-            const selectedClass = isChecked ? " gym-plan-card--selected" : "";
-            const accentClass = planAccentClass(plan.accent);
-            const overlayClass =
-              plan.accent === "blue" ? "gym-plan-card__overlay--blue" : "gym-plan-card__overlay--black";
-            return (
-              <button
-                key={plan.id}
-                type="button"
-                className={`gym-plan-card${selectedClass}${accentClass}`}
-                onClick={() => setCheckedPlanId((prev) => (prev === plan.id ? null : plan.id))}
-              >
-                <span
-                  className="gym-plan-card__background"
-                  style={{ backgroundImage: `url(${plan.image})` }}
-                  aria-hidden="true"
-                />
-                <span className={`gym-plan-card__overlay ${overlayClass}`} aria-hidden="true" />
+        {gymCheck?.subscription_id ? (
+          <p className="gym-membership-meta" aria-live="polite">
+            Subscription ID: {gymCheck.subscription_id}
+          </p>
+        ) : null}
+
+        {gymCheck?.order ? (
+          <div className="gym-membership-order-banner">
+            <p className="gym-membership-order-banner__title">Existing order</p>
+            <p className="gym-membership-order-banner__line">
+              Invoice: {gymCheck.order.invoice_id}
+              {gymCheck.order.details?.location ? ` · ${gymCheck.order.details.location}` : ""}
+            </p>
+            <p className="gym-membership-order-banner__line">Status code: {gymCheck.order.status}</p>
+          </div>
+        ) : null}
+
+        {loading ? (
+          <p className="gym-membership-loading" aria-busy="true">
+            Loading plans…
+          </p>
+        ) : null}
+
+        {!loading && blockedByModule ? (
+          <p className="gym-membership-empty">Gym membership is not available for your account.</p>
+        ) : null}
+
+        {!loading && noPackages ? (
+          <p className="gym-membership-empty">No membership packages are available right now.</p>
+        ) : null}
+
+        {!loading && !blockedByModule && !noPackages ? (
+          <div className="gym-plan-list">
+            {displayPlans.map((plan) => {
+              const isChecked = checkedPlanId === plan.id;
+              const selectedClass = isChecked ? " gym-plan-card--selected" : "";
+              const accentClass = planAccentClass(plan.accent);
+              const overlayClass =
+                plan.accent === "blue" ? "gym-plan-card__overlay--blue" : "gym-plan-card__overlay--black";
+              const showStrike = plan.oldPrice > plan.price;
+              return (
                 <button
+                  key={plan.id}
                   type="button"
-                  className={`gym-plan-card__check ${isChecked ? "gym-plan-card__check--active" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCheckedPlanId((prev) => (prev === plan.id ? null : plan.id));
-                  }}
-                  aria-label={isChecked ? "Deselect plan" : "Select plan"}
+                  className={`gym-plan-card${selectedClass}${accentClass}`}
+                  onClick={() => setCheckedPlanId((prev) => (prev === plan.id ? null : plan.id))}
                 >
-                  {isChecked ? "✔" : ""}
-                </button>
-                <div className="gym-plan-card__content">
-                  <div className="gym-plan-card__info">
-                    <div className="gym-plan-card__tier">
-                      <span className="gym-plan-card__tier-text">Cult</span>
-                      <span className="gym-plan-card__tier-highlight">
-                        {plan.tier.split(" ")[1]}
-                      </span>
-                      <span className="gym-plan-card__tier-text">Membership</span>
-                    </div>
-                    <div className="gym-plan-card__term">{plan.months} Months</div>
-                    <div className="gym-plan-card__pricing">
-                      <del className="gym-plan-card__old-price">₹{plan.oldPrice.toLocaleString()}+</del>
-                      <div className="gym-plan-card__price">
-                        ₹{plan.price.toLocaleString()}
-                        <span className="gym-plan-card__price-suffix">/per person</span>
-                      </div>
-                      <div className="gym-plan-card__tax-label">{plan.taxFeesLabel}</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="gym-plan-card__meta mb-4">
+                  <span
+                    className="gym-plan-card__background"
+                    style={{ backgroundImage: `url(${plan.image})` }}
+                    aria-hidden="true"
+                  />
+                  <span className={`gym-plan-card__overlay ${overlayClass}`} aria-hidden="true" />
                   <button
                     type="button"
-                    className="gym-plan-card__benefits"
+                    className={`gym-plan-card__check ${isChecked ? "gym-plan-card__check--active" : ""}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setBenefitsPlan(plan);
+                      setCheckedPlanId((prev) => (prev === plan.id ? null : plan.id));
                     }}
+                    aria-label={isChecked ? "Deselect plan" : "Select plan"}
                   >
-                    View Benefits
+                    {isChecked ? "✔" : ""}
                   </button>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  <div className="gym-plan-card__content">
+                    <div className="gym-plan-card__info">
+                      <GymPlanTierHeading plan={plan} />
+                      <div className="gym-plan-card__term">{plan.months} Months</div>
+                      <div className="gym-plan-card__pricing">
+                        {showStrike ? (
+                          <del className="gym-plan-card__old-price">₹{plan.oldPrice.toLocaleString()}+</del>
+                        ) : null}
+                        <div className="gym-plan-card__price">
+                          ₹{plan.price.toLocaleString()}
+                          <span className="gym-plan-card__price-suffix">/per person</span>
+                        </div>
+                        <div className="gym-plan-card__tax-label">{plan.taxFeesLabel}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="gym-plan-card__meta mb-4">
+                    <button
+                      type="button"
+                      className="gym-plan-card__benefits"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBenefitsPlan(plan);
+                      }}
+                    >
+                      View Benefits
+                    </button>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </main>
 
       <footer className="gym-continue-footer">
         <button
           type="button"
-          className={`gym-continue-button${canContinue ? "" : " gym-continue-button--disabled"}`}
+          className={`gym-continue-button${canContinue && !blockedByModule && !noPackages ? "" : " gym-continue-button--disabled"}`}
           onClick={() => {
-            if (!canContinue || !selectedPlan) return;
+            if (!canContinue || !selectedPlan || blockedByModule || noPackages) return;
             try {
               localStorage.setItem("opd-mobile-view.gym-membership.planId", selectedPlan.id);
             } catch {
@@ -131,7 +204,7 @@ export function GymMembershipPage() {
             }
             navigate(ROUTES.gymMembershipSelectPeople, { state: { planId: selectedPlan.id } });
           }}
-          disabled={!canContinue}
+          disabled={!canContinue || blockedByModule || noPackages || loading}
         >
           Continue
         </button>

@@ -1,40 +1,34 @@
+import { clearSession, AUTH_SESSION_EXPIRED_EVENT, getAccessToken, notifyUnauthorizedAndSignOut } from "@/lib/authStorage";
 import {
-  AUTH_SESSION_EXPIRED_EVENT,
-  clearSession,
-  getAccessToken,
-} from "@/lib/authStorage";
-import { getPatientApiBase, readPatientApiError } from "@/api/patientClient";
+  getPatientApiBase,
+  getUploadApiBase,
+  readPatientApiError,
+} from "@/api/patientClient";
 
 export type PatientHttpInit = RequestInit & Readonly<{ skipAuth?: boolean }>;
 
-/**
- * Patient API fetch with request "interceptor" (Bearer token) and 401 handling.
- * Use `skipAuth: true` for register, verify, and other public endpoints.
- */
-export async function patientFetch(
+async function patientFetchWithBase(
+  base: string,
   path: string,
   init: PatientHttpInit = {},
 ): Promise<Response> {
   const { skipAuth, headers: initHeaders, ...rest } = init;
   const headers = new Headers(initHeaders);
 
-  const body = init.body;
+  const body = rest.body;
   if (body && typeof body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  let sentAuthorization = false;
   if (!skipAuth) {
     const token = await getAccessToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
-      sentAuthorization = true;
     }
   }
 
-  const base = getPatientApiBase();
   const rel = path.replace(/^\//, "");
-  const url = `${base}/${rel}`;
+  const url = `${base.replace(/\/$/, "")}/${rel}`;
 
   // Avoid stale API responses (304 + cached body) differing from Postman / server truth.
   if (!headers.has("Cache-Control")) {
@@ -49,12 +43,35 @@ export async function patientFetch(
     headers,
     cache: rest.cache ?? "no-store",
   });
-  if (res.status === 401 && sentAuthorization) {
+  if (res.status === 401 && headers.has("Authorization")) {
     clearSession();
     globalThis.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
   }
+  if (res.status === 401 && !skipAuth) {
+    notifyUnauthorizedAndSignOut();
+  }
 
   return res;
+}
+
+/**
+ * Patient API fetch with request "interceptor" (Bearer token) and 401 handling.
+ * Use `skipAuth: true` for register, verify, login, and other public endpoints.
+ * Authenticated: `link`, `vlink`, profile, etc.
+ */
+export async function patientFetch(
+  path: string,
+  init: PatientHttpInit = {},
+): Promise<Response> {
+  return patientFetchWithBase(getPatientApiBase(), path, init);
+}
+
+/** Same as {@link patientFetch} but uses {@link getUploadApiBase} (e.g. `POST /upload`). */
+export async function patientFetchUpload(
+  path: string,
+  init: PatientHttpInit = {},
+): Promise<Response> {
+  return patientFetchWithBase(getUploadApiBase(), path, init);
 }
 
 /** Throws with server message when `!res.ok`. */
@@ -63,6 +80,18 @@ export async function patientFetchChecked(
   init: PatientHttpInit = {},
 ): Promise<Response> {
   const res = await patientFetch(path, init);
+  if (!res.ok) {
+    throw new Error(await readPatientApiError(res));
+  }
+  return res;
+}
+
+/** Upload host; throws with server message when `!res.ok`. */
+export async function patientFetchUploadChecked(
+  path: string,
+  init: PatientHttpInit = {},
+): Promise<Response> {
+  const res = await patientFetchUpload(path, init);
   if (!res.ok) {
     throw new Error(await readPatientApiError(res));
   }

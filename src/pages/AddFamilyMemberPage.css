@@ -42,6 +42,32 @@
   gap: 12px;
 }
 
+.afm-height-fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.afm-height-block__title {
+  display: block;
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #616161;
+}
+
+.afm-height-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.afm-height-field {
+  position: relative;
+}
+
 .afm-input {
   position: relative;
 }
@@ -98,6 +124,41 @@
 .afm-placeholder {
   color: #9c9c9c;
   font-weight: 600;
+}
+
+.afm-phone-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.afm-send-otp {
+  align-self: flex-start;
+  border: 1px solid #e1e1e1;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #fafafa;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+  cursor: pointer;
+}
+
+.afm-send-otp:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.afm-send-otp:not(:disabled):active {
+  opacity: 0.88;
+}
+
+.afm-otp-hint {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #7c7c7c;
 }
 
 .afm-note {

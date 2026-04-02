@@ -157,6 +157,21 @@
   cursor: pointer;
 }
 
+.gts-partner-html {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #222222;
+}
+
+.gts-partner-html ol {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.gts-partner-html li {
+  margin: 0.35em 0;
+}
+
 .gts-footer {
   flex-shrink: 0;
   padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0));

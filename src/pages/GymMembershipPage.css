@@ -14,6 +14,44 @@
   flex: 1;
 }
 
+.gym-membership-meta {
+  margin: 0;
+  font-size: 12px;
+  color: #555;
+  word-break: break-all;
+}
+
+.gym-membership-order-banner {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fff4ed;
+  border: 1px solid #ffd4bf;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.gym-membership-order-banner__title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.gym-membership-order-banner__line {
+  margin: 0;
+  font-size: 12px;
+  color: #444;
+}
+
+.gym-membership-loading,
+.gym-membership-empty {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  padding: 24px 8px;
+}
+
 .gym-plan-list {
   display: flex;
   flex-direction: column;
@@ -125,6 +163,18 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+}
+
+.gym-plan-card__tier--package-title {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.gym-plan-card__tier-highlight--package {
+  max-width: 100%;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .gym-plan-card__tier {

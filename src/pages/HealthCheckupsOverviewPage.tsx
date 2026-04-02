@@ -149,9 +149,77 @@ export function HealthCheckupsOverviewPage() {
 
       <main className="hco-main">
         <div className="hco-main__content">
-          <div className="hco-subhead">
-            <span className="hco-subhead__title">
-              Added Items({addedItemsCount})
+        <div className="hco-subhead">
+          <span className="hco-subhead__title">Added Items({addedItemsCount})</span>
+        </div>
+
+        <section className="hco-item">
+          <div className="hco-item__row">
+            <div className="hco-item__text">
+              <div className="hco-item__name">Employee Annual Health Checkup</div>
+              <div className="hco-item__meta">{vendorId ? `Vendor: ${vendorId}` : "For Kalyan"}</div>
+            </div>
+            <div className="hco-item__price">₹ 4,000</div>
+          </div>
+        </section>
+
+        <section className="hco-block">
+          <div className="hco-label">Phone number : +91 73********</div>
+          <div className="hco-help">Booking related updates will be sent on this number</div>
+        </section>
+
+        <section className="hco-block">
+          <div className="hco-label">Alternate Phone number</div>
+          <div className="hco-alt">
+            <span className="hco-alt__cc">+91</span>
+            <input
+              className="hco-alt__input"
+              placeholder="Enter your alternate number here"
+              value={altPhone}
+              onChange={(e) => setAltPhone(e.target.value)}
+            />
+          </div>
+        </section>
+
+        <section className="hco-block">
+          <div className="hco-label">Date and time</div>
+          <div className="hco-dt">
+            <span className="hco-dt__value">{slotLabel || "April 10, 2024 | 2PM–3PM"}</span>
+            <button type="button" className="hco-dt__edit" aria-label="Edit date and time">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5z"
+                  stroke="#1A73E8"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <section className="hco-totals">
+          <div className="hco-totals__row">
+            <span className="hco-totals__k">Total MRP</span>
+            <span className="hco-totals__v">₹ 4,000</span>
+          </div>
+          <div className="hco-totals__row hco-totals__muted">
+            <span className="hco-totals__k">Home Collection Charges</span>
+            <span className="hco-totals__v">₹ 80</span>
+          </div>
+
+          <div className="hco-wallet">
+            <div className="hco-wallet__left">
+              <div className="hco-wallet__k">From Wallet</div>
+              <div className="hco-wallet__sub">Wallet Limit : ₹ 4,600</div>
+            </div>
+            <div className="hco-wallet__v">₹ 4,000</div>
+          </div>
+
+          <div className="hco-net">
+            <span className="hco-net__k">Net Pay</span>
+            <span className="hco-net__v">
+              <span className="hco-net__strike">₹ 4,080</span> ₹ 0
             </span>
           </div>
 
@@ -308,6 +376,7 @@ export function HealthCheckupsOverviewPage() {
             <div className="hco-remarks__k">Remarks :</div>
             <div className="hco-remarks__v">Order cannot be cancelled once confirmed</div>
           </div>
+        </section>
         </div>
 
         <footer className="hco-paybar">

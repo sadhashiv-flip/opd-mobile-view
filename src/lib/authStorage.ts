@@ -1,4 +1,5 @@
 import { encryptJson, decryptJson } from "@/lib/sessionCrypto";
+import { clearForgotResetToken } from "@/lib/forgotResetToken";
 import type { StoredAuthSession, VerifySuccessResponse } from "@/types/authSession";
 
 export const AUTH_SESSION_STORAGE_KEY = "opd-mobile-view.auth.session.v1";
@@ -87,4 +88,45 @@ export function clearSession(): void {
     /* ignore */
   }
   memoryCache = undefined;
+}
+
+const APP_STORAGE_KEY_PREFIX = "opd-mobile-view.";
+
+/**
+ * Clears encrypted session, forgot-password reset token, all `opd-mobile-view.*`
+ * localStorage keys, and sessionStorage. Used on 401 from authenticated API calls.
+ */
+export function clearClientStorageOnUnauthorized(): void {
+  clearSession();
+  clearForgotResetToken();
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(APP_STORAGE_KEY_PREFIX)) {
+        toRemove.push(k);
+      }
+    }
+    for (const k of toRemove) {
+      localStorage.removeItem(k);
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* ignore */
+  }
+}
+
+let lastAuthFailureDispatchAt = 0;
+
+/** Idempotent: clear storage once and dispatch {@link AUTH_SESSION_EXPIRED_EVENT} (throttled). */
+export function notifyUnauthorizedAndSignOut(): void {
+  const now = Date.now();
+  if (now - lastAuthFailureDispatchAt < 1500) return;
+  lastAuthFailureDispatchAt = now;
+  clearClientStorageOnUnauthorized();
+  globalThis.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
 }

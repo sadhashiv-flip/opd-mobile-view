@@ -19,11 +19,19 @@ const TERMS_SECTIONS: readonly { title: string; body: string }[] = [
 type GymTermsSheetProps = Readonly<{
   open: boolean;
   membershipPhrase: string;
+  /** Optional partner package terms (HTML) appended below standard sections */
+  partnerTncHtml?: string | null;
   onClose: () => void;
   onAccept: () => void;
 }>;
 
-export function GymTermsSheet({ open, membershipPhrase, onClose, onAccept }: GymTermsSheetProps) {
+export function GymTermsSheet({
+  open,
+  membershipPhrase,
+  partnerTncHtml,
+  onClose,
+  onAccept,
+}: GymTermsSheetProps) {
   const [readChecked, setReadChecked] = useState(false);
 
   useEffect(() => {
@@ -83,6 +91,16 @@ export function GymTermsSheet({ open, membershipPhrase, onClose, onAccept }: Gym
                 <p>{section.body}</p>
               </section>
             ))}
+            {partnerTncHtml ? (
+              <section className="gts-partner">
+                <h3>4. PACKAGE TERMS (PARTNER)</h3>
+                <div
+                  className="gts-partner-html"
+                  // Partner-supplied HTML from gym/check
+                  dangerouslySetInnerHTML={{ __html: partnerTncHtml }}
+                />
+              </section>
+            ) : null}
             <p>
               Continued use of your membership constitutes acceptance of updates posted here. For
               questions, contact support through the app.

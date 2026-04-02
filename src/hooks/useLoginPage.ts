@@ -1,83 +1,130 @@
-import { useEffect, useState } from "react";
-import { useMatch, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { loginPatientWithPassword } from "@/api/patientLoginPassword";
 import { registerPatientLogin } from "@/api/patientRegister";
-import { DEMO_PHONE, MIN_PHONE_DIGITS, ROUTES } from "@/constants";
-import { digitsOnly } from "@/lib/digits";
+import {
+  MIN_LOGIN_PASSWORD_LENGTH,
+  MIN_PHONE_DIGITS,
+  ROUTES,
+} from "@/constants";
 import { useToast } from "@/hooks/useToast";
+import { navigateAfterAuthVerify } from "@/lib/postVerifyNavigation";
+import { saveAuthSession } from "@/lib/authStorage";
+import { digitsOnly, takeDigits } from "@/lib/digits";
+
+function normalizeContactInput(raw: string): string {
+  if (raw.includes("@") || /[a-zA-Z]/.test(raw)) {
+    return raw;
+  }
+  return takeDigits(raw, MIN_PHONE_DIGITS);
+}
 
 type LoginPageController = Readonly<{
-  filled: boolean;
   contact: string;
   setContact: (value: string) => void;
+  /** Exactly {@link MIN_PHONE_DIGITS} digits → green border + check (mobile). */
+  phoneComplete: boolean;
+  usePasswordLogin: boolean;
+  setUsePasswordLogin: (value: boolean) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  passwordVisible: boolean;
+  setPasswordVisible: (value: boolean) => void;
   accepted: boolean;
   setAccepted: (value: boolean) => void;
   canProceed: boolean;
   handleConfirm: () => void | Promise<void>;
   labelText: string;
   isSubmitting: boolean;
+  otpSubtitle: string;
 }>;
 
 /**
- * Login / signup step: contact + terms + navigation to `/login` or `/otp`.
- * Presentation stays in `LoginPage`; orchestration lives here (SRP).
+ * Login: mobile (10 digits) + optional password toggle; OTP uses POST /register (RLOGIN).
  */
 export function useLoginPage(): LoginPageController {
   const navigate = useNavigate();
   const toast = useToast();
-  const filled = Boolean(useMatch({ path: ROUTES.login, end: true }));
-  const [contact, setContact] = useState("");
+  const [contact, setContactState] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usePasswordLogin, setUsePasswordLoginState] = useState(false);
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
-  useEffect(() => {
-    if (filled) {
-      setContact(DEMO_PHONE);
-      setAccepted(true);
+  const setContact = (value: string) => {
+    setContactState(normalizeContactInput(value));
+  };
+
+  const setUsePasswordLogin = (next: boolean) => {
+    setUsePasswordLoginState(next);
+    if (!next) {
+      setPassword("");
+      setPasswordVisible(false);
     }
-  }, [filled]);
+  };
 
-  const isValidPhone = digitsOnly(contact).length >= MIN_PHONE_DIGITS;
-  const canProceed = accepted && isValidPhone;
+  const phoneDigits = digitsOnly(contact);
+  const phoneComplete = phoneDigits.length === MIN_PHONE_DIGITS;
+
+  const passwordOk =
+    password.trim().length >= MIN_LOGIN_PASSWORD_LENGTH;
+
+  const canProceedOtp = accepted && phoneComplete && !usePasswordLogin;
+  const canProceedPassword =
+    accepted && phoneComplete && usePasswordLogin && passwordOk;
+  const canProceed = canProceedOtp || canProceedPassword;
 
   const handleConfirm = async () => {
-    if (filled) {
-      if (!canProceed) return;
-      setIsSubmitting(true);
-      try {
-        await registerPatientLogin({
-          phone: digitsOnly(contact),
-          type: "RLOGIN",
+    if (!canProceed) return;
+    setIsSubmitting(true);
+    try {
+      if (usePasswordLogin) {
+        const data = await loginPatientWithPassword({
+          phone: phoneDigits,
+          password: password.trim(),
           corporate: true,
           fcm_token: "",
           tc_accepted: accepted,
         });
-        toast.success("OTP sent successfully");
-        navigate(ROUTES.otp, { state: { phone: contact } });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Something went wrong");
-      } finally {
-        setIsSubmitting(false);
+        await saveAuthSession(data);
+        toast.success(data.message?.trim() || "Login successful");
+        navigateAfterAuthVerify(navigate, data);
+        return;
       }
-      return;
-    }
-    if (canProceed) {
-      navigate(ROUTES.login);
+
+      await registerPatientLogin({
+        phone: phoneDigits,
+        type: "RLOGIN",
+        corporate: true,
+        fcm_token: "",
+        tc_accepted: accepted,
+      });
+      toast.success("OTP sent successfully");
+      navigate(ROUTES.otp, { state: { phone: contact } });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const labelText = filled
-    ? "Mobile Number | Email id"
-    : "Mobile Number / Email id";
-
   return {
-    filled,
     contact,
     setContact,
+    phoneComplete,
+    usePasswordLogin,
+    setUsePasswordLogin,
+    password,
+    setPassword,
+    passwordVisible,
+    setPasswordVisible,
     accepted,
     setAccepted,
     canProceed,
     handleConfirm,
-    labelText,
+    labelText: "Mobile number",
     isSubmitting,
+    otpSubtitle: "You will receive an OTP",
   };
 }

@@ -1,3 +1,4 @@
+import type { GymCheckData } from "@/api/patientGym";
 import { GYM_IMAGES } from "@/assets/images/gym";
 
 export type GymPlanAccent = "gold" | "orange" | "blue";
@@ -16,6 +17,12 @@ export type GymMembershipPlan = Readonly<{
   taxFeesLabel: string;
   /** Lines shown in View Benefits popup */
   benefits: readonly string[];
+  /** When set, benefits modal renders partner HTML terms */
+  tncHtml?: string;
+  /** Full package title on picker cards (API packages) */
+  cardTitle?: string;
+  /** Same as id for API-backed rows */
+  packageCode?: string;
 }>;
 
 export const GYM_MEMBERSHIP_PLANS: readonly GymMembershipPlan[] = [
@@ -85,7 +92,14 @@ export const GYM_MEMBERSHIP_PLANS: readonly GymMembershipPlan[] = [
 ];
 
 /** Phrase for legal copy, e.g. "Cult Elite membership purchase". */
-export function getGymMembershipTermsProductPhrase(planId: string | null): string {
+export function getGymMembershipTermsProductPhrase(
+  planId: string | null,
+  check?: GymCheckData | null,
+): string {
+  if (planId && check?.packages) {
+    const pkg = check.packages.find((p) => p.package_code === planId);
+    if (pkg?.package_name) return `${pkg.package_name} purchase`;
+  }
   if (!planId) return "Cult Elite membership";
   const plan = GYM_MEMBERSHIP_PLANS.find((p) => p.id === planId);
   if (!plan) return "Cult Elite membership";
@@ -94,8 +108,12 @@ export function getGymMembershipTermsProductPhrase(planId: string | null): strin
 }
 
 /** Labels for gym plan ids (shared by plan picker and configure step). */
-export function getGymPlanPackageLabel(planId: string | null): string {
+export function getGymPlanPackageLabel(planId: string | null, check?: GymCheckData | null): string {
   if (!planId) return "Select Package";
+  if (check?.packages) {
+    const pkg = check.packages.find((p) => p.package_code === planId);
+    if (pkg?.package_name) return pkg.package_name;
+  }
   const labels: Record<string, string> = {
     "elite-12": "Cult ELITE — 12 Months",
     "elite-9": "Cult ELITE — 9 Months",

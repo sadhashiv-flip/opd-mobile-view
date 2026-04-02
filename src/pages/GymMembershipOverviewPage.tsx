@@ -1,11 +1,18 @@
 import { ROUTES } from "@/constants";
+import { readGymCheckSnapshot } from "@/constants/gymCheckStorage";
 import {
   GYM_OVERVIEW_SNAPSHOT_KEY,
+  parseGymOverviewSnapshot,
   type GymOverviewBeneficiarySnapshot,
   type GymOverviewSnapshot,
 } from "@/constants/gymOverviewStorage";
-import { GYM_MEMBERSHIP_PLANS } from "@/constants/gymPlans";
 import { GymRemoveMemberConfirmModal } from "@/components/gym/GymRemoveMemberConfirmModal";
+import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
+import {
+  payGymMembershipWithRazorpay,
+  RazorpayPayCancelledError,
+} from "@/lib/gymMembershipRazorpayPay";
+import { useToast } from "@/hooks/useToast";
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./GymMembershipOverviewPage.css";
@@ -14,13 +21,7 @@ function readSnapshot(): GymOverviewSnapshot | null {
   try {
     const raw = sessionStorage.getItem(GYM_OVERVIEW_SNAPSHOT_KEY);
     if (!raw) return null;
-    const p = JSON.parse(raw) as unknown;
-    if (!p || typeof p !== "object") return null;
-    const o = p as Partial<GymOverviewSnapshot>;
-    if (typeof o.planId !== "string" || !o.primary || typeof o.primary.planId !== "string") {
-      return null;
-    }
-    return p as GymOverviewSnapshot;
+    return parseGymOverviewSnapshot(raw);
   } catch {
     return null;
   }
@@ -30,9 +31,7 @@ function cityLabel(chosen: boolean): string {
   return chosen ? "Hyderabad" : "Indiranagar, Bengaluru";
 }
 
-function planForId(id: string) {
-  return GYM_MEMBERSHIP_PLANS.find((p) => p.id === id);
-}
+type GymCheckSnapshot = ReturnType<typeof readGymCheckSnapshot>;
 
 function formatRupee(n: number): string {
   return `₹ ${n.toLocaleString("en-IN")}`;
@@ -89,35 +88,23 @@ function ShieldBannerIcon() {
   );
 }
 
-function CrownBannerIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M2 17l2-8 4 3 4-9 4 9 4-3 2 8H2z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 type BeneficiaryCardProps = Readonly<{
   b: GymOverviewBeneficiarySnapshot;
+  gymCheck: GymCheckSnapshot;
   onRemove: () => void;
   onEditCity: () => void;
   onEdit: () => void;
 }>;
 
-function BeneficiaryCard({ b, onRemove, onEditCity, onEdit }: BeneficiaryCardProps) {
-  const plan = planForId(b.planId);
+function BeneficiaryCard({ b, gymCheck, onRemove, onEditCity, onEdit }: BeneficiaryCardProps) {
+  const plan = resolveGymMembershipPlan(b.planId, gymCheck);
   const tierWord = plan?.tier.split(" ")[1] ?? "";
   const isPro = tierWord === "PRO";
   const accentClass = isPro ? "gmo-ben__tier-accent--pro" : "gmo-ben__tier-accent--elite";
+  const borderClass = b.isAccountPrimary ? "gmo-ben--account-primary" : "gmo-ben--account-dependent";
 
   return (
-    <article className="gmo-ben">
+    <article className={`gmo-ben ${borderClass}`}>
       <div className="gmo-ben__top">
         <div className="gmo-ben__col gmo-ben__col--left">
           <div className="gmo-ben__row">
@@ -163,8 +150,14 @@ function BeneficiaryCard({ b, onRemove, onEditCity, onEdit }: BeneficiaryCardPro
           {plan ? (
             <>
               <p className="gmo-ben__tier">
-                <span className="gmo-ben__tier-muted">Cult </span>
-                <span className={`gmo-ben__tier-accent ${accentClass}`}>{tierWord}</span>
+                {plan.cardTitle ? (
+                  <span className={`gmo-ben__tier-accent ${accentClass}`}>{plan.cardTitle}</span>
+                ) : (
+                  <>
+                    <span className="gmo-ben__tier-muted">Cult </span>
+                    <span className={`gmo-ben__tier-accent ${accentClass}`}>{tierWord}</span>
+                  </>
+                )}
               </p>
               <p className="gmo-ben__months">{plan.months} Months</p>
             </>
@@ -189,13 +182,13 @@ function BeneficiaryCard({ b, onRemove, onEditCity, onEdit }: BeneficiaryCardPro
       </div>
       <div
         className={
-          b.role === "primary"
-            ? "gmo-ben__banner gmo-ben__banner--primary"
-            : "gmo-ben__banner gmo-ben__banner--secondary"
+          b.isAccountPrimary
+            ? "gmo-ben__banner gmo-ben__banner--account-primary"
+            : "gmo-ben__banner gmo-ben__banner--account-dependent"
         }
       >
-        {b.role === "primary" ? <ShieldBannerIcon /> : <CrownBannerIcon />}
-        {b.role === "primary" ? "Primary" : "Secondary"}
+        <ShieldBannerIcon />
+        {b.isAccountPrimary ? "Primary" : "Dependent"}
       </div>
     </article>
   );
@@ -203,8 +196,11 @@ function BeneficiaryCard({ b, onRemove, onEditCity, onEdit }: BeneficiaryCardPro
 
 export function GymMembershipOverviewPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [data, setData] = useState<GymOverviewSnapshot | null>(() => readSnapshot());
   const [removeTarget, setRemoveTarget] = useState<"primary" | "secondary" | null>(null);
+  const [payBusy, setPayBusy] = useState(false);
+  const gymCheck = useMemo(() => readGymCheckSnapshot(), []);
 
   useEffect(() => {
     if (data === null) {
@@ -226,14 +222,43 @@ export function GymMembershipOverviewPage() {
     const ids = [data.primary.planId];
     if (data.secondary) ids.push(data.secondary.planId);
     const subtotal = ids.reduce((sum, id) => {
-      const p = planForId(id);
+      const p = resolveGymMembershipPlan(id, gymCheck);
       return sum + (p?.price ?? 0);
     }, 0);
     const wallet = 0;
     const gst = Math.round(subtotal * 0.18);
     const payable = subtotal - wallet + gst;
     return { subtotal, gst, payable, wallet };
-  }, [data]);
+  }, [data, gymCheck]);
+
+  const handleRazorpayPay = useCallback(async () => {
+    if (!data || gymCheck?.payment_available === false || payBusy) return;
+    if (payment.payable <= 0) {
+      toast.error("No amount to pay.");
+      return;
+    }
+    setPayBusy(true);
+    try {
+      await payGymMembershipWithRazorpay({
+        payableRupees: payment.payable,
+        accountPrimaryUser: data.accountPrimaryUser,
+        planId: data.planId,
+        secondaryPlanId: data.secondary?.planId ?? null,
+        gymInvoiceId: gymCheck?.order?.invoice_id ?? null,
+        subscriptionId: gymCheck?.subscription_id ?? null,
+      });
+      toast.success("Payment successful");
+      navigate(ROUTES.orders);
+    } catch (e) {
+      if (e instanceof RazorpayPayCancelledError) {
+        return;
+      }
+      const msg = e instanceof Error ? e.message : "Payment failed";
+      toast.error(msg);
+    } finally {
+      setPayBusy(false);
+    }
+  }, [data, gymCheck, payBusy, payment.payable, navigate, toast]);
 
   const goConfigure = useCallback(() => {
     if (!data) return;
@@ -290,18 +315,38 @@ export function GymMembershipOverviewPage() {
 
       <main className="gmo-main">
         <p className="gmo-section-label">Primary User</p>
-        <div className="gmo-pu-row">
-          <PersonIcon className="gmo-pu-ic" />
-          {data.primaryUserName}
+        <div className="gmo-pu-block">
+          <div className="gmo-pu-row gmo-pu-row--name">
+            <PersonIcon className="gmo-pu-ic" aria-hidden />
+            <span className="gmo-pu-name">{data.accountPrimaryUser.name}</span>
+          </div>
+          <div className="gmo-pu-row gmo-pu-row--contact" aria-label="Email and phone">
+            <MailIcon className="gmo-pu-ic gmo-pu-ic--contact" aria-hidden />
+            <span className="gmo-pu-contact">
+              <span className="gmo-pu-email">{data.accountPrimaryUser.email}</span>
+              <span className="gmo-pu-divider" aria-hidden="true">
+                |
+              </span>
+              <span className="gmo-pu-phone">{data.accountPrimaryUser.phone}</span>
+            </span>
+          </div>
         </div>
-        <div className="gmo-pu-row">
-          <MailIcon className="gmo-pu-ic" />
-          {data.primaryUserEmail}
-        </div>
+
+        {gymCheck?.subscription_id ? (
+          <p className="gmo-subscription-id">Subscription ID: {gymCheck.subscription_id}</p>
+        ) : null}
+
+        {gymCheck?.order ? (
+          <p className="gmo-order-ref">
+            Order invoice: {gymCheck.order.invoice_id}
+            {gymCheck.order.details?.location ? ` · ${gymCheck.order.details.location}` : ""}
+          </p>
+        ) : null}
 
         <p className="gmo-section-label gmo-section-label--spaced">Beneficiary Details</p>
         <BeneficiaryCard
           b={data.primary}
+          gymCheck={gymCheck}
           onRemove={() => setRemoveTarget("primary")}
           onEditCity={goConfigure}
           onEdit={goConfigure}
@@ -309,6 +354,7 @@ export function GymMembershipOverviewPage() {
         {data.secondary ? (
           <BeneficiaryCard
             b={data.secondary}
+            gymCheck={gymCheck}
             onRemove={() => setRemoveTarget("secondary")}
             onEditCity={goConfigure}
             onEdit={goConfigure}
@@ -339,11 +385,24 @@ export function GymMembershipOverviewPage() {
         <div className="gmo-remarks">
           <strong>Remarks :</strong> Order cannot be cancelled once confirmed
         </div>
+
+        {gymCheck?.payment_available === false ? (
+          <p className="gmo-payment-gate">
+            Online payment is not available for this membership. Please contact support or use the channel
+            advised by your employer.
+          </p>
+        ) : null}
       </main>
 
       <footer className="gmo-footer">
-        <button type="button" className="gmo-pay-btn" onClick={() => navigate(ROUTES.orders)}>
-          Click to Pay
+        <button
+          type="button"
+          className="gmo-pay-btn"
+          // disabled={gymCheck?.payment_available === false || payBusy}
+          aria-busy={payBusy}
+          onClick={() => void handleRazorpayPay()}
+        >
+          {payBusy ? "Processing…" : "Click to Pay"}
         </button>
       </footer>
 

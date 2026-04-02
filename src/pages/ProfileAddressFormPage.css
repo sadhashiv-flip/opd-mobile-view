@@ -1,0 +1,356 @@
+/* Add / edit address — form + map (mobile-first) */
+.paf-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: linear-gradient(180deg, #faf8f6 0%, #ffffff 42%);
+  color: #111111;
+}
+
+.paf-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px 12px;
+  flex-shrink: 0;
+}
+
+.paf-title {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.paf-back {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-brand-orange);
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.paf-back:active {
+  opacity: 0.92;
+}
+
+.paf-main {
+  flex: 1;
+  padding: 0 16px 100px;
+}
+
+.paf-search {
+  position: relative;
+  margin-bottom: 10px;
+  z-index: 5;
+}
+
+.paf-search__input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.paf-search--open .paf-search__input {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: #f5f5f5;
+}
+
+.paf-search__loading {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 14px;
+  font-size: 12px;
+  color: #757575;
+  z-index: 21;
+  pointer-events: none;
+}
+
+.paf-suggestions-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  margin-top: -1px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-top: 1px solid #eeeeee;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.paf-suggestions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.paf-suggestions__li {
+  margin: 0;
+  padding: 0;
+}
+
+.paf-suggestions__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  background: #ffffff;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.paf-suggestions__li:last-child .paf-suggestions__item {
+  border-bottom: none;
+  border-radius: 0 0 10px 10px;
+}
+
+.paf-suggestions__item:active {
+  background: #f5f9ff;
+}
+
+.paf-suggestions__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #212121;
+  line-height: 1.35;
+}
+
+.paf-suggestions__meta {
+  display: block;
+  font-size: 11px;
+  color: #757575;
+  margin-top: 4px;
+}
+
+.paf-suggestions--empty {
+  padding: 14px;
+  font-size: 13px;
+  color: #757575;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.paf-map-wrap {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+  margin-bottom: 16px;
+}
+
+.paf-map-inner {
+  width: 100%;
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  background: #e8eef5;
+}
+
+.paf-map-inner--loading,
+.paf-map-inner--fallback,
+.paf-map-inner--error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.paf-map-inner--loading {
+  color: #616161;
+}
+
+.paf-map-inner--fallback {
+  color: #424242;
+  background: #fff8e1;
+}
+
+.paf-map-inner--fallback code {
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.paf-map-inner--error {
+  color: #b71c1c;
+  background: #ffebee;
+}
+
+.paf-map-err-detail {
+  max-width: 100%;
+  text-align: left;
+  color: #3e2723;
+}
+
+.paf-map-inner--error strong {
+  color: #b71c1c;
+}
+
+.paf-map-err-detail__lead {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #5d4037;
+}
+
+.paf-map-err-detail__list {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4e342e;
+}
+
+.paf-map-err-detail__list li {
+  margin-bottom: 10px;
+}
+
+.paf-map-err-detail__code {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: #1b5e20;
+}
+
+.paf-map-err-detail__link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.paf-map-wrap .leaflet-container {
+  font-family: inherit;
+}
+
+.paf-map-wrap .leaflet-control-container {
+  z-index: 4;
+}
+
+.paf-map-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #616161;
+}
+
+.paf-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.paf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.paf-field--full {
+  grid-column: 1 / -1;
+}
+
+.paf-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #616161;
+}
+
+.paf-input,
+.paf-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+  background: #fafafa;
+}
+
+.paf-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.paf-submit {
+  margin-top: 20px;
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #e0e0e0;
+  color: #757575;
+}
+
+.paf-submit:not(:disabled) {
+  background: var(--color-brand-orange);
+  color: #ffffff;
+}
+
+.paf-submit:not(:disabled):active {
+  opacity: 0.92;
+}
+
+.paf-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #9e9e9e;
+  line-height: 1.4;
+}
+
+.paf-check-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.paf-check-row .paf-label {
+  margin: 0;
+  cursor: pointer;
+}
+
+.paf-loc-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #616161;
+}
