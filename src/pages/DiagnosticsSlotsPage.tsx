@@ -1,6 +1,7 @@
 import { ROUTES } from "@/constants";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
+import { HeaderTexts } from "@/constants/HeaderTexts";
 import "./ConsultationAppointmentSlotsPage.css";
 
 type DayChip = Readonly<{ day: string; date: string; dow: string }>;
@@ -59,7 +60,7 @@ export function DiagnosticsSlotsPage() {
             />
           </svg>
         </Link>
-        <h1 className="cas-title">Health Checkups</h1>
+        <h1 className="cas-title">{type === "health-checkups" ? HeaderTexts.healthCheckups.title : HeaderTexts.labTests.title}</h1>
       </header>
 
       <main className="cas-main">

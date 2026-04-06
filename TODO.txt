@@ -1,2 +1,3 @@
 => split the Homepage.css to Homepage.css and HomepageBottomSheets.css
     -> maintain Homepage css and Remaining 
+=> maintain Header all at one object and use it everywhere as like variables.

@@ -2,6 +2,7 @@ import { ROUTES } from "@/constants";
 import { Link, generatePath, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import "./CartOverviewPage.css";
+import { HeaderTexts } from "@/constants/HeaderTexts";
 
 type CartItem = Readonly<{
   id: string;
@@ -39,7 +40,7 @@ export function CartOverviewPage() {
   return (
     <div className="co-page">
       <header className="co-top">
-        <Link to={ROUTES.diagnosticsPlan} className="co-back" aria-label="Back">
+        <Link to={generatePath(ROUTES.diagnosticsPlan, { type: "lab-tests" })} className="co-back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -50,7 +51,7 @@ export function CartOverviewPage() {
             />
           </svg>
         </Link>
-        <h1 className="co-title">Cart Overview</h1>
+          <h1 className="co-title">{HeaderTexts.cartOverview.title}</h1>
       </header>
 
       <main className="co-main">

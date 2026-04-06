@@ -6,11 +6,6 @@
   color: #111111;
 }
 
-.gsc-header .hco-title {
-  flex: 1;
-  text-align: center;
-}
-
 .gsc-header__spacer {
   width: 40px;
   flex-shrink: 0;

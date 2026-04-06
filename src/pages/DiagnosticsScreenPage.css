@@ -11,6 +11,11 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px 6px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #ffffff;
+  border-bottom: 1px solid #ececec;
 }
 
 .ds-back {
@@ -297,7 +302,7 @@
 }
 
 .ds-back--lab {
-  color: #1a73e8;
+  color: #111111;
 }
 
 .ds-orders {
