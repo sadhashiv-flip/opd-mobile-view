@@ -86,7 +86,7 @@ export function HealthCheckupsOverviewPage() {
 
   return (
     <div className={`hco-page${isLabTests ? " hco-page--lab" : ""}`}>
-      <header className={`hco-top${isLabTests ? " hco-top--cart" : ""}`}>
+      <header className="hco-top">
         <Link
           to={generatePath(ROUTES.diagnosticsSlots, { type })}
           className="hco-back"

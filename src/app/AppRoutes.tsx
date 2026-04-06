@@ -72,16 +72,16 @@ export function AppRoutes() {
       <Route path={ROUTES.cartOverview} element={<CartOverviewPage />} />
 
       {/* Legacy redirects */}
-      <Route path="/health-checkups" element={<Navigate to="/Diagnostics/health-checkups" replace />} />
+      <Route path="/health-checkups" element={<Navigate to="/diagnostics/health-checkups" replace />} />
       <Route
         path="/health-checkups/add-family-member"
         element={<Navigate to={ROUTES.profileMembersAdd} replace />}
       />
-      <Route path="/health-checkups/plan" element={<Navigate to="/Diagnostics/health-checkups/plan" replace />} />
-      <Route path="/health-checkups/diagnostics" element={<Navigate to="/Diagnostics/health-checkups/vendors" replace />} />
-      <Route path="/health-checkups/diagnostics/slots" element={<Navigate to="/Diagnostics/health-checkups/slots" replace />} />
-      <Route path="/health-checkups/overview" element={<Navigate to="/Diagnostics/health-checkups/overview" replace />} />
-      <Route path="/health-checkups/booking-success" element={<Navigate to="/Diagnostics/health-checkups/booking-success" replace />} />
+      <Route path="/health-checkups/plan" element={<Navigate to="/diagnostics/health-checkups/plan" replace />} />
+      <Route path="/health-checkups/diagnostics" element={<Navigate to="/diagnostics/health-checkups/vendors" replace />} />
+      <Route path="/health-checkups/diagnostics/slots" element={<Navigate to="/diagnostics/health-checkups/slots" replace />} />
+      <Route path="/health-checkups/overview" element={<Navigate to="/diagnostics/health-checkups/overview" replace />} />
+      <Route path="/health-checkups/booking-success" element={<Navigate to="/diagnostics/health-checkups/booking-success" replace />} />
 
       {/* Consultation uses same initial pages */}
       <Route path={ROUTES.consultation} element={<HealthCheckupsPage />} />

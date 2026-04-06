@@ -399,7 +399,7 @@ export function HomePage() {
                 description="Avail Free Health Checkups"
                 onClick={() => {
                   setIsDiagnosticsSheetOpen(false);
-                  navigate("/Diagnostics/health-checkups");
+                  navigate("/diagnostics/health-checkups");
                 }}
               />
               <ServiceHubCard
@@ -417,7 +417,7 @@ export function HomePage() {
                 description="Fully sponsored"
                 onClick={() => {
                   setIsDiagnosticsSheetOpen(false);
-                  navigate("/Diagnostics/lab-tests");
+                  navigate("/diagnostics/lab-tests");
                 }}
               />
             </div>
