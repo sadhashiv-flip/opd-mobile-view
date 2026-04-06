@@ -40,6 +40,7 @@ import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage
 import { UserDetailsBmiPage } from "@/pages/UserDetailsBmiPage";
 import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
 import { ConsultationTypePage } from "../pages/ConsultationTypePage";
+import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalResultsPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
