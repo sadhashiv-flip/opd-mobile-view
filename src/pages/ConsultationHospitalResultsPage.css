@@ -37,7 +37,7 @@
 }
 
 .chr-loc {
-  margin: 0 14px 10px;
+  margin: var(--addr-box-margin-top) var(--addr-box-margin-inline) 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -80,14 +80,22 @@
   flex-shrink: 0;
 }
 
-.chr-banner {
-  margin: 0 14px 10px;
-  border-radius: 4px;
-  height: 44px;
+.chr-banner-container {
+  height: 65px;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
+}
+
+.chr-banner {
+  height: 32px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   background: #0b0b0b;
   color: #ffffff;
@@ -100,15 +108,15 @@
 
 .chr-banner__art {
   position: absolute;
-  right: 10px;
-  top: 50%;
+  right: 20px;
+  top: 26px;
   transform: translateY(-50%);
-  width: 64px;
-  height: 44px;
-  opacity: 0.25;
-  background:
-    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.9), transparent 55%),
-    radial-gradient(circle at 65% 55%, rgba(255, 255, 255, 0.85), transparent 58%);
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  object-position: right center;
+  display: block;
+  pointer-events: none;
 }
 
 .chr-main {
@@ -277,6 +285,18 @@
   font-size: 10px;
   font-weight: 800;
   color: #6f6f6f;
+}
+
+.chr-dlist-msg {
+  padding: 16px 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6f6f6f;
+  text-align: center;
+}
+
+.chr-dlist-msg--err {
+  color: #c41e1e;
 }
 
 .chr-dscroll {

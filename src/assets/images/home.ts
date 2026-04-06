@@ -1,4 +1,4 @@
-import consultationImg from "./Consultation.svg";
+import consultationImg from "./Consultation/Consultation.svg";
 import dentalImg from "./Dental.svg";
 import diagnosticImg from "./Diagnostic.svg";
 import pharmacyImg from "./Pharmacy.svg";

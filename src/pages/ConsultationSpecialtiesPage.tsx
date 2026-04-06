@@ -1,34 +1,62 @@
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { ROUTES } from "@/constants";
+import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
+import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
 import { useEffect, useState, type ReactNode } from "react";
 import { fetchPatientIssues, type PatientIssue } from "@/api/issues";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
+import { useToast } from "@/hooks/useToast";
+import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationSpecialtiesPage.css";
-
-type Spec = Readonly<{ id: string; label: string; icon: string }>;
-
-const SPECS: readonly Spec[] = [
-  { id: "gp", label: "General Physician", icon: "🩺" },
-  { id: "diet", label: "Dietician", icon: "🥗" },
-  { id: "derm", label: "Dermatologist", icon: "🧴" },
-  { id: "pulm", label: "Pulmonologist", icon: "🫁" },
-  { id: "card", label: "cardiologist", icon: "🫀" },
-  { id: "dent", label: "Dentist", icon: "🦷" },
-] as const;
 
 const VIRTUAL_SLOTS_STORAGE = "opd-mobile-view.virtualSlots.";
 
 export function ConsultationSpecialtiesPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const toast = useToast();
   const params = useParams();
   const type = typeof params.type === "string" ? params.type : "virtual";
   const isHospital = type === "at_hospital";
-  const [selectedId, setSelectedId] = useState<string>("");
   const [virtualIssues, setVirtualIssues] = useState<readonly PatientIssue[]>([]);
   const [issuesLoad, setIssuesLoad] = useState<"loading" | "error" | "ok">(
     isHospital ? "ok" : "loading",
   );
   const [issuesError, setIssuesError] = useState<string | null>(null);
+
+  const [hospitalSpecs, setHospitalSpecs] = useState<readonly HospitalSpeciality[]>([]);
+  const [hospitalLoad, setHospitalLoad] = useState<"loading" | "error" | "ok">(
+    isHospital ? "loading" : "ok",
+  );
+  const [hospitalError, setHospitalError] = useState<string | null>(null);
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isHospital) return;
+    let cancelled = false;
+    setHospitalLoad("loading");
+    setHospitalError(null);
+    void fetchHospitalSpecialities()
+      .then((list) => {
+        if (!cancelled) {
+          setHospitalSpecs(list);
+          setHospitalLoad("ok");
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setHospitalSpecs([]);
+          setHospitalLoad("error");
+          const msg = e instanceof Error ? e.message : "Could not load specialties";
+          setHospitalError(msg);
+          toast.error(msg);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isHospital, toast, location.key]);
 
   useEffect(() => {
     if (isHospital) return;
@@ -51,7 +79,7 @@ export function ConsultationSpecialtiesPage() {
     return () => {
       cancelled = true;
     };
-  }, [isHospital]);
+  }, [isHospital, location.key]);
 
   const topArea =
     isHospital ? null : (
@@ -76,27 +104,46 @@ export function ConsultationSpecialtiesPage() {
       </div>
     );
 
-  const hospitalSpecialtiesList = (
-    <ul className="csp-list">
-      {SPECS.map((s) => (
-        <li key={s.id}>
-          <button
-            type="button"
-            className={`csp-item${selectedId === s.id ? " csp-item--selected" : ""}`}
-            onClick={() => {
-              setSelectedId(s.id);
-              navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: s.id }));
-            }}
-          >
-            <div className="csp-item__ic" aria-hidden="true">
-              {s.icon}
-            </div>
-            <div className="csp-item__label">{s.label}</div>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
+  let hospitalSpecialtiesBody: ReactNode;
+  if (hospitalLoad === "loading") {
+    hospitalSpecialtiesBody = <div className="csp-issues-msg">Loading specialties…</div>;
+  } else if (hospitalLoad === "error") {
+    hospitalSpecialtiesBody = (
+      <div className="csp-issues-msg csp-issues-msg--err" role="alert">
+        {hospitalError ?? "Could not load specialties"}
+      </div>
+    );
+  } else if (hospitalSpecs.length === 0) {
+    hospitalSpecialtiesBody = (
+      <div className="csp-issues-msg">No specialties available right now.</div>
+    );
+  } else {
+    hospitalSpecialtiesBody = (
+      <ul className="csp-list" aria-label="Common specialties">
+        {hospitalSpecs.map((s) => {
+          const idStr = String(s.id);
+          const initial = s.name.trim().charAt(0).toUpperCase() || "—";
+          return (
+            <li key={s.id}>
+              <button
+                type="button"
+                className="csp-item"
+                onClick={() => {
+                  rememberHospitalSpecialtyName(idStr, s.name);
+                  navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: idStr }));
+                }}
+              >
+                <div className="csp-item__ic" aria-hidden="true">
+                  <span className="csp-item__ic-letter">{initial}</span>
+                </div>
+                <div className="csp-item__label">{s.name}</div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
 
   let virtualSpecialtiesBody: ReactNode;
   if (issuesLoad === "loading") {
@@ -185,7 +232,12 @@ export function ConsultationSpecialtiesPage() {
         </h1>
       </header>
 
-      <div className="csp-loc">
+      <button
+        type="button"
+        className="csp-loc"
+        aria-label="Choose address"
+        onClick={() => setAddrSheetOpen(true)}
+      >
         <span className="csp-loc__pin" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path
@@ -211,21 +263,38 @@ export function ConsultationSpecialtiesPage() {
             />
           </svg>
         </span>
-      </div>
+      </button>
 
-      <div className={`csp-banner${isHospital ? " csp-banner--dark" : " csp-banner--green"}`}>
-        <span className="csp-banner__text">
-          {isHospital ? "Consult Top Doctors In-Clinic" : "Consult Top Doctors Online"}
-        </span>
-        <span className="csp-banner__art" aria-hidden="true" />
-      </div>
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+
+      {isHospital ? (
+        <div className="csp-banner-container">
+          <img
+            className="csp-banner__art"
+            src={networkDoctorsHospitalSvg}
+            alt=""
+            width={64}
+            height={44}
+            draggable={false}
+            aria-hidden
+          />
+          <div className="csp-banner">
+            <span className="csp-banner__text">Consult Top Doctors In-Clinic</span>
+          </div>
+        </div>
+      ) : (
+        <div className="csp-banner csp-banner--green">
+          <span className="csp-banner__text">Consult Top Doctors Online</span>
+          <span className="csp-banner__art" aria-hidden="true" />
+        </div>
+      )}
 
       <main className="csp-main">
         {topArea}
 
         <div className="csp-section">
           <div className="csp-section__title">Common specialties</div>
-          {isHospital ? hospitalSpecialtiesList : virtualSpecialtiesBody}
+          {isHospital ? hospitalSpecialtiesBody : virtualSpecialtiesBody}
         </div>
       </main>
     </div>

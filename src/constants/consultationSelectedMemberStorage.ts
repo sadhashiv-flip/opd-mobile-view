@@ -51,3 +51,15 @@ export function writeConsultSelectedMembersSnapshots(members: ConsultationSelect
   }
 }
 
+/** Primary selected member id for booking APIs (`patient_id`). */
+export function readConsultSelectedPersonIdNumber(): number | null {
+  try {
+    const raw = localStorage.getItem(CONSULT_SELECTED_PERSON_KEY);
+    if (!raw?.trim()) return null;
+    const n = Number(raw.trim());
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+

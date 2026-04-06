@@ -179,6 +179,62 @@
   cursor: pointer;
 }
 
+.cao-field__row--select {
+  padding: 8px 10px;
+}
+
+.cao-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #ededed;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111111;
+  line-height: 1.4;
+  resize: vertical;
+  font-family: inherit;
+  background: #ffffff;
+}
+
+.cao-textarea::placeholder {
+  color: #9a9a9a;
+  font-weight: 600;
+}
+
+.cao-select {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+  background: #ffffff;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' stroke='%23111' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 36px;
+}
+
+.cao-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .cao-disc {
   margin-top: 12px;
   border: 1px solid #ededed;
@@ -218,5 +274,10 @@
   font-size: 13px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.cao-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 

@@ -1,6 +1,7 @@
 import { ROUTES } from "@/constants";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
 import "./GymSelectClinicPage.css";
 
@@ -114,6 +115,8 @@ export function GymSelectClinicPage() {
     [planId],
   );
 
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+
   useEffect(() => {
     if (!planId) {
       navigate(ROUTES.gymMembership, { replace: true });
@@ -166,7 +169,12 @@ export function GymSelectClinicPage() {
       </header>
 
       <div className="gsc-loc-wrap">
-        <div className="hco-loc">
+        <button
+          type="button"
+          className="hco-loc"
+          aria-label="Choose address"
+          onClick={() => setAddrSheetOpen(true)}
+        >
           <span className="hco-loc__pin" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -194,8 +202,10 @@ export function GymSelectClinicPage() {
               />
             </svg>
           </span>
-        </div>
+        </button>
       </div>
+
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
       <ul className="gsc-list">
         {MOCK_CLINICS.map((clinic) => (

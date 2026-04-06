@@ -1,13 +1,17 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { ROUTES } from "@/constants";
-import { useMemo, useState } from "react";
+import { readHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
+import { fetchNetworkDoctorList, readNetworkListLocation, type NetworkListDoctorRow } from "@/api/networkList";
+import { useToast } from "@/hooks/useToast";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { SortSheet, type SortOptionId } from "@/components/sort/SortSheet";
 import "@/components/sort/SortSheet.css";
 import sortSvg from "@/assets/icons/common/Sort.svg";
+import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationHospitalResultsPage.css";
 
 type Hospital = Readonly<{ id: string; name: string; location: string }>;
-type Doctor = Readonly<{ id: string; name: string; degree: string; exp: string; hospital: string; fee: number }>;
 
 const HOSPITALS: readonly Hospital[] = [
   { id: "medicover", name: "Medicover Hospitals", location: "Hitech City · 12km" },
@@ -16,23 +20,62 @@ const HOSPITALS: readonly Hospital[] = [
   { id: "care", name: "CARE Hospitals", location: "Banjara Hills · 11km" },
 ] as const;
 
-const DOCTORS: readonly Doctor[] = [
-  { id: "d1", name: "Dr. Prananka Reddy", degree: "MBBS, MD", exp: "10+ years exp", hospital: "Medicover Hospital", fee: 600 },
-  { id: "d2", name: "Dr. Strange", degree: "MBBS, MD", exp: "10+ years exp", hospital: "Yashoda Hospital", fee: 600 },
-  { id: "d3", name: "Dr. Kavya Rao", degree: "MBBS, DNB", exp: "8+ years exp", hospital: "KIMS Hospital", fee: 700 },
-  { id: "d4", name: "Dr. Arjun Nair", degree: "MBBS, MS", exp: "12+ years exp", hospital: "CARE Hospital", fee: 800 },
-  { id: "d5", name: "Dr. Neha Kapoor", degree: "MBBS, MD", exp: "6+ years exp", hospital: "Medicover Hospital", fee: 550 },
-  { id: "d6", name: "Dr. Rohan Iyer", degree: "MBBS, MD", exp: "9+ years exp", hospital: "KIMS Hospital", fee: 650 },
-] as const;
-
 export function ConsultationHospitalResultsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const params = useParams();
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortId, setSortId] = useState<SortOptionId>("relevance");
+  const [doctors, setDoctors] = useState<readonly NetworkListDoctorRow[]>([]);
+  const [doctorsLoad, setDoctorsLoad] = useState<"loading" | "error" | "ok">("loading");
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const [doctorsError, setDoctorsError] = useState<string | null>(null);
+
+  const specialtyIdNum = useMemo(() => {
+    const n = Number(specialtyId);
+    return Number.isFinite(n) ? n : null;
+  }, [specialtyId]);
+
+  useEffect(() => {
+    if (specialtyIdNum == null) {
+      setDoctors([]);
+      setDoctorsLoad("ok");
+      setDoctorsError(null);
+      return;
+    }
+    let cancelled = false;
+    setDoctorsLoad("loading");
+    setDoctorsError(null);
+    void fetchNetworkDoctorList({
+      location: readNetworkListLocation(),
+      service: "consultation",
+      speciality_id: specialtyIdNum,
+    })
+      .then((list) => {
+        if (!cancelled) {
+          setDoctors(list);
+          setDoctorsLoad("ok");
+          setPage(1);
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setDoctors([]);
+          setDoctorsLoad("error");
+          const msg = e instanceof Error ? e.message : "Could not load doctors";
+          setDoctorsError(msg);
+          toast.error(msg);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [specialtyIdNum, toast]);
 
   const specialtyLabel = useMemo(() => {
+    const fromSession = readHospitalSpecialtyName(specialtyId);
+    if (fromSession) return fromSession;
     const map: Record<string, string> = {
       gp: "General Physician",
       diet: "Dietician",
@@ -46,11 +89,72 @@ export function ConsultationHospitalResultsPage() {
 
   const pageSize = 2;
   const [page, setPage] = useState(1);
-  const pageCount = Math.max(1, Math.ceil(DOCTORS.length / pageSize));
+  const pageCount = Math.max(1, Math.ceil(doctors.length / pageSize));
   const visibleDoctors = useMemo(() => {
     const start = (page - 1) * pageSize;
-    return DOCTORS.slice(start, start + pageSize);
-  }, [page]);
+    return doctors.slice(start, start + pageSize);
+  }, [doctors, page, pageSize]);
+
+  let doctorsScrollBody: ReactNode;
+  if (specialtyIdNum == null) {
+    doctorsScrollBody = (
+      <div className="chr-dlist-msg">Select a specialty from the list to see doctors.</div>
+    );
+  } else if (doctorsLoad === "loading") {
+    doctorsScrollBody = (
+      <div className="chr-dlist-msg" aria-busy="true">
+        Loading doctors…
+      </div>
+    );
+  } else if (doctorsLoad === "error") {
+    doctorsScrollBody = (
+      <div className="chr-dlist-msg chr-dlist-msg--err" role="alert">
+        {doctorsError ?? "Could not load doctors"}
+      </div>
+    );
+  } else if (doctors.length === 0) {
+    doctorsScrollBody = <div className="chr-dlist-msg">No doctors found for this specialty.</div>;
+  } else {
+    doctorsScrollBody = visibleDoctors.map((d) => (
+      <div key={d.id} className="chr-dcard">
+        <div className="chr-dcard__top">
+          <div className="chr-doc">
+            <div className="chr-doc__avatar" aria-hidden="true" />
+            <div className="chr-doc__meta">
+              <div className="chr-doc__name">{d.name}</div>
+              <div className="chr-doc__deg">{d.degree || "—"}</div>
+            </div>
+          </div>
+          <div className="chr-chip">Cashless Available</div>
+        </div>
+
+        <div className="chr-tags">
+          {d.exp ? <span className="chr-tag">{d.exp}</span> : null}
+          {d.hospital ? <span className="chr-tag chr-tag--pill">{d.hospital}</span> : null}
+        </div>
+
+        <div className="chr-fee">
+          <div className="chr-fee__k">Your Consultation Fee</div>
+          <div className="chr-fee__v">₹ {d.fee}</div>
+        </div>
+
+        <button
+          type="button"
+          className="chr-book"
+          onClick={() =>
+            navigate(
+              generatePath(ROUTES.consultationHospitalSlots, {
+                specialtyId,
+                doctorId: d.id,
+              }),
+            )
+          }
+        >
+          Book Appointment
+        </button>
+      </div>
+    ));
+  }
 
   return (
     <div className="chr-page">
@@ -73,7 +177,12 @@ export function ConsultationHospitalResultsPage() {
         <h1 className="chr-title">At Hospital Consultation</h1>
       </header>
 
-      <div className="chr-loc">
+      <button
+        type="button"
+        className="chr-loc"
+        aria-label="Choose address"
+        onClick={() => setAddrSheetOpen(true)}
+      >
         <span className="chr-loc__pin" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path
@@ -99,11 +208,23 @@ export function ConsultationHospitalResultsPage() {
             />
           </svg>
         </span>
-      </div>
+      </button>
 
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+
+      <div className="chr-banner-container">
+                <img
+          className="chr-banner__art"
+          src={networkDoctorsHospitalSvg}
+          alt=""
+          width={64}
+          height={44}
+          draggable={false}
+          aria-hidden
+        />
       <div className="chr-banner">
         <span className="chr-banner__text">Consult Top Doctors In-Clinic</span>
-        <span className="chr-banner__art" aria-hidden="true" />
+      </div>
       </div>
 
       <main className="chr-main">
@@ -157,7 +278,7 @@ export function ConsultationHospitalResultsPage() {
                 type="button"
                 className="chr-pagebtn"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1}
+                disabled={page <= 1 || doctorsLoad !== "ok" || doctors.length === 0}
               >
                 Prev
               </button>
@@ -168,54 +289,14 @@ export function ConsultationHospitalResultsPage() {
                 type="button"
                 className="chr-pagebtn"
                 onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                disabled={page >= pageCount}
+                disabled={page >= pageCount || doctorsLoad !== "ok" || doctors.length === 0}
               >
                 Next
               </button>
             </div>
           </div>
 
-          <div className="chr-dscroll">
-            {visibleDoctors.map((d) => (
-              <div key={d.id} className="chr-dcard">
-                <div className="chr-dcard__top">
-                  <div className="chr-doc">
-                    <div className="chr-doc__avatar" aria-hidden="true" />
-                    <div className="chr-doc__meta">
-                      <div className="chr-doc__name">{d.name}</div>
-                      <div className="chr-doc__deg">{d.degree}</div>
-                    </div>
-                  </div>
-                  <div className="chr-chip">Cashless Available</div>
-                </div>
-
-                <div className="chr-tags">
-                  <span className="chr-tag">{d.exp}</span>
-                  <span className="chr-tag chr-tag--pill">{d.hospital}</span>
-                </div>
-
-                <div className="chr-fee">
-                  <div className="chr-fee__k">Your Consultation Fee</div>
-                  <div className="chr-fee__v">₹ {d.fee}</div>
-                </div>
-
-                <button
-                  type="button"
-                  className="chr-book"
-                  onClick={() =>
-                    navigate(
-                      generatePath(ROUTES.consultationHospitalSlots, {
-                        specialtyId,
-                        doctorId: d.id,
-                      }),
-                    )
-                  }
-                >
-                  Book Appointment
-                </button>
-              </div>
-            ))}
-          </div>
+          <div className="chr-dscroll">{doctorsScrollBody}</div>
         </div>
       </main>
 

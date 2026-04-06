@@ -78,7 +78,7 @@
 }
 
 .hco-loc {
-  margin: 0 14px 10px;
+  margin: var(--addr-box-margin-top) var(--addr-box-margin-inline) 0;
   display: flex;
   align-items: center;
   gap: 8px;
