@@ -47,8 +47,10 @@
 
 .profile-page__main {
   flex: 1;
-  padding: 0 20px 24px;
+  padding: 0 20px 16px;
   min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .profile-page__state {

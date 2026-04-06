@@ -352,7 +352,7 @@ export function GymMembershipSelectPeoplePage() {
                 type="button"
                 className="hc-add-family"
                 onClick={() =>
-                  navigate(ROUTES.addFamilyMember, {
+                  navigate(ROUTES.profileMembersAdd, {
                     state: {
                       title: pageTitle,
                       returnPath: ROUTES.gymMembershipSelectPeople,

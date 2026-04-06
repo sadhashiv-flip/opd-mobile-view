@@ -4,7 +4,6 @@ import { ProfileMembersAddPage } from "@/pages/ProfileMembersAddPage";
 import { BookingSuccessPage } from "../pages/BookingSuccessPage";
 import { ConsultationAppointmentSlotsPage } from "../pages/ConsultationAppointmentSlotsPage";
 import { ConsultationAppointmentOverviewPage } from "../pages/ConsultationAppointmentOverviewPage";
-import { ConsultationHospitalResultsPage } from "../pages/ConsultationHospitalResultsPage";
 import { DiagnosticsScreenPage } from "../pages/DiagnosticsScreenPage";
 import { DiagnosticsSlotsPage } from "../pages/DiagnosticsSlotsPage";
 import { ConsultationSpecialtiesPage } from "../pages/ConsultationSpecialtiesPage";
@@ -17,6 +16,7 @@ import { LoginPage } from "../pages/LoginPage";
 import { OtpPage } from "../pages/OtpPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
+import { SupportTicketChatPage } from "@/pages/SupportTicketChatPage";
 import { GymMembershipPage } from "@/pages/GymMembershipPage";
 import { GymMembershipSelectPeoplePage } from "@/pages/GymMembershipSelectPeoplePage";
 import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
@@ -40,6 +40,8 @@ import { DiagnosticsEntryRedirect } from "@/app/DiagnosticsEntryRedirect";
 import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage";
 import { UserDetailsBmiPage } from "@/pages/UserDetailsBmiPage";
 import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
+import { ConsultationTypePage } from "../pages/ConsultationTypePage";
+import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalResultsPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -67,6 +69,7 @@ export function AppRoutes() {
       <Route path={ROUTES.profileSubscriptions} element={<ProfileSubscriptionsPage />} />
       <Route path="/home" element={<Navigate to={ROUTES.dashboard} replace />} />
       <Route path={ROUTES.services} element={<ServicesHubPage />} />
+      <Route path={ROUTES.servicesSupportTicketChat} element={<SupportTicketChatPage />} />
 
       {/* Diagnostics flows (Health Checkups, Lab Tests, etc.) */}
       <Route path={ROUTES.diagnosticsType} element={<DiagnosticsEntryRedirect />} />
@@ -103,6 +106,7 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationSelectPeople} element={<ConsultationSelectPeoplePage />} />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
       <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
+      <Route path={ROUTES.consultationType} element={<ConsultationTypePage />} />
       <Route path={ROUTES.consultationVirtualOverview} element={<ConsultationVirtualAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
@@ -117,10 +121,7 @@ export function AppRoutes() {
         path={ROUTES.orders}
         element={<PlaceholderPage title="My Orders" />}
       />
-      <Route
-        path={ROUTES.help}
-        element={<PlaceholderPage title="Need Help?" />}
-      />
+      <Route path={ROUTES.help} element={<Navigate to={ROUTES.servicesHelpTab} replace />} />
       <Route
         path={ROUTES.gymMembership}
         element={<GymMembershipPage />}

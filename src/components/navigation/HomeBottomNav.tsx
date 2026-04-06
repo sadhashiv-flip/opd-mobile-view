@@ -6,12 +6,27 @@ import {
   NavIconServices,
 } from "@/assets/icons/react";
 import { ROUTES } from "@/constants";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
+import "./HomeBottomNav.css";
+
+function useServicesHubBottomNavActive(): Readonly<{ services: boolean; help: boolean }> {
+  const { pathname, search } = useLocation();
+  const onHub = pathname === ROUTES.services;
+  const hubTab = onHub ? new URLSearchParams(search).get("tab") : null;
+  const help = onHub && hubTab === "help";
+  const services =
+    (onHub && hubTab !== "help") || (!onHub && pathname.startsWith(`${ROUTES.services}/`));
+  return { services, help };
+}
 
 /** Bottom tab bar — matches mobile spec: outline icons, orange active, raised Pharmacy FAB. */
 export function HomeBottomNav() {
+  const { services: servicesTabActive, help: helpTabActive } = useServicesHubBottomNavActive();
+
   return (
-    <nav className="home-nav" aria-label="Primary">
+    <>
+      <div className="home-nav-spacer" aria-hidden="true" />
+      <nav className="home-nav" aria-label="Primary">
       <NavLink
         to={ROUTES.dashboard}
         end
@@ -26,9 +41,7 @@ export function HomeBottomNav() {
       </NavLink>
       <NavLink
         to={ROUTES.services}
-        className={({ isActive }) =>
-          `home-nav__item${isActive ? " home-nav__item--active" : ""}`
-        }
+        className={() => `home-nav__item${servicesTabActive ? " home-nav__item--active" : ""}`}
       >
         <span className="home-nav__ic" aria-hidden="true">
           <NavIconServices />
@@ -61,10 +74,8 @@ export function HomeBottomNav() {
         <span className="home-nav__label">My Orders</span>
       </NavLink>
       <NavLink
-        to={ROUTES.help}
-        className={({ isActive }) =>
-          `home-nav__item${isActive ? " home-nav__item--active" : ""}`
-        }
+        to={ROUTES.servicesHelpTab}
+        className={() => `home-nav__item${helpTabActive ? " home-nav__item--active" : ""}`}
       >
         <span className="home-nav__ic" aria-hidden="true">
           <NavIconHelp />
@@ -72,5 +83,6 @@ export function HomeBottomNav() {
         <span className="home-nav__label">Need Help?</span>
       </NavLink>
     </nav>
+    </>
   );
 }

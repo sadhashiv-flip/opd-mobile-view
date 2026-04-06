@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, generatePath } from "react-router-dom";
+import { Link, generatePath, useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   fetchAllPatientBankRecords,
@@ -66,6 +66,8 @@ function BankBuildingIcon() {
 }
 
 export function ProfileBankPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [items, setItems] = useState<PatientBankRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +86,14 @@ export function ProfileBankPage() {
     }
   }, []);
 
+  const handleBack = useCallback(() => {
+    if (location.state?.returnPath) {
+      navigate(location.state.returnPath);
+    } else {
+      navigate(ROUTES.profile);
+    }
+  }, [location.state, navigate]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -91,10 +101,11 @@ export function ProfileBankPage() {
   return (
     <div className="profile-manage-page">
       <header className="profile-manage-page__top">
-        <Link
-          to={ROUTES.profile}
+        <button
+          type="button"
+          onClick={handleBack}
           className="profile-manage-page__back"
-          aria-label="Back to profile"
+          aria-label="Back"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -105,7 +116,7 @@ export function ProfileBankPage() {
               strokeLinejoin="round"
             />
           </svg>
-        </Link>
+        </button>
         <h1 className="profile-manage-page__title">Bank details</h1>
         <span className="profile-manage-page__spacer" aria-hidden />
       </header>

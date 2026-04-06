@@ -25,6 +25,8 @@ export const ROUTES = {
   profileMembersEdit: "/profile/members/edit/:memberId",
   profileSubscriptions: "/profile/subscriptions",
   services: "/services",
+  /** Services hub, Help & Support tab — same screen as bottom nav “Need Help?”. */
+  servicesHelpTab: "/services?tab=help",
   diagnosticsType: "/diagnostics/:type",
   diagnosticsSelectPeople: "/diagnostics/:type/select-people",
   diagnosticsAddFamilyMember: "/diagnostics/:type/add-family-member",
@@ -33,7 +35,7 @@ export const ROUTES = {
   diagnosticsSlots: "/diagnostics/:type/slots",
   diagnosticsOverview: "/diagnostics/:type/overview",
   diagnosticsBookingSuccess: "/diagnostics/:type/booking-success",
-  consultation: "/consultation/:type",
+  consultationType: "/consultation/type",
   consultationAddFamilyMember: "/consultation/:type/add-family-member",
   consultationSelectPeople: "/consultation/:type/select-people",
   consultationSpecialties: "/consultation/:type/specialties",
@@ -47,12 +49,15 @@ export const ROUTES = {
   vision: "/vision",
   pharmacy: "/pharmacy",
   orders: "/orders",
+  /** Legacy path; AppRoutes redirects to `servicesHelpTab`. */
   help: "/help",
   gymMembership: "/services/gym-membership",
   gymMembershipSelectPeople: "/services/gym-membership/select-people",
   gymMembershipConfigure: "/services/gym-membership/configure",
   gymMembershipOverview: "/services/gym-membership/overview",
   gymMembershipSelectClinic: "/services/gym-membership/select-clinic",
+  /** Help tab: open ticket thread (chat + attachments). */
+  servicesSupportTicketChat: "/services/support/ticket/:ticketId",
   cartOverview: "/cart-overview",
 } as const;
 

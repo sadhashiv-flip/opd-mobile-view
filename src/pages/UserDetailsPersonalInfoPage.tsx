@@ -72,6 +72,12 @@ export function UserDetailsPersonalInfoPage() {
         setUser(u);
         if (!u) return;
 
+        // Guard: only allow access if user is registered (isReg: true)
+        if (!s?.isReg) {
+          navigate(ROUTES.dashboard, { replace: true });
+          return;
+        }
+
         if (!state?.fullName) setFullName((prev) => prev || deriveFullName(u));
         if (!state?.dob) setDob((prev) => prev || (u.dob ?? ""));
         if (!state?.language) setLanguage((prev) => prev || (u.language ?? ""));

@@ -7,7 +7,7 @@ import {
   type SaveMemberPayload,
 } from "@/api/patientMember";
 import { requestMemberPhoneOtp } from "@/api/patientMemberOtp";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { useToast } from "@/hooks/useToast";
@@ -92,6 +92,7 @@ function SelectChevron() {
 export function ProfileMembersAddPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const location = useLocation();
   const { memberId } = useParams<{ memberId?: string }>();
   const isEdit = Boolean(memberId?.trim());
 
@@ -254,7 +255,11 @@ export function ProfileMembersAddPage() {
         await createPatientMember(payload);
         toast.success("Member added.");
       }
-      navigate(ROUTES.profileMembers);
+      if (!isEdit && location.state?.returnPath) {
+        navigate(location.state.returnPath, { state: location.state.returnState });
+      } else {
+        navigate(ROUTES.profileMembers);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save member");
     } finally {

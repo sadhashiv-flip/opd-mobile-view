@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   fetchActiveSubscriptions,
@@ -43,6 +43,15 @@ function PatientAvatarIcon() {
 export function ProfileSubscriptionsPage() {
   const toast = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleBack = useCallback(() => {
+    if (location.state?.returnPath) {
+      navigate(location.state.returnPath);
+    } else {
+      navigate(ROUTES.profile);
+    }
+  }, [location.state, navigate]);
   const [items, setItems] = useState<readonly ActiveSubscriptionItem[]>([]);
   const [apiMessage, setApiMessage] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -79,10 +88,11 @@ export function ProfileSubscriptionsPage() {
   return (
     <div className="profile-manage-page">
       <header className="profile-manage-page__top">
-        <Link
-          to={ROUTES.profile}
+        <button
+          type="button"
+          onClick={handleBack}
           className="profile-manage-page__back"
-          aria-label="Back to profile"
+          aria-label="Back"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -93,7 +103,7 @@ export function ProfileSubscriptionsPage() {
               strokeLinejoin="round"
             />
           </svg>
-        </Link>
+        </button>
         <h1 className="profile-manage-page__title">Subscriptions</h1>
         <span className="profile-manage-page__spacer" aria-hidden />
       </header>

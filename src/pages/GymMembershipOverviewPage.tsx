@@ -208,6 +208,14 @@ export function GymMembershipOverviewPage() {
   const [payBusy, setPayBusy] = useState(false);
   const gymCheck = useMemo(() => readGymCheckSnapshot(), []);
 
+  const enableWallet = useMemo(() => {
+    if (!data || !gymCheck) return false;
+    const pkg = gymCheck.packages.find(p => p.package_code === data.planId);
+    return pkg?.enable_wallet ?? false;
+  }, [data, gymCheck]);
+
+  const paymentAvailable = true;
+
   const invoiceIdForVerifyRef = useRef<string | null>(null);
   const internalOrderIdRef = useRef<string | null>(null);
   const onPaymentVerifiedRef = useRef<() => void>(() => {});
@@ -257,14 +265,14 @@ export function GymMembershipOverviewPage() {
       const p = resolveGymMembershipPlan(id, gymCheck);
       return sum + (p?.price ?? 0);
     }, 0);
-    const wallet = 0;
     const gst = Math.round(subtotal * 0.18);
+    const wallet = enableWallet ? subtotal + gst : 0;
     const payable = subtotal - wallet + gst;
     return { subtotal, gst, payable, wallet };
-  }, [data, gymCheck]);
+  }, [data, gymCheck, enableWallet]);
 
   const handleGymPay = useCallback(async () => {
-    if (!data || gymCheck?.payment_available === false || payBusy) return;
+    if (!data || !paymentAvailable || payBusy) return;
     if (payment.payable <= 0) {
       toast.error("No amount to pay.");
       return;
@@ -449,7 +457,7 @@ export function GymMembershipOverviewPage() {
           <strong>Remarks :</strong> Order cannot be cancelled once confirmed
         </div>
 
-        {gymCheck?.payment_available === false ? (
+        { !paymentAvailable ? (
           <p className="gmo-payment-gate">
             Online payment is not available for this membership. Please contact support or use the channel
             advised by your employer.
@@ -461,7 +469,7 @@ export function GymMembershipOverviewPage() {
         <button
           type="button"
           className="gmo-pay-btn"
-          // disabled={gymCheck?.payment_available === false || payBusy}
+          disabled={!paymentAvailable || payBusy}
           aria-busy={payBusy}
           onClick={() => void handleGymPay()}
         >
