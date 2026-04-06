@@ -33,6 +33,7 @@ export const ROUTES = {
   consultationSpecialties: "/consultation/:type/specialties",
   /** Virtual: slots + Top Doctors after choosing a specialty (issue id in path). */
   consultationVirtualSlots: "/consultation/virtual/specialties/:issueId/slots",
+  consultationVirtualOverview: "/consultation/virtual/specialties/:issueId/overview",
   consultationHospitalResults: "/consultation/at_hospital/specialties/:specialtyId",
   consultationHospitalSlots: "/consultation/at_hospital/specialties/:specialtyId/appointment/:doctorId",
   consultationHospitalOverview: "/consultation/at_hospital/specialties/:specialtyId/appointment/:doctorId/overview",

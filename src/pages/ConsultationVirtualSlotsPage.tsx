@@ -314,7 +314,7 @@ export function ConsultationVirtualSlotsPage() {
             } catch {
               // ignore
             }
-            navigate(ROUTES.dashboard);
+            navigate(generatePath(ROUTES.consultationVirtualOverview, { issueId }));
           }}
         >
           Book Appointment

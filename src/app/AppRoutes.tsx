@@ -33,6 +33,7 @@ import { ProfileBankFormPage } from "@/pages/ProfileBankFormPage";
 import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
 import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
 import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
+import { ConsultationVirtualAppointmentOverviewPage } from "@/pages/ConsultationVirtualAppointmentOverviewPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -91,6 +92,7 @@ export function AppRoutes() {
       />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
       <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
+      <Route path={ROUTES.consultationVirtualOverview} element={<ConsultationVirtualAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
