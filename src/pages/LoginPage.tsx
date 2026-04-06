@@ -73,7 +73,7 @@ export function LoginPage() {
             />
           </div>
           <header className="login-page__header">
-            <h1 className="login-page__title">Log in with mobile number</h1>
+            <h1 className="login-page__title">Log in with mobile or email</h1>
             <p className="login-page__subtitle">
               {usePasswordLogin
                 ? "Enter your password to continue"
@@ -92,10 +92,8 @@ export function LoginPage() {
                 id={contactId}
                 className={`login-page__input${phoneComplete ? " login-page__input--valid" : ""}`}
                 type="text"
-                inputMode="numeric"
-                autoComplete="tel"
-                maxLength={10}
-                placeholder="10-digit mobile"
+                autoComplete="email"
+                placeholder="Mobile number or email"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
               />

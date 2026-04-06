@@ -33,6 +33,9 @@ import { ProfileBankFormPage } from "@/pages/ProfileBankFormPage";
 import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
 import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
 import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
+import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage";
+import { UserDetailsBmiPage } from "@/pages/UserDetailsBmiPage";
+import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -41,6 +44,9 @@ export function AppRoutes() {
       <Route path={ROUTES.root} element={<SplashPage />} />
       <Route path={ROUTES.login} element={<LoginPage />} />
       <Route path={ROUTES.otp} element={<OtpPage />} />
+      <Route path={ROUTES.userDetailsPersonal} element={<UserDetailsPersonalInfoPage />} />
+      <Route path={ROUTES.userDetailsBmi} element={<UserDetailsBmiPage />} />
+      <Route path={ROUTES.userDetailsBmiResult} element={<UserDetailsBmiResultPage />} />
       <Route path={ROUTES.accountLink} element={<AccountLinkPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
       <Route path={ROUTES.profile} element={<ProfilePage />} />
