@@ -4,6 +4,10 @@ export const ROUTES = {
   root: "/",
   login: "/login",
   otp: "/otp",
+  /** Onboarding when verify returns `isReg: false` (personal info → BMI). */
+  userDetailsPersonal: "/user-details/personal",
+  userDetailsBmi: "/user-details/bmi",
+  userDetailsBmiResult: "/user-details/bmi/result",
   /** Link phone/email after verify when API returns `link`: PHONE | EMAIL */
   accountLink: "/account/link",
   dashboard: "/dashboard",

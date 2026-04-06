@@ -9,12 +9,18 @@ import {
 import { GymRemoveMemberConfirmModal } from "@/components/gym/GymRemoveMemberConfirmModal";
 import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
 import {
-  payGymMembershipWithRazorpay,
-  RazorpayPayCancelledError,
+  confirmGymPaymentFree,
+  initGymPayment,
+} from "@/api/patientGymPayment";
+import { useGymPaymentVerify } from "@/hooks/useGymPaymentVerify";
+import {
+  isPaymentCancelledMessage,
+  loadRazorpayScript,
+  openRazorpayCheckout,
 } from "@/lib/gymMembershipRazorpayPay";
 import { useToast } from "@/hooks/useToast";
 import { Link, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./GymMembershipOverviewPage.css";
 
 function readSnapshot(): GymOverviewSnapshot | null {
@@ -202,6 +208,32 @@ export function GymMembershipOverviewPage() {
   const [payBusy, setPayBusy] = useState(false);
   const gymCheck = useMemo(() => readGymCheckSnapshot(), []);
 
+  const invoiceIdForVerifyRef = useRef<string | null>(null);
+  const internalOrderIdRef = useRef<string | null>(null);
+  const onPaymentVerifiedRef = useRef<() => void>(() => {});
+  const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
+  const setPayBusyRef = useRef<(busy: boolean) => void>(() => {});
+
+  useEffect(() => {
+    setPayBusyRef.current = setPayBusy;
+    onPaymentVerifiedRef.current = () => {
+      setPayBusy(false);
+      toast.success("Payment successful");
+      navigate(ROUTES.orders);
+    };
+    onPaymentVerifyErrorRef.current = (message: string) => {
+      toast.error(message);
+    };
+  }, [navigate, toast]);
+
+  useGymPaymentVerify({
+    invoiceIdRef: invoiceIdForVerifyRef,
+    internalOrderIdRef,
+    onSuccessRef: onPaymentVerifiedRef,
+    onErrorRef: onPaymentVerifyErrorRef,
+    setPayBusyRef,
+  });
+
   useEffect(() => {
     if (data === null) {
       navigate(ROUTES.gymMembershipConfigure, { replace: true });
@@ -231,7 +263,7 @@ export function GymMembershipOverviewPage() {
     return { subtotal, gst, payable, wallet };
   }, [data, gymCheck]);
 
-  const handleRazorpayPay = useCallback(async () => {
+  const handleGymPay = useCallback(async () => {
     if (!data || gymCheck?.payment_available === false || payBusy) return;
     if (payment.payable <= 0) {
       toast.error("No amount to pay.");
@@ -239,24 +271,55 @@ export function GymMembershipOverviewPage() {
     }
     setPayBusy(true);
     try {
-      await payGymMembershipWithRazorpay({
-        payableRupees: payment.payable,
-        accountPrimaryUser: data.accountPrimaryUser,
-        planId: data.planId,
-        secondaryPlanId: data.secondary?.planId ?? null,
-        gymInvoiceId: gymCheck?.order?.invoice_id ?? null,
-        subscriptionId: gymCheck?.subscription_id ?? null,
+      const amountPaise = Math.max(100, Math.round(payment.payable * 100));
+      const init = await initGymPayment({
+        payable_rupees: payment.payable,
+        amount_paise: amountPaise,
+        plan_id: data.planId,
+        primary_plan_id: data.primary.planId,
+        secondary_plan_id: data.secondary?.planId ?? null,
+        subscription_id: gymCheck?.subscription_id ?? null,
+        gym_invoice_id: gymCheck?.order?.invoice_id ?? null,
+        show_secondary: Boolean(data.secondary),
       });
-      toast.success("Payment successful");
-      navigate(ROUTES.orders);
-    } catch (e) {
-      if (e instanceof RazorpayPayCancelledError) {
+
+      invoiceIdForVerifyRef.current = init.invoice_id ?? init.order_id;
+      internalOrderIdRef.current = init.order_id;
+
+      if (!init.payment_required) {
+        const confirmId = init.invoice_id ?? init.order_id;
+        if (!confirmId) {
+          throw new Error("Missing invoice or order id for confirmation");
+        }
+        await confirmGymPaymentFree({
+          invoice_id: confirmId,
+          order_id: init.order_id,
+        });
+        toast.success("Membership confirmed");
+        navigate(ROUTES.orders);
+        setPayBusy(false);
         return;
       }
-      const msg = e instanceof Error ? e.message : "Payment failed";
-      toast.error(msg);
-    } finally {
+
+      if (!init.razorpay_payload || Object.keys(init.razorpay_payload).length === 0) {
+        throw new Error("Payment required but server sent no Razorpay payload");
+      }
+
+      await loadRazorpayScript();
+      if (!window.Razorpay) {
+        throw new Error("Razorpay Checkout could not load. Check your network or ad blocker.");
+      }
+
+      openRazorpayCheckout(init.razorpay_payload, (failMsg) => {
+        setPayBusy(false);
+        if (!isPaymentCancelledMessage(failMsg)) {
+          toast.error(failMsg);
+        }
+      });
+    } catch (e) {
       setPayBusy(false);
+      const msg = e instanceof Error ? e.message : "Payment could not start";
+      toast.error(msg);
     }
   }, [data, gymCheck, payBusy, payment.payable, navigate, toast]);
 
@@ -400,7 +463,7 @@ export function GymMembershipOverviewPage() {
           className="gmo-pay-btn"
           // disabled={gymCheck?.payment_available === false || payBusy}
           aria-busy={payBusy}
-          onClick={() => void handleRazorpayPay()}
+          onClick={() => void handleGymPay()}
         >
           {payBusy ? "Processing…" : "Click to Pay"}
         </button>

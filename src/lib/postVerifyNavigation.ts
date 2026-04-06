@@ -8,6 +8,10 @@ export function navigateAfterAuthVerify(
   navigate: NavigateFunction,
   data: VerifySuccessResponse,
 ): void {
+  if (!data.isReg) {
+    navigate(ROUTES.userDetailsPersonal, { replace: true });
+    return;
+  }
   const kind = parseVerifyLinkKind(data.link);
   if (kind === "PHONE" || kind === "EMAIL") {
     navigate(ROUTES.accountLink, {

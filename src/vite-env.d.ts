@@ -14,14 +14,12 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_MAPS_API_KEY?: string;
   /** Loader `region` bias (e.g. `in`). Defaults to `in`. */
   readonly VITE_GOOGLE_MAPS_REGION?: string;
-  /** Razorpay Key Id (public) for Checkout — never put Key Secret here. */
-  readonly VITE_RAZORPAY_KEY_ID?: string;
-  /** Checkout modal title. Defaults to "Gym membership". */
-  readonly VITE_RAZORPAY_BUSINESS_NAME?: string;
-  /** POST path for server to create a Razorpay order. Default: `payments/razorpay/create-order`. */
-  readonly VITE_RAZORPAY_CREATE_ORDER_PATH?: string;
-  /** POST path to verify payment signature after success. Default: `payments/razorpay/verify`. */
-  readonly VITE_RAZORPAY_VERIFY_PATH?: string;
+  /** POST gym payment init (returns payment_required, razorpay_payload, invoice_id). Default: `gym/payment_init`. */
+  readonly VITE_GYM_PAYMENT_INIT_PATH?: string;
+  /** POST verify after Razorpay success. Default: `gym/payment_verify`. */
+  readonly VITE_GYM_PAYMENT_VERIFY_PATH?: string;
+  /** POST free confirm when payment_required is false. Default: `gym/payment_confirm`. */
+  readonly VITE_GYM_PAYMENT_CONFIRM_PATH?: string;
 }
 
 interface ImportMeta {

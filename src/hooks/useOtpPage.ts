@@ -4,7 +4,6 @@ import { verifyPatientLogin } from "@/api/patientVerify";
 import { DEMO_PHONE, ROUTES } from "@/constants";
 import { navigateAfterAuthVerify } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
-import { digitsOnly } from "@/lib/digits";
 import type { OtpLocationState } from "@/types/navigation";
 import { useToast } from "@/hooks/useToast";
 import { useOtpInput } from "./useOtpInput";
@@ -43,7 +42,7 @@ export function useOtpPage(): OtpPageController {
     try {
       const data = await verifyPatientLogin({
         action: "RLOGIN",
-        value: digitsOnly(phone),
+        value: phone.trim(),
         code,
         fcm_token: "",
       });

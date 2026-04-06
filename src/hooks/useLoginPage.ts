@@ -12,6 +12,8 @@ import { navigateAfterAuthVerify } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
 import { digitsOnly, takeDigits } from "@/lib/digits";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function normalizeContactInput(raw: string): string {
   if (raw.includes("@") || /[a-zA-Z]/.test(raw)) {
     return raw;
@@ -22,7 +24,11 @@ function normalizeContactInput(raw: string): string {
 type LoginPageController = Readonly<{
   contact: string;
   setContact: (value: string) => void;
-  /** Exactly {@link MIN_PHONE_DIGITS} digits → green border + check (mobile). */
+  /**
+   * Valid contact input:
+   * - exactly {@link MIN_PHONE_DIGITS} digits for mobile, or
+   * - syntactically valid email → green border + check.
+   */
   phoneComplete: boolean;
   usePasswordLogin: boolean;
   setUsePasswordLogin: (value: boolean) => void;
@@ -64,24 +70,30 @@ export function useLoginPage(): LoginPageController {
     }
   };
 
-  const phoneDigits = digitsOnly(contact);
-  const phoneComplete = phoneDigits.length === MIN_PHONE_DIGITS;
+  const isEmail = contact.includes("@") || /[a-zA-Z]/.test(contact);
+  const trimmedContact = contact.trim();
+  const phoneDigits = isEmail ? "" : digitsOnly(contact);
+  const phoneComplete = !isEmail && phoneDigits.length === MIN_PHONE_DIGITS;
+  const emailValid = isEmail && EMAIL_REGEX.test(trimmedContact);
+  const contactValid = phoneComplete || emailValid;
 
   const passwordOk =
     password.trim().length >= MIN_LOGIN_PASSWORD_LENGTH;
 
-  const canProceedOtp = accepted && phoneComplete && !usePasswordLogin;
+  const canProceedOtp = accepted && contactValid && !usePasswordLogin;
   const canProceedPassword =
-    accepted && phoneComplete && usePasswordLogin && passwordOk;
+    accepted && contactValid && usePasswordLogin && passwordOk;
   const canProceed = canProceedOtp || canProceedPassword;
 
   const handleConfirm = async () => {
     if (!canProceed) return;
     setIsSubmitting(true);
     try {
+      const identifier = isEmail ? trimmedContact : phoneDigits;
+
       if (usePasswordLogin) {
         const data = await loginPatientWithPassword({
-          phone: phoneDigits,
+          phone: identifier,
           password: password.trim(),
           corporate: true,
           fcm_token: "",
@@ -94,14 +106,14 @@ export function useLoginPage(): LoginPageController {
       }
 
       await registerPatientLogin({
-        phone: phoneDigits,
+        phone: identifier,
         type: "RLOGIN",
         corporate: true,
         fcm_token: "",
         tc_accepted: accepted,
       });
       toast.success("OTP sent successfully");
-      navigate(ROUTES.otp, { state: { phone: contact } });
+      navigate(ROUTES.otp, { state: { phone: identifier } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -123,7 +135,7 @@ export function useLoginPage(): LoginPageController {
     setAccepted,
     canProceed,
     handleConfirm,
-    labelText: "Mobile number",
+    labelText: "Mobile number or email",
     isSubmitting,
     otpSubtitle: "You will receive an OTP",
   };
