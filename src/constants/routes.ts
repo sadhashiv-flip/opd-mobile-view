@@ -32,7 +32,7 @@ export const ROUTES = {
   diagnosticsSlots: "/diagnostics/:type/slots",
   diagnosticsOverview: "/diagnostics/:type/overview",
   diagnosticsBookingSuccess: "/diagnostics/:type/booking-success",
-  consultation: "/consultation/:type",
+  consultationType: "/consultation/type",
   consultationAddFamilyMember: "/consultation/:type/add-family-member",
   consultationSpecialties: "/consultation/:type/specialties",
   /** Virtual: slots + Top Doctors after choosing a specialty (issue id in path). */

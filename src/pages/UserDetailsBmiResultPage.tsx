@@ -32,11 +32,23 @@ export function UserDetailsBmiResultPage() {
     return `${min.toFixed(1)} - ${max.toFixed(1)} kg`;
   })();
 
-  const showWarning = category !== "healthy" || state.nutritionSuggestion;
+  const resultMessage = (() => {
+    if (category === "underweight") return "Your BMI indicates you're underweight. Consider gaining weight through a balanced diet.";
+    if (category === "overweight") return "Your BMI indicates you're overweight. Consider consulting a nutritionist for weight management.";
+    if (category === "obese") return "Your BMI indicates obesity. Please consult a healthcare professional for personalized advice.";
+    return "Your BMI is in the healthy range. Keep up the good work!";
+  })();
+
+  const resultIcon = (() => {
+    if (category === "underweight") return "⚠";
+    if (category === "overweight") return "⚠";
+    if (category === "obese") return "⚠";
+    return "✓";
+  })();
 
   return (
     <main className="ud-flow-page ud-result-page">
-      <section className="ud-result-card">
+      <section className={`ud-result-card ud-result-card--${category}`}>
         <p className="ud-result-card__small">here&apos;s your</p>
         <h1 className="ud-result-card__title">Body Mass Index</h1>
         <div className="ud-result-card__value">{bmi.toFixed(1)}</div>
@@ -64,16 +76,14 @@ export function UserDetailsBmiResultPage() {
         </div>
       </section>
 
-      {showWarning ? (
-        <section className="ud-result-note">
-          <span className="ud-result-note__icon" aria-hidden>
-            i
-          </span>
-          <p className="ud-result-note__text">
-            Your BMI is outside the healthy range. Consider consulting a nutritionist.
-          </p>
-        </section>
-      ) : null}
+      <section className={`ud-result-note ud-result-note--${category}`}>
+        <span className="ud-result-note__icon" aria-hidden>
+          {resultIcon}
+        </span>
+        <p className="ud-result-note__text">
+          {resultMessage}
+        </p>
+      </section>
 
       <section className="ud-result-grid">
         <article className="ud-result-metric ud-result-metric--ideal">
@@ -92,13 +102,32 @@ export function UserDetailsBmiResultPage() {
         </article>
       </section>
 
-      <button
-        type="button"
-        className="ud-primary ud-result-page__continue"
-        onClick={() => navigate(ROUTES.dashboard, { replace: true })}
-      >
-        Continue
-      </button>
+      {state.nutritionSuggestion ? (
+        <div className="ud-result-actions">
+          <button
+            type="button"
+            className="ud-primary ud-result-page__consult"
+            onClick={() => navigate(ROUTES.consultationType, { replace: true })}
+          >
+            Consult Doctor
+          </button>
+          <button
+            type="button"
+            className="ud-secondary ud-result-page__skip"
+            onClick={() => navigate(ROUTES.dashboard, { replace: true })}
+          >
+            Skip
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="ud-primary ud-result-page__continue"
+          onClick={() => navigate(ROUTES.dashboard, { replace: true })}
+        >
+          Continue
+        </button>
+      )}
     </main>
   );
 }

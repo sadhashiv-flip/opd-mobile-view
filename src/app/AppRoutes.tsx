@@ -4,7 +4,6 @@ import { ProfileMembersAddPage } from "@/pages/ProfileMembersAddPage";
 import { BookingSuccessPage } from "../pages/BookingSuccessPage";
 import { ConsultationAppointmentSlotsPage } from "../pages/ConsultationAppointmentSlotsPage";
 import { ConsultationAppointmentOverviewPage } from "../pages/ConsultationAppointmentOverviewPage";
-import { ConsultationHospitalResultsPage } from "../pages/ConsultationHospitalResultsPage";
 import { DiagnosticsScreenPage } from "../pages/DiagnosticsScreenPage";
 import { DiagnosticsSlotsPage } from "../pages/DiagnosticsSlotsPage";
 import { ConsultationSpecialtiesPage } from "../pages/ConsultationSpecialtiesPage";
@@ -36,6 +35,7 @@ import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
 import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage";
 import { UserDetailsBmiPage } from "@/pages/UserDetailsBmiPage";
 import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
+import { ConsultationTypePage } from "../pages/ConsultationTypePage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -97,7 +97,7 @@ export function AppRoutes() {
       />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
       <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
-      <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
+      <Route path={ROUTES.consultationType} element={<ConsultationTypePage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
       <Route path={ROUTES.dental} element={<PlaceholderPage title="Dental" />} />

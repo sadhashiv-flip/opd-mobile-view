@@ -62,7 +62,7 @@ export function UserDetailsBmiPage() {
 
   const displayedHeight = useMemo(() => {
     if (heightUnit === "cm") return Math.round(heightCm);
-    return Number(cmToFeet(heightCm).toFixed(2));
+    return Number(cmToFeet(heightCm).toFixed(1));
   }, [heightCm, heightUnit]);
 
   const displayedWeight = useMemo(() => {
@@ -92,15 +92,20 @@ export function UserDetailsBmiPage() {
         name: state?.fullName ?? "",
         gender,
         dob: state?.dob ?? "",
-        height: heightCm.toString(),
+        height: cmToFeet(heightCm).toFixed(2),
         weight: weightKg,
         isDiabetic: isDiabetic === "yes" ? "yes" : "no",
         language: state?.language ?? "",
         isBloodPressure: isBloodPressure === "yes" ? "yes" : "no",
       });
+      const rawHeight = Number(res.health_score.height);
+      let resultHeightCm = 0;
+      if (Number.isFinite(rawHeight) && rawHeight > 0) {
+        resultHeightCm = rawHeight <= 10 ? feetToCm(rawHeight) : rawHeight;
+      }
       const payload: UserDetailsBmiResultLocationState = {
         bmi: res.health_score.bmi,
-        heightCm: Number(res.health_score.height),
+        heightCm: resultHeightCm,
         weightKg: Number(res.health_score.weight),
         nutritionSuggestion: Boolean(res.health_score.nutrition_suggestion),
         message: res.message,
