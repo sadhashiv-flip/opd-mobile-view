@@ -33,7 +33,10 @@
 
 .afm-main {
   flex: 1;
-  padding: 10px 14px 90px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 14px 16px;
 }
 
 .afm-form {
@@ -170,7 +173,8 @@
 }
 
 .afm-footer {
-  padding: 14px 14px calc(18px + env(safe-area-inset-bottom, 0));
+  flex-shrink: 0;
+  padding: 14px 14px 16px;
   background: #ffffff;
 }
 

@@ -100,9 +100,10 @@
 
 .services-hub__main {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0));
+  padding: 10px 14px 16px;
 }
 
 .services-hub__title {
@@ -304,13 +305,104 @@
 }
 
 .services-hub__support-card {
-  padding: 12px 12px 14px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   min-height: 100px;
   border-radius: 16px;
   background: #f8fafc;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  color: inherit;
+}
+
+.services-hub__support-card-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1;
+  min-height: 100px;
+}
+
+.services-hub__support-card-main {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  margin: 0;
+  padding: 12px 12px 14px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   display: grid;
   gap: 10px;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.services-hub__support-card-view-details {
+  width: 100%;
+  margin: 0;
+  padding: 11px 14px;
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0369a1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.services-hub__support-card-view-details:active {
+  opacity: 0.92;
+}
+
+.services-hub__support-card-view-details-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.services-hub__support-card-feedback-btn {
+  flex-shrink: 0;
+  width: 48px;
+  align-self: stretch;
+  min-height: 100%;
+  border: none;
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, #fff8e1 0%, #ffe082 100%);
+  color: #b45309;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.services-hub__support-card-feedback-btn:active {
+  opacity: 0.88;
+}
+
+.services-hub__support-card-feedback-icon {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .services-hub__support-card-header {
@@ -318,6 +410,18 @@
   justify-content: space-between;
   gap: 10px;
   align-items: flex-start;
+}
+
+.services-hub__support-feedback-pending {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff8e1;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
 }
 
 .services-hub__support-card-body {

@@ -8,17 +8,25 @@ import {
   type HubTabId,
 } from "@/constants/servicesHubContent";
 import { ROUTES } from "@/constants";
+import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
+import { SupportTicketFeedbackDialog, FEEDBACK_RATINGS } from "@/components/support/SupportTicketFeedbackDialog";
 import { ChangePasswordModal, DeleteAccountModal } from "@/components/profile";
+import { postSupportFeedback } from "@/api/patientFeedback";
 import { changePatientPassword } from "@/api/patientPassword";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import { useToast } from "@/hooks/useToast";
 import {
   createSupportTicket,
   fetchSupportTickets,
+  isSupportTicketClosedTabStatus,
+  isSupportTicketInactiveStatus,
+  parseSupportTicketFeedbackDisplay,
+  supportTicketHasFeedback,
   type SupportTicket,
+  type SupportTicketFeedbackDisplay,
 } from "@/api/supportTicket";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, generatePath, useNavigate, useSearchParams } from "react-router-dom";
 import "./ServicesHubPage.css";
 
 function parseTab(raw: string | null): HubTabId {
@@ -75,6 +83,16 @@ export function ServicesHubPage() {
   const [supportMessage, setSupportMessage] = useState("");
   const [supportLanguage, setSupportLanguage] = useState("English");
   const [supportBusy, setSupportBusy] = useState(false);
+  const [hubFeedbackOpen, setHubFeedbackOpen] = useState(false);
+  const [hubFeedbackTicketId, setHubFeedbackTicketId] = useState<string | null>(null);
+  const [hubFeedbackRating, setHubFeedbackRating] = useState<(typeof FEEDBACK_RATINGS)[number] | 0>(0);
+  const [hubFeedbackDescription, setHubFeedbackDescription] = useState("");
+  const [hubFeedbackBusy, setHubFeedbackBusy] = useState(false);
+  const [hubViewFeedbackOpen, setHubViewFeedbackOpen] = useState(false);
+  const [hubViewFeedbackData, setHubViewFeedbackData] = useState<{
+    id: string;
+    display: SupportTicketFeedbackDisplay;
+  } | null>(null);
 
   const setTab = useCallback(
     (id: HubTabId) => {
@@ -90,15 +108,22 @@ export function ServicesHubPage() {
 
   const [medicalSelectedId, setMedicalSelectedId] = useState("lab");
 
-  const supportTicketsFiltered = useMemo(
-    () =>
-      supportTickets.filter((ticket) => {
-        const status = (ticket.status ?? "").trim().toLowerCase();
-        const isClosed = status === "closed" || status === "resolved" || status === "completed";
-        return supportFilter === "open" ? !isClosed : isClosed;
-      }),
-    [supportFilter, supportTickets],
-  );
+  const supportTicketsFiltered = useMemo(() => {
+    const filtered = supportTickets.filter((ticket) => {
+      const isClosed = isSupportTicketClosedTabStatus(ticket.status ?? null);
+      return supportFilter === "open" ? !isClosed : isClosed;
+    });
+    if (supportFilter === "closed") {
+      return [...filtered].sort((a, b) => {
+        const pending = (t: SupportTicket) =>
+          isSupportTicketInactiveStatus(t.status ?? null) && !supportTicketHasFeedback(t.feedback)
+            ? 1
+            : 0;
+        return pending(b) - pending(a);
+      });
+    }
+    return filtered;
+  }, [supportFilter, supportTickets]);
 
   const supportStatusLabel = useCallback((status: string | null) => {
     const normalized = (status ?? "").trim().toLowerCase();
@@ -120,19 +145,13 @@ export function ServicesHubPage() {
 
   const supportPendingCount = useMemo(
     () =>
-      supportTickets.filter((ticket) => {
-        const status = (ticket.status ?? "").trim().toLowerCase();
-        return status !== "closed" && status !== "resolved" && status !== "completed";
-      }).length,
+      supportTickets.filter((ticket) => !isSupportTicketClosedTabStatus(ticket.status ?? null)).length,
     [supportTickets],
   );
 
   const supportClosedCount = useMemo(
     () =>
-      supportTickets.filter((ticket) => {
-        const status = (ticket.status ?? "").trim().toLowerCase();
-        return status === "closed" || status === "resolved" || status === "completed";
-      }).length,
+      supportTickets.filter((ticket) => isSupportTicketClosedTabStatus(ticket.status ?? null)).length,
     [supportTickets],
   );
 
@@ -186,6 +205,52 @@ export function ServicesHubPage() {
       setSupportBusy(false);
     }
   }, [supportLanguage, supportMessage, toast, loadSupportTickets]);
+
+  const openHubFeedbackSheet = useCallback((ticketId: string) => {
+    setHubFeedbackTicketId(ticketId);
+    setHubFeedbackRating(0);
+    setHubFeedbackDescription("");
+    setHubFeedbackOpen(true);
+  }, []);
+
+  const openHubViewFeedback = useCallback((ticket: SupportTicket) => {
+    setHubViewFeedbackData({
+      id: ticket.id,
+      display: parseSupportTicketFeedbackDisplay(ticket.feedback),
+    });
+    setHubViewFeedbackOpen(true);
+  }, []);
+
+  const submitHubFeedback = useCallback(async () => {
+    if (!hubFeedbackTicketId) return;
+    if (hubFeedbackRating < 1) {
+      toast.error("Select a star rating.");
+      return;
+    }
+    if (!hubFeedbackDescription.trim()) {
+      toast.error("Enter your feedback.");
+      return;
+    }
+    setHubFeedbackBusy(true);
+    try {
+      await postSupportFeedback({
+        src: "support",
+        src_id: hubFeedbackTicketId,
+        rating: String(hubFeedbackRating) as "1" | "2" | "3" | "4" | "5",
+        description: hubFeedbackDescription.trim(),
+      });
+      setHubFeedbackOpen(false);
+      setHubFeedbackTicketId(null);
+      setHubFeedbackRating(0);
+      setHubFeedbackDescription("");
+      toast.success("Thank you for your feedback.");
+      await loadSupportTickets();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not submit feedback");
+    } finally {
+      setHubFeedbackBusy(false);
+    }
+  }, [hubFeedbackDescription, hubFeedbackRating, hubFeedbackTicketId, loadSupportTickets, toast]);
 
   return (
     <div className="services-hub">
@@ -357,20 +422,76 @@ export function ServicesHubPage() {
                 supportVisibleTickets.map((ticket) => {
                   const statusText = supportStatusLabel(ticket.status ?? "");
                   const badgeClass = `services-hub__support-badge--${statusText.toLowerCase()}`;
+                  const feedbackPending =
+                    supportFilter === "closed" &&
+                    isSupportTicketInactiveStatus(ticket.status ?? null) &&
+                    !supportTicketHasFeedback(ticket.feedback);
+                  const hasSavedFeedback = supportTicketHasFeedback(ticket.feedback);
                   return (
-                    <article key={ticket.id} className="services-hub__support-card">
-                      <div className="services-hub__support-card-header">
-                        <span className="services-hub__support-card-id">{ticket.id} [<span>{ticket.language ?? "English"}</span>]</span>
-                        <span className={`services-hub__support-badge ${badgeClass}`}>{statusText}</span>
+                    <div key={ticket.id} className="services-hub__support-card">
+                      <div className="services-hub__support-card-row">
+                        <button
+                          type="button"
+                          className="services-hub__support-card-main"
+                          onClick={() =>
+                            void navigate(
+                              generatePath(ROUTES.servicesSupportTicketChat, { ticketId: ticket.id }),
+                            )
+                          }
+                        >
+                          <div className="services-hub__support-card-header">
+                            <span className="services-hub__support-card-id">{ticket.id} [<span>{ticket.language ?? "English"}</span>]</span>
+                            <span className={`services-hub__support-badge ${badgeClass}`}>{statusText}</span>
+                          </div>
+                          {feedbackPending ? (
+                            <p className="services-hub__support-feedback-pending">
+                              Feedback pending — tap to rate this ticket
+                            </p>
+                          ) : null}
+                          <div className="services-hub__support-card-body">
+                            <p className="services-hub__support-card-message">{ticket.message ?? "No message available."}</p>
+                            <div className="services-hub__support-card-meta">
+                              <span>
+                                {ticket.createdAt
+                                  ? new Date(ticket.createdAt).toLocaleString("en-IN", {
+                                      month: "short",
+                                      day: "2-digit",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : ""}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                        {feedbackPending ? (
+                          <button
+                            type="button"
+                            className="services-hub__support-card-feedback-btn"
+                            onClick={() => openHubFeedbackSheet(ticket.id)}
+                            aria-label="Open feedback form for this ticket"
+                          >
+                            <span className="services-hub__support-card-feedback-icon" aria-hidden>
+                              ★
+                            </span>
+                            <span>Rate</span>
+                          </button>
+                        ) : null}
                       </div>
-                      <div className="services-hub__support-card-body">
-                        <p className="services-hub__support-card-message">{ticket.message ?? "No message available."}</p>
-                        <div className="services-hub__support-card-meta">
-                         
-                          <span>{ticket.createdAt ? new Date(ticket.createdAt).toLocaleString("en-IN", { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}</span>
-                        </div>
-                      </div>
-                    </article>
+                      {hasSavedFeedback ? (
+                        <button
+                          type="button"
+                          className="services-hub__support-card-view-details"
+                          onClick={() => openHubViewFeedback(ticket)}
+                        >
+                          <span className="services-hub__support-card-view-details-icon" aria-hidden>
+                            ★
+                          </span>{" "}
+                          <span>View feedback details</span>
+                        </button>
+                      ) : null}
+                    </div>
                   );
                 })}
               {!supportLoading && supportHasMore && (
@@ -472,6 +593,35 @@ export function ServicesHubPage() {
         onConfirmDelete={async (feedback) => {
           await requestProfileDeletion({ feedback });
           toast.success("Account deletion requested.");
+        }}
+      />
+
+      <SupportTicketFeedbackDialog
+        open={hubFeedbackOpen}
+        ticketIdHint={hubFeedbackTicketId}
+        feedbackRating={hubFeedbackRating}
+        feedbackDescription={hubFeedbackDescription}
+        feedbackBusy={hubFeedbackBusy}
+        onRatingChange={setHubFeedbackRating}
+        onDescriptionChange={(e) => setHubFeedbackDescription(e.target.value)}
+        onClose={() => {
+          if (!hubFeedbackBusy) {
+            setHubFeedbackOpen(false);
+            setHubFeedbackTicketId(null);
+          }
+        }}
+        onSubmit={() => {
+          submitHubFeedback().catch(() => {});
+        }}
+      />
+
+      <SupportTicketFeedbackViewDialog
+        open={Boolean(hubViewFeedbackOpen && hubViewFeedbackData)}
+        ticketIdHint={hubViewFeedbackData?.id ?? null}
+        display={hubViewFeedbackData?.display ?? { rating: null, description: null }}
+        onClose={() => {
+          setHubViewFeedbackOpen(false);
+          setHubViewFeedbackData(null);
         }}
       />
     </div>

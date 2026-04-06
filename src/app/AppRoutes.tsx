@@ -16,6 +16,7 @@ import { LoginPage } from "../pages/LoginPage";
 import { OtpPage } from "../pages/OtpPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
+import { SupportTicketChatPage } from "@/pages/SupportTicketChatPage";
 import { GymMembershipPage } from "@/pages/GymMembershipPage";
 import { GymMembershipSelectPeoplePage } from "@/pages/GymMembershipSelectPeoplePage";
 import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
@@ -68,6 +69,7 @@ export function AppRoutes() {
       <Route path={ROUTES.profileSubscriptions} element={<ProfileSubscriptionsPage />} />
       <Route path="/home" element={<Navigate to={ROUTES.dashboard} replace />} />
       <Route path={ROUTES.services} element={<ServicesHubPage />} />
+      <Route path={ROUTES.servicesSupportTicketChat} element={<SupportTicketChatPage />} />
 
       {/* Diagnostics flows (Health Checkups, Lab Tests, etc.) */}
       <Route path={ROUTES.diagnosticsType} element={<DiagnosticsEntryRedirect />} />
@@ -119,10 +121,7 @@ export function AppRoutes() {
         path={ROUTES.orders}
         element={<PlaceholderPage title="My Orders" />}
       />
-      <Route
-        path={ROUTES.help}
-        element={<PlaceholderPage title="Need Help?" />}
-      />
+      <Route path={ROUTES.help} element={<Navigate to={ROUTES.servicesHelpTab} replace />} />
       <Route
         path={ROUTES.gymMembership}
         element={<GymMembershipPage />}
