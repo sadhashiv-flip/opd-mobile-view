@@ -26,6 +26,7 @@ export const ROUTES = {
   profileSubscriptions: "/profile/subscriptions",
   services: "/services",
   diagnosticsType: "/diagnostics/:type",
+  diagnosticsSelectPeople: "/diagnostics/:type/select-people",
   diagnosticsAddFamilyMember: "/diagnostics/:type/add-family-member",
   diagnosticsPlan: "/diagnostics/:type/plan",
   diagnosticsVendors: "/diagnostics/:type/vendors",
@@ -34,6 +35,7 @@ export const ROUTES = {
   diagnosticsBookingSuccess: "/diagnostics/:type/booking-success",
   consultation: "/consultation/:type",
   consultationAddFamilyMember: "/consultation/:type/add-family-member",
+  consultationSelectPeople: "/consultation/:type/select-people",
   consultationSpecialties: "/consultation/:type/specialties",
   /** Virtual: slots + Top Doctors after choosing a specialty (issue id in path). */
   consultationVirtualSlots: "/consultation/virtual/specialties/:issueId/slots",

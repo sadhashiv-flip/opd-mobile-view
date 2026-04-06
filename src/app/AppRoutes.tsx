@@ -10,7 +10,6 @@ import { DiagnosticsSlotsPage } from "../pages/DiagnosticsSlotsPage";
 import { ConsultationSpecialtiesPage } from "../pages/ConsultationSpecialtiesPage";
 import { ConsultationVirtualSlotsPage } from "../pages/ConsultationVirtualSlotsPage";
 import { HealthCheckupsOverviewPage } from "../pages/HealthCheckupsOverviewPage";
-import { HealthCheckupsPage } from "../pages/HealthCheckupsPage";
 import { HealthCheckupsPlanPage } from "../pages/HealthCheckupsPlanPage";
 import { HomePage } from "../pages/HomePage";
 import { AccountLinkPage } from "@/pages/AccountLinkPage";
@@ -34,6 +33,10 @@ import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
 import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
 import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
 import { ConsultationVirtualAppointmentOverviewPage } from "@/pages/ConsultationVirtualAppointmentOverviewPage";
+import { ConsultationSelectPeoplePage } from "@/pages/ConsultationSelectPeoplePage";
+import { DiagnosticsSelectPeoplePage } from "../pages/DiagnosticsSelectPeoplePage";
+import { ConsultationEntryRedirect } from "@/app/ConsultationEntryRedirect";
+import { DiagnosticsEntryRedirect } from "@/app/DiagnosticsEntryRedirect";
 import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage";
 import { UserDetailsBmiPage } from "@/pages/UserDetailsBmiPage";
 import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
@@ -66,7 +69,8 @@ export function AppRoutes() {
       <Route path={ROUTES.services} element={<ServicesHubPage />} />
 
       {/* Diagnostics flows (Health Checkups, Lab Tests, etc.) */}
-      <Route path={ROUTES.diagnosticsType} element={<HealthCheckupsPage />} />
+      <Route path={ROUTES.diagnosticsType} element={<DiagnosticsEntryRedirect />} />
+      <Route path={ROUTES.diagnosticsSelectPeople} element={<DiagnosticsSelectPeoplePage />} />
       <Route
         path={ROUTES.diagnosticsAddFamilyMember}
         element={<Navigate to={ROUTES.profileMembersAdd} replace />}
@@ -91,11 +95,12 @@ export function AppRoutes() {
       <Route path="/health-checkups/booking-success" element={<Navigate to="/diagnostics/health-checkups/booking-success" replace />} />
 
       {/* Consultation uses same initial pages */}
-      <Route path={ROUTES.consultation} element={<HealthCheckupsPage />} />
+      <Route path={ROUTES.consultation} element={<ConsultationEntryRedirect />} />
       <Route
         path={ROUTES.consultationAddFamilyMember}
         element={<Navigate to={ROUTES.profileMembersAdd} replace />}
       />
+      <Route path={ROUTES.consultationSelectPeople} element={<ConsultationSelectPeoplePage />} />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
       <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
       <Route path={ROUTES.consultationVirtualOverview} element={<ConsultationVirtualAppointmentOverviewPage />} />
