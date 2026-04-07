@@ -29,13 +29,13 @@
 
 .bs-title {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 900;
 }
 
 .bs-sub {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 700;
   color: #6f6f6f;
   line-height: 1.4;
@@ -55,7 +55,7 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
 }
 

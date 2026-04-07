@@ -48,7 +48,7 @@
 
 .hco-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 800;
 }
 
@@ -61,7 +61,7 @@
   border-radius: 999px;
   background: #ffffff;
   color: #111111;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   text-decoration: none;
 }
@@ -94,7 +94,7 @@
 }
 
 .hco-loc__title {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
   flex-shrink: 0;
@@ -107,7 +107,7 @@
 
 .hco-loc__addr {
   min-width: 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   color: #9a9a9a;
   white-space: nowrap;
@@ -138,7 +138,7 @@
 .hco-subhead {
   margin: 4px 0 10px;
   color: #6f6f6f;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 700;
 }
 
@@ -158,21 +158,21 @@
 }
 
 .hco-item__name {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
 
 .hco-item__meta {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
 }
 
 .hco-item__price {
   margin-left: auto;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
 }
 
@@ -182,14 +182,14 @@
 }
 
 .hco-label {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
 
 .hco-help {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
 }
@@ -208,7 +208,7 @@
   align-items: center;
   justify-content: center;
   background: #f6f6f6;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #5c5c5c;
 }
@@ -217,7 +217,7 @@
   border: none;
   padding: 10px 10px;
   font: inherit;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   outline: none;
 }
 
@@ -232,7 +232,7 @@
 }
 
 .hco-dt__value {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -260,18 +260,18 @@
 }
 
 .hco-totals__k {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
 }
 
 .hco-totals__v {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
 }
 
 .hco-totals__muted .hco-totals__k,
 .hco-totals__muted .hco-totals__v {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   color: #8e8e8e;
 }
@@ -285,19 +285,19 @@
 }
 
 .hco-wallet__k {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
 }
 
 .hco-wallet__sub {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
 }
 
 .hco-wallet__v {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   color: #ff541e;
 }
@@ -310,12 +310,12 @@
 }
 
 .hco-net__k {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
 }
 
 .hco-net__v {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
 }
 
@@ -335,7 +335,7 @@
 }
 
 .hco-coins__text {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   color: #111111;
 }
@@ -348,7 +348,7 @@
   border-radius: 999px;
   background: #eaffea;
   color: #2e7d32;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
 }
 
@@ -361,7 +361,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
 }
 
@@ -372,7 +372,7 @@
 
 .hco-coins__note {
   margin: 8px 0 0;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
 }
@@ -385,14 +385,14 @@
 }
 
 .hco-remarks__k {
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 900;
   color: #ff541e;
 }
 
 .hco-remarks__v {
   margin-top: 4px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
 }
@@ -415,7 +415,7 @@
   border-radius: 10px;
   background: #0b0b0b;
   color: #ff541e;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
 }
 
@@ -426,7 +426,7 @@
   border-radius: 10px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
   cursor: pointer;
   display: flex;
@@ -437,7 +437,7 @@
 
 .hco-paybar__label {
   flex: 1;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 300;
   color: #ffffff;
   text-align: right;
@@ -489,7 +489,7 @@
 }
 
 .hco-lab-vendor__logo {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
@@ -500,7 +500,7 @@
   gap: 4px;
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   color: #111111;
   background: #fff8e1;
@@ -517,7 +517,7 @@
   gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid #f0f0f0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #111111;
 }
@@ -544,7 +544,7 @@
 .hco-lab-vendor__card-total {
   padding-top: 10px;
   text-align: right;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
@@ -583,13 +583,13 @@
 
 .hco-paybar__btn--lab {
   justify-content: center;
-  padding: 0 16px;
+  padding: 0 var(--page-pad-x);
 }
 
 .hco-paybar__lab-label {
   width: 100%;
   text-align: center;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   color: #ffffff;
 }

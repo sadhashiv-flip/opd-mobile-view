@@ -27,7 +27,7 @@
 .profile-sub-plan-card__title {
   margin: 0;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   color: #1565c0;
   line-height: 1.35;
@@ -42,7 +42,7 @@
   border: none;
   border-radius: 999px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #ffffff;
@@ -66,14 +66,14 @@
 
 .profile-sub-plan-card__members {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #37474f;
 }
 
 .profile-sub-plan-card__types {
   margin: 0 0 12px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   line-height: 1.4;
   color: #546e7a;
 }
@@ -81,7 +81,7 @@
 .profile-sub-plan-card__price {
   margin: 0 0 2px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 22px;
+  font-size: clamp(11px, calc(22 * 100cqw / 375), calc(22 * 1.12px));
   font-weight: 800;
   color: #0d47a1;
   letter-spacing: -0.03em;
@@ -89,7 +89,7 @@
 
 .profile-sub-plan-card__days {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #607d8b;
 }
@@ -133,7 +133,7 @@
 
 .profile-sub-patient__name {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   color: #212121;
   line-height: 1.25;
@@ -141,20 +141,20 @@
 
 .profile-sub-patient__meta {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #757575;
 }
 
 .profile-sub-patient__status {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 700;
   color: #2e7d32;
 }
 
 .profile-sub-v2-message {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #616161;
 }
 

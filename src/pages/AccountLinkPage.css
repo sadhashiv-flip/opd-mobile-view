@@ -23,7 +23,7 @@
 
 .account-link-page__logo {
   display: block;
-  max-width: min(200px, 52vw);
+  max-width: min(200px, 52cqw);
   width: auto;
   height: auto;
   max-height: 40px;
@@ -35,7 +35,7 @@
   margin: 0 auto 10px;
   max-width: 20em;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 20px;
+  font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.02em;
@@ -47,7 +47,7 @@
   margin: 0 auto 24px;
   max-width: 26em;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 400;
   line-height: 1.45;
   color: #888888;
@@ -70,7 +70,7 @@
 
 .account-link-page__label {
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 500;
   color: #616161;
 }
@@ -82,7 +82,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #000000;
   background: #ffffff;
   outline: none;
@@ -106,7 +106,7 @@
 }
 
 .account-link-page__value {
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   color: #000000;
   word-break: break-all;
@@ -118,7 +118,7 @@
   border: none;
   background: none;
   font: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 500;
   color: var(--color-brand-orange);
   cursor: pointer;
@@ -152,7 +152,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 600;
   text-align: center;
   color: #000000;
@@ -168,7 +168,7 @@
 
 .account-link-page__resend {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1.5;
   color: #888888;
   text-align: center;
@@ -199,7 +199,7 @@
   border-radius: 10px;
   background: var(--color-brand-orange);
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #ffffff;
   letter-spacing: 0.02em;

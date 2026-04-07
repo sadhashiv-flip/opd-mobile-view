@@ -64,7 +64,7 @@
 
 .addr-sheet__title {
   margin: 0;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #111111;
 }
@@ -88,7 +88,7 @@
 
 .addr-sheet__hint {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.45;
   color: #616161;
 }
@@ -123,13 +123,13 @@
 
 .addr-sheet__error {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #c62828;
 }
 
 .addr-sheet__empty {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #757575;
 }
 
@@ -155,7 +155,7 @@
 
 .addr-sheet__tag {
   display: inline-block;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -165,7 +165,7 @@
 
 .addr-sheet__primary-pill {
   display: inline-block;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -175,7 +175,7 @@
 
 .addr-sheet__lines {
   margin: 6px 0 4px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 500;
   line-height: 1.4;
   color: #212121;
@@ -183,7 +183,7 @@
 
 .addr-sheet__meta {
   margin: 0;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   color: #616161;
 }
 
@@ -204,7 +204,7 @@
   border: none;
   border-radius: 12px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: var(--color-brand-orange);
@@ -217,7 +217,7 @@
 
 .addr-sheet__manage-link {
   text-align: center;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   color: #1976d2;
   text-decoration: none;

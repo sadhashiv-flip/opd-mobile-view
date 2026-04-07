@@ -16,7 +16,7 @@
 
 .gym-membership-meta {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #555;
   word-break: break-all;
 }
@@ -26,7 +26,7 @@
   border-radius: 12px;
   background: #fff4ed;
   border: 1px solid #ffd4bf;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.4;
   color: #333;
 }
@@ -34,19 +34,19 @@
 .gym-membership-order-banner__title {
   margin: 0 0 6px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
 }
 
 .gym-membership-order-banner__line {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #444;
 }
 
 .gym-membership-loading,
 .gym-membership-empty {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   color: #555;
   text-align: center;
   padding: 24px 8px;
@@ -182,7 +182,7 @@
   flex-wrap: wrap;
   gap: 4px;
   align-items: center;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   line-height: 1.3;
   font-weight: 600;
   color: #fff;
@@ -194,7 +194,7 @@
 
 .gym-plan-card__tier-highlight {
   font-weight: 800;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   display: inline-block;
   background-clip: text;
   -webkit-background-clip: text;
@@ -227,7 +227,7 @@
 }
 
 .gym-plan-card__term {
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   margin-top: 6px;
   color: #fff;
@@ -251,13 +251,13 @@
 
 .gym-plan-card__old-price {
   display: block;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   color: rgba(255, 255, 255, 0.8);
   margin-bottom: 2px;
 }
 
 .gym-plan-card__price {
-  font-size: 20px;
+  font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   font-weight: 800;
   line-height: 1.2;
   color: #fff;
@@ -276,7 +276,7 @@
 }
 
 .gym-plan-card__price-suffix {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 500;
   color: rgba(255, 255, 255, 0.7);
   margin-left: 2px;
@@ -295,7 +295,7 @@
 }
 
 .gym-plan-card__tax-label {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   color: rgba(255, 255, 255, 0.6);
   margin-top: 2px;
 }
@@ -321,7 +321,7 @@
 
 .gym-plan-card__benefits {
   color: #fff;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-family: inherit;
   font-weight: 600;
   text-decoration: underline;

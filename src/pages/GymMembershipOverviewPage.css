@@ -28,7 +28,7 @@
 
 .gmo-title {
   margin: 0;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -41,7 +41,7 @@
 
 .gmo-section-label {
   margin: 0 0 10px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   color: #9a9a9a;
   text-transform: none;
@@ -60,7 +60,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   color: #111111;
 }
@@ -86,7 +86,7 @@
   gap: 8px;
   min-width: 0;
   flex: 1;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   color: #111111;
   line-height: 1.4;
@@ -118,7 +118,7 @@
 .gmo-subscription-id,
 .gmo-order-ref {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.4;
   color: #555;
   word-break: break-word;
@@ -183,7 +183,7 @@
   column-gap: 4px;
   align-items: baseline;
   margin-bottom: 9px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.35;
 }
 
@@ -232,7 +232,7 @@
 
 .gmo-ben__tier {
   margin: 0 0 6px;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   color: #111111;
   line-height: 1.2;
@@ -275,14 +275,14 @@
 
 .gmo-ben__months {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #000000;
 }
 
 .gmo-ben__price {
   margin: 0;
-  font-size: 17px;
+  font-size: clamp(11px, calc(17 * 100cqw / 375), calc(17 * 1.12px));
   font-weight: 800;
   color: #000000;
   line-height: 1.2;
@@ -290,7 +290,7 @@
 
 .gmo-ben__tax {
   margin: 4px 0 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   color: #888888;
 }
@@ -308,7 +308,7 @@
   border: none;
   background: none;
   font-family: inherit;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 700;
   cursor: pointer;
   text-decoration: underline;
@@ -330,7 +330,7 @@
   justify-content: flex-start;
   gap: 8px;
   padding: 5px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
   color: #ffffff;
 }
@@ -351,7 +351,7 @@
 
 .gmo-note {
   margin: 14px 0 0;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-style: italic;
   font-weight: 600;
   color: #777;
@@ -360,7 +360,7 @@
 /* Payment */
 .gmo-pay-title {
   margin: 24px 0 12px;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 800;
   color: #111;
 }
@@ -370,7 +370,7 @@
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
 }
 
@@ -400,7 +400,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 800;
   color: #111;
 }
@@ -411,7 +411,7 @@
   padding: 12px 14px;
   background: #f3f3f3;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   line-height: 1.45;
   color: #111;
@@ -428,7 +428,7 @@
   border-radius: 10px;
   background: #fff8f4;
   border: 1px solid #ffd4bf;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.45;
   color: #333;
 }
@@ -456,7 +456,7 @@
   padding: 14px 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 800;
   cursor: pointer;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;

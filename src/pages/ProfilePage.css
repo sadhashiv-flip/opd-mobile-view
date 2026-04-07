@@ -34,7 +34,7 @@
 .profile-page__title {
   margin: 0;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   text-align: center;
   letter-spacing: -0.02em;
@@ -47,7 +47,7 @@
 
 .profile-page__main {
   flex: 1;
-  padding: 0 20px 16px;
+  padding: 0 var(--page-pad-x) clamp(14px, 4cqw, 18px);
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -68,7 +68,7 @@
 .profile-page__error-text {
   margin: 0;
   max-width: 280px;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1.45;
   color: #616161;
 }
@@ -80,7 +80,7 @@
   background: var(--color-brand-orange);
   color: #ffffff;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
 }
@@ -170,7 +170,7 @@
   align-items: center;
   justify-content: center;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 32px;
+  font-size: clamp(11px, calc(32 * 100cqw / 375), calc(32 * 1.12px));
   font-weight: 700;
   color: var(--color-brand-orange);
   letter-spacing: -0.03em;
@@ -179,7 +179,7 @@
 .profile-page__name {
   margin: 0 0 6px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 22px;
+  font-size: clamp(11px, calc(22 * 100cqw / 375), calc(22 * 1.12px));
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.25;
@@ -188,7 +188,7 @@
 
 .profile-page__tagline {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 500;
   color: #757575;
   line-height: 1.4;
@@ -206,7 +206,7 @@
 
 .profile-page__hero-bmi-label {
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -226,7 +226,7 @@
 .profile-page__card-title {
   margin: 0 0 14px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   color: #111111;
   letter-spacing: -0.02em;
@@ -252,7 +252,7 @@
 }
 
 .profile-page__row-label {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #9e9e9e;
   text-transform: uppercase;
@@ -260,7 +260,7 @@
 }
 
 .profile-page__row-value {
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 500;
   color: #212121;
   line-height: 1.35;
@@ -293,7 +293,7 @@
 
 .profile-page__hero-bmi .profile-page__hero-bmi-value {
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 17px;
+  font-size: clamp(11px, calc(17 * 100cqw / 375), calc(17 * 1.12px));
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -347,13 +347,13 @@
 
 .profile-page__manage-row-title {
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   color: #212121;
 }
 
 .profile-page__manage-row-meta {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 500;
   color: #757575;
   line-height: 1.35;
@@ -361,7 +361,7 @@
 
 .profile-page__manage-row-chevron {
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   color: #bdbdbd;
 }
 
@@ -385,7 +385,7 @@
   border-radius: 12px;
   background: #fafafa;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   color: #212121;
   text-align: center;

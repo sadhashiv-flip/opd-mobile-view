@@ -52,7 +52,7 @@
 
 .support-chat__feedback-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #111827;
@@ -61,7 +61,7 @@
 .support-chat__feedback-close {
   border: none;
   background: #f3f4f6;
-  font-size: 20px;
+  font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   line-height: 1;
   color: #374151;
   cursor: pointer;
@@ -75,7 +75,7 @@
 
 .support-chat__feedback-ticket-id {
   margin: 0 0 10px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   font-family: ui-monospace, monospace;
   color: #6b7280;
@@ -86,20 +86,20 @@
 
 .support-chat__feedback-lead {
   margin: 0 0 16px;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1.5;
   color: #4b5563;
 }
 
 .support-chat__feedback-lead--view {
   margin-bottom: 14px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #6b7280;
 }
 
 .support-chat__feedback-section-label {
   display: block;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -109,7 +109,7 @@
 
 .support-chat__feedback-microcopy {
   display: block;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #9ca3af;
   margin: -4px 0 8px;
   line-height: 1.35;
@@ -117,13 +117,13 @@
 
 .support-chat__feedback-star-hint {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #9ca3af;
 }
 
 .support-chat__feedback-selected-summary {
   margin: 10px 0 0;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #1f2937;
   line-height: 1.4;
 }
@@ -160,7 +160,7 @@
   border-radius: 14px;
   background: #f3f4f6;
   color: #d1d5db;
-  font-size: 26px;
+  font-size: clamp(11px, calc(26 * 100cqw / 375), calc(26 * 1.12px));
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -207,7 +207,7 @@
 }
 
 .support-chat__star-static {
-  font-size: 32px;
+  font-size: clamp(11px, calc(32 * 100cqw / 375), calc(32 * 1.12px));
   line-height: 1;
   color: #e5e7eb;
   user-select: none;
@@ -224,12 +224,12 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 10px;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #374151;
 }
 
 .support-chat__feedback-rating-num {
-  font-size: 22px;
+  font-size: clamp(11px, calc(22 * 100cqw / 375), calc(22 * 1.12px));
   font-weight: 800;
   color: #1565c0;
 }
@@ -245,7 +245,7 @@
   padding: 4px 10px;
   border-radius: 999px;
   background: #e0f2fe;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
 }
 
 .support-chat__feedback-comment-card {
@@ -253,7 +253,7 @@
   border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1.55;
   color: #1f2937;
   white-space: pre-wrap;
@@ -278,7 +278,7 @@
   border-radius: 12px;
   background: #fef2f2;
   color: #991b1b;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
 }
 
@@ -288,7 +288,7 @@
   border-radius: 14px;
   padding: 12px 14px;
   font: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   line-height: 1.45;
   color: #111827;
   resize: vertical;
@@ -317,7 +317,7 @@
 .support-chat__feedback-actions--stack .support-chat__feedback-submit {
   width: 100%;
   min-height: 48px;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
 }
 
 .support-chat__feedback-cancel,
@@ -327,7 +327,7 @@
   border-radius: 14px;
   padding: 12px 16px;
   font: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   cursor: pointer;
 }
@@ -361,7 +361,7 @@
   border-radius: 14px;
   padding: 14px 16px;
   font: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   cursor: pointer;
   background: linear-gradient(145deg, #1e88e5 0%, #1565c0 100%);

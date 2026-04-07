@@ -44,7 +44,7 @@
 
 .gsc-row__name {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 800;
   color: #111111;
   line-height: 1.25;
@@ -56,7 +56,7 @@
   align-items: center;
   gap: 4px 6px;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
 }
 
 .gsc-rating-num {
@@ -67,7 +67,7 @@
 .gsc-stars {
   color: #d4a017;
   letter-spacing: -1px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1;
 }
 
@@ -78,7 +78,7 @@
 
 .gsc-row__address {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   color: #888888;
   line-height: 1.4;
@@ -90,7 +90,7 @@
 
 .gsc-row__status {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   color: #888888;
   line-height: 1.35;
@@ -103,7 +103,7 @@
 
 .gsc-row__services {
   margin: 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   color: #9a9a9a;
   line-height: 1.35;
@@ -146,7 +146,7 @@
 }
 
 .gsc-action__label {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #1565c0;
   text-align: center;

@@ -26,7 +26,7 @@
 
 .hcp-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   line-height: 1.2;
 }
@@ -41,7 +41,7 @@
   border-radius: 999px;
   background: #ffffff;
   color: #111111;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   text-decoration: none;
 }
@@ -89,7 +89,7 @@
   min-width: 0;
   border: none;
   outline: none;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   color: #111111;
 }
@@ -127,14 +127,14 @@
 
 .lt-section__title {
   margin: 0;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
 
 .lt-section__sub {
   margin: 4px 0 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #9a9a9a;
 }
@@ -165,7 +165,7 @@
 
 .lt-card__title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
@@ -176,7 +176,7 @@
   background: transparent;
   padding: 0;
   color: #1a73e8;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   cursor: pointer;
 }
@@ -191,7 +191,7 @@
 }
 
 .lt-card__price {
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
   color: #2e7d32;
 }
@@ -202,7 +202,7 @@
   color: #111111;
   border-radius: 8px;
   padding: 7px 10px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   cursor: pointer;
 }
@@ -215,8 +215,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
-  font-size: 11px;
+  padding: 0 var(--page-pad-x);
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   border-bottom-left-radius: 18px;
   border-bottom-right-radius: 18px;
@@ -271,12 +271,12 @@
   justify-content: center;
   background: #fde8c7;
   color: #5a2a00;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   line-height: 1;
 }
 
 .lt-trust__rating-text {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #6f6f6f;
 }
@@ -298,7 +298,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #9a9a9a;
 }
@@ -338,7 +338,7 @@
 }
 
 .lt-cart-footer__left {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 500;
 }
 
@@ -346,7 +346,7 @@
   border: none;
   background: transparent;
   color: #ffffff;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 500;
   display: inline-flex;
   align-items: center;
@@ -376,7 +376,7 @@
 }
 
 .hcp-loc__title {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
   flex-shrink: 0;
@@ -389,7 +389,7 @@
 
 .hcp-loc__addr {
   min-width: 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   color: #9a9a9a;
   white-space: nowrap;
@@ -448,7 +448,7 @@
 }
 
 .hcp-plans__title {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
@@ -465,7 +465,7 @@
   border-radius: 10px;
   height: 30px;
   padding: 0 10px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   cursor: pointer;
 }
@@ -476,7 +476,7 @@
 }
 
 .hcp-pagecount {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   color: #6f6f6f;
 }
@@ -528,7 +528,7 @@
 
 .hcp-card__name {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -539,7 +539,7 @@
   border-radius: 999px;
   background: #2e7d32;
   color: #ffffff;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 800;
   line-height: 1.2;
 }
@@ -548,7 +548,7 @@
   display: inline-block;
   margin-top: 8px;
   color: #1a73e8;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   text-decoration: none;
   border: none;
@@ -575,7 +575,7 @@
 }
 
 .hcp-warn__text {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #6f6f6f;
 }
@@ -593,7 +593,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #9a9a9a;
 }
@@ -611,10 +611,10 @@
   margin-right: -14px;
   background: var(--color-brand-orange);
   color: #ffffff;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   height: 38px;
-  padding: 0 16px;
+  padding: 0 var(--page-pad-x);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -638,7 +638,7 @@
   padding: 14px 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 800;
   cursor: pointer;
 }

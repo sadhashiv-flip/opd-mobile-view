@@ -31,7 +31,7 @@
 
 .cvsl-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
   line-height: 1.2;
 }
@@ -49,7 +49,7 @@
   color: #6f6f6f;
   border-radius: 8px;
   padding: 10px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   line-height: 1.35;
 }
@@ -59,7 +59,7 @@
 }
 
 .cvsl-topdocs__title {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
   margin-bottom: 8px;
@@ -113,14 +113,14 @@
 }
 
 .cvsl-doc__name {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
 
 .cvsl-doc__deg {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #9a9a9a;
 }
@@ -130,7 +130,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 800;
   color: #ff541e;
   border: 1px solid #ffe2d8;
@@ -152,7 +152,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -170,7 +170,7 @@
   border: 1px solid #ff541e;
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   color: #111111;
   font-family: inherit;
@@ -194,7 +194,7 @@
 }
 
 .cvsl-slotssec__head {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
   color: #9a9a9a;
   margin-bottom: 10px;
@@ -240,7 +240,7 @@
 .cvsl-slot__time {
   display: block;
   width: 100%;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
   line-height: 1.2;
   text-align: center;
@@ -249,7 +249,7 @@
 }
 
 .cvsl-slot__avail {
-  font-size: 8px;
+  font-size: max(7px, calc(8 * 100cqw / 375));
   font-weight: 700;
   line-height: 1.2;
   opacity: 0.9;
@@ -278,7 +278,7 @@
 
 .cvsl-msg {
   padding: 10px 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #8f8f8f;
 }
@@ -290,7 +290,7 @@
 .cvsl-linkback {
   display: inline-block;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
   color: #ff541e;
 }
@@ -309,7 +309,7 @@
   border-radius: 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
   cursor: pointer;
 }

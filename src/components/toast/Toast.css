@@ -4,7 +4,7 @@
   left: 50%;
   top: calc(12px + env(safe-area-inset-top, 0px));
   transform: translateX(-50%);
-  width: min(calc(100vw - 24px), var(--mobile-frame-max-width, 430px));
+  width: min(calc(100cqw - 24px), var(--mobile-frame-max-width, 430px));
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -20,7 +20,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 500;
   line-height: 1.35;
   letter-spacing: -0.01em;
@@ -53,7 +53,7 @@
   padding: 4px 8px;
   border: none;
   background: transparent;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   line-height: 1;
   cursor: pointer;
   opacity: 0.55;

@@ -46,7 +46,7 @@
   padding: 4px 2px 0;
   text-decoration: none;
   color: #bdbdbd;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 500;
 }
 
@@ -99,7 +99,7 @@
 }
 
 .home-nav__fab-label {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 500;
   color: #212121;
   text-align: center;

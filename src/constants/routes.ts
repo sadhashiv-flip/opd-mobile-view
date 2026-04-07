@@ -56,9 +56,20 @@ export const ROUTES = {
   gymMembershipConfigure: "/services/gym-membership/configure",
   gymMembershipOverview: "/services/gym-membership/overview",
   gymMembershipSelectClinic: "/services/gym-membership/select-clinic",
+  /**
+   * Mental Wellness vs Diet & Nutrition request form — same screen; `wellnessKind` is
+   * `mental-wellness` | `nutrition` (see {@link WELLNESS_SESSION_KIND}).
+   */
+  servicesWellness: "/services/wellness/:wellnessKind",
   /** Help tab: open ticket thread (chat + attachments). */
   servicesSupportTicketChat: "/services/support/ticket/:ticketId",
   cartOverview: "/cart-overview",
+} as const;
+
+/** Path param for {@link ROUTES.servicesWellness}. */
+export const WELLNESS_SESSION_KIND = {
+  mentalWellness: "mental-wellness",
+  nutrition: "nutrition",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
