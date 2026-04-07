@@ -172,19 +172,12 @@ export function GymMembershipSelectPeoplePage() {
     }
 
     return (
-      <button
-        type="button"
-        className="hc-person__cta"
-        aria-label={atMax ? "Maximum members selected" : "Add"}
-        disabled={atMax}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (atMax) return;
-          toggleMember(member.id);
-        }}
+      <span
+        className={`hc-person__cta${atMax ? " hc-person__cta--disabled" : ""}`}
+        aria-hidden="true"
       >
         Add
-      </button>
+      </span>
     );
   };
 

@@ -129,17 +129,9 @@ export function HealthCheckupsPage() {
     }
 
     return (
-      <button
-        type="button"
-        className="hc-person__cta"
-        aria-label="Add"
-        onClick={(e) => {
-          e.stopPropagation();
-          setSelectedId(member.id);
-        }}
-      >
+      <span className="hc-person__cta" aria-hidden="true">
         Add
-      </button>
+      </span>
     );
   };
 
