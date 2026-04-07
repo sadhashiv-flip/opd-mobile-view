@@ -1,5 +1,6 @@
 import { getPatientApiBase } from "@/api/patientClient";
-import { patientFetchChecked, patientJson } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientFetchChecked, patientJson, patientJsonList } from "@/api/patientHttp";
 
 export type SupportTicketPayload = Readonly<{
     message: string;
@@ -177,9 +178,17 @@ export function normalizeSupportTicketsResponse(body: unknown): SupportTicket[] 
         .filter((ticket): ticket is SupportTicket => ticket != null);
 }
 
-export async function fetchSupportTickets(): Promise<SupportTicket[]> {
-    const raw = await patientJson<unknown>("support/ticket", { method: "GET" });
+/** GET `/support/ticket?page=&limit=` */
+export async function fetchSupportTickets(
+    pagination?: ListPaginationOpts,
+): Promise<SupportTicket[]> {
+    const raw = await patientJsonList<unknown>("support/ticket", { method: "GET" }, pagination);
     return normalizeSupportTicketsResponse(raw);
+}
+
+/** Loads every page until a short or empty response. */
+export async function fetchAllSupportTickets(): Promise<SupportTicket[]> {
+    return fetchAllListPages((opts) => fetchSupportTickets(opts));
 }
 
 export async function createSupportTicket(

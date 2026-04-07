@@ -111,6 +111,7 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
+      <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.dental} element={<PlaceholderPage title="Dental" />} />
       <Route path={ROUTES.vision} element={<PlaceholderPage title="Vision" />} />
       <Route

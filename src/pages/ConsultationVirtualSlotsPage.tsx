@@ -3,8 +3,8 @@ import { ROUTES } from "@/constants";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   doctorImageUrl,
-  fetchAvailableSlots,
-  fetchSpecialityDoctors,
+  fetchAllAvailableSlots,
+  fetchAllSpecialityDoctors,
   formatExperience,
   formatLocalYmd,
   type AvailableSlot,
@@ -87,7 +87,7 @@ export function ConsultationVirtualSlotsPage() {
     setDoctorsLoad("loading");
     setDoctorsErr(null);
     try {
-      const list = await fetchSpecialityDoctors(meta.parent);
+      const list = await fetchAllSpecialityDoctors(meta.parent);
       setDoctors(list);
       setDoctorsLoad("ok");
     } catch (e: unknown) {
@@ -101,7 +101,7 @@ export function ConsultationVirtualSlotsPage() {
     setSlotsLoad("loading");
     setSlotsErr(null);
     try {
-      const list = await fetchAvailableSlots({
+      const list = await fetchAllAvailableSlots({
         date: slotDate,
         spid: meta.spid,
         language,

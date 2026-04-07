@@ -1,4 +1,5 @@
-import { patientFetchChecked, patientJson } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientFetchChecked, patientJsonList } from "@/api/patientHttp";
 
 /** Normalized address row from GET /patient/address (`addressess` array, etc.). */
 export type PatientAddressRecord = Readonly<{
@@ -104,12 +105,19 @@ function normalizeAddressItem(v: unknown): PatientAddressRecord | null {
   };
 }
 
-/** GET /patient/address — expects `{ addressess: [...] }` or similar. */
-export async function fetchPatientAddresses(): Promise<PatientAddressRecord[]> {
-  const raw = await patientJson<unknown>("address", { method: "GET" });
+/** GET `/address?page=&limit=` — expects `{ addressess: [...] }` or similar. */
+export async function fetchPatientAddresses(
+  pagination?: ListPaginationOpts,
+): Promise<PatientAddressRecord[]> {
+  const raw = await patientJsonList<unknown>("address", { method: "GET" }, pagination);
   return extractAddressArray(raw)
     .map((row) => normalizeAddressItem(row))
     .filter((x): x is PatientAddressRecord => x != null);
+}
+
+/** Loads every page until a short or empty response. */
+export async function fetchAllPatientAddresses(): Promise<PatientAddressRecord[]> {
+  return fetchAllListPages((opts) => fetchPatientAddresses(opts));
 }
 
 /** POST /patient/address */

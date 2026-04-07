@@ -1,5 +1,7 @@
 import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
@@ -116,6 +118,7 @@ export function GymSelectClinicPage() {
   );
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const gscLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
 
   useEffect(() => {
     if (!planId) {
@@ -188,9 +191,7 @@ export function GymSelectClinicPage() {
           <span className="hco-loc__sep" aria-hidden="true">
             |
           </span>
-          <span className="hco-loc__addr">
-            Isprout, 7th floor, Plot No: 25, Divyasree trinity,…
-          </span>
+          <span className="hco-loc__addr">{gscLocAddrLine}</span>
           <span className="hco-loc__chev" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path

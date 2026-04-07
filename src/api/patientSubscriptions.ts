@@ -1,4 +1,5 @@
-import { patientJson } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientJson, patientJsonList } from "@/api/patientHttp";
 
 /** Normalized row for UI; maps common API field names. */
 export type SubscriptionDisplay = Readonly<{
@@ -145,16 +146,25 @@ export function normalizeSubscriptionsResponse(body: unknown): SubscriptionDispl
     .filter((x): x is SubscriptionDisplay => x != null);
 }
 
-/** GET /patient/subscription/plans (legacy flat list normalizer). */
-export async function fetchPatientSubscriptions(): Promise<SubscriptionDisplay[]> {
-  const raw = await patientJson<unknown>("subscription/plans", { method: "GET" });
+/** GET `/subscription/plans?page=&limit=` (legacy flat list normalizer). */
+export async function fetchPatientSubscriptions(
+  pagination?: ListPaginationOpts,
+): Promise<SubscriptionDisplay[]> {
+  const raw = await patientJsonList<unknown>("subscription/plans", { method: "GET" }, pagination);
   return normalizeSubscriptionsResponse(raw);
 }
 
-/** GET /patient/subscription/plans — available subscription plans. */
-export async function fetchSubscriptionPlans(): Promise<SubscriptionDisplay[]> {
-  const raw = await patientJson<unknown>("subscription/plans", { method: "GET" });
+/** GET `/subscription/plans?page=&limit=` — available subscription plans. */
+export async function fetchSubscriptionPlans(
+  pagination?: ListPaginationOpts,
+): Promise<SubscriptionDisplay[]> {
+  const raw = await patientJsonList<unknown>("subscription/plans", { method: "GET" }, pagination);
   return normalizeSubscriptionsResponse(raw);
+}
+
+/** Loads every page until a short or empty response. */
+export async function fetchAllSubscriptionPlans(): Promise<SubscriptionDisplay[]> {
+  return fetchAllListPages((opts) => fetchSubscriptionPlans(opts));
 }
 
 // —— Active subscription (GET subscription/plans — `isSubscribed` + `data[]` with `plan`, `patients`) ——
@@ -330,7 +340,7 @@ export function parseActiveSubscriptionsResponse(body: unknown): ActiveSubscript
   };
 }
 
-/** GET /patient/subscription/plans — active subscription(s), `patients`, `plan`, `daysLeft`, etc. */
+/** GET `/subscription/plans` — active subscription(s), `patients`, `plan`, `daysLeft`, etc. (not paginated; full dashboard payload). */
 export async function fetchActiveSubscriptions(): Promise<ActiveSubscriptionsResult> {
   const raw = await patientJson<unknown>("subscription/plans", { method: "GET" });
   return parseActiveSubscriptionsResponse(raw);

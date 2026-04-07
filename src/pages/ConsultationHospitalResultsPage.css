@@ -4,6 +4,7 @@
   min-height: 100dvh;
   background: #ffffff;
   color: #111111;
+  gap: 10px;
 }
 
 .chr-top {
@@ -37,7 +38,6 @@
 }
 
 .chr-loc {
-  margin: var(--addr-box-margin-top) 0 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -81,7 +81,7 @@
 }
 
 .chr-banner-container {
-  height: 65px;
+  height: 50px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -108,11 +108,11 @@
 
 .chr-banner__art {
   position: absolute;
-  right: 20px;
-  top: 26px;
-  transform: translateY(-50%);
+  right: 17px;
+  top: 20px;
+  transform: translateY(-49%);
   width: 60px;
-  height: 60px;
+  height: 42px;
   object-fit: contain;
   object-position: right center;
   display: block;
@@ -125,13 +125,12 @@
 }
 
 .chr-search {
-  margin: 0 0 12px;
   border: 1px solid #e5e5e5;
   border-radius: 10px;
-  padding: 10px 10px;
+  padding: 5px 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: #ffffff;
 }
 
@@ -242,14 +241,10 @@
 }
 
 .chr-dlist {
-  margin-top: 10px;
+  margin-top: 0px;
 }
 
 .chr-dlist__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   margin-bottom: 8px;
 }
 
@@ -259,31 +254,11 @@
   color: #111111;
 }
 
-.chr-dlist__pager {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chr-pagebtn {
-  border: 1px solid #e6e6e6;
-  background: #ffffff;
-  border-radius: 10px;
-  height: 30px;
-  padding: 0 10px;
-  font-size: 10px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.chr-pagebtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.chr-pagecount {
-  font-size: 10px;
-  font-weight: 800;
+.chr-dlist-more {
+  padding: 12px 4px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
   color: #6f6f6f;
 }
 
@@ -302,26 +277,64 @@
 .chr-dscroll {
   max-height: 52dvh;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 10px;
 }
 
 .chr-dcard {
   border: 1px solid #ededed;
   border-radius: 14px;
-  padding: 12px;
+  padding: 0;
   background: #ffffff;
+  overflow: hidden;
 }
 
 .chr-dcard + .chr-dcard {
   margin-top: 12px;
 }
 
-.chr-dcard__top {
+.chr-dcard__sec {
+  padding: 12px;
+}
+
+.chr-dcard__sec + .chr-dcard__sec {
+  border-top: 1px solid #ededed;
+}
+
+.chr-dcard__sec--head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
+
+.chr-dcard__head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chr-dcard__chev {
+  color: #c8c8c8;
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.chr-dcard__sec--tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chr-dcard__sec--fee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 
 .chr-doc {
   display: flex;
@@ -336,6 +349,16 @@
   background: #f1f1f1;
   border: 1px solid #e9e9e9;
   flex-shrink: 0;
+}
+
+.chr-doc__avatar-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid #e9e9e9;
+  flex-shrink: 0;
+  display: block;
 }
 
 .chr-doc__name {
@@ -361,36 +384,42 @@
   white-space: nowrap;
 }
 
-.chr-tags {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
 .chr-tag {
   font-size: 9px;
   font-weight: 800;
-  color: #ff541e;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-.chr-tag--pill {
-  color: #1a73e8;
-  border: 1px solid #d7e6ff;
-  background: #f3f8ff;
+  gap: 4px;
   padding: 4px 8px;
   border-radius: 999px;
 }
 
-.chr-fee {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.chr-tag--exp {
+  color: #c4321e;
+  border: 1px solid #e85a40;
+  background: #fff5f0;
+}
+
+.chr-tag--net {
+  color: #1a73e8;
+  border: 1px solid #b8d4ff;
+  background: #f3f8ff;
+}
+
+.chr-tag__ic {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.chr-tag__ic--exp {
+  background: #e85a40;
+}
+
+.chr-tag__ic--net {
+  background: #1a73e8;
+  opacity: 0.95;
 }
 
 .chr-fee__k {
@@ -406,7 +435,7 @@
 }
 
 .chr-book {
-  margin-top: 10px;
+  margin-top: 0;
   width: 100%;
   height: 44px;
   border: none;

@@ -1,10 +1,12 @@
 import { beginApiLoadingRequest, endApiLoadingRequest } from "@/api/apiLoadingStore";
 import { clearSession, AUTH_SESSION_EXPIRED_EVENT, getAccessToken, notifyUnauthorizedAndSignOut } from "@/lib/authStorage";
+import { getPatientApiBase, getUploadApiBase, readPatientApiError } from "@/api/patientClient";
 import {
-  getPatientApiBase,
-  getUploadApiBase,
-  readPatientApiError,
-} from "@/api/patientClient";
+  applyListPaginationToPath,
+  type ListPaginationOpts,
+} from "@/api/listPagination";
+
+export type { ListPaginationOpts } from "@/api/listPagination";
 
 export type PatientHttpInit = RequestInit &
   Readonly<{ skipAuth?: boolean; skipGlobalLoading?: boolean }>;
@@ -116,4 +118,20 @@ export async function patientJson<T>(
   const text = await res.text();
   if (!text) throw new Error("Empty response");
   return JSON.parse(text) as T;
+}
+
+/**
+ * GET list endpoints: applies global pagination (`page`, `limit`; default `limit=20`) via
+ * {@link applyListPaginationToPath}. Prefer this over {@link patientJson} for any endpoint that
+ * returns a paginated collection.
+ */
+export async function patientJsonList<T>(
+  path: string,
+  init: PatientHttpInit = {},
+  pagination?: ListPaginationOpts,
+): Promise<T> {
+  return patientJson<T>(applyListPaginationToPath(path, pagination), {
+    ...init,
+    method: init.method ?? "GET",
+  });
 }

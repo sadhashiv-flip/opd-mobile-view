@@ -1,51 +1,82 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
-import { useMemo, useState } from "react";
+import { fetchNetworkSlots, type NetworkDoctorSchedule, type NetworkSlotTiming } from "@/api/networkSlots";
+import { formatNetworkBookTimeSlot } from "@/utils/networkBookTimeSlot";
+import { useToast } from "@/hooks/useToast";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./ConsultationAppointmentSlotsPage.css";
 
-type DayChip = Readonly<{ day: string; date: string; dow: string }>;
-type Slot = Readonly<{ id: string; label: string; disabled?: boolean }>;
-
-const DAYS: readonly DayChip[] = [
-  { day: "10", dow: "Mon", date: "2025-09-10" },
-  { day: "11", dow: "Tue", date: "2025-09-11" },
-  { day: "12", dow: "Wed", date: "2025-09-12" },
-  { day: "13", dow: "Thu", date: "2025-09-13" },
-  { day: "14", dow: "Fri", date: "2025-09-14" },
-] as const;
-
-const MORNING: readonly Slot[] = [
-  { id: "m1", label: "7 AM–8 AM" },
-  { id: "m2", label: "8 AM–9 AM" },
-  { id: "m3", label: "9 AM–10 AM", disabled: true },
-  { id: "m4", label: "10 AM–11 AM" },
-  { id: "m5", label: "11 AM–12 PM" },
-] as const;
-
-const AFTERNOON: readonly Slot[] = [
-  { id: "a1", label: "7 AM–8 AM" },
-  { id: "a2", label: "8 AM–9 AM" },
-  { id: "a3", label: "9 AM–10 AM" },
-  { id: "a4", label: "10 AM–11 AM" },
-  { id: "a5", label: "11 AM–12 PM" },
-] as const;
+function timingLabel(t: NetworkSlotTiming): string {
+  const o = t.opening.trim();
+  const c = t.closing.trim();
+  if (o && c) return `${o} – ${c}`;
+  return o || c || "Slot";
+}
 
 export function ConsultationAppointmentSlotsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const params = useParams();
-  const doctorId = typeof params.doctorId === "string" ? params.doctorId : "d1";
+  const doctorId = typeof params.doctorId === "string" ? params.doctorId : "";
+  const networkId = typeof params.networkId === "string" ? params.networkId : "";
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
 
-  const doctorName = useMemo(() => {
-    if (doctorId === "d1") return "Dr. Abhinay Jain";
-    return "Doctor";
-  }, [doctorId]);
+  const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [doctorName, setDoctorName] = useState("Doctor");
+  const [networkLabel, setNetworkLabel] = useState<string | null>(null);
+  const [schedules, setSchedules] = useState<readonly NetworkDoctorSchedule[]>([]);
 
-  const [selectedDate, setSelectedDate] = useState(DAYS[0].date);
-  const [selectedSlotId, setSelectedSlotId] = useState<string>("m1");
-  const [selectedSlotLabel, setSelectedSlotLabel] = useState<string>(MORNING[0].label);
+  const [selectedScheduleIdx, setSelectedScheduleIdx] = useState(0);
+  const [selectedTiming, setSelectedTiming] = useState<NetworkSlotTiming | null>(null);
 
-  const isSelected = (id: string) => selectedSlotId === id;
+  const schedulesWithSlots = useMemo(
+    () => schedules.filter((s) => s.timings.length > 0),
+    [schedules],
+  );
+
+  useEffect(() => {
+    if (!networkId.trim() || !doctorId.trim()) {
+      setLoad("error");
+      setLoadErr("Missing network or doctor.");
+      return;
+    }
+    let cancelled = false;
+    setLoad("loading");
+    setLoadErr(null);
+    void fetchNetworkSlots(networkId, doctorId)
+      .then((data) => {
+        if (cancelled) return;
+        setDoctorName(data.doctor?.name ?? "Doctor");
+        setNetworkLabel(data.networkName ?? data.displayAddress);
+        setSchedules(data.schedules);
+        setSelectedScheduleIdx(0);
+        setSelectedTiming(null);
+        setLoad("ok");
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setLoad("error");
+        const msg = e instanceof Error ? e.message : "Could not load slots";
+        setLoadErr(msg);
+        toast.error(msg);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [networkId, doctorId, toast]);
+
+  const activeSchedule = schedulesWithSlots[selectedScheduleIdx] ?? null;
+  const slotTimings = activeSchedule?.timings ?? [];
+
+  const selectTiming = useCallback((t: NetworkSlotTiming) => {
+    setSelectedTiming(t);
+  }, []);
+
+  const isSelectedTiming = useCallback(
+    (t: NetworkSlotTiming) => selectedTiming?.id === t.id,
+    [selectedTiming],
+  );
 
   return (
     <div className="cas-page">
@@ -69,118 +100,127 @@ export function ConsultationAppointmentSlotsPage() {
       </header>
 
       <main className="cas-main">
+        {networkLabel ? (
+          <div className="cas-network-note" role="note">
+            {networkLabel}
+          </div>
+        ) : null}
+
         <div className="cas-note">
-          Note : Flip Health will call and try to schedule ur appointment in your preferred slot or the next available slot
+          Note : Flip Health will call and try to schedule ur appointment in your preferred slot or
+          the next available slot
         </div>
 
-        <div className="cas-row">
-          <div className="cas-row__left">
-            <span className="cas-row__ic" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
-                <path d="M12 7v6l3 2" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-            choose date and time
+        {load === "loading" && <div className="cas-loading">Loading slots…</div>}
+        {load === "error" && (
+          <div className="cas-loading cas-loading--err" role="alert">
+            {loadErr ?? "Could not load slots"}
           </div>
-          <div className="cas-row__right">Sept 2025 ( IST )</div>
-        </div>
+        )}
+        {load === "ok" && schedulesWithSlots.length === 0 && (
+          <div className="cas-loading">No open slots for this doctor right now.</div>
+        )}
+        {load === "ok" && schedulesWithSlots.length > 0 && (
+          <>
+            <div className="cas-row">
+              <div className="cas-row__left">
+                <span className="cas-row__ic" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
+                    <path d="M12 7v6l3 2" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </span>
+                choose day and time
+              </div>
+              <div className="cas-row__right">Available days</div>
+            </div>
 
-        <div className="cas-days" role="radiogroup" aria-label="Choose day">
-          {DAYS.map((d) => {
-            const active = selectedDate === d.date;
-            return (
-              <button
-                key={d.date}
-                type="button"
-                className={`cas-day${active ? " cas-day--active" : ""}`}
-                role="radio"
-                aria-checked={active}
-                onClick={() => setSelectedDate(d.date)}
-              >
-                <div className="cas-day__num">{d.day}</div>
-                <div className="cas-day__dow">{d.dow}</div>
-              </button>
-            );
-          })}
-        </div>
+            <div className="cas-days" role="radiogroup" aria-label="Choose day">
+              {schedulesWithSlots.map((s, idx) => {
+                const active = idx === selectedScheduleIdx;
+                return (
+                  <button
+                    key={`${s.short_code}-${s.id}`}
+                    type="button"
+                    className={`cas-day${active ? " cas-day--active" : ""}`}
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => {
+                      setSelectedScheduleIdx(idx);
+                      setSelectedTiming(null);
+                    }}
+                  >
+                    <div className="cas-day__num">{s.short_code.toUpperCase()}</div>
+                    <div className="cas-day__dow">{s.day}</div>
+                  </button>
+                );
+              })}
+            </div>
 
-        <div className="cas-divider" />
+            <div className="cas-divider" />
 
-        <section className="cas-section">
-          <div className="cas-section__head">
-            <span className="cas-sun" aria-hidden="true">
-              ☀
-            </span>
-            Morning
-          </div>
-          <div className="cas-slots" role="radiogroup" aria-label="Morning slots">
-            {MORNING.map((s) => {
-              const active = isSelected(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`cas-slot${active ? " cas-slot--active" : ""}${s.disabled ? " cas-slot--disabled" : ""}`}
-                  disabled={!!s.disabled}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => {
-                    setSelectedSlotId(s.id);
-                    setSelectedSlotLabel(s.label);
-                  }}
-                >
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="cas-section">
-          <div className="cas-section__head">
-            <span className="cas-sun cas-sun--pm" aria-hidden="true">
-              ✷
-            </span>
-            Afternoon
-          </div>
-          <div className="cas-slots" role="radiogroup" aria-label="Afternoon slots">
-            {AFTERNOON.map((s) => {
-              const active = isSelected(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`cas-slot${active ? " cas-slot--active" : ""}`}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => {
-                    setSelectedSlotId(s.id);
-                    setSelectedSlotLabel(s.label);
-                  }}
-                >
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+            <section className="cas-section">
+              <div className="cas-section__head">
+                <span className="cas-sun" aria-hidden="true">
+                  ☀
+                </span>
+                Available hours
+              </div>
+              <div className="cas-slots" role="radiogroup" aria-label="Time slots">
+                {slotTimings.map((t) => {
+                  const active = isSelectedTiming(t);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`cas-slot${active ? " cas-slot--active" : ""}`}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => selectTiming(t)}
+                    >
+                      {timingLabel(t)}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </>
+        )}
       </main>
 
       <footer className="cas-footer">
         <button
           type="button"
           className="cas-confirm"
+          disabled={load !== "ok" || !selectedTiming}
           onClick={() => {
+            if (!selectedTiming) return;
             try {
-              localStorage.setItem("opd-mobile-view.consultation.date", selectedDate);
-              localStorage.setItem("opd-mobile-view.consultation.slotId", selectedSlotId);
-              localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedSlotLabel);
-              localStorage.setItem("opd-mobile-view.consultation.dateLabel", "September 15, 2025");
+              localStorage.setItem("opd-mobile-view.consultation.slotId", String(selectedTiming.id));
+              localStorage.setItem("opd-mobile-view.consultation.slotLabel", timingLabel(selectedTiming));
+              localStorage.setItem(
+                "opd-mobile-view.consultation.dayLabel",
+                activeSchedule?.day ?? "",
+              );
+              if (activeSchedule && selectedTiming) {
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.timeSlot",
+                  formatNetworkBookTimeSlot(activeSchedule.day, selectedTiming.opening),
+                );
+              }
+              localStorage.setItem("opd-mobile-view.consultation.doctorName", doctorName);
+              localStorage.setItem("opd-mobile-view.consultation.networkId", networkId);
+              localStorage.setItem("opd-mobile-view.consultation.doctorId", doctorId);
             } catch {
               // ignore
             }
-            navigate(generatePath(ROUTES.consultationHospitalOverview, { specialtyId, doctorId }));
+            navigate(
+              generatePath(ROUTES.consultationHospitalOverview, {
+                specialtyId,
+                networkId,
+                doctorId,
+              }),
+            );
           }}
         >
           Confirm
@@ -189,4 +229,3 @@ export function ConsultationAppointmentSlotsPage() {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { fetchPatientMembers } from "@/api/patientMember";
+import { fetchAllPatientMembers } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
 import { readGymCheckSnapshot } from "@/constants/gymCheckStorage";
 import {
@@ -375,7 +375,7 @@ export function GymMembershipConfigurePage() {
   useEffect(() => {
     let cancelled = false;
     setApiMembersReady(false);
-    void fetchPatientMembers()
+    void fetchAllPatientMembers()
       .then((list) => {
         if (!cancelled) {
           setApiMemberRows(patientMembersToGymRows(list));

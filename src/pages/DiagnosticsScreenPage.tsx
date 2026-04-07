@@ -1,6 +1,8 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./DiagnosticsScreenPage.css";
@@ -108,6 +110,8 @@ export function DiagnosticsScreenPage() {
 
   const testTitle = "Bilirubin (total, direct and indirect)";
 
+  const dsLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+
   if (isLabTests) {
     return (
       <>
@@ -157,9 +161,7 @@ export function DiagnosticsScreenPage() {
             <span className="ds-location__sep" aria-hidden="true">
               |
             </span>
-            <span className="ds-location__addr">
-              Isprout, 7th floor, Plot No: 25, Divyasree trinity,
-            </span>
+            <span className="ds-location__addr">{dsLocAddrLine}</span>
             <span className="ds-location__chev" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path
@@ -443,9 +445,7 @@ export function DiagnosticsScreenPage() {
           <span className="ds-location__sep" aria-hidden="true">
             |
           </span>
-          <span className="ds-location__addr">
-            Isprout, 7th floor, Plot No: 25, Divyasree trinity,
-          </span>
+          <span className="ds-location__addr">{dsLocAddrLine}</span>
           <span className="ds-location__chev" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path

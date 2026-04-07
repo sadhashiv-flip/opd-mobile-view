@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, generatePath, useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
-import { fetchPatientMembers, type MemberDisplay } from "@/api/patientMember";
+import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
 import "./ProfileManagePage.css";
 
@@ -39,7 +39,7 @@ export function ProfileMembersPage() {
     setError(null);
     setLoading(true);
     try {
-      const data = await fetchPatientMembers();
+      const data = await fetchAllPatientMembers();
       setMembers(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load members");

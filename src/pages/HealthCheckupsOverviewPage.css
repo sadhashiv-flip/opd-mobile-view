@@ -8,7 +8,7 @@
 
 .hco-top {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   column-gap: 8px;
   padding: 10px 14px 8px;
@@ -19,11 +19,39 @@
   border-bottom: 1px solid #ececec;
 }
 
+.hco-top > .hco-title-wrap {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.hco-top > .hco-title-wrap .hco-title {
+  text-align: left;
+}
+
+.hco-consult-mode {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-orange) 35%, #e8e8e8);
+  background: color-mix(in srgb, var(--color-brand-orange) 8%, #ffffff);
+  color: #111111;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .hco-top > .hco-title {
   grid-column: 2;
-  justify-self: center;
+  justify-self: start;
   min-width: 0;
-  text-align: center;
+  text-align: left;
 }
 
 .hco-top > .hco-orders,

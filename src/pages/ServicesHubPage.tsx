@@ -17,7 +17,7 @@ import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import { useToast } from "@/hooks/useToast";
 import {
   createSupportTicket,
-  fetchSupportTickets,
+  fetchAllSupportTickets,
   isSupportTicketClosedTabStatus,
   isSupportTicketInactiveStatus,
   parseSupportTicketFeedbackDisplay,
@@ -159,7 +159,7 @@ export function ServicesHubPage() {
     setSupportError(null);
     setSupportLoading(true);
     try {
-      const tickets = await fetchSupportTickets();
+      const tickets = await fetchAllSupportTickets();
       setSupportTickets(tickets);
     } catch (e) {
       setSupportTickets([]);

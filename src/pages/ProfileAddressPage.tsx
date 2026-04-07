@@ -3,7 +3,7 @@ import { Link, generatePath, useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   deletePatientAddress,
-  fetchPatientAddresses,
+  fetchAllPatientAddresses,
   formatAddressLines,
   setPatientAddressPrimary,
   type PatientAddressRecord,
@@ -71,7 +71,7 @@ export function ProfileAddressPage() {
     setError(null);
     setLoading(true);
     try {
-      const data = await fetchPatientAddresses();
+      const data = await fetchAllPatientAddresses();
       setList(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load addresses");

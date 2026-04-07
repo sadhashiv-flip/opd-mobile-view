@@ -1,4 +1,5 @@
-import { patientFetchChecked, patientJson } from "@/api/patientHttp";
+import type { ListPaginationOpts } from "@/api/listPagination";
+import { patientFetchChecked, patientJsonList } from "@/api/patientHttp";
 
 /** Row from GET bank_details `data[]`. */
 export type PatientBankRecord = Readonly<{
@@ -143,9 +144,16 @@ function hasNextPage(root: Record<string, unknown> | null, itemsLen: number): bo
   return false;
 }
 
-/** GET /patient/bank_details?page=… */
-export async function fetchBankDetailsPage(page = 1): Promise<BankDetailsPageResult> {
-  const raw = await patientJson<unknown>(`bank_details?page=${page}`, { method: "GET" });
+/** GET `/bank_details?page=&limit=` */
+export async function fetchBankDetailsPage(
+  page = 1,
+  pagination?: ListPaginationOpts,
+): Promise<BankDetailsPageResult> {
+  const raw = await patientJsonList<unknown>(
+    "bank_details",
+    { method: "GET" },
+    { ...pagination, page },
+  );
   const root = asRecord(raw);
   const rows = extractBankRows(raw);
   const items = rows
@@ -201,11 +209,17 @@ const BANK_TYPE_SEARCH = "type:banks,status=1";
  * GET /patient/type?search=type:banks,status=1&page=…
  * One page; use {@link fetchAllBankTypeOptions} to fill a dropdown with every page.
  */
-export async function fetchBankTypePage(page = 1): Promise<BankTypePageResult> {
-  const q = encodeURIComponent(BANK_TYPE_SEARCH);
-  const raw = await patientJson<unknown>(`type?search=${q}&page=${page}`, {
-    method: "GET",
-  });
+export async function fetchBankTypePage(
+  page = 1,
+  pagination?: ListPaginationOpts,
+): Promise<BankTypePageResult> {
+  const q = new URLSearchParams();
+  q.set("search", BANK_TYPE_SEARCH);
+  const raw = await patientJsonList<unknown>(
+    `type?${q.toString()}`,
+    { method: "GET" },
+    { ...pagination, page },
+  );
   const root = asRecord(raw);
   const rows = extractTypeRows(raw);
   const items = rows

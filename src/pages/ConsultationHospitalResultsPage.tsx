@@ -1,10 +1,25 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { readHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
-import { fetchNetworkDoctorList, readNetworkListLocation, type NetworkListDoctorRow } from "@/api/networkList";
+import {
+  fetchNetworkDoctorListPage,
+  NETWORK_LIST_PAGE_SIZE,
+  readNetworkListLocation,
+  type NetworkListDoctorRow,
+} from "@/api/networkList";
 import { useToast } from "@/hooks/useToast";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type UIEvent,
+} from "react";
 import { SortSheet, type SortOptionId } from "@/components/sort/SortSheet";
 import "@/components/sort/SortSheet.css";
 import sortSvg from "@/assets/icons/common/Sort.svg";
@@ -25,12 +40,18 @@ export function ConsultationHospitalResultsPage() {
   const toast = useToast();
   const params = useParams();
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
+  const chrLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortId, setSortId] = useState<SortOptionId>("relevance");
   const [doctors, setDoctors] = useState<readonly NetworkListDoctorRow[]>([]);
   const [doctorsLoad, setDoctorsLoad] = useState<"loading" | "error" | "ok">("loading");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [doctorsError, setDoctorsError] = useState<string | null>(null);
+  const nextPageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+  const dscrollRef = useRef<HTMLDivElement>(null);
 
   const specialtyIdNum = useMemo(() => {
     const n = Number(specialtyId);
@@ -42,22 +63,34 @@ export function ConsultationHospitalResultsPage() {
       setDoctors([]);
       setDoctorsLoad("ok");
       setDoctorsError(null);
+      nextPageRef.current = 1;
+      hasMoreRef.current = true;
+      loadingMoreRef.current = false;
       return;
     }
     let cancelled = false;
     setDoctorsLoad("loading");
     setDoctorsError(null);
-    void fetchNetworkDoctorList({
+    setDoctors([]);
+    nextPageRef.current = 1;
+    hasMoreRef.current = true;
+    loadingMoreRef.current = false;
+    void fetchNetworkDoctorListPage({
       location: readNetworkListLocation(),
       service: "consultation",
       speciality_id: specialtyIdNum,
+      page: 1,
+      limit: NETWORK_LIST_PAGE_SIZE,
     })
       .then((list) => {
-        if (!cancelled) {
-          setDoctors(list);
-          setDoctorsLoad("ok");
-          setPage(1);
+        if (cancelled) return;
+        setDoctors(list);
+        if (list.length === 0) {
+          hasMoreRef.current = false;
+        } else {
+          nextPageRef.current = 2;
         }
+        setDoctorsLoad("ok");
       })
       .catch((e: unknown) => {
         if (!cancelled) {
@@ -73,6 +106,56 @@ export function ConsultationHospitalResultsPage() {
     };
   }, [specialtyIdNum, toast]);
 
+  const loadMore = useCallback(async () => {
+    if (specialtyIdNum == null || !hasMoreRef.current || doctorsLoad !== "ok") return;
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const list = await fetchNetworkDoctorListPage(
+        {
+          location: readNetworkListLocation(),
+          service: "consultation",
+          speciality_id: specialtyIdNum,
+          page: nextPageRef.current,
+          limit: NETWORK_LIST_PAGE_SIZE,
+        },
+        { skipGlobalLoading: true },
+      );
+      if (list.length === 0) {
+        hasMoreRef.current = false;
+        return;
+      }
+      setDoctors((prev) => [...prev, ...list]);
+      nextPageRef.current += 1;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not load more doctors";
+      toast.error(msg);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [specialtyIdNum, doctorsLoad, toast]);
+
+  const onDscroll = useCallback(
+    (e: UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const thresholdPx = 100;
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx;
+      if (nearBottom) void loadMore();
+    },
+    [loadMore],
+  );
+
+  /** If the first page(s) do not overflow the scroll area, fetch more until they do or the API returns []. */
+  useEffect(() => {
+    if (specialtyIdNum == null || doctorsLoad !== "ok" || doctors.length === 0) return;
+    if (!hasMoreRef.current || loadingMoreRef.current) return;
+    const el = dscrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight + 2) void loadMore();
+  }, [doctors.length, doctorsLoad, specialtyIdNum, loadMore]);
+
   const specialtyLabel = useMemo(() => {
     const fromSession = readHospitalSpecialtyName(specialtyId);
     if (fromSession) return fromSession;
@@ -86,14 +169,6 @@ export function ConsultationHospitalResultsPage() {
     };
     return map[specialtyId] ?? "Speciality";
   }, [specialtyId]);
-
-  const pageSize = 2;
-  const [page, setPage] = useState(1);
-  const pageCount = Math.max(1, Math.ceil(doctors.length / pageSize));
-  const visibleDoctors = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return doctors.slice(start, start + pageSize);
-  }, [doctors, page, pageSize]);
 
   let doctorsScrollBody: ReactNode;
   if (specialtyIdNum == null) {
@@ -115,45 +190,80 @@ export function ConsultationHospitalResultsPage() {
   } else if (doctors.length === 0) {
     doctorsScrollBody = <div className="chr-dlist-msg">No doctors found for this specialty.</div>;
   } else {
-    doctorsScrollBody = visibleDoctors.map((d) => (
-      <div key={d.id} className="chr-dcard">
-        <div className="chr-dcard__top">
-          <div className="chr-doc">
-            <div className="chr-doc__avatar" aria-hidden="true" />
-            <div className="chr-doc__meta">
-              <div className="chr-doc__name">{d.name}</div>
-              <div className="chr-doc__deg">{d.degree || "—"}</div>
+    doctorsScrollBody = (
+      <>
+        {doctors.map((d) => (
+          <div key={d.id} className="chr-dcard">
+            <div className="chr-dcard__sec chr-dcard__sec--head">
+              <div className="chr-doc">
+                {d.imageUrl ? (
+                  <img className="chr-doc__avatar-img" src={d.imageUrl} alt="" width={44} height={44} />
+                ) : (
+                  <div className="chr-doc__avatar" aria-hidden="true" />
+                )}
+                <div className="chr-doc__meta">
+                  <div className="chr-doc__name">{d.name}</div>
+                  <div className="chr-doc__deg">{d.degree || "—"}</div>
+                </div>
+              </div>
+              <div className="chr-dcard__head-right">
+                <span className="chr-chip">Cashless Available</span>
+                <span className="chr-dcard__chev" aria-hidden="true">
+                  ›
+                </span>
+              </div>
+            </div>
+
+            <div className="chr-dcard__sec chr-dcard__sec--tags">
+              {d.expLabel ? (
+                <span className="chr-tag chr-tag--exp">
+                  <span className="chr-tag__ic chr-tag__ic--exp" aria-hidden="true" />
+                  {d.expLabel}
+                </span>
+              ) : null}
+              {d.networkName ? (
+                <span className="chr-tag chr-tag--net">
+                  <span className="chr-tag__ic chr-tag__ic--net" aria-hidden="true" />
+                  {d.networkName}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="chr-dcard__sec chr-dcard__sec--fee">
+              <div className="chr-fee__k">Your Consultation Fee</div>
+              <div className="chr-fee__v">₹ {d.consultationFee}</div>
+            </div>
+
+            <div className="chr-dcard__sec chr-dcard__sec--cta">
+              <button
+                type="button"
+                className="chr-book"
+                onClick={() => {
+                  if (!d.networkId?.trim()) {
+                    toast.error("Network information is missing for this doctor.");
+                    return;
+                  }
+                  navigate(
+                    generatePath(ROUTES.consultationHospitalSlots, {
+                      specialtyId,
+                      networkId: d.networkId.trim(),
+                      doctorId: d.id,
+                    }),
+                  );
+                }}
+              >
+                Book Appointment
+              </button>
             </div>
           </div>
-          <div className="chr-chip">Cashless Available</div>
-        </div>
-
-        <div className="chr-tags">
-          {d.exp ? <span className="chr-tag">{d.exp}</span> : null}
-          {d.hospital ? <span className="chr-tag chr-tag--pill">{d.hospital}</span> : null}
-        </div>
-
-        <div className="chr-fee">
-          <div className="chr-fee__k">Your Consultation Fee</div>
-          <div className="chr-fee__v">₹ {d.fee}</div>
-        </div>
-
-        <button
-          type="button"
-          className="chr-book"
-          onClick={() =>
-            navigate(
-              generatePath(ROUTES.consultationHospitalSlots, {
-                specialtyId,
-                doctorId: d.id,
-              }),
-            )
-          }
-        >
-          Book Appointment
-        </button>
-      </div>
-    ));
+        ))}
+        {loadingMore ? (
+          <div className="chr-dlist-more" aria-busy="true">
+            Loading more…
+          </div>
+        ) : null}
+      </>
+    );
   }
 
   return (
@@ -196,7 +306,7 @@ export function ConsultationHospitalResultsPage() {
         <span className="chr-loc__sep" aria-hidden="true">
           |
         </span>
-        <span className="chr-loc__addr">Isprout, 7th floor, Plot No: 25, Divyasree trinity,</span>
+        <span className="chr-loc__addr">{chrLocAddrLine}</span>
         <span className="chr-loc__chev" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path
@@ -273,30 +383,11 @@ export function ConsultationHospitalResultsPage() {
         <div className="chr-dlist" aria-label="Doctors list">
           <div className="chr-dlist__head">
             <div className="chr-dlist__title">{specialtyLabel}</div>
-            <div className="chr-dlist__pager">
-              <button
-                type="button"
-                className="chr-pagebtn"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || doctorsLoad !== "ok" || doctors.length === 0}
-              >
-                Prev
-              </button>
-              <span className="chr-pagecount">
-                {page}/{pageCount}
-              </span>
-              <button
-                type="button"
-                className="chr-pagebtn"
-                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                disabled={page >= pageCount || doctorsLoad !== "ok" || doctors.length === 0}
-              >
-                Next
-              </button>
-            </div>
           </div>
 
-          <div className="chr-dscroll">{doctorsScrollBody}</div>
+          <div className="chr-dscroll" ref={dscrollRef} onScroll={onDscroll}>
+            {doctorsScrollBody}
+          </div>
         </div>
       </main>
 
