@@ -1,4 +1,8 @@
 :root {
+  /* Home / location strip: same inset from frame edge everywhere (full-bleed rows use margin; padded mains use padding + margin:0 on the strip). */
+  --addr-box-margin-top: 14px;
+  --addr-box-margin-inline: 14px;
+
   --color-brand-orange: #ff5224;
   --color-brand-orange-rgb: 255, 82, 36;
   /* Light tint for disabled / secondary fills (e.g. login confirm base) */
@@ -55,4 +59,29 @@ body {
 
 .page {
   min-height: 100dvh;
+}
+
+/* Location / address strip rows opened as buttons (see AddressBottomSheet) */
+button.hco-loc,
+button.chr-loc,
+button.csp-loc,
+button.ds-location,
+button.hcp-loc {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.hco-loc:focus-visible,
+button.chr-loc:focus-visible,
+button.csp-loc:focus-visible,
+button.ds-location:focus-visible,
+button.hcp-loc:focus-visible {
+  outline: 2px solid var(--color-brand-orange);
+  outline-offset: 2px;
 }

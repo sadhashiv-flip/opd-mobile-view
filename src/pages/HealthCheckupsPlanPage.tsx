@@ -1,5 +1,6 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./HealthCheckupsPlanPage.css";
@@ -28,6 +29,7 @@ export function HealthCheckupsPlanPage() {
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const pageTitle = type === "lab-tests" ? "Lab Tests" : "Health Checkups";
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
 
   const labTests: readonly LabTest[] = useMemo(
     () => [
@@ -193,7 +195,12 @@ export function HealthCheckupsPlanPage() {
       </header>
 
       <main className="hcp-main">
-        <div className="hcp-loc">
+        <button
+          type="button"
+          className="hcp-loc"
+          aria-label="Choose address"
+          onClick={() => setAddrSheetOpen(true)}
+        >
           <span className="hcp-loc__pin" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -219,7 +226,9 @@ export function HealthCheckupsPlanPage() {
               />
             </svg>
           </span>
-        </div>
+        </button>
+
+        <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
         {type === "lab-tests" ? (
           <div className="lt-wrap">

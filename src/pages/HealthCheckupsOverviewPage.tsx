@@ -1,5 +1,6 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
@@ -40,6 +41,7 @@ export function HealthCheckupsOverviewPage() {
   }, []);
 
   const [altPhone, setAltPhone] = useState("");
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
 
   const cartIdsForLines = useMemo((): readonly string[] => {
     if (!isLabTests) return [];
@@ -115,7 +117,12 @@ export function HealthCheckupsOverviewPage() {
         )}
       </header>
 
-      <div className={`hco-loc${isLabTests ? " hco-loc--multiline" : ""}`}>
+      <button
+        type="button"
+        className={`hco-loc${isLabTests ? " hco-loc--multiline" : ""}`}
+        aria-label="Choose delivery address"
+        onClick={() => setAddrSheetOpen(true)}
+      >
         <span className="hco-loc__pin" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path
@@ -145,7 +152,9 @@ export function HealthCheckupsOverviewPage() {
             />
           </svg>
         </span>
-      </div>
+      </button>
+
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
       <main className="hco-main">
         <div className="hco-main__content">

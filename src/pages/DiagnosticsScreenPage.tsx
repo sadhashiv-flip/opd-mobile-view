@@ -1,5 +1,6 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
 import "./DiagnosticsScreenPage.css";
@@ -61,6 +62,7 @@ export function DiagnosticsScreenPage() {
 
   const [mode, setMode] = useState<VendorMode>("home");
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
 
   const visibleVendors = useMemo(
     () => vendors.filter((v) => v.modes.includes(mode)),
@@ -108,6 +110,7 @@ export function DiagnosticsScreenPage() {
 
   if (isLabTests) {
     return (
+      <>
       <div className="ds-page ds-page--lab">
         <header className="ds-top">
           <Link
@@ -135,7 +138,12 @@ export function DiagnosticsScreenPage() {
         </header>
 
         <main className="ds-main">
-          <div className="ds-location" aria-label="Location">
+          <button
+            type="button"
+            className="ds-location"
+            aria-label="Choose address"
+            onClick={() => setAddrSheetOpen(true)}
+          >
             <span className="ds-location__pin" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path
@@ -163,7 +171,7 @@ export function DiagnosticsScreenPage() {
                 />
               </svg>
             </span>
-          </div>
+          </button>
 
           <div className="ds-mode ds-mode--scroll" role="tablist" aria-label="Service type">
             <button
@@ -388,10 +396,13 @@ export function DiagnosticsScreenPage() {
           </button>
         </footer>
       </div>
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+      </>
     );
   }
 
   return (
+    <>
     <div className="ds-page">
       <header className="ds-top">
         <Link
@@ -413,7 +424,12 @@ export function DiagnosticsScreenPage() {
       </header>
 
       <main className="ds-main">
-        <div className="ds-location" aria-label="Location">
+        <button
+          type="button"
+          className="ds-location"
+          aria-label="Choose address"
+          onClick={() => setAddrSheetOpen(true)}
+        >
           <span className="ds-location__pin" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -441,7 +457,7 @@ export function DiagnosticsScreenPage() {
               />
             </svg>
           </span>
-        </div>
+        </button>
 
         <div className="ds-mode" role="tablist" aria-label="Service mode">
           <button
@@ -548,5 +564,7 @@ export function DiagnosticsScreenPage() {
         </button>
       </footer>
     </div>
+    <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+    </>
   );
 }
