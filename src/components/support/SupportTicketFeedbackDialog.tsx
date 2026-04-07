@@ -61,7 +61,7 @@ export function SupportTicketFeedbackDialog({
           <span className="support-chat__feedback-section-label" id="support-feedback-rating-label">
             Tap a star to rate
           </span>
-          <div className="support-chat__stars" role="radiogroup" aria-labelledby="support-feedback-rating-label">
+          <div className="support-chat__stars feedback-stars" role="radiogroup" aria-labelledby="support-feedback-rating-label">
             {FEEDBACK_RATINGS.map((n) => (
               <button
                 key={n}

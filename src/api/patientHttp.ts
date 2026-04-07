@@ -1,3 +1,4 @@
+import { beginApiLoadingRequest, endApiLoadingRequest } from "@/api/apiLoadingStore";
 import { clearSession, AUTH_SESSION_EXPIRED_EVENT, getAccessToken, notifyUnauthorizedAndSignOut } from "@/lib/authStorage";
 import {
   getPatientApiBase,
@@ -5,14 +6,15 @@ import {
   readPatientApiError,
 } from "@/api/patientClient";
 
-export type PatientHttpInit = RequestInit & Readonly<{ skipAuth?: boolean }>;
+export type PatientHttpInit = RequestInit &
+  Readonly<{ skipAuth?: boolean; skipGlobalLoading?: boolean }>;
 
 async function patientFetchWithBase(
   base: string,
   path: string,
   init: PatientHttpInit = {},
 ): Promise<Response> {
-  const { skipAuth, headers: initHeaders, ...rest } = init;
+  const { skipAuth, skipGlobalLoading, headers: initHeaders, ...rest } = init;
   const headers = new Headers(initHeaders);
 
   const body = rest.body;
@@ -38,20 +40,25 @@ async function patientFetchWithBase(
     headers.set("Pragma", "no-cache");
   }
 
-  const res = await fetch(url, {
-    ...rest,
-    headers,
-    cache: rest.cache ?? "no-store",
-  });
-  if (res.status === 401 && headers.has("Authorization")) {
-    clearSession();
-    globalThis.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
-  }
-  if (res.status === 401 && !skipAuth) {
-    notifyUnauthorizedAndSignOut();
-  }
+  if (!skipGlobalLoading) beginApiLoadingRequest();
+  try {
+    const res = await fetch(url, {
+      ...rest,
+      headers,
+      cache: rest.cache ?? "no-store",
+    });
+    if (res.status === 401 && headers.has("Authorization")) {
+      clearSession();
+      globalThis.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+    }
+    if (res.status === 401 && !skipAuth) {
+      notifyUnauthorizedAndSignOut();
+    }
 
-  return res;
+    return res;
+  } finally {
+    if (!skipGlobalLoading) endApiLoadingRequest();
+  }
 }
 
 /**

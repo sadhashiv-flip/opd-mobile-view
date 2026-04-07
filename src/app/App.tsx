@@ -1,3 +1,4 @@
+import { ApiLoadingOverlay } from "@/components/apiLoading/ApiLoadingOverlay";
 import { MobileShell } from "@/components/layout/MobileShell";
 import { ToastProvider } from "@/components/toast";
 import { AuthSessionListener } from "./AuthSessionListener";
@@ -9,6 +10,7 @@ export default function App() {
       <MobileShell>
         <AuthSessionListener />
         <AppRoutes />
+        <ApiLoadingOverlay />
       </MobileShell>
     </ToastProvider>
   );
