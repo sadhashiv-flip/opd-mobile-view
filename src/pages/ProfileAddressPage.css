@@ -14,7 +14,7 @@
   border: none;
   border-radius: 12px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: var(--color-brand-orange);
@@ -86,7 +86,7 @@
 
 .profile-address-card__body {
   padding-right: 56px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
   color: #212121;
 }
@@ -98,7 +98,7 @@
 
 .profile-address-card__row {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #424242;
 }
 
@@ -116,7 +116,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #2e7d32;
 }
@@ -126,7 +126,7 @@
   border: none;
   border-radius: 8px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: var(--color-brand-orange);
@@ -141,7 +141,7 @@
 .profile-address-card__tag {
   display: inline-block;
   margin-top: 6px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   letter-spacing: 0.06em;
   color: #1976d2;

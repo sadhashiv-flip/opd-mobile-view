@@ -31,7 +31,7 @@
 
 .ds-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
 }
 
@@ -58,7 +58,7 @@
 }
 
 .ds-location__title {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
   flex-shrink: 0;
@@ -71,7 +71,7 @@
 
 .ds-location__addr {
   min-width: 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   color: #9a9a9a;
   white-space: nowrap;
@@ -96,7 +96,7 @@
   background: #ffffff;
   border-radius: 999px;
   padding: 10px 14px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
   cursor: pointer;
@@ -145,7 +145,7 @@
 }
 
 .ds-vendor-card__name {
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
@@ -156,7 +156,7 @@
   gap: 4px;
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   color: #111111;
   background: #f3f3f3;
@@ -170,7 +170,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   color: #ffffff;
   background: transparent;
@@ -191,14 +191,14 @@
 }
 
 .ds-vendor-card__addr-text {
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
   line-height: 1.25;
 }
 
 .ds-vendor-card__distance {
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 800;
   color: #8e8e8e;
   white-space: nowrap;
@@ -215,14 +215,14 @@
 }
 
 .ds-vendor-card__plan-name {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
 
 .ds-vendor-card__plan-for {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
 }
@@ -232,7 +232,7 @@
   border-radius: 999px;
   background: #2e7d32;
   color: #ffffff;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
   white-space: nowrap;
 }
@@ -245,7 +245,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -265,7 +265,7 @@
   border-bottom-right-radius: 18px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   display: flex;
   align-items: center;
@@ -288,7 +288,7 @@
   padding: 14px 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 800;
   cursor: pointer;
 }
@@ -317,7 +317,7 @@
   border-radius: 999px;
   background: #ffffff;
   color: #111111;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   text-decoration: none;
 }
@@ -352,7 +352,7 @@
   gap: 6px;
   flex-shrink: 0;
   padding: 8px 12px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
 }
 
 .ds-mode__pill-ic {
@@ -424,13 +424,13 @@ button.ds-lab-card {
 }
 
 .ds-lab-card__logo {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
 
 .ds-lab-card__logo--orange {
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
 }
 
 .ds-lab-card__lines {
@@ -446,7 +446,7 @@ button.ds-lab-card {
   gap: 10px;
   padding: 14px 0;
   border-bottom: 1px solid #ececec;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   color: #111111;
 }
@@ -475,12 +475,12 @@ button.ds-lab-card {
   border-bottom: none;
   padding-top: 10px;
   font-weight: 900;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
 }
 
 .ds-lab-line__total {
   font-weight: 900;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
 }
 
 .ds-lab-card__addr-row {
@@ -492,7 +492,7 @@ button.ds-lab-card {
 
 .ds-lab-card__addr-text {
   margin: 0;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #8e8e8e;
   line-height: 1.35;
@@ -507,7 +507,7 @@ button.ds-lab-card {
   border: none;
   background: transparent;
   padding: 0;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   color: #1a73e8;
   cursor: pointer;
@@ -526,7 +526,7 @@ button.ds-lab-card {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   color: #ffffff;
 }
@@ -550,7 +550,7 @@ button.ds-lab-card {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
   color: #ffffff;
 }

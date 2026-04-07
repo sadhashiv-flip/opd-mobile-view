@@ -15,7 +15,7 @@
   border: none;
   padding: 0;
   margin: auto;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100cqw - 32px);
   max-height: min(90dvh, 640px);
   background: transparent;
   font-family: "Poppins", system-ui, sans-serif;
@@ -34,7 +34,7 @@
 }
 
 .profile-modal-panel {
-  width: min(100vw - 32px, 360px);
+  width: min(calc(100cqw - 32px), 360px);
   max-height: min(90dvh, 640px);
   overflow-y: auto;
   border-radius: 16px;
@@ -82,7 +82,7 @@
 
 .cp-modal__title {
   margin: 0;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   text-align: center;
   color: #111111;
@@ -92,7 +92,7 @@
 
 .cp-modal__subtitle {
   margin: 0 0 22px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 400;
   text-align: center;
   color: #757575;
@@ -103,7 +103,7 @@
   margin: 0 0 16px;
   padding: 12px 14px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 500;
   line-height: 1.45;
   text-align: center;
@@ -140,7 +140,7 @@
   border: 2px solid #1976d2;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #111111;
   background: #ffffff;
   outline: none;
@@ -157,7 +157,7 @@
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 500;
   color: #1976d2;
   pointer-events: none;
@@ -174,7 +174,7 @@
 .cp-outline__input:not(:placeholder-shown) + .cp-outline__label {
   top: 0;
   left: 12px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   transform: translateY(-50%);
 }
 
@@ -188,7 +188,7 @@
   border: none;
   background: none;
   font-family: inherit;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 500;
   color: var(--color-brand-orange);
   cursor: pointer;
@@ -210,7 +210,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #111111;
   background: #ffffff;
   outline: none;
@@ -238,7 +238,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: #ffffff;
@@ -256,7 +256,7 @@
   border: none;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: #e0e0e0;
@@ -301,7 +301,7 @@
   border: none;
   background: none;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   color: #1976d2;
   cursor: pointer;
@@ -314,7 +314,7 @@
 
 .fp-modal__title {
   margin: 0;
-  font-size: 17px;
+  font-size: clamp(11px, calc(17 * 100cqw / 375), calc(17 * 1.12px));
   font-weight: 700;
   text-align: center;
   color: #111111;
@@ -328,7 +328,7 @@
 
 .fp-modal__subtitle {
   margin: 0 0 18px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 400;
   line-height: 1.45;
   text-align: center;
@@ -349,7 +349,7 @@
 
 .fp-modal__phone-hint {
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
@@ -363,7 +363,7 @@
 
 .fp-modal__field-error {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #c62828;
 }
@@ -375,7 +375,7 @@
 
 .fp-modal__phone-display {
   margin: 0 0 18px;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   text-align: center;
   color: #212121;
@@ -414,7 +414,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 600;
   text-align: center;
   color: #111111;
@@ -432,7 +432,7 @@
 .fp-modal__resend {
   margin: 0 0 18px;
   text-align: center;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #616161;
 }
 
@@ -441,7 +441,7 @@
   border: none;
   background: none;
   font-family: inherit;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   color: var(--color-brand-orange);
   cursor: pointer;
@@ -470,7 +470,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   color: #424242;
   background: #ffffff;
@@ -488,7 +488,7 @@
   border: none;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: #e0e0e0;
@@ -522,7 +522,7 @@
 
 .del-modal__text {
   margin: 0 0 18px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 400;
   line-height: 1.55;
   text-align: center;
@@ -532,7 +532,7 @@
 .del-modal__feedback-label {
   display: block;
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   color: #424242;
 }
@@ -545,7 +545,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1.45;
   color: #212121;
   background: #fafafa;
@@ -575,7 +575,7 @@
   border: none;
   border-radius: 8px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
 }

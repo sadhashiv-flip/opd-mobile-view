@@ -11,7 +11,7 @@
 .pbv-card__title {
   margin: 0 0 16px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   color: #111111;
 }
@@ -25,7 +25,7 @@
   grid-template-columns: 120px 1fr;
   gap: 8px 12px;
   margin-bottom: 12px;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1.4;
 }
 
@@ -45,7 +45,7 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   text-transform: uppercase;
   background: rgba(0, 0, 0, 0.06);
@@ -63,7 +63,7 @@
 
 .pbv-cheque__label {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   color: #424242;
 }
@@ -78,14 +78,14 @@
 }
 
 .pbv-cheque__link {
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   color: #1565c0;
 }
 
 .pbv-cheque__missing {
   margin: 0 0 16px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #757575;
 }
 

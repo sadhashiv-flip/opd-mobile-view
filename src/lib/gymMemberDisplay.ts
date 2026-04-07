@@ -32,7 +32,7 @@ export function patientMembersToGymRows(members: readonly MemberDisplay[]): GymM
     subtitle: subtitleForMember(m),
     section: m.memberKind === "primary" ? "self" : "family",
     phone: m.phone ?? undefined,
-    email: undefined,
+    email: m.email ?? undefined,
     dob: m.dob ?? undefined,
     gender: m.gender ?? undefined,
     bloodGroup: m.bloodGroup ?? undefined,

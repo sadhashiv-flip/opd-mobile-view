@@ -14,7 +14,7 @@
   border: none;
   border-radius: 12px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: var(--color-brand-orange);
@@ -108,7 +108,7 @@
 .profile-bank-card__holder {
   margin: 0 0 6px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   color: #212121;
   line-height: 1.3;
@@ -116,7 +116,7 @@
 
 .profile-bank-card__line {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.35;
   color: #424242;
   word-break: break-word;
@@ -129,7 +129,7 @@
 
 .profile-bank-card__meta {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   color: #757575;
 }
 
@@ -138,7 +138,7 @@
   margin-top: 8px;
   padding: 3px 8px;
   border-radius: 6px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;

@@ -58,7 +58,7 @@
   border-radius: 50%;
   background: linear-gradient(145deg, #ff8a4a 0%, #ff6b2c 100%);
   color: #ffffff;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -69,20 +69,20 @@
 
 .dac-title {
   margin: 0;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #212121;
   line-height: 1.3;
 }
 
 .dac-body {
-  padding: 0 18px 18px;
+  padding: 0 var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
   padding-left: 66px;
 }
 
 .dac-message {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 500;
   line-height: 1.45;
   color: #757575;
@@ -90,7 +90,7 @@
 
 .dac-preview {
   margin: 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.4;
   color: #424242;
   max-height: 72px;
@@ -108,7 +108,7 @@
   border: none;
   background: #ffffff;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
 }

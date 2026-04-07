@@ -7,7 +7,7 @@ import {
   isHubTabId,
   type HubTabId,
 } from "@/constants/servicesHubContent";
-import { ROUTES } from "@/constants";
+import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
 import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
 import { SupportTicketFeedbackDialog, FEEDBACK_RATINGS } from "@/components/support/SupportTicketFeedbackDialog";
 import { ChangePasswordModal, DeleteAccountModal } from "@/components/profile";
@@ -343,6 +343,22 @@ export function ServicesHubPage() {
             } else if (tabId === "services" && item.id === "gym") {
               cardAction = () => {
                 void navigate(ROUTES.gymMembership);
+              };
+            } else if (tabId === "services" && item.id === "mental") {
+              cardAction = () => {
+                void navigate(
+                  generatePath(ROUTES.servicesWellness, {
+                    wellnessKind: WELLNESS_SESSION_KIND.mentalWellness,
+                  }),
+                );
+              };
+            } else if (tabId === "services" && item.id === "nutrition") {
+              cardAction = () => {
+                void navigate(
+                  generatePath(ROUTES.servicesWellness, {
+                    wellnessKind: WELLNESS_SESSION_KIND.nutrition,
+                  }),
+                );
               };
             } else if (tabId === "account") {
               cardAction = () => {

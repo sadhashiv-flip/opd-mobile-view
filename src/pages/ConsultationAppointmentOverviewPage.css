@@ -31,7 +31,7 @@
 
 .cao-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
 }
 
@@ -68,13 +68,13 @@
 }
 
 .cao-doc__name {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
 }
 
 .cao-doc__sub {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   color: #9a9a9a;
 }
@@ -84,7 +84,7 @@
   padding: 4px 8px;
   background: #12b10f;
   color: #ffffff;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 900;
   white-space: nowrap;
 }
@@ -97,7 +97,7 @@
 }
 
 .cao-tag {
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 800;
   color: #ff541e;
   display: inline-flex;
@@ -125,7 +125,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
   background: #ffffff;
@@ -144,7 +144,7 @@
 }
 
 .cao-field__label {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   color: #111111;
   margin-bottom: 6px;
@@ -162,7 +162,7 @@
 }
 
 .cao-field__value {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -199,7 +199,7 @@
   padding: 10px 12px;
   border: 1px solid #ededed;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #111111;
   line-height: 1.4;
@@ -219,7 +219,7 @@
   padding: 10px 12px;
   border: none;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 700;
   color: #111111;
   background: #ffffff;
@@ -252,7 +252,7 @@
 }
 
 .cao-disc__title {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   color: #111111;
   margin-bottom: 8px;
@@ -262,7 +262,7 @@
   margin: 0;
   padding-left: 18px;
   color: #6f6f6f;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 700;
   line-height: 1.35;
 }
@@ -279,7 +279,7 @@
   border-radius: 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
   cursor: pointer;
 }

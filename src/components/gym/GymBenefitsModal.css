@@ -58,7 +58,7 @@
 
 .gbm-title {
   margin: 0;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 500;
   line-height: 1.35;
   color: #888888;
@@ -90,7 +90,7 @@
   padding: 4px 18px 22px;
   max-height: min(55dvh, 420px);
   overflow: auto;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
   color: #222222;
 }
@@ -112,7 +112,7 @@
   border-radius: 50%;
   background: #e8e8e8;
   color: #555555;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   line-height: 1;
   cursor: pointer;
   display: flex;
@@ -138,7 +138,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 500;
   color: #111111;
   line-height: 1.35;
@@ -155,7 +155,7 @@
   border-radius: 50%;
   background: #1aad0d;
   color: #ffffff;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   display: inline-flex;
   align-items: center;

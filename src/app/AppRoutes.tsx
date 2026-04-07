@@ -42,6 +42,7 @@ import { UserDetailsBmiPage } from "@/pages/UserDetailsBmiPage";
 import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
 import { ConsultationTypePage } from "../pages/ConsultationTypePage";
 import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalResultsPage";
+import { WellnessSessionPage } from "@/pages/WellnessSessionPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -143,6 +144,7 @@ export function AppRoutes() {
         path={ROUTES.gymMembershipSelectClinic}
         element={<GymSelectClinicPage />}
       />
+      <Route path={ROUTES.servicesWellness} element={<WellnessSessionPage />} />
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>
   );

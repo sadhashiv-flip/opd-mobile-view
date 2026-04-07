@@ -19,6 +19,9 @@ export type MemberDisplay = Readonly<{
   isBloodPressure: "yes" | "no" | null;
   isDiabetic: "yes" | "no" | null;
   code: string | null;
+  /** Numeric id for booking payloads when API provides `patient_id` or numeric `id`. */
+  patientNumericId: number | null;
+  email: string | null;
 }>;
 
 function str(v: unknown): string | null {
@@ -200,6 +203,11 @@ function normalizeMember(
     isBloodPressure: normalizeYesNo(o.isBloodPressure ?? o.is_blood_pressure),
     isDiabetic: normalizeYesNo(o.isDiabetic ?? o.is_diabetic),
     code: str(o.code),
+    patientNumericId:
+      coerceFiniteNumber(o.patient_id) ??
+      coerceFiniteNumber(o.patientId) ??
+      coerceFiniteNumber(id),
+    email: str(o.email) ?? str(o.email_id),
   };
 }
 

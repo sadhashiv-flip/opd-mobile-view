@@ -26,7 +26,7 @@
 
 .dslot-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 800;
 }
 
@@ -36,7 +36,7 @@
 }
 
 .dslot-vendor {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   color: #8e8e8e;
   margin: 6px 0 14px;
@@ -49,7 +49,7 @@
 
 .dslot-sub {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
 }
 
@@ -94,7 +94,7 @@
 }
 
 .dslot-label {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -111,7 +111,7 @@
   padding: 14px 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 800;
   cursor: pointer;
 }

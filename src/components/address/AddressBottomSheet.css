@@ -64,7 +64,7 @@
 
 .addr-sheet__title {
   margin: 0;
-  font-size: 16px;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #111111;
 }
@@ -88,7 +88,7 @@
 
 .addr-sheet__hint {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.45;
   color: #616161;
 }
@@ -123,13 +123,13 @@
 
 .addr-sheet__error {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #c62828;
 }
 
 .addr-sheet__empty {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #757575;
 }
 
@@ -241,7 +241,7 @@
 
 .addr-sheet__primary-pill {
   display: inline-block;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;

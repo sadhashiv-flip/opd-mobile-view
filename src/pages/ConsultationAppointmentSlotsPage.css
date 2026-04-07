@@ -31,7 +31,7 @@
 
 .cas-title {
   margin: 0;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
   line-height: 1.2;
 }
@@ -47,7 +47,7 @@
   color: #6f6f6f;
   border-radius: 8px;
   padding: 10px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   line-height: 1.35;
 }
@@ -85,7 +85,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -95,7 +95,7 @@
 }
 
 .cas-row__right {
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 900;
   color: #111111;
 }
@@ -124,13 +124,13 @@
 }
 
 .cas-day__num {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
 }
 
 .cas-day__dow {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 800;
   opacity: 0.9;
 }
@@ -149,7 +149,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
   color: #9a9a9a;
   margin-bottom: 10px;
@@ -157,7 +157,7 @@
 
 .cas-sun {
   color: #ff541e;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1;
 }
 
@@ -177,7 +177,7 @@
   border-radius: 999px;
   border: 1px solid #d9d9d9;
   background: #ffffff;
-  font-size: 10px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 900;
   color: #111111;
   cursor: pointer;
@@ -206,7 +206,7 @@
   border-radius: 12px;
   background: #0b0b0b;
   color: #ffffff;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;
   cursor: pointer;
 }

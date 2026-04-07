@@ -19,7 +19,7 @@
 .paf-title {
   margin: 0;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 18px;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -30,7 +30,7 @@
   border: none;
   border-radius: 10px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: var(--color-brand-orange);
@@ -44,7 +44,7 @@
 
 .paf-main {
   flex: 1;
-  padding: 0 16px 100px;
+  padding: 0 var(--page-pad-x) 100px;
 }
 
 .paf-search {
@@ -60,7 +60,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   box-sizing: border-box;
   background: #ffffff;
 }
@@ -75,7 +75,7 @@
   position: absolute;
   top: calc(100% + 2px);
   left: 14px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #757575;
   z-index: 21;
   pointer-events: none;
@@ -131,7 +131,7 @@
 
 .paf-suggestions__title {
   display: block;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 500;
   color: #212121;
   line-height: 1.35;
@@ -139,14 +139,14 @@
 
 .paf-suggestions__meta {
   display: block;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   color: #757575;
   margin-top: 4px;
 }
 
 .paf-suggestions--empty {
   padding: 14px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   color: #757575;
   text-align: center;
   line-height: 1.4;
@@ -175,7 +175,7 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
   text-align: center;
   box-sizing: border-box;
@@ -191,7 +191,7 @@
 }
 
 .paf-map-inner--fallback code {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   padding: 1px 4px;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.06);
@@ -214,7 +214,7 @@
 
 .paf-map-err-detail__lead {
   margin: 8px 0 12px;
-  font-size: 13px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
   color: #5d4037;
 }
@@ -222,7 +222,7 @@
 .paf-map-err-detail__list {
   margin: 0 0 12px;
   padding-left: 1.25rem;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.5;
   color: #4e342e;
 }
@@ -237,13 +237,13 @@
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.06);
   font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   word-break: break-all;
   color: #1b5e20;
 }
 
 .paf-map-err-detail__link {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #1565c0;
 }
@@ -258,7 +258,7 @@
 
 .paf-map-hint {
   margin: 8px 0 0;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.45;
   color: #616161;
 }
@@ -280,7 +280,7 @@
 }
 
 .paf-label {
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 600;
   color: #616161;
 }
@@ -293,7 +293,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 10px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   box-sizing: border-box;
   background: #fafafa;
 }
@@ -314,7 +314,7 @@
   border: none;
   border-radius: 12px;
   font-family: "Poppins", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
   background: #e0e0e0;
@@ -332,7 +332,7 @@
 
 .paf-hint {
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   color: #9e9e9e;
   line-height: 1.4;
 }
@@ -351,6 +351,6 @@
 
 .paf-loc-note {
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   color: #616161;
 }
