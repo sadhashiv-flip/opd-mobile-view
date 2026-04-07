@@ -27,6 +27,8 @@ export const ROUTES = {
   services: "/services",
   /** Services hub, Help & Support tab — same screen as bottom nav “Need Help?”. */
   servicesHelpTab: "/services?tab=help",
+  /** Services hub, Medical Records tab — bottom nav “Medical Records”. */
+  servicesMedicalRecordsTab: "/services?tab=medical-records",
   diagnosticsType: "/diagnostics/:type",
   diagnosticsSelectPeople: "/diagnostics/:type/select-people",
   diagnosticsAddFamilyMember: "/diagnostics/:type/add-family-member",
@@ -51,6 +53,8 @@ export const ROUTES = {
   vision: "/vision",
   pharmacy: "/pharmacy",
   orders: "/orders",
+  /** Invoice / order detail — `GET /invoice/:invoiceId`. */
+  ordersDetail: "/orders/:invoiceId",
   /** Legacy path; AppRoutes redirects to `servicesHelpTab`. */
   help: "/help",
   gymMembership: "/services/gym-membership",

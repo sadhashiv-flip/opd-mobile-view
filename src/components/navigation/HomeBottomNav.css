@@ -1,11 +1,19 @@
 /**
- * Fixed bottom tab bar (mobile-style): stays pinned to the bottom of the viewport
- * while the phone frame scrolls above it. Pair with `.home-nav-spacer` in the same
- * column so content does not sit under the bar.
+ * Bottom nav: 56px FAB; plate `aspect-ratio: 430/76` + SVG `meet` keeps the notch circular.
+ * Notch is an SVG mask cutout (not even-odd + feDropShadow). Spacer tracks `--home-nav-plate-h`.
  */
 :root {
-  /* Matches visual footprint of the bar + home indicator; keep in sync with .home-nav padding */
-  --home-bottom-nav-spacer-height: calc(72px + env(safe-area-inset-bottom, 0px));
+  --home-nav-fab-size: 56px;
+  /* ~55% of FAB above the bar (reference) */
+  --home-nav-fab-overlap: 31px;
+  --home-nav-chrome-bottom: 14px;
+  /* Scales with mobile-frame width (100cqw); caps at design height 76px */
+  --home-nav-plate-h: min(76px, calc(100cqw * 76 / 430));
+  --home-bottom-nav-spacer-height: calc(
+    var(--home-nav-fab-overlap) + var(--home-nav-plate-h) + var(--home-nav-chrome-bottom) +
+      env(safe-area-inset-bottom, 0px)
+  );
+  --home-nav-bar-fill: #ffffff;
 }
 
 .home-nav-spacer {
@@ -23,16 +31,53 @@
   box-sizing: border-box;
   width: 100%;
   max-width: var(--mobile-frame-max-width, 430px);
+  padding: 0px;
+  /* min-height: calc(
+    var(--home-nav-fab-overlap) + var(--home-nav-plate-h) + var(--home-nav-chrome-bottom) +
+      env(safe-area-inset-bottom, 0px)
+  ); */
+  /* padding: 0 max(8px, env(safe-area-inset-left, 0px)) env(safe-area-inset-bottom, 0px)
+    max(8px, env(safe-area-inset-right, 0px)); */
+  /* padding-top: var(--home-nav-fab-overlap);
+  padding-bottom: var(--home-nav-chrome-bottom); */
+  background: transparent;
+  pointer-events: none;
+}
+
+.home-nav__plate {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 430 / 76;
+  flex-shrink: 0;
+}
+
+.home-nav__shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
+  /* Bar shadow (CSS respects SVG alpha; feDropShadow on “holed” paths often does not). */
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.1));
+}
+
+.home-nav__inner {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 2px;
-  padding: 6px 6px calc(10px + env(safe-area-inset-bottom, 0px));
-  padding-left: max(6px, env(safe-area-inset-left, 0px));
-  padding-right: max(6px, env(safe-area-inset-right, 0px));
-  background: #ffffff;
-  border-top: 1px solid #eeeeee;
-  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.06);
+  gap: 0;
+  pointer-events: none;
+  padding: 12px 16px;
+}
+
+.home-nav__inner .home-nav__item,
+.home-nav__inner .home-nav__fab-wrap {
+  pointer-events: auto;
 }
 
 .home-nav__item {
@@ -40,13 +85,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 4px;
   min-width: 0;
-  padding: 4px 2px 0;
+  padding: 2px 2px 0;
   text-decoration: none;
-  color: #bdbdbd;
-  font-size: max(7px, calc(10 * 100cqw / 375));
+  color: #808080;
+  font-size: max(7px, calc(9.5 * 100cqw / 375));
   font-weight: 500;
 }
 
@@ -60,7 +105,7 @@
 
 .home-nav__ic {
   display: flex;
-  color: #bdbdbd;
+  color: #808080;
 }
 
 .home-nav__label {
@@ -75,32 +120,67 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
+  justify-content: flex-end;
   min-width: 0;
+  padding-bottom: 0;
 }
 
 .home-nav__fab {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  margin-top: -22px;
-  margin-bottom: 2px;
-  border-radius: 14px;
+  flex-shrink: 0;
+  width: var(--home-nav-fab-size);
+  height: var(--home-nav-fab-size);
+  aspect-ratio: 1;
+  margin-top: calc(-1 * var(--home-nav-fab-overlap));
+  margin-bottom: 4px;
+  border-radius: 50%;
   background: var(--color-brand-orange);
   color: #ffffff;
-  box-shadow: 0 10px 24px rgba(var(--color-brand-orange-rgb), 0.45);
+  box-shadow:
+    0 4px 14px rgba(var(--color-brand-orange-rgb), 0.38),
+    0 2px 6px rgba(0, 0, 0, 0.06);
   text-decoration: none;
+  position: relative;
+  z-index: 3;
 }
 
 .home-nav__fab--active {
-  box-shadow: 0 10px 28px rgba(var(--color-brand-orange-rgb), 0.55);
+  box-shadow:
+    0 6px 18px rgba(var(--color-brand-orange-rgb), 0.48),
+    0 2px 8px rgba(0, 0, 0, 0.07);
 }
 
-.home-nav__fab-label {
-  font-size: max(7px, calc(10 * 100cqw / 375));
-  font-weight: 500;
-  color: #212121;
-  text-align: center;
+.home-nav__fab-icon {
+  display: flex;
+  transform: scale(1.05);
+}
+
+.home-nav__fab-label-spacer {
+  display: block;
+  min-height: calc(max(7px, calc(9.5 * 100cqw / 375)) + 4px);
+  width: 100%;
+  max-width: var(--home-nav-fab-size);
+}
+
+/* iOS-style home indicator */
+.home-nav__home-indicator {
+  position: absolute;
+  left: 50%;
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: 128px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  z-index: 4;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-nav__fab,
+  .home-nav__fab--active {
+    transition: none;
+  }
 }

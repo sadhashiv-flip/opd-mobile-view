@@ -1,0 +1,566 @@
+.od-detail-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: linear-gradient(180deg, #faf8f6 0%, #f5f3f0 28%, #ffffff 100%);
+  color: #111111;
+}
+
+.od-top {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 8px 10px 12px;
+}
+
+.od-back {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: none;
+  color: #111111;
+  cursor: pointer;
+}
+
+.od-back:active {
+  opacity: 0.65;
+}
+
+.od-title {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(1rem, 4vw, 1.125rem);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+.od-top__spacer {
+  width: 44px;
+  height: 44px;
+}
+
+.od-main {
+  flex: 1;
+  padding: 0 var(--page-pad-x, 16px) 28px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.od-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 16px 18px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+
+.od-banner--completed {
+  background: #e8f6ee;
+  color: #1b7a3c;
+}
+
+.od-banner--processing {
+  background: #e8f0fb;
+  color: #1565c0;
+}
+
+.od-banner--cancelled {
+  background: #fdecea;
+  color: #c62828;
+}
+
+.od-banner__icon-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.od-banner__check {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.od-banner--completed .od-banner__check {
+  background: #1b7a3c;
+  color: #ffffff;
+}
+
+.od-banner--processing .od-banner__check {
+  background: #1565c0;
+  color: #ffffff;
+}
+
+.od-banner--cancelled .od-banner__check {
+  background: #c62828;
+  color: #ffffff;
+}
+
+.od-banner__title {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.od-banner__sub {
+  margin: 0;
+  margin-top: -2px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  opacity: 0.92;
+  padding-left: 46px;
+}
+
+.od-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px 16px 16px;
+  margin-bottom: 12px;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.04),
+    0 6px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.od-card__title {
+  margin: 0 0 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eeeeee;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.od-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.od-card__head .od-card__title {
+  margin: 0;
+  padding: 0;
+  border: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.od-card__count {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #757575;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.od-card--payments {
+  padding-bottom: 12px;
+}
+
+.od-card--order-patient .od-row {
+  padding: 7px 0;
+}
+
+.od-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+}
+
+.od-row + .od-row {
+  border-top: 1px solid #f2f2f2;
+}
+
+.od-row__label {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: #757575;
+  max-width: 42%;
+}
+
+.od-row__value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
+}
+
+.od-row__value--completed {
+  color: #1b7a3c;
+}
+
+.od-row__value--processing {
+  color: #1565c0;
+}
+
+.od-row__value--cancelled {
+  color: #c62828;
+}
+
+.od-row__value--other {
+  color: #111111;
+}
+
+.od-row__value-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  text-align: right;
+}
+
+.od-row__svc-icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+.od-service-row .od-row__label {
+  align-self: flex-start;
+  padding-top: 2px;
+}
+
+.od-table-wrap {
+  margin: 0 -4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.od-table-wrap--lines-scroll {
+  max-height: min(48vh, 340px);
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #f0f0f0;
+  margin-top: 4px;
+}
+
+.od-lines-toggle {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  background: #fafafa;
+  color: #ff5224;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.od-lines-toggle:active {
+  opacity: 0.88;
+}
+
+.od-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.od-table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: #616161;
+  padding: 8px 6px 10px;
+  border-bottom: 1px solid #eeeeee;
+  white-space: nowrap;
+}
+
+.od-table--compact thead th {
+  padding: 6px 5px 7px;
+  font-size: 0.6875rem;
+}
+
+.od-table tbody td {
+  padding: 10px 6px;
+  border-bottom: 1px solid #f2f2f2;
+  vertical-align: top;
+  color: #424242;
+}
+
+.od-table--compact tbody td {
+  padding: 6px 5px;
+  font-size: 0.75rem;
+}
+
+.od-table--compact .od-table__product {
+  font-size: 0.75rem;
+}
+
+.od-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.od-table__product {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  min-width: 120px;
+}
+
+.od-table__num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-table__strong {
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-pay-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.od-pay-item {
+  padding: 10px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.od-pay-item:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.od-pay-item__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.od-pay-item__left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.od-pay-item__title {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #111111;
+  line-height: 1.3;
+}
+
+.od-pay-item__status {
+  flex-shrink: 0;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f5f5f5;
+  color: #616161;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.od-pay-item__amt {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111111;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-pay-item__sub {
+  margin: 4px 0 0;
+  font-size: 0.6875rem;
+  color: #757575;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.od-pay-item__meta {
+  margin: 6px 0 0;
+  font-size: 0.6875rem;
+  color: #616161;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.od-pay-refund-details {
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #fffaf8;
+  border: 1px solid #ffe8e0;
+}
+
+.od-pay-refund-details__summary {
+  padding: 8px 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #5d4037;
+  cursor: pointer;
+  list-style: none;
+}
+
+.od-pay-refund-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.od-pay-refund-details__summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.65rem;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.od-pay-refund-details[open] .od-pay-refund-details__summary::before {
+  transform: rotate(90deg);
+}
+
+.od-pay-refund-details__sum-amt {
+  color: #c62828;
+  font-weight: 700;
+}
+
+.od-pay-refund-details__dl {
+  display: grid;
+  grid-template-columns: minmax(0, 42%) 1fr;
+  gap: 3px 8px;
+  margin: 0;
+  padding: 0 10px 8px 22px;
+  font-size: 0.625rem;
+}
+
+.od-pay-refund-details__dl dt {
+  margin: 0;
+  color: #757575;
+  font-weight: 500;
+}
+
+.od-pay-refund-details__dl dd {
+  margin: 0;
+  color: #333333;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.od-pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+}
+
+.od-pay-row + .od-pay-row {
+  border-top: 1px solid #f2f2f2;
+}
+
+.od-pay-row__label {
+  font-size: 0.8125rem;
+  color: #757575;
+}
+
+.od-pay-row__value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-pay-row__value--wallet {
+  color: #1b7a3c;
+}
+
+.od-pay-row__value--deduct {
+  color: #1b7a3c;
+}
+
+.od-pay-row__value--add {
+  color: #111111;
+}
+
+.od-pay-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #eeeeee;
+}
+
+.od-pay-total__label {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-pay-total__value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ff5224;
+}
+
+.od-skeleton {
+  border-radius: 14px;
+  height: 88px;
+  margin-bottom: 12px;
+  background: linear-gradient(90deg, #eeeeee 0%, #f5f5f5 50%, #eeeeee 100%);
+  background-size: 200% 100%;
+  animation: od-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes od-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.od-error {
+  margin: 24px 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #616161;
+}
+
+.od-error p {
+  margin: 0 0 12px;
+}
+
+.od-retry {
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  background: #ff5224;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}

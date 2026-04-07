@@ -7,6 +7,7 @@ export { HomeWalletIcon } from "./HomeWalletIcon";
 export { LoginFieldValidIcon } from "./LoginFieldValidIcon";
 export { NavIconHelp } from "./NavIconHelp";
 export { NavIconHome } from "./NavIconHome";
+export { NavIconMedicalRecords } from "./NavIconMedicalRecords";
 export { NavIconOrders } from "./NavIconOrders";
 export { NavIconPharmacyFab } from "./NavIconPharmacyFab";
 export { NavIconServices } from "./NavIconServices";
