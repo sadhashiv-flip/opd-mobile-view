@@ -1,5 +1,7 @@
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { formatAddressLines } from "@/api/patientAddress";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { readSelectedAddress } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
@@ -11,6 +13,9 @@ import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDocto
 import "./ConsultationSpecialtiesPage.css";
 
 const VIRTUAL_SLOTS_STORAGE = "opd-mobile-view.virtualSlots.";
+
+const CSP_LOC_ADDR_FALLBACK =
+  "Isprout, 7th floor, Plot No: 25, Divyasree trinity,";
 
 export function ConsultationSpecialtiesPage() {
   const navigate = useNavigate();
@@ -31,6 +36,9 @@ export function ConsultationSpecialtiesPage() {
   );
   const [hospitalError, setHospitalError] = useState<string | null>(null);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const [cspLocAddrLine, setCspLocAddrLine] = useState(
+    () => readSelectedAddress()?.displayLine ?? CSP_LOC_ADDR_FALLBACK,
+  );
 
   useEffect(() => {
     if (!isHospital) return;
@@ -251,7 +259,7 @@ export function ConsultationSpecialtiesPage() {
         <span className="csp-loc__sep" aria-hidden="true">
           |
         </span>
-        <span className="csp-loc__addr">Isprout, 7th floor, Plot No: 25, Divyasree trinity,</span>
+        <span className="csp-loc__addr">{cspLocAddrLine}</span>
         <span className="csp-loc__chev" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path
@@ -265,7 +273,11 @@ export function ConsultationSpecialtiesPage() {
         </span>
       </button>
 
-      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+      <AddressBottomSheet
+        open={addrSheetOpen}
+        onClose={() => setAddrSheetOpen(false)}
+        onSelectionChange={(a) => setCspLocAddrLine(formatAddressLines(a))}
+      />
 
       {isHospital ? (
         <div className="csp-banner-container">

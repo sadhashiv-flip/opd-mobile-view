@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   createPatientAddress,
@@ -28,6 +28,7 @@ import {
   type NominatimSuggestion,
 } from "@/lib/nominatimGeocode";
 import { useToast } from "@/hooks/useToast";
+import { safeReturnPath } from "@/lib/safeReturnPath";
 import "./ProfileAddressFormPage.css";
 
 const TAG_OPTIONS = ["HOME", "WORK", "OTHER"] as const;
@@ -76,7 +77,12 @@ function ProfileAddressFormInner({
   const { addressId } = useParams<{ addressId: string }>();
   const isEdit = Boolean(addressId);
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const toast = useToast();
+  const returnTo = useMemo(
+    () => safeReturnPath((routerLocation.state as { returnTo?: unknown } | null)?.returnTo),
+    [routerLocation.state],
+  );
 
   const [loadingInit, setLoadingInit] = useState(isEdit);
   const [searchQ, setSearchQ] = useState("");
@@ -283,13 +289,13 @@ function ProfileAddressFormInner({
         await createPatientAddress(payload);
         toast.success("Address added.");
       }
-      navigate(ROUTES.profileAddress);
+      navigate(returnTo ?? ROUTES.profileAddress, { replace: true });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save address");
     } finally {
       setSubmitting(false);
     }
-  }, [addressId, buildPayload, canSubmit, isEdit, navigate, submitting, toast]);
+  }, [addressId, buildPayload, canSubmit, isEdit, navigate, returnTo, submitting, toast]);
 
   let submitButtonText = "Add address";
   if (submitting) submitButtonText = "Saving…";
@@ -314,7 +320,7 @@ function ProfileAddressFormInner({
     <div className="paf-page">
       <header className="paf-top">
         <h1 className="paf-title">{isEdit ? "Edit address" : "Add address"}</h1>
-        <Link to={ROUTES.profileAddress} className="paf-back">
+        <Link to={returnTo ?? ROUTES.profileAddress} replace className="paf-back">
           Back
         </Link>
       </header>

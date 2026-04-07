@@ -98,7 +98,8 @@ export function AppRoutes() {
       <Route path="/health-checkups/overview" element={<Navigate to="/diagnostics/health-checkups/overview" replace />} />
       <Route path="/health-checkups/booking-success" element={<Navigate to="/diagnostics/health-checkups/booking-success" replace />} />
 
-      {/* Consultation uses same initial pages */}
+      {/* Consultation: static paths before `/consultation/:type` entry */}
+      <Route path={ROUTES.consultationType} element={<ConsultationTypePage />} />
       <Route path={ROUTES.consultation} element={<ConsultationEntryRedirect />} />
       <Route
         path={ROUTES.consultationAddFamilyMember}
@@ -107,7 +108,6 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationSelectPeople} element={<ConsultationSelectPeoplePage />} />
       <Route path={ROUTES.consultationSpecialties} element={<ConsultationSpecialtiesPage />} />
       <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
-      <Route path={ROUTES.consultationType} element={<ConsultationTypePage />} />
       <Route path={ROUTES.consultationVirtualOverview} element={<ConsultationVirtualAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />

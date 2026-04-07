@@ -86,12 +86,40 @@ button.ds-location,
 button.hcp-loc {
   appearance: none;
   -webkit-appearance: none;
-  width: 100%;
   box-sizing: border-box;
   font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+/*
+ * Full-bleed strips: center with equal horizontal inset (avoid width:100% + margin-inline overflow).
+ * Padded mains: .hcp-main / .ds-main use padding; strips are width 100% of the padded column.
+ */
+button.hco-loc,
+button.chr-loc,
+button.csp-loc {
+  width: calc(100% - 2 * var(--addr-box-margin-inline));
+  max-width: calc(100% - 2 * var(--addr-box-margin-inline));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.gsc-loc-wrap > button.hco-loc {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+button.hcp-loc,
+button.ds-location {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  align-self: stretch;
 }
 
 button.hco-loc:focus-visible,

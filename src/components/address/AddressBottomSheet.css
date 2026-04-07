@@ -145,21 +145,97 @@
   gap: 10px;
 }
 
+.addr-sheet__item-wrap {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 .addr-sheet__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
   padding: 10px 12px;
   border-radius: 12px;
   background: #f5f9fc;
   border: 1px solid rgba(25, 118, 210, 0.1);
   text-align: left;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.addr-sheet__item--selected {
+  border-color: rgba(255, 82, 36, 0.45);
+  background: #fff8f5;
+}
+
+/* Native radios ignore accent-color in some themes — custom circle uses brand orange only */
+.addr-sheet__radio {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  cursor: pointer;
+  border: 2px solid #a8a8a8;
+  border-radius: 50%;
+  background: #ffffff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.addr-sheet__radio:hover,
+.addr-sheet__item:hover .addr-sheet__radio {
+  border-color: var(--color-brand-orange);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-orange) 28%, transparent);
+}
+
+.addr-sheet__radio:focus-visible {
+  outline: 2px solid var(--color-brand-orange);
+  outline-offset: 2px;
+}
+
+.addr-sheet__radio:checked {
+  border-color: var(--color-brand-orange);
+  background-color: #ffffff;
+  background-image: radial-gradient(
+    circle at center,
+    var(--color-brand-orange) 0,
+    var(--color-brand-orange) 42%,
+    #ffffff 43%
+  );
+}
+
+.addr-sheet__radio:checked:hover,
+.addr-sheet__item:hover .addr-sheet__radio:checked {
+  border-color: var(--color-brand-orange);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-orange) 35%, transparent);
+  background-image: radial-gradient(
+    circle at center,
+    var(--color-brand-orange) 0,
+    var(--color-brand-orange) 42%,
+    #ffffff 43%
+  );
+}
+
+.addr-sheet__item-body {
+  min-width: 0;
+  flex: 1;
 }
 
 .addr-sheet__tag {
   display: inline-block;
-  font-size: max(7px, calc(10 * 100cqw / 375));
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #1976d2;
+  color: black;
   margin-right: 8px;
 }
 
@@ -175,15 +251,15 @@
 
 .addr-sheet__lines {
   margin: 6px 0 4px;
-  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 50;
   line-height: 1.4;
   color: #212121;
 }
 
 .addr-sheet__meta {
   margin: 0;
-  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-size: 9px;
   color: #616161;
 }
 
@@ -195,35 +271,39 @@
   flex-shrink: 0;
 }
 
+/* Matches .hc-add-family (HealthCheckupsPage) — outline primary */
 .addr-sheet__add-btn {
+  margin-top: 0;
+  width: 100%;
+  border: 2px solid #ff541e;
+  color: #ff541e;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 14px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  padding: 14px 18px;
-  border: none;
-  border-radius: 12px;
-  font-family: inherit;
-  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
-  font-weight: 600;
+  gap: 10px;
   cursor: pointer;
-  background: var(--color-brand-orange);
-  color: #ffffff;
+}
+
+.addr-sheet__add-ic {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 2px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .addr-sheet__add-btn:active {
   opacity: 0.92;
 }
 
-.addr-sheet__manage-link {
-  text-align: center;
-  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
-  font-weight: 600;
-  color: #1976d2;
-  text-decoration: none;
-  padding: 4px;
-}
-
-.addr-sheet__manage-link:active {
-  opacity: 0.85;
-}
