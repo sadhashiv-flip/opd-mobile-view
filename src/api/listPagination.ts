@@ -30,16 +30,23 @@ export function applyListPaginationToPath(path: string, pagination?: ListPaginat
 }
 
 function batchIdentityKey(item: unknown): string | null {
-  if (item !== null && typeof item === "object" && "id" in item) {
+  if (item === null || typeof item !== "object") return null;
+  if ("id" in item) {
     const id = (item as { id: unknown }).id;
     if (typeof id === "number" || typeof id === "string") return String(id);
+  }
+  /** e.g. `availableSlots` rows — no `id`; detect duplicate page when backend ignores `page`. */
+  if ("date" in item && "time" in item) {
+    const d = (item as { date: unknown }).date;
+    const t = (item as { time: unknown }).time;
+    if (typeof d === "string" && typeof t === "string") return `${d}|${t}`;
   }
   return null;
 }
 
 /**
  * Loads every page until the API returns an empty batch, a short page (`< limit`),
- * a **duplicate** page (same `id`s as the previous page — happens when the backend ignores `page`),
+ * a **duplicate** page (same `id`s or same `date`|`time` keys as the previous page — happens when the backend ignores `page`),
  * or `maxPages` is reached.
  */
 export async function fetchAllListPages<T>(

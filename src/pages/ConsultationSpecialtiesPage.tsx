@@ -403,40 +403,44 @@ export function ConsultationSpecialtiesPage() {
         </h1>
       </header>
 
-      <button
-        type="button"
-        className="csp-loc"
-        aria-label="Choose address"
-        onClick={() => setAddrSheetOpen(true)}
-      >
-        <span className="csp-loc__pin" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
-              fill="#FF541E"
-            />
-            <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
-          </svg>
-        </span>
-        <span className="csp-loc__title">Home</span>
-        <span className="csp-loc__sep" aria-hidden="true">
-          |
-        </span>
-        <span className="csp-loc__addr">{cspLocAddrLine}</span>
-        <span className="csp-loc__chev" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M6 9l6 6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      </button>
+      {isHospital ? (
+        <>
+          <button
+            type="button"
+            className="csp-loc"
+            aria-label="Choose address"
+            onClick={() => setAddrSheetOpen(true)}
+          >
+            <span className="csp-loc__pin" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
+                  fill="#FF541E"
+                />
+                <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
+              </svg>
+            </span>
+            <span className="csp-loc__title">Home</span>
+            <span className="csp-loc__sep" aria-hidden="true">
+              |
+            </span>
+            <span className="csp-loc__addr">{cspLocAddrLine}</span>
+            <span className="csp-loc__chev" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
 
-      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+          <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+        </>
+      ) : null}
 
       {isHospital ? (
         <div className="csp-banner-container">

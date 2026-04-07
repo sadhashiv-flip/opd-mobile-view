@@ -1,5 +1,5 @@
 import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
-import { patientJsonList } from "@/api/patientHttp";
+import { patientJson, patientJsonList } from "@/api/patientHttp";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 
 export type SpecialityDoctor = Readonly<{
@@ -82,14 +82,12 @@ export function doctorImageUrl(d: SpecialityDoctor): string | null {
   return resolveProfileImageUrl(d.image);
 }
 
-export type FetchAvailableSlotsParams = Readonly<
-  {
-    date: string;
-    /** Issue `parent` from `/issues` (sent as query `spid`). */
-    spid: number;
-    language: string;
-  } & ListPaginationOpts
->;
+export type FetchAvailableSlotsParams = Readonly<{
+  date: string;
+  /** Issue `parent` from `/issues` (sent as query `spid`). */
+  spid: number;
+  language: string;
+}>;
 
 function normalizeSlot(raw: unknown): AvailableSlot | null {
   const r = asRecord(raw);
@@ -110,7 +108,7 @@ function normalizeSlot(raw: unknown): AvailableSlot | null {
   return { date, time, available, displayTime };
 }
 
-/** GET `/availableSlots?date=&spid=&language=&page=&limit=` */
+/** GET `/availableSlots?date=&spid=&language=` (no pagination) */
 export async function fetchAvailableSlots(
   params: FetchAvailableSlotsParams,
 ): Promise<AvailableSlot[]> {
@@ -118,11 +116,7 @@ export async function fetchAvailableSlots(
   q.set("date", params.date);
   q.set("spid", String(params.spid));
   q.set("language", params.language);
-  const raw = await patientJsonList<unknown>(
-    `availableSlots?${q.toString()}`,
-    { method: "GET" },
-    { page: params.page, limit: params.limit },
-  );
+  const raw = await patientJson<unknown>(`availableSlots?${q.toString()}`, { method: "GET" });
   const root = asRecord(raw) ?? {};
   const list = root.slots;
   if (!Array.isArray(list)) return [];
@@ -132,7 +126,7 @@ export async function fetchAvailableSlots(
 export async function fetchAllAvailableSlots(
   params: Readonly<{ date: string; spid: number; language: string }>,
 ): Promise<AvailableSlot[]> {
-  return fetchAllListPages((opts) => fetchAvailableSlots({ ...params, ...opts }));
+  return fetchAvailableSlots(params);
 }
 
 /** Local calendar date `YYYY-MM-DD`. */
