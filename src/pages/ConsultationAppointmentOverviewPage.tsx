@@ -1,18 +1,36 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { networkBookAppointment } from "@/api/appointmentNetworkBook";
 import { ROUTES } from "@/constants";
-import { useMemo } from "react";
+import {
+  readPrimaryConsultSelectedMemberSnapshot,
+  readConsultSelectedPersonIdNumber,
+} from "@/constants/consultationSelectedMemberStorage";
+import { readSelectedAddress } from "@/constants/selectedAddressStorage";
+import { useToast } from "@/hooks/useToast";
+import { useMemo, useState } from "react";
 import "./ConsultationAppointmentOverviewPage.css";
 
 export function ConsultationAppointmentOverviewPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const params = useParams();
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
-  const doctorId = typeof params.doctorId === "string" ? params.doctorId : "d1";
+  const networkId = typeof params.networkId === "string" ? params.networkId : "";
+  const doctorId = typeof params.doctorId === "string" ? params.doctorId : "";
+
+  const [submitting, setSubmitting] = useState(false);
 
   const doctorName = useMemo(() => {
-    if (doctorId === "d1") return "Dr. Strange";
-    return "Doctor";
-  }, [doctorId]);
+    try {
+      return localStorage.getItem("opd-mobile-view.consultation.doctorName") ?? "Doctor";
+    } catch {
+      return "Doctor";
+    }
+  }, []);
+
+  const patientLabel = useMemo(() => {
+    return readPrimaryConsultSelectedMemberSnapshot()?.name?.trim() || "Patient";
+  }, []);
 
   const slotLabel = useMemo(() => {
     try {
@@ -24,17 +42,79 @@ export function ConsultationAppointmentOverviewPage() {
 
   const dateLabel = useMemo(() => {
     try {
-      return localStorage.getItem("opd-mobile-view.consultation.dateLabel") ?? "";
+      return (
+        localStorage.getItem("opd-mobile-view.consultation.dayLabel") ??
+        localStorage.getItem("opd-mobile-view.consultation.dateLabel") ??
+        ""
+      );
     } catch {
       return "";
     }
   }, []);
 
+  const timeSlotApi = useMemo(() => {
+    try {
+      return localStorage.getItem("opd-mobile-view.consultation.timeSlot")?.trim() ?? "";
+    } catch {
+      return "";
+    }
+  }, []);
+
+  const addressLine = useMemo(() => readSelectedAddress()?.displayLine ?? "", []);
+
+  const onConfirm = async () => {
+    const addr = readSelectedAddress();
+    const patientId = readConsultSelectedPersonIdNumber();
+    const specialityNum = Number(specialtyId);
+
+    if (!networkId.trim() || !doctorId.trim()) {
+      toast.error("Missing network or doctor.");
+      return;
+    }
+    if (!addr?.id?.trim()) {
+      toast.error("Please choose a home address from the location picker.");
+      return;
+    }
+    if (patientId == null) {
+      toast.error("Please select a patient from the consultation flow.");
+      return;
+    }
+    if (!timeSlotApi) {
+      toast.error("Missing appointment time. Go back and pick a slot again.");
+      return;
+    }
+    if (!Number.isFinite(specialityNum)) {
+      toast.error("Invalid specialty.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await networkBookAppointment({
+        doctor_id: String(doctorId),
+        network_id: networkId.trim(),
+        time_slot: timeSlotApi,
+        speciality_id: specialityNum,
+        address_id: addr.id.trim(),
+        patient_id: patientId,
+      });
+      navigate(ROUTES.consultationHospitalBookingSuccess);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not book appointment");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="cao-page">
       <header className="cao-top">
         <Link
-          to={generatePath(ROUTES.consultationHospitalSlots, { specialtyId, doctorId })}
+          to={generatePath(ROUTES.consultationHospitalSlots, {
+            specialtyId,
+            networkId,
+            doctorId,
+          })}
           className="cao-back"
           aria-label="Back"
         >
@@ -81,7 +161,7 @@ export function ConsultationAppointmentOverviewPage() {
         <section className="cao-field">
           <div className="cao-field__label">Patient</div>
           <div className="cao-field__row">
-            <div className="cao-field__value">Kalyan</div>
+            <div className="cao-field__value">{patientLabel}</div>
             <button type="button" className="cao-edit" aria-label="Edit patient">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
@@ -99,7 +179,7 @@ export function ConsultationAppointmentOverviewPage() {
           <div className="cao-field__label">Date and time</div>
           <div className="cao-field__row">
             <div className="cao-field__value">
-              {dateLabel || "September 15, 2025"} | {slotLabel || "2PM–3PM"}
+              {dateLabel || "—"} | {slotLabel || "—"}
             </div>
             <button type="button" className="cao-edit" aria-label="Edit date and time">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -113,6 +193,13 @@ export function ConsultationAppointmentOverviewPage() {
             </button>
           </div>
         </section>
+
+        {addressLine ? (
+          <section className="cao-field">
+            <div className="cao-field__label">Address</div>
+            <div className="cao-field__value cao-field__value--multiline">{addressLine}</div>
+          </section>
+        ) : null}
 
         <section className="cao-disc">
           <div className="cao-disc__title">Disclaimer</div>
@@ -131,12 +218,12 @@ export function ConsultationAppointmentOverviewPage() {
         <button
           type="button"
           className="cao-confirm"
-          onClick={() => navigate(generatePath(ROUTES.diagnosticsBookingSuccess, { type: "health-checkups" }))}
+          disabled={submitting}
+          onClick={() => void onConfirm()}
         >
-          Confirm
+          {submitting ? "Booking…" : "Confirm"}
         </button>
       </footer>
     </div>
   );
 }
-

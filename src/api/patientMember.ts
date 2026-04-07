@@ -1,4 +1,5 @@
-import { patientFetchChecked, patientJson } from "@/api/patientHttp";
+import { DEFAULT_LIST_PAGE_SIZE, fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientFetchChecked, patientJsonList } from "@/api/patientHttp";
 
 export type MemberDisplay = Readonly<{
   id: string;
@@ -210,13 +211,20 @@ function normalizeMember(
   };
 }
 
-/** GET /patient/member */
-export async function fetchPatientMembers(): Promise<MemberDisplay[]> {
-  const raw = await patientJson<unknown>("member", { method: "GET" });
+/** GET `/member?page=&limit=` */
+export async function fetchPatientMembers(
+  pagination?: ListPaginationOpts,
+): Promise<MemberDisplay[]> {
+  const raw = await patientJsonList<unknown>("member", { method: "GET" }, pagination);
   const primaryMemberId = extractPrimaryMemberId(raw);
   return extractMemberRows(raw)
     .map((row, i) => normalizeMember(row, i, primaryMemberId))
     .filter((x): x is MemberDisplay => x != null);
+}
+
+/** Loads every page until a short or empty response. */
+export async function fetchAllPatientMembers(): Promise<MemberDisplay[]> {
+  return fetchAllListPages((opts) => fetchPatientMembers(opts));
 }
 
 /** POST/PATCH /member — matches backend JSON shape. */
@@ -273,8 +281,15 @@ export async function updatePatientMember(id: string, payload: SaveMemberPayload
   await res.text();
 }
 
-/** Resolve one member from the list (GET member). */
+/** Resolve one member from paginated GET `member` (scans pages until found). */
 export async function fetchPatientMemberById(id: string): Promise<MemberDisplay | null> {
-  const all = await fetchPatientMembers();
-  return all.find((m) => m.id === id) ?? null;
+  let page = 1;
+  while (page < 200) {
+    const list = await fetchPatientMembers({ page, limit: DEFAULT_LIST_PAGE_SIZE });
+    const found = list.find((m) => m.id === id);
+    if (found) return found;
+    if (list.length === 0 || list.length < DEFAULT_LIST_PAGE_SIZE) break;
+    page += 1;
+  }
+  return null;
 }

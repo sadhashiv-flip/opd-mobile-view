@@ -1,6 +1,8 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./HealthCheckupsPlanPage.css";
@@ -30,6 +32,7 @@ export function HealthCheckupsPlanPage() {
   const pageTitle = type === "lab-tests" ? "Lab Tests" : "Health Checkups";
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const hcpLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
 
   const labTests: readonly LabTest[] = useMemo(
     () => [
@@ -214,7 +217,7 @@ export function HealthCheckupsPlanPage() {
           <span className="hcp-loc__sep" aria-hidden="true">
             |
           </span>
-          <span className="hcp-loc__addr">Isprout, 7th floor, Plot No: 25, Divyasree trinity,</span>
+          <span className="hcp-loc__addr">{hcpLocAddrLine}</span>
           <span className="hcp-loc__chev" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path

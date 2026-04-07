@@ -1,4 +1,5 @@
-import { patientJson } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientJsonList } from "@/api/patientHttp";
 
 /** Row from GET `/specialties` (backend uses `specialities` in JSON). */
 export type HospitalSpeciality = Readonly<{
@@ -58,10 +59,17 @@ function extractSpecialitiesList(body: unknown): unknown[] {
   return [];
 }
 
-/** GET `/specialties` — in-clinic consultation specialties. */
-export async function fetchHospitalSpecialities(): Promise<HospitalSpeciality[]> {
-  const raw = await patientJson<unknown>("specialties", { method: "GET" });
+/** GET `/specialties?page=&limit=` — in-clinic consultation specialties. */
+export async function fetchHospitalSpecialities(
+  pagination?: ListPaginationOpts,
+): Promise<HospitalSpeciality[]> {
+  const raw = await patientJsonList<unknown>("specialties", { method: "GET" }, pagination);
   return extractSpecialitiesList(raw)
     .map(normalizeHospitalSpeciality)
     .filter((x): x is HospitalSpeciality => x !== null);
+}
+
+/** Loads every page until a short or empty response. */
+export async function fetchAllHospitalSpecialities(): Promise<HospitalSpeciality[]> {
+  return fetchAllListPages((opts) => fetchHospitalSpecialities(opts));
 }

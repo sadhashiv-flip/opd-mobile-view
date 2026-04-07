@@ -1,4 +1,5 @@
-import { patientJson } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientJsonList } from "@/api/patientHttp";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 
 export type SpecialityDoctor = Readonly<{
@@ -57,25 +58,38 @@ function asFiniteId(idRaw: unknown): number | null {
   return null;
 }
 
-/** GET `/patient/speciality/:parentId/doctors` */
-export async function fetchSpecialityDoctors(parentId: number): Promise<SpecialityDoctor[]> {
-  const raw = await patientJson<unknown>(`speciality/${parentId}/doctors`, { method: "GET" });
+/** GET `/speciality/:parentId/doctors?page=&limit=` */
+export async function fetchSpecialityDoctors(
+  parentId: number,
+  pagination?: ListPaginationOpts,
+): Promise<SpecialityDoctor[]> {
+  const raw = await patientJsonList<unknown>(
+    `speciality/${parentId}/doctors`,
+    { method: "GET" },
+    pagination,
+  );
   const root = asRecord(raw) ?? {};
   const list = root.doctors;
   if (!Array.isArray(list)) return [];
   return list.map(normalizeDoctor).filter((x): x is SpecialityDoctor => x !== null);
 }
 
+export async function fetchAllSpecialityDoctors(parentId: number): Promise<SpecialityDoctor[]> {
+  return fetchAllListPages((opts) => fetchSpecialityDoctors(parentId, opts));
+}
+
 export function doctorImageUrl(d: SpecialityDoctor): string | null {
   return resolveProfileImageUrl(d.image);
 }
 
-export type FetchAvailableSlotsParams = Readonly<{
-  date: string;
-  /** Issue `parent` from `/issues` (sent as query `spid`). */
-  spid: number;
-  language: string;
-}>;
+export type FetchAvailableSlotsParams = Readonly<
+  {
+    date: string;
+    /** Issue `parent` from `/issues` (sent as query `spid`). */
+    spid: number;
+    language: string;
+  } & ListPaginationOpts
+>;
 
 function normalizeSlot(raw: unknown): AvailableSlot | null {
   const r = asRecord(raw);
@@ -96,7 +110,7 @@ function normalizeSlot(raw: unknown): AvailableSlot | null {
   return { date, time, available, displayTime };
 }
 
-/** GET `/patient/availableSlots?date=&spid=&language=` */
+/** GET `/availableSlots?date=&spid=&language=&page=&limit=` */
 export async function fetchAvailableSlots(
   params: FetchAvailableSlotsParams,
 ): Promise<AvailableSlot[]> {
@@ -104,11 +118,21 @@ export async function fetchAvailableSlots(
   q.set("date", params.date);
   q.set("spid", String(params.spid));
   q.set("language", params.language);
-  const raw = await patientJson<unknown>(`availableSlots?${q.toString()}`, { method: "GET" });
+  const raw = await patientJsonList<unknown>(
+    `availableSlots?${q.toString()}`,
+    { method: "GET" },
+    { page: params.page, limit: params.limit },
+  );
   const root = asRecord(raw) ?? {};
   const list = root.slots;
   if (!Array.isArray(list)) return [];
   return list.map(normalizeSlot).filter((x): x is AvailableSlot => x !== null);
+}
+
+export async function fetchAllAvailableSlots(
+  params: Readonly<{ date: string; spid: number; language: string }>,
+): Promise<AvailableSlot[]> {
+  return fetchAllListPages((opts) => fetchAvailableSlots({ ...params, ...opts }));
 }
 
 /** Local calendar date `YYYY-MM-DD`. */

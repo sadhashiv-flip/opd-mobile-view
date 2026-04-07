@@ -4,6 +4,7 @@
   min-height: 100dvh;
   background: #ffffff;
   color: #111111;
+  gap: 10px;
 }
 
 .csp-top {
@@ -37,7 +38,6 @@
 }
 
 .csp-loc {
-  margin: var(--addr-box-margin-top) 0 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -368,6 +368,14 @@
 
 .csp-issues-msg--err {
   color: #c41e1e;
+}
+
+.csp-list-more {
+  padding: 8px 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9a9a9a;
+  text-align: center;
 }
 
 .csp-item__ic {

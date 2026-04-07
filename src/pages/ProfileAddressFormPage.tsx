@@ -11,7 +11,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   createPatientAddress,
-  fetchPatientAddresses,
+  fetchAllPatientAddresses,
   updatePatientAddress,
   type PatientAddressRecord,
 } from "@/api/patientAddress";
@@ -119,7 +119,7 @@ function ProfileAddressFormInner({
     let cancelled = false;
     void (async () => {
       try {
-        const list = await fetchPatientAddresses();
+        const list = await fetchAllPatientAddresses();
         if (cancelled) return;
         const found = list.find((a) => a.id === addressId);
         if (!found) {

@@ -202,7 +202,9 @@
   user-select: none;
 }
 
-.hc-person__cta:disabled {
+.hc-person__cta:disabled,
+.hc-person__cta[aria-disabled="true"],
+.hc-person__cta--disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

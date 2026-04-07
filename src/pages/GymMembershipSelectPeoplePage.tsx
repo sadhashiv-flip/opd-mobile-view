@@ -6,7 +6,7 @@ import {
   writeGymSelectedMembersSnapshots,
   writeGymSelectedPersonIds,
 } from "@/constants/gymSelectedMemberStorage";
-import { fetchPatientMembers } from "@/api/patientMember";
+import { fetchAllPatientMembers } from "@/api/patientMember";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
@@ -55,7 +55,7 @@ export function GymMembershipSelectPeoplePage() {
     setFetchError(null);
     void (async () => {
       try {
-        const list = await fetchPatientMembers();
+        const list = await fetchAllPatientMembers();
         if (!cancelled) {
           setRows(patientMembersToGymRows(list));
         }
@@ -172,19 +172,12 @@ export function GymMembershipSelectPeoplePage() {
     }
 
     return (
-      <button
-        type="button"
-        className="hc-person__cta"
-        aria-label={atMax ? "Maximum members selected" : "Add"}
-        disabled={atMax}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (atMax) return;
-          toggleMember(member.id);
-        }}
+      <span
+        className={`hc-person__cta${atMax ? " hc-person__cta--disabled" : ""}`}
+        aria-hidden="true"
       >
         Add
-      </button>
+      </span>
     );
   };
 
@@ -236,7 +229,7 @@ export function GymMembershipSelectPeoplePage() {
                 setLoading(true);
                 void (async () => {
                   try {
-                    const list = await fetchPatientMembers();
+                    const list = await fetchAllPatientMembers();
                     setRows(patientMembersToGymRows(list));
                   } catch (e) {
                     const msg = e instanceof Error ? e.message : "Could not load members";

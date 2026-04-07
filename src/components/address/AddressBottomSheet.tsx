@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  fetchPatientAddresses,
+  fetchAllPatientAddresses,
   formatAddressLines,
   type PatientAddressRecord,
 } from "@/api/patientAddress";
@@ -28,7 +28,7 @@ export function AddressBottomSheet({ open, onClose, onSelectionChange }: Address
     setError(null);
     setLoading(true);
     try {
-      const data = await fetchPatientAddresses();
+      const data = await fetchAllPatientAddresses();
       setList(data);
       const stored = readSelectedAddress();
       const match = stored ? data.find((a) => a.id === stored.id) : undefined;

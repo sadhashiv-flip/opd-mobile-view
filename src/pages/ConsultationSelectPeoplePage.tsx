@@ -9,7 +9,7 @@ import {
   writeDiagnosticsSelectedMembersSnapshots,
   writeDiagnosticsSelectedPersonIds,
 } from "@/constants/diagnosticsSelectedMemberStorage";
-import { fetchPatientMembers } from "@/api/patientMember";
+import { fetchAllPatientMembers } from "@/api/patientMember";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
@@ -54,7 +54,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const loadMembers = async () => {
-    const list = await fetchPatientMembers();
+    const list = await fetchAllPatientMembers();
     setRows(patientMembersToGymRows(list));
   };
 
@@ -64,7 +64,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     setFetchError(null);
     const run = async () => {
       try {
-        const list = await fetchPatientMembers();
+        const list = await fetchAllPatientMembers();
         if (!cancelled) setRows(patientMembersToGymRows(list));
       } catch (e) {
         if (!cancelled) {
@@ -119,17 +119,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       );
     }
     return (
-      <button
-        type="button"
-        className="hc-person__cta"
-        aria-label="Add"
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleMember(member.id);
-        }}
-      >
+      <span className="hc-person__cta" aria-hidden="true">
         Add
-      </button>
+      </span>
     );
   };
 
@@ -171,7 +163,14 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             />
           </svg>
         </Link>
-        <h1 className="hco-title">{headerTitle}</h1>
+        {flow === "consultation" ? (
+          <div className="hco-title-wrap">
+            <h1 className="hco-title">{headerTitle}</h1>
+            <span className="hco-consult-mode">{consultationLabel}</span>
+          </div>
+        ) : (
+          <h1 className="hco-title">{headerTitle}</h1>
+        )}
         <Link to={ROUTES.orders} className="hco-orders">
           <span className="hco-orders__ic" aria-hidden="true">
             <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
@@ -181,14 +180,6 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       </header>
 
       <main className="hc-main">
-        {flow === "consultation" ? (
-          <div className="hc-block" style={{ paddingTop: 0 }}>
-            <div className="hc-mode" style={{ margin: "0 0 10px" }}>
-              {consultationLabel}
-            </div>
-          </div>
-        ) : null}
-
         {loading ? (
           <p className="hc-member-loading" aria-busy="true">
             Loading members…

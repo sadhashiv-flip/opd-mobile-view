@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBankDetails";
-import { fetchPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
+import { fetchAllPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { changePatientPassword } from "@/api/patientPassword";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
@@ -127,7 +127,7 @@ export function ProfilePage() {
       const [profRes, banksRes, addrRes] = await Promise.allSettled([
         fetchPatientProfile(),
         fetchAllPatientBankRecords(),
-        fetchPatientAddresses(),
+        fetchAllPatientAddresses(),
       ]);
 
       if (profRes.status === "rejected") {

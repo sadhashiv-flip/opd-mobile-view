@@ -63,3 +63,18 @@ export function readConsultSelectedPersonIdNumber(): number | null {
   }
 }
 
+/** First selected member from the select-people flow (session). */
+export function readPrimaryConsultSelectedMemberSnapshot(): ConsultationSelectedMemberSnapshot | null {
+  try {
+    const raw = sessionStorage.getItem(CONSULT_SELECTED_MEMBER_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const members = (parsed as { members?: ConsultationSelectedMemberSnapshot[] }).members;
+    const m = Array.isArray(members) ? members[0] : null;
+    return m && typeof m.name === "string" ? m : null;
+  } catch {
+    return null;
+  }
+}
+

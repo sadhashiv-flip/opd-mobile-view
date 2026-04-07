@@ -47,8 +47,12 @@ export const ROUTES = {
   consultationVirtualSlots: "/consultation/virtual/specialties/:issueId/slots",
   consultationVirtualOverview: "/consultation/virtual/specialties/:issueId/overview",
   consultationHospitalResults: "/consultation/at_hospital/specialties/:specialtyId",
-  consultationHospitalSlots: "/consultation/at_hospital/specialties/:specialtyId/appointment/:doctorId",
-  consultationHospitalOverview: "/consultation/at_hospital/specialties/:specialtyId/appointment/:doctorId/overview",
+  consultationHospitalSlots:
+    "/consultation/at_hospital/specialties/:specialtyId/appointment/:networkId/:doctorId",
+  consultationHospitalOverview:
+    "/consultation/at_hospital/specialties/:specialtyId/appointment/:networkId/:doctorId/overview",
+  /** After `POST /appointment/network_book` succeeds. */
+  consultationHospitalBookingSuccess: "/consultation/at_hospital/booking-success",
   dental: "/dental",
   vision: "/vision",
   pharmacy: "/pharmacy",

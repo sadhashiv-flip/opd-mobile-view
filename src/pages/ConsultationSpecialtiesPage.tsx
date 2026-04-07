@@ -1,21 +1,30 @@
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
-import { formatAddressLines } from "@/api/patientAddress";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { readSelectedAddress } from "@/constants/selectedAddressStorage";
+import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
-import { useEffect, useState, type ReactNode } from "react";
-import { fetchPatientIssues, type PatientIssue } from "@/api/issues";
+import { DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
+import {
+  DEFAULT_ISSUES_PARENT,
+  fetchPatientIssues,
+  type PatientIssue,
+} from "@/api/issues";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type UIEvent,
+} from "react";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { useToast } from "@/hooks/useToast";
 import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationSpecialtiesPage.css";
 
 const VIRTUAL_SLOTS_STORAGE = "opd-mobile-view.virtualSlots.";
-
-const CSP_LOC_ADDR_FALLBACK =
-  "Isprout, 7th floor, Plot No: 25, Divyasree trinity,";
 
 export function ConsultationSpecialtiesPage() {
   const navigate = useNavigate();
@@ -35,22 +44,40 @@ export function ConsultationSpecialtiesPage() {
     isHospital ? "loading" : "ok",
   );
   const [hospitalError, setHospitalError] = useState<string | null>(null);
+  const [loadingMoreHospital, setLoadingMoreHospital] = useState(false);
+  const nextHospitalPageRef = useRef(1);
+  const hasMoreHospitalRef = useRef(true);
+  const loadingMoreHospitalRef = useRef(false);
+  const hospitalScrollRef = useRef<HTMLUListElement | null>(null);
+
+  const [loadingMoreVirtual, setLoadingMoreVirtual] = useState(false);
+  const nextVirtualPageRef = useRef(1);
+  const hasMoreVirtualRef = useRef(true);
+  const loadingMoreVirtualRef = useRef(false);
+  const virtualScrollRef = useRef<HTMLUListElement | null>(null);
+
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const [cspLocAddrLine, setCspLocAddrLine] = useState(
-    () => readSelectedAddress()?.displayLine ?? CSP_LOC_ADDR_FALLBACK,
-  );
+  const cspLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
 
   useEffect(() => {
     if (!isHospital) return;
     let cancelled = false;
     setHospitalLoad("loading");
     setHospitalError(null);
-    void fetchHospitalSpecialities()
+    setHospitalSpecs([]);
+    nextHospitalPageRef.current = 1;
+    hasMoreHospitalRef.current = true;
+    loadingMoreHospitalRef.current = false;
+    void fetchHospitalSpecialities({ page: 1, limit: DEFAULT_LIST_PAGE_SIZE })
       .then((list) => {
-        if (!cancelled) {
-          setHospitalSpecs(list);
-          setHospitalLoad("ok");
+        if (cancelled) return;
+        setHospitalSpecs(list);
+        if (list.length === 0) {
+          hasMoreHospitalRef.current = false;
+        } else {
+          nextHospitalPageRef.current = 2;
         }
+        setHospitalLoad("ok");
       })
       .catch((e: unknown) => {
         if (!cancelled) {
@@ -66,17 +93,75 @@ export function ConsultationSpecialtiesPage() {
     };
   }, [isHospital, toast, location.key]);
 
+  const loadMoreHospital = useCallback(async () => {
+    if (!hasMoreHospitalRef.current || hospitalLoad !== "ok") return;
+    if (loadingMoreHospitalRef.current) return;
+    loadingMoreHospitalRef.current = true;
+    setLoadingMoreHospital(true);
+    try {
+      const page = nextHospitalPageRef.current;
+      const list = await fetchHospitalSpecialities({ page, limit: DEFAULT_LIST_PAGE_SIZE });
+      if (list.length === 0) {
+        hasMoreHospitalRef.current = false;
+        return;
+      }
+      setHospitalSpecs((prev) => {
+        const prevIds = new Set(prev.map((s) => s.id));
+        const fresh = list.filter((s) => !prevIds.has(s.id));
+        if (fresh.length === 0) {
+          hasMoreHospitalRef.current = false;
+          return prev;
+        }
+        if (list.length < DEFAULT_LIST_PAGE_SIZE) {
+          hasMoreHospitalRef.current = false;
+        }
+        nextHospitalPageRef.current = page + 1;
+        return [...prev, ...fresh];
+      });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not load more specialties");
+    } finally {
+      loadingMoreHospitalRef.current = false;
+      setLoadingMoreHospital(false);
+    }
+  }, [hospitalLoad, toast]);
+
+  const onHospitalScroll = useCallback(
+    (e: UIEvent<HTMLUListElement>) => {
+      const el = e.currentTarget;
+      const thresholdPx = 80;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx) void loadMoreHospital();
+    },
+    [loadMoreHospital],
+  );
+
+  useEffect(() => {
+    if (!isHospital || hospitalLoad !== "ok" || hospitalSpecs.length === 0) return;
+    if (!hasMoreHospitalRef.current || loadingMoreHospitalRef.current) return;
+    const el = hospitalScrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight + 2) void loadMoreHospital();
+  }, [isHospital, hospitalLoad, hospitalSpecs.length, loadMoreHospital]);
+
   useEffect(() => {
     if (isHospital) return;
     let cancelled = false;
     setIssuesLoad("loading");
     setIssuesError(null);
-    fetchPatientIssues()
+    setVirtualIssues([]);
+    nextVirtualPageRef.current = 1;
+    hasMoreVirtualRef.current = true;
+    loadingMoreVirtualRef.current = false;
+    void fetchPatientIssues({ parent: DEFAULT_ISSUES_PARENT, page: 1, limit: DEFAULT_LIST_PAGE_SIZE })
       .then((list) => {
-        if (!cancelled) {
-          setVirtualIssues(list);
-          setIssuesLoad("ok");
+        if (cancelled) return;
+        setVirtualIssues(list);
+        if (list.length === 0) {
+          hasMoreVirtualRef.current = false;
+        } else {
+          nextVirtualPageRef.current = 2;
         }
+        setIssuesLoad("ok");
       })
       .catch((e: unknown) => {
         if (!cancelled) {
@@ -88,6 +173,60 @@ export function ConsultationSpecialtiesPage() {
       cancelled = true;
     };
   }, [isHospital, location.key]);
+
+  const loadMoreVirtual = useCallback(async () => {
+    if (!hasMoreVirtualRef.current || issuesLoad !== "ok") return;
+    if (loadingMoreVirtualRef.current) return;
+    loadingMoreVirtualRef.current = true;
+    setLoadingMoreVirtual(true);
+    try {
+      const page = nextVirtualPageRef.current;
+      const list = await fetchPatientIssues({
+        parent: DEFAULT_ISSUES_PARENT,
+        page,
+        limit: DEFAULT_LIST_PAGE_SIZE,
+      });
+      if (list.length === 0) {
+        hasMoreVirtualRef.current = false;
+        return;
+      }
+      setVirtualIssues((prev) => {
+        const prevIds = new Set(prev.map((i) => i.id));
+        const fresh = list.filter((i) => !prevIds.has(i.id));
+        if (fresh.length === 0) {
+          hasMoreVirtualRef.current = false;
+          return prev;
+        }
+        if (list.length < DEFAULT_LIST_PAGE_SIZE) {
+          hasMoreVirtualRef.current = false;
+        }
+        nextVirtualPageRef.current = page + 1;
+        return [...prev, ...fresh];
+      });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not load more specialties");
+    } finally {
+      loadingMoreVirtualRef.current = false;
+      setLoadingMoreVirtual(false);
+    }
+  }, [issuesLoad, toast]);
+
+  const onVirtualScroll = useCallback(
+    (e: UIEvent<HTMLUListElement>) => {
+      const el = e.currentTarget;
+      const thresholdPx = 80;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx) void loadMoreVirtual();
+    },
+    [loadMoreVirtual],
+  );
+
+  useEffect(() => {
+    if (isHospital || issuesLoad !== "ok" || virtualIssues.length === 0) return;
+    if (!hasMoreVirtualRef.current || loadingMoreVirtualRef.current) return;
+    const el = virtualScrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight + 2) void loadMoreVirtual();
+  }, [isHospital, issuesLoad, virtualIssues.length, loadMoreVirtual]);
 
   const topArea =
     isHospital ? null : (
@@ -127,29 +266,41 @@ export function ConsultationSpecialtiesPage() {
     );
   } else {
     hospitalSpecialtiesBody = (
-      <ul className="csp-list" aria-label="Common specialties">
-        {hospitalSpecs.map((s) => {
-          const idStr = String(s.id);
-          const initial = s.name.trim().charAt(0).toUpperCase() || "—";
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                className="csp-item"
-                onClick={() => {
-                  rememberHospitalSpecialtyName(idStr, s.name);
-                  navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: idStr }));
-                }}
-              >
-                <div className="csp-item__ic" aria-hidden="true">
-                  <span className="csp-item__ic-letter">{initial}</span>
-                </div>
-                <div className="csp-item__label">{s.name}</div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <>
+        <ul
+          ref={hospitalScrollRef}
+          className="csp-list"
+          aria-label="Common specialties"
+          onScroll={onHospitalScroll}
+        >
+          {hospitalSpecs.map((s) => {
+            const idStr = String(s.id);
+            const initial = s.name.trim().charAt(0).toUpperCase() || "—";
+            return (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className="csp-item"
+                  onClick={() => {
+                    rememberHospitalSpecialtyName(idStr, s.name);
+                    navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: idStr }));
+                  }}
+                >
+                  <div className="csp-item__ic" aria-hidden="true">
+                    <span className="csp-item__ic-letter">{initial}</span>
+                  </div>
+                  <div className="csp-item__label">{s.name}</div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {loadingMoreHospital ? (
+          <div className="csp-list-more" aria-busy="true">
+            Loading more…
+          </div>
+        ) : null}
+      </>
     );
   }
 
@@ -168,52 +319,64 @@ export function ConsultationSpecialtiesPage() {
     );
   } else {
     virtualSpecialtiesBody = (
-      <ul className="csp-list" aria-label="Specialties">
-        {virtualIssues.map((issue) => {
-          const imgUrl = resolveProfileImageUrl(issue.image);
-          const slotState = {
-            parent: issue.parent,
-            issueTitle: issue.title,
-            /** `availableSlots?spid=` expects the issue’s `parent` (e.g. 1), not `id` (e.g. 132). */
-            spid: issue.parent,
-          };
-          return (
-            <li key={issue.id}>
-              <button
-                type="button"
-                className="csp-item"
-                onClick={() => {
-                  sessionStorage.setItem(
-                    `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
-                    JSON.stringify(slotState),
-                  );
-                  navigate(
-                    generatePath(ROUTES.consultationVirtualSlots, {
-                      issueId: String(issue.id),
-                    }),
-                    { state: slotState },
-                  );
-                }}
-              >
-                <div className="csp-item__ic" aria-hidden="true">
-                  {imgUrl ? (
-                    <img
-                      src={imgUrl}
-                      alt=""
-                      className="csp-item__thumb"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <span className="csp-item__ic-fallback">—</span>
-                  )}
-                </div>
-                <div className="csp-item__label">{issue.title}</div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <>
+        <ul
+          ref={virtualScrollRef}
+          className="csp-list"
+          aria-label="Specialties"
+          onScroll={onVirtualScroll}
+        >
+          {virtualIssues.map((issue) => {
+            const imgUrl = resolveProfileImageUrl(issue.image);
+            const slotState = {
+              parent: issue.parent,
+              issueTitle: issue.title,
+              /** `availableSlots?spid=` expects the issue’s `parent` (e.g. 1), not `id` (e.g. 132). */
+              spid: issue.parent,
+            };
+            return (
+              <li key={issue.id}>
+                <button
+                  type="button"
+                  className="csp-item"
+                  onClick={() => {
+                    sessionStorage.setItem(
+                      `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
+                      JSON.stringify(slotState),
+                    );
+                    navigate(
+                      generatePath(ROUTES.consultationVirtualSlots, {
+                        issueId: String(issue.id),
+                      }),
+                      { state: slotState },
+                    );
+                  }}
+                >
+                  <div className="csp-item__ic" aria-hidden="true">
+                    {imgUrl ? (
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="csp-item__thumb"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <span className="csp-item__ic-fallback">—</span>
+                    )}
+                  </div>
+                  <div className="csp-item__label">{issue.title}</div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {loadingMoreVirtual ? (
+          <div className="csp-list-more" aria-busy="true">
+            Loading more…
+          </div>
+        ) : null}
+      </>
     );
   }
 
@@ -273,11 +436,7 @@ export function ConsultationSpecialtiesPage() {
         </span>
       </button>
 
-      <AddressBottomSheet
-        open={addrSheetOpen}
-        onClose={() => setAddrSheetOpen(false)}
-        onSelectionChange={(a) => setCspLocAddrLine(formatAddressLines(a))}
-      />
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
       {isHospital ? (
         <div className="csp-banner-container">

@@ -1,9 +1,27 @@
 const KEY = "opd-mobile-view.selectedAddress.v1";
 
+/** Shown in location strips when no saved selection exists yet. */
+export const DEFAULT_LOCATION_ADDRESS_LINE =
+  "Isprout, 7th floor, Plot No: 25, Divyasree trinity,";
+
 export type SelectedAddressSnapshot = Readonly<{
   id: string;
   displayLine: string;
 }>;
+
+const listeners = new Set<() => void>();
+
+/** Subscribe to changes from {@link writeSelectedAddress} (same tab). */
+export function subscribeSelectedAddress(onStoreChange: () => void): () => void {
+  listeners.add(onStoreChange);
+  return () => {
+    listeners.delete(onStoreChange);
+  };
+}
+
+function notifySelectedAddressListeners(): void {
+  for (const fn of listeners) fn();
+}
 
 export function readSelectedAddress(): SelectedAddressSnapshot | null {
   try {
@@ -27,4 +45,5 @@ export function writeSelectedAddress(snapshot: SelectedAddressSnapshot): void {
   } catch {
     // ignore quota / private mode
   }
+  notifySelectedAddressListeners();
 }

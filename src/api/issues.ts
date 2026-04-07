@@ -1,4 +1,5 @@
-import { patientJson } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
+import { patientJsonList } from "@/api/patientHttp";
 
 /** Specialty row from GET `/issues` (backend naming). */
 export type PatientIssue = Readonly<{
@@ -29,13 +30,15 @@ function normalizeIssue(raw: unknown): PatientIssue | null {
   return { id, title: title || "Specialty", image, parent };
 }
 
-export type FetchPatientIssuesParams = Readonly<{
-  /**
-   * Parent id for hierarchical issues. Sample rows used `parent: 1`; the list
-   * endpoint often requires this (matches what Postman may send as `?parent=1`).
-   */
-  parent?: number;
-}>;
+export type FetchPatientIssuesParams = Readonly<
+  {
+    /**
+     * Parent id for hierarchical issues. Sample rows used `parent: 1`; the list
+     * endpoint often requires this (matches what Postman may send as `?parent=1`).
+     */
+    parent?: number;
+  } & ListPaginationOpts
+>;
 
 /** Root parent id used when the API expects a parent filter (align with backend). */
 export const DEFAULT_ISSUES_PARENT = 1;
@@ -50,15 +53,26 @@ function extractIssuesList(body: unknown): unknown[] {
   return [];
 }
 
-/** GET `/patient/issues?parent=…` — list of consultation specialties (issues). */
+/** GET `/issues?parent=&page=&limit=` — list of consultation specialties (issues). */
 export async function fetchPatientIssues(
   params: FetchPatientIssuesParams = {},
 ): Promise<PatientIssue[]> {
   const parent = params.parent ?? DEFAULT_ISSUES_PARENT;
   const q = new URLSearchParams();
   q.set("parent", String(parent));
-  const raw = await patientJson<unknown>(`issues?${q.toString()}`, { method: "GET" });
+  const raw = await patientJsonList<unknown>(
+    `issues?${q.toString()}`,
+    { method: "GET" },
+    { page: params.page, limit: params.limit },
+  );
   return extractIssuesList(raw)
     .map(normalizeIssue)
     .filter((x): x is PatientIssue => x !== null);
+}
+
+/** Loads every page until a short or empty response. */
+export async function fetchAllPatientIssues(
+  base: Pick<FetchPatientIssuesParams, "parent"> = {},
+): Promise<PatientIssue[]> {
+  return fetchAllListPages((opts) => fetchPatientIssues({ ...base, ...opts }));
 }
