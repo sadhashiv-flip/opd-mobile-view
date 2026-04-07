@@ -1,0 +1,30 @@
+const KEY = "opd-mobile-view.selectedAddress.v1";
+
+export type SelectedAddressSnapshot = Readonly<{
+  id: string;
+  displayLine: string;
+}>;
+
+export function readSelectedAddress(): SelectedAddressSnapshot | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const o = parsed as Record<string, unknown>;
+    const id = typeof o.id === "string" ? o.id : "";
+    const displayLine = typeof o.displayLine === "string" ? o.displayLine : "";
+    if (!id || !displayLine) return null;
+    return { id, displayLine };
+  } catch {
+    return null;
+  }
+}
+
+export function writeSelectedAddress(snapshot: SelectedAddressSnapshot): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(snapshot));
+  } catch {
+    // ignore quota / private mode
+  }
+}

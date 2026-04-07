@@ -35,6 +35,8 @@ export const ROUTES = {
   diagnosticsSlots: "/diagnostics/:type/slots",
   diagnosticsOverview: "/diagnostics/:type/overview",
   diagnosticsBookingSuccess: "/diagnostics/:type/booking-success",
+  /** Entry from home: `/consultation/at_hospital` or `/consultation/virtual` → ConsultationEntryRedirect → select-people. */
+  consultation: "/consultation/:type",
   consultationType: "/consultation/type",
   consultationAddFamilyMember: "/consultation/:type/add-family-member",
   consultationSelectPeople: "/consultation/:type/select-people",

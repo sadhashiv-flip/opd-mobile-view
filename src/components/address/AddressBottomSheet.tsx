@@ -1,23 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   fetchPatientAddresses,
   formatAddressLines,
   type PatientAddressRecord,
 } from "@/api/patientAddress";
+import { readSelectedAddress, writeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
 import "./AddressBottomSheet.css";
 
 export type AddressBottomSheetProps = Readonly<{
   open: boolean;
   onClose: () => void;
+  /** Called when the user picks an address (radio). */
+  onSelectionChange?: (address: PatientAddressRecord) => void;
 }>;
 
-export function AddressBottomSheet({ open, onClose }: AddressBottomSheetProps) {
+export function AddressBottomSheet({ open, onClose, onSelectionChange }: AddressBottomSheetProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [list, setList] = useState<PatientAddressRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -25,9 +30,14 @@ export function AddressBottomSheet({ open, onClose }: AddressBottomSheetProps) {
     try {
       const data = await fetchPatientAddresses();
       setList(data);
+      const stored = readSelectedAddress();
+      const match = stored ? data.find((a) => a.id === stored.id) : undefined;
+      const pick = match ?? data.find((a) => a.isPrimary) ?? data[0] ?? null;
+      setSelectedId(pick?.id ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load addresses");
       setList([]);
+      setSelectedId(null);
     } finally {
       setLoading(false);
     }
@@ -49,8 +59,21 @@ export function AddressBottomSheet({ open, onClose }: AddressBottomSheetProps) {
 
   const goAdd = useCallback(() => {
     onClose();
-    navigate(ROUTES.profileAddressAdd);
-  }, [navigate, onClose]);
+    const returnTo = `${location.pathname}${location.search}`;
+    navigate(ROUTES.profileAddressAdd, {
+      state: { returnTo },
+    });
+  }, [location.pathname, location.search, navigate, onClose]);
+
+  const selectAddress = useCallback(
+    (a: PatientAddressRecord) => {
+      setSelectedId(a.id);
+      const displayLine = formatAddressLines(a);
+      writeSelectedAddress({ id: a.id, displayLine });
+      onSelectionChange?.(a);
+    },
+    [onSelectionChange],
+  );
 
   if (!open) return null;
 
@@ -106,33 +129,51 @@ export function AddressBottomSheet({ open, onClose }: AddressBottomSheetProps) {
         ) : null}
 
         {!loading && !error && list.length > 0 ? (
-          <ul className="addr-sheet__list">
-            {list.map((a) => (
-              <li key={a.id} className="addr-sheet__item">
-                <span className="addr-sheet__tag">{a.tag}</span>
-                {a.isPrimary ? (
-                  <span className="addr-sheet__primary-pill" aria-label="Primary address">
-                    Primary
-                  </span>
-                ) : null}
-                <p className="addr-sheet__lines">{formatAddressLines(a)}</p>
-                <p className="addr-sheet__meta">
-                  {a.city}
-                  {a.city && a.state ? ", " : ""}
-                  {a.state} {a.pincode}
-                </p>
-              </li>
-            ))}
+          <ul className="addr-sheet__list" role="radiogroup" aria-label="Saved addresses">
+            {list.map((a) => {
+              const inputId = `addr-sheet-${a.id}`;
+              return (
+                <li key={a.id} className="addr-sheet__item-wrap">
+                  <label
+                    htmlFor={inputId}
+                    className={`addr-sheet__item${selectedId === a.id ? " addr-sheet__item--selected" : ""}`}
+                  >
+                    <input
+                      id={inputId}
+                      type="radio"
+                      className="addr-sheet__radio"
+                      name="addr-sheet-address"
+                      checked={selectedId === a.id}
+                      onChange={() => selectAddress(a)}
+                    />
+                    <span className="addr-sheet__item-body">
+                      <span className="addr-sheet__tag">{a.tag}</span>
+                      {a.isPrimary ? (
+                        <span className="addr-sheet__primary-pill" aria-label="Primary address">
+                          Primary
+                        </span>
+                      ) : null}
+                      <p className="addr-sheet__lines">{formatAddressLines(a)}</p>
+                      <p className="addr-sheet__meta">
+                        {a.city}
+                        {a.city && a.state ? ", " : ""}
+                        {a.state} {a.pincode}
+                      </p>
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
 
         <div className="addr-sheet__actions">
           <button type="button" className="addr-sheet__add-btn" onClick={goAdd}>
-            Add new Address
+            <span className="addr-sheet__add-ic" aria-hidden="true">
+              +
+            </span>
+            <span>Add new Address</span>
           </button>
-          <Link to={ROUTES.profileAddress} className="addr-sheet__manage-link" onClick={onClose}>
-            Manage addresses
-          </Link>
         </div>
       </section>
     </dialog>
