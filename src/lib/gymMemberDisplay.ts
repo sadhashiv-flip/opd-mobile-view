@@ -6,6 +6,8 @@ export type GymMemberListRow = Readonly<{
   name: string;
   subtitle: string;
   section: "self" | "family";
+  /** Numeric id for booking payloads (`user_id`, patient id, etc.); null if unknown. */
+  userId: number | null;
   phone?: string;
   email?: string;
   dob?: string;
@@ -31,6 +33,7 @@ export function patientMembersToGymRows(members: readonly MemberDisplay[]): GymM
     name: m.name,
     subtitle: subtitleForMember(m),
     section: m.memberKind === "primary" ? "self" : "family",
+    userId: m.patientNumericId,
     phone: m.phone ?? undefined,
     email: m.email ?? undefined,
     dob: m.dob ?? undefined,

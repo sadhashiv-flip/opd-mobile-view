@@ -7,6 +7,8 @@ export const DEFAULT_LOCATION_ADDRESS_LINE =
 export type SelectedAddressSnapshot = Readonly<{
   id: string;
   displayLine: string;
+  /** e.g. HOME, WORK — shown in location strips when set */
+  tag?: string;
 }>;
 
 const listeners = new Set<() => void>();
@@ -33,7 +35,10 @@ export function readSelectedAddress(): SelectedAddressSnapshot | null {
     const id = typeof o.id === "string" ? o.id : "";
     const displayLine = typeof o.displayLine === "string" ? o.displayLine : "";
     if (!id || !displayLine) return null;
-    return { id, displayLine };
+    const tagRaw = o.tag;
+    const tag =
+      typeof tagRaw === "string" && tagRaw.trim().length > 0 ? tagRaw.trim() : undefined;
+    return tag ? { id, displayLine, tag } : { id, displayLine };
   } catch {
     return null;
   }

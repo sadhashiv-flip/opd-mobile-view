@@ -66,6 +66,11 @@ export const ROUTES = {
   gymMembershipConfigure: "/services/gym-membership/configure",
   gymMembershipOverview: "/services/gym-membership/overview",
   gymMembershipSelectClinic: "/services/gym-membership/select-clinic",
+  /** Vaccination booking: member → vaccine list → slots → overview. */
+  vaccinationSelectPeople: "/services/vaccination/select-people",
+  vaccinationChooseType: "/services/vaccination/choose-type",
+  vaccinationSlots: "/services/vaccination/slots",
+  vaccinationOverview: "/services/vaccination/overview",
   /**
    * Mental Wellness vs Diet & Nutrition request form — same screen; `wellnessKind` is
    * `mental-wellness` | `nutrition` (see {@link WELLNESS_SESSION_KIND}).
