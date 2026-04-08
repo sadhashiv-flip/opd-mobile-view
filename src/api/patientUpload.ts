@@ -45,3 +45,42 @@ export async function uploadBankChequeFile(
   if (!id) throw new Error("Upload response missing data.id");
   return id;
 }
+
+/**
+ * POST `{VITE_API_UPLOAD_URL || VITE_API_BASE_URL}/upload` — multipart: `type=document`, `file`, `token`.
+ * Sends `app_name` (from `VITE_UPLOAD_APP_NAME`, default `co-flip-health`).
+ * Returns the full parsed JSON body from `/upload` (forwarded as-is to `POST support/ticket/:id`).
+ */
+export async function uploadSupportDocumentFile(file: File): Promise<unknown> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+
+  const fd = new FormData();
+  fd.append("type", "document");
+  fd.append("file", file, file.name);
+  fd.append("token", token);
+
+  const appName =
+    typeof import.meta.env.VITE_UPLOAD_APP_NAME === "string" && import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      ? import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      : "co-flip-health";
+
+  const res = await patientFetchUploadChecked("upload", {
+    method: "POST",
+    body: fd,
+    headers: { app_name: appName },
+  });
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty upload response");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid upload response");
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    throw new Error("Upload response must be a JSON object or array");
+  }
+  return parsed;
+}

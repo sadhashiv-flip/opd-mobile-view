@@ -1,6 +1,7 @@
-import { getPatientApiBase } from "@/api/patientClient";
 import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
 import { patientFetchChecked, patientJson, patientJsonList } from "@/api/patientHttp";
+import { resolveProfileImageUrl } from "@/api/patientProfile";
+import { uploadSupportDocumentFile } from "@/api/patientUpload";
 
 export type SupportTicketPayload = Readonly<{
     message: string;
@@ -259,9 +260,7 @@ function resolveAttachmentUrl(raw: string | null): string | null {
     const t = raw.trim();
     if (!t) return null;
     if (/^https?:\/\//i.test(t)) return t;
-    const base = getPatientApiBase().replace(/\/$/, "");
-    if (t.startsWith("/")) return `${base}${t}`;
-    return `${base}/${t}`;
+    return resolveProfileImageUrl(t);
 }
 
 function normalizeAttachment(item: unknown, index: number): SupportTicketAttachment | null {
@@ -370,7 +369,14 @@ function extractEmbeddedTicketRow(
 
     if (!looksLikeTicket) return null;
 
-    const row: Partial<SupportTicket> = {
+    const row: {
+        status?: string | null;
+        message?: string | null;
+        language?: string | null;
+        createdAt?: string | null;
+        updatedAt?: string | null;
+        feedback?: SupportTicketFeedback;
+    } = {
         status: str(o.status),
         message: str(o.message),
         language: str(o.language),
@@ -432,12 +438,40 @@ function normalizeThreadMessage(item: unknown, index: number): SupportTicketThre
         str(o.messageId) ??
         `msg-${index}`;
 
-    const text =
-        str(o.message) ??
-        str(o.body) ??
-        str(o.text) ??
-        str(o.content) ??
-        str(o.comment);
+    const msgRaw = o.message;
+    let text: string | null = null;
+    const fromMessageObject: SupportTicketAttachment[] = [];
+
+    if (msgRaw != null && typeof msgRaw === "object" && !Array.isArray(msgRaw)) {
+        const mo = msgRaw as Record<string, unknown>;
+        const path = str(mo.path);
+        const title = str(mo.title);
+        if (path) {
+            const url = resolveAttachmentUrl(path);
+            if (url) {
+                const mt = (str(o.type) ?? "").toUpperCase();
+                const mimeType =
+                    mt === "IMG"
+                        ? "image/jpeg"
+                        : mt === "PDF"
+                          ? "application/pdf"
+                          : null;
+                const baseName = path.includes("/") ? path.replace(/^.*\//, "") : path;
+                fromMessageObject.push({
+                    url,
+                    mimeType,
+                    name: title ?? baseName,
+                });
+            }
+        }
+    } else {
+        text =
+            str(msgRaw) ??
+            str(o.body) ??
+            str(o.text) ??
+            str(o.content) ??
+            str(o.comment);
+    }
 
     const createdAt =
         str(o.created_at) ??
@@ -449,6 +483,7 @@ function normalizeThreadMessage(item: unknown, index: number): SupportTicketThre
     const singleAttachment =
         o.attachment == null ? [] : normalizeAttachments([o.attachment]);
     const merged = [
+        ...fromMessageObject,
         ...normalizeAttachments(o.attachments),
         ...normalizeAttachments(o.media),
         ...normalizeAttachments(o.files),
@@ -544,8 +579,45 @@ export async function fetchSupportTicketDetail(ticketId: string): Promise<Suppor
     return normalizeSupportTicketDetail(raw, ticketId);
 }
 
+/**
+ * When `/upload` returns `{ data: { ... } }`, the ticket message body must be the inner object only
+ * (no `data` wrapper). Otherwise returns the response unchanged.
+ */
+function ticketMessageBodyFromUploadResponse(uploadResponseBody: unknown): unknown {
+    if (
+        uploadResponseBody !== null &&
+        typeof uploadResponseBody === "object" &&
+        !Array.isArray(uploadResponseBody) &&
+        Object.hasOwn(uploadResponseBody as object, "data")
+    ) {
+        const data = (uploadResponseBody as Record<string, unknown>).data;
+        if (data !== null && typeof data === "object" && !Array.isArray(data)) {
+            return data;
+        }
+    }
+    return uploadResponseBody;
+}
+
+/**
+ * Sends one support thread message: body is the upload JSON, unwrapping a top-level `data` object when present.
+ */
+export async function postSupportTicketUploadPayload(ticketId: string, uploadResponseBody: unknown): Promise<void> {
+    const path = `support/ticket/${encodeURIComponent(ticketId)}`;
+    const body = ticketMessageBodyFromUploadResponse(uploadResponseBody);
+    await patientFetchChecked(path, {
+        method: "POST",
+        body: JSON.stringify(body),
+    });
+}
+
 export type PostSupportTicketMessagePayload = Readonly<{
     message: string;
+    /**
+     * Parsed JSON from each `POST /upload` — if the shape is `{ data: { ... } }`, only the inner
+     * object is sent as the body of `POST support/ticket/:id` (one request per item).
+     */
+    uploadResponses?: readonly unknown[];
+    /** Upload on send, then post each full `/upload` JSON body to the ticket (legacy). */
     files?: readonly File[];
 }>;
 
@@ -554,21 +626,48 @@ export async function postSupportTicketMessage(
     payload: PostSupportTicketMessagePayload,
 ): Promise<void> {
     const path = `support/ticket/${encodeURIComponent(ticketId)}`;
-    const { message, files } = payload;
-    const list = files?.length ? [...files] : [];
+    const { message, files, uploadResponses } = payload;
+    const responseBodies = uploadResponses?.length ? [...uploadResponses] : [];
+    const fileList = files?.length ? [...files] : [];
+    const text = message.trim();
 
-    if (list.length > 0) {
-        const fd = new FormData();
-        fd.append("message", message);
-        for (const file of list) {
-            fd.append("files", file, file.name);
+    if (responseBodies.length > 0) {
+        if (text.length > 0) {
+            await patientFetchChecked(path, {
+                method: "POST",
+                body: JSON.stringify({ message: text }),
+            });
         }
-        await patientFetchChecked(path, { method: "POST", body: fd });
+        for (const body of responseBodies) {
+            const payload = ticketMessageBodyFromUploadResponse(body);
+            await patientFetchChecked(path, {
+                method: "POST",
+                body: JSON.stringify(payload),
+            });
+        }
+        return;
+    }
+
+    if (fileList.length > 0) {
+        const uploadedBodies = await Promise.all(fileList.map((file) => uploadSupportDocumentFile(file)));
+        if (text.length > 0) {
+            await patientFetchChecked(path, {
+                method: "POST",
+                body: JSON.stringify({ message: text }),
+            });
+        }
+        for (const body of uploadedBodies) {
+            const payload = ticketMessageBodyFromUploadResponse(body);
+            await patientFetchChecked(path, {
+                method: "POST",
+                body: JSON.stringify(payload),
+            });
+        }
         return;
     }
 
     await patientFetchChecked(path, {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message: text }),
     });
 }

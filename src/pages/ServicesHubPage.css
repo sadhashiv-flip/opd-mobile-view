@@ -123,12 +123,23 @@
 
 .service-hub-grid--cols-2 {
   grid-template-columns: repeat(
-    4,
+    3,
     minmax(0, var(--service-hub-card-width))
   );
   /* Fill from the left; avoids centered block when fewer columns than container */
   justify-content: start;
   justify-items: start;
+}
+
+/* Help tab only: four equal columns; cards shrink to track width on narrow screens */
+.service-hub-grid--cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: start;
+  justify-items: stretch;
+}
+
+.service-hub-grid--cols-4 .service-hub-card {
+  max-width: 100%;
 }
 
 .service-hub-card {
@@ -371,37 +382,32 @@
   line-height: 1;
 }
 
-.services-hub__support-card-feedback-btn {
-  flex-shrink: 0;
-  width: 48px;
-  align-self: stretch;
-  min-height: 100%;
+/* Same bar layout as .services-hub__support-card-view-details; gold for “provide feedback” */
+.services-hub__support-card-provide-feedback {
+  width: 100%;
+  margin: 0;
+  padding: 11px 14px;
   border: none;
-  border-left: 1px solid rgba(0, 0, 0, 0.06);
-  background: linear-gradient(180deg, #fff8e1 0%, #ffe082 100%);
-  color: #b45309;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(180deg, #fffbeb 0%, #ffdf8e 100%);
+  font: inherit;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 700;
+  color: #78350f;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 8px 4px;
-  font: inherit;
-  font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 800;
-  line-height: 1.1;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  cursor: pointer;
+  gap: 8px;
   -webkit-tap-highlight-color: transparent;
 }
 
-.services-hub__support-card-feedback-btn:active {
-  opacity: 0.88;
+.services-hub__support-card-provide-feedback:active {
+  opacity: 0.92;
 }
 
-.services-hub__support-card-feedback-icon {
-  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
+.services-hub__support-card-provide-feedback-icon {
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   line-height: 1;
 }
 
@@ -410,18 +416,6 @@
   justify-content: space-between;
   gap: 10px;
   align-items: flex-start;
-}
-
-.services-hub__support-feedback-pending {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #fff8e1;
-  color: #b45309;
-  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
-  font-weight: 600;
-  line-height: 1.35;
-  text-align: left;
 }
 
 .services-hub__support-card-body {

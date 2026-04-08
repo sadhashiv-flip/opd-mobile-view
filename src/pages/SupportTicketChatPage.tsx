@@ -1,4 +1,7 @@
-import { SupportTicketChatComposer } from "@/components/support/SupportTicketChatComposer";
+import {
+  SupportTicketChatComposer,
+  type SupportChatDraftAttachment,
+} from "@/components/support/SupportTicketChatComposer";
 import { SupportTicketChatInactiveFooter } from "@/components/support/SupportTicketChatInactiveFooter";
 import { SupportTicketChatLoadedBody } from "@/components/support/SupportTicketChatLoadedBody";
 import { SupportTicketFeedbackDialog } from "@/components/support/SupportTicketFeedbackDialog";
@@ -6,10 +9,12 @@ import {
   fetchSupportTicketDetail,
   parseSupportTicketFeedbackDisplay,
   postSupportTicketMessage,
+  postSupportTicketUploadPayload,
   supportTicketHasFeedback,
   type SupportTicketDetail,
   type SupportTicketThreadMessage,
 } from "@/api/supportTicket";
+import { uploadSupportDocumentFile } from "@/api/patientUpload";
 import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
 import { ROUTES } from "@/constants";
 import { useSupportTicketInactiveFeedback } from "@/hooks/useSupportTicketInactiveFeedback";
@@ -18,6 +23,13 @@ import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import "./SupportTicketChatPage.css";
+
+function newSupportAttachmentId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `att-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
 
 function formatTicketStatus(status: string | null): string {
   const normalized = (status ?? "").trim().toLowerCase();
@@ -60,7 +72,7 @@ export function SupportTicketChatPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<SupportChatDraftAttachment[]>([]);
   const [sending, setSending] = useState(false);
 
   const backTo = ROUTES.servicesHelpTab;
@@ -84,6 +96,16 @@ export function SupportTicketChatPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const reloadThread = useCallback(async () => {
+    if (!ticketId) return;
+    try {
+      const next = await fetchSupportTicketDetail(ticketId);
+      setDetail(next);
+    } catch {
+      toast.error("Could not refresh conversation");
+    }
+  }, [ticketId, toast]);
 
   const {
     isInactive,
@@ -123,35 +145,74 @@ export function SupportTicketChatPage() {
 
   const onPickFiles = useCallback(() => fileInputRef.current?.click(), []);
 
-  const onFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const list = e.target.files;
-    if (!list?.length) return;
-    setFiles((prev) => [...prev, ...Array.from(list)]);
-    e.target.value = "";
-  }, []);
+  const onFileChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const list = e.target.files;
+      if (!list?.length) return;
+      const picked = Array.from(list);
+      e.target.value = "";
 
-  const removeFile = useCallback((index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+      for (const file of picked) {
+        const id = newSupportAttachmentId();
+        setAttachments((prev) => [...prev, { id, fileName: file.name, uploading: true, error: null }]);
+
+        void uploadSupportDocumentFile(file)
+          .then(async (uploadResponse) => {
+            try {
+              await postSupportTicketUploadPayload(ticketId, uploadResponse);
+              setAttachments((prev) => prev.filter((a) => a.id !== id));
+              void reloadThread();
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : "Could not send attachment";
+              setAttachments((prev) => {
+                if (!prev.some((a) => a.id === id)) return prev;
+                return prev.map((a) => (a.id === id ? { ...a, uploading: false, error: msg } : a));
+              });
+              toast.error(msg);
+            }
+          })
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : "Upload failed";
+            setAttachments((prev) => {
+              if (!prev.some((a) => a.id === id)) return prev;
+              return prev.map((a) =>
+                a.id === id ? { ...a, uploading: false, error: msg } : a,
+              );
+            });
+            toast.error(msg);
+          });
+      }
+    },
+    [reloadThread, ticketId, toast],
+  );
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
   const send = useCallback(async () => {
     const text = draft.trim();
-    if (!text && files.length === 0) {
-      toast.error("Type a message or attach a file.");
+    if (attachments.some((a) => a.uploading)) {
+      toast.error("Wait for attachments to finish sending.");
+      return;
+    }
+    if (!text) {
+      toast.error("Type a message to send, or attach a file.");
       return;
     }
     setSending(true);
     try {
-      await postSupportTicketMessage(ticketId, { message: text, files: files.length ? files : undefined });
+      await postSupportTicketMessage(ticketId, { message: text });
       setDraft("");
-      setFiles([]);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not send");
     } finally {
       setSending(false);
     }
-  }, [draft, files, load, ticketId, toast]);
+  }, [attachments, draft, load, ticketId, toast]);
+
+  const sendDisabled = attachments.some((a) => a.uploading) || !draft.trim();
 
   if (!ticketId) {
     return (
@@ -204,12 +265,13 @@ export function SupportTicketChatPage() {
       {!loading && !loadError && detail && !isInactive ? (
         <SupportTicketChatComposer
           fileInputRef={fileInputRef}
-          files={files}
+          attachments={attachments}
           draft={draft}
           sending={sending}
+          sendDisabled={sendDisabled}
           onPickFiles={onPickFiles}
           onFileChange={onFileChange}
-          onRemoveFile={removeFile}
+          onRemoveAttachment={removeAttachment}
           onDraftChange={setDraft}
           onSend={() => {
             send().catch(() => {});

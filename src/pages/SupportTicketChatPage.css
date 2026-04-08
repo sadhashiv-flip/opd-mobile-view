@@ -374,15 +374,28 @@
   gap: 8px;
 }
 
-.support-chat__att-img-link {
+.support-chat__att-img-btn {
   display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
   border-radius: 12px;
   overflow: hidden;
   line-height: 0;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.06);
+  text-align: start;
+}
+
+.support-chat__att-img-btn:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
 }
 
 .support-chat__att-img {
   display: block;
+  width: 100%;
   max-width: 100%;
   max-height: 200px;
   object-fit: cover;
@@ -394,10 +407,280 @@
   text-decoration: underline;
   color: inherit;
   opacity: 0.95;
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: start;
+}
+
+.support-chat__att-file:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
 }
 
 .support-chat__bubble--in .support-chat__att-file {
   color: #1565c0;
+}
+
+.support-chat__att-pdf-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: min(100%, 280px);
+  padding: 10px 12px;
+  margin: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: start;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.support-chat__att-pdf-btn:active {
+  transform: scale(0.98);
+}
+
+.support-chat__att-pdf-btn:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+
+.support-chat__bubble--out .support-chat__att-pdf-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.support-chat__att-pdf-icon-wrap {
+  flex-shrink: 0;
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.support-chat__att-pdf-svg {
+  display: block;
+}
+
+.support-chat__att-pdf-name {
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1a1a1a;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-align: start;
+}
+
+.support-chat__bubble--out .support-chat__att-pdf-name {
+  color: #fff;
+}
+
+.support-chat__bubble--out .support-chat__att-pdf-svg path[fill="#F5F5F5"] {
+  fill: rgba(255, 255, 255, 0.92);
+}
+
+.support-chat__bubble--out .support-chat__att-pdf-svg path[stroke] {
+  stroke: rgba(255, 255, 255, 0.45);
+}
+
+.support-chat__bubble--out .support-chat__att-pdf-svg path[fill="#E0E0E0"] {
+  fill: rgba(255, 255, 255, 0.65);
+}
+
+/* Full-screen attachment preview (images, PDF iframe, generic file) */
+.support-chat__viewer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+}
+
+.support-chat__viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.72);
+  cursor: pointer;
+}
+
+.support-chat__viewer-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: min(100vw, 720px);
+  max-height: 100%;
+  margin: auto 12px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.support-chat__viewer-panel--image {
+  max-height: min(92vh, 900px);
+}
+
+.support-chat__viewer-panel--pdf {
+  max-height: min(92vh, 900px);
+}
+
+.support-chat__viewer-panel--pdf .support-chat__viewer-body {
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  background: #525252;
+}
+
+.support-chat__pdf-pages {
+  flex: 1;
+  min-height: min(62vh, 520px);
+  width: 100%;
+  max-height: min(72vh, 640px);
+  overflow: auto;
+  padding: 12px;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+}
+
+.support-chat__pdf-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 120px;
+}
+
+.support-chat__pdf-page-wrap {
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  background: #fff;
+  line-height: 0;
+}
+
+.support-chat__pdf-page-wrap:last-child {
+  margin-bottom: 0;
+}
+
+.support-chat__pdf-loading {
+  padding: 24px 16px;
+  text-align: center;
+  color: #e0e0e0;
+  font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+}
+
+.support-chat__pdf-error {
+  margin: 0 0 12px;
+  padding: 12px;
+  text-align: center;
+  color: #ffcdd2;
+  font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  line-height: 1.4;
+}
+
+.support-chat__viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fafafa;
+}
+
+.support-chat__viewer-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(14px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-chat__viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.support-chat__viewer-btn {
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+
+.support-chat__viewer-btn--ghost {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.support-chat__viewer-btn--close {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+  background: transparent;
+  color: #424242;
+}
+
+.support-chat__viewer-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d0d0d;
+}
+
+.support-chat__viewer-panel--file .support-chat__viewer-body {
+  background: #f5f5f5;
+  padding: 24px 20px;
+}
+
+.support-chat__viewer-img {
+  display: block;
+  max-width: 100%;
+  max-height: min(78vh, 820px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.support-chat__viewer-file-hint {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(14px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  color: #616161;
+  line-height: 1.5;
 }
 
 .support-chat__time {
@@ -437,6 +720,14 @@
   background: #e3f2fd;
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   max-width: 100%;
+}
+
+.support-chat__draft-file--uploading {
+  opacity: 0.85;
+}
+
+.support-chat__draft-file--error {
+  background: #ffebee;
 }
 
 .support-chat__draft-name {
