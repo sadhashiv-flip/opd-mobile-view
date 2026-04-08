@@ -54,6 +54,10 @@ export const ROUTES = {
   /** After `POST /appointment/network_book` succeeds. */
   consultationHospitalBookingSuccess: "/consultation/at_hospital/booking-success",
   dental: "/dental",
+  /** Dental booking: member selection (from home / dashboard Dental card). */
+  dentalSelectPeople: "/services/dental/select-people",
+  /** Dental booking: clinic network list for chosen address. */
+  dentalNetworkList: "/services/dental/network-list",
   vision: "/vision",
   pharmacy: "/pharmacy",
   orders: "/orders",

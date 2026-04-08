@@ -33,8 +33,12 @@ import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
 import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
 import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
 import { ConsultationVirtualAppointmentOverviewPage } from "@/pages/ConsultationVirtualAppointmentOverviewPage";
-import { ConsultationSelectPeoplePage } from "@/pages/ConsultationSelectPeoplePage";
-import { DiagnosticsSelectPeoplePage } from "../pages/DiagnosticsSelectPeoplePage";
+import {
+  ConsultationSelectPeoplePage,
+  DentalSelectPeoplePage,
+  DiagnosticsSelectPeoplePage,
+} from "@/pages/ConsultationSelectPeoplePage";
+import { DentalNetworkListPage } from "@/pages/DentalNetworkListPage";
 import { ConsultationEntryRedirect } from "@/app/ConsultationEntryRedirect";
 import { DiagnosticsEntryRedirect } from "@/app/DiagnosticsEntryRedirect";
 import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage";
@@ -119,6 +123,8 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessPage />} />
+      <Route path={ROUTES.dentalSelectPeople} element={<DentalSelectPeoplePage />} />
+      <Route path={ROUTES.dentalNetworkList} element={<DentalNetworkListPage />} />
       <Route path={ROUTES.dental} element={<PlaceholderPage title="Dental" />} />
       <Route path={ROUTES.vision} element={<PlaceholderPage title="Vision" />} />
       <Route

@@ -228,7 +228,11 @@ export function HealthCheckupsPage() {
           <button
             type="button"
             className="hc-add-family"
-            onClick={() => navigate(ROUTES.profileMembersAdd)}
+            onClick={() =>
+              navigate(ROUTES.profileMembersAdd, {
+                state: { returnPath: `${location.pathname}${location.search}` },
+              })
+            }
           >
             <span className="hc-add-family__ic" aria-hidden="true">
               +

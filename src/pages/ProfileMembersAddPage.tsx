@@ -267,6 +267,16 @@ export function ProfileMembersAddPage() {
     }
   };
 
+  const addFlowState = location.state as
+    | { returnPath?: string; returnState?: unknown }
+    | null
+    | undefined;
+  const flowReturnPath =
+    typeof addFlowState?.returnPath === "string" ? addFlowState.returnPath.trim() : "";
+  const hasFlowReturn = flowReturnPath.length > 0;
+  const backPath = hasFlowReturn ? flowReturnPath : ROUTES.profileMembers;
+  const backState = addFlowState?.returnState;
+
   const pageTitle = useMemo(() => {
     if (isEdit) return "Edit member";
     return "Add member";
@@ -293,7 +303,12 @@ export function ProfileMembersAddPage() {
   return (
     <div className="afm-page">
       <header className="afm-top">
-        <Link to={ROUTES.profileMembers} className="afm-back" aria-label="Back to members">
+        <Link
+          to={backPath}
+          {...(backState === undefined ? {} : { state: backState })}
+          className="afm-back"
+          aria-label={hasFlowReturn ? "Back" : "Back to members"}
+        >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

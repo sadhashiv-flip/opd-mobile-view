@@ -1,5 +1,5 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { ConsultationPatientBottomSheet } from "@/components/consultation/ConsultationPatientBottomSheet";
+import { SelectPeopleBottomSheet } from "@/components/select-people/SelectPeopleBottomSheet";
 import { VirtualAppointmentSlotBottomSheet } from "@/components/consultation/VirtualAppointmentSlotBottomSheet";
 import { ROUTES } from "@/constants";
 import {
@@ -286,7 +286,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
         </section>
       </main>
 
-      <ConsultationPatientBottomSheet
+      <SelectPeopleBottomSheet
         open={patientSheetOpen}
         onClose={() => setPatientSheetOpen(false)}
         onApplied={() => setPatientBump((n) => n + 1)}

@@ -20,7 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 
-export type SelectPeopleFlowKind = "consultation" | "diagnostics";
+export type SelectPeopleFlowKind = "consultation" | "diagnostics" | "dental";
 
 function defaultSelection(rows: GymMemberListRow[]): string[] {
   const primary = rows.find((r) => r.section === "self");
@@ -46,7 +46,14 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
   const consultationLabel = type === "at_hospital" ? "At Hospital" : "Virtual";
   const diagnosticsTitle = type === "lab-tests" ? "Lab Tests" : "Health Checkups";
-  const headerTitle = flow === "consultation" ? "Consultation" : diagnosticsTitle;
+  let headerTitle: string;
+  if (flow === "consultation") {
+    headerTitle = "Consultation";
+  } else if (flow === "dental") {
+    headerTitle = "Dental";
+  } else {
+    headerTitle = diagnosticsTitle;
+  }
 
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +143,13 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       writeConsultSelectedPersonIds([selected]);
       writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
       navigate(generatePath(ROUTES.consultationSpecialties, { type }));
+      return;
+    }
+
+    if (flow === "dental") {
+      writeDiagnosticsSelectedPersonIds([selected]);
+      writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
+      navigate(ROUTES.dentalNetworkList);
       return;
     }
 
@@ -260,7 +274,15 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                 </button>
               ))}
 
-              <button type="button" className="hc-add-family" onClick={() => navigate(ROUTES.profileMembersAdd)}>
+              <button
+                type="button"
+                className="hc-add-family"
+                onClick={() =>
+                  navigate(ROUTES.profileMembersAdd, {
+                    state: { returnPath: `${location.pathname}${location.search}` },
+                  })
+                }
+              >
                 <span className="hc-add-family__ic" aria-hidden="true">
                   +
                 </span>
@@ -282,4 +304,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
 export function ConsultationSelectPeoplePage() {
   return <SelectPeopleFlowPage flow="consultation" />;
+}
+
+export function DiagnosticsSelectPeoplePage() {
+  return <SelectPeopleFlowPage flow="diagnostics" />;
+}
+
+export function DentalSelectPeoplePage() {
+  return <SelectPeopleFlowPage flow="dental" />;
 }

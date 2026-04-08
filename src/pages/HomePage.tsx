@@ -237,7 +237,7 @@ export function HomePage() {
                 type="button"
                 className="home-card home-card--tile home-card--btn home-card--clickable"
                 aria-label="Open Dental"
-                onClick={() => navigate(ROUTES.dental)}
+                onClick={() => navigate(ROUTES.dentalSelectPeople)}
               >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Dental</h3>

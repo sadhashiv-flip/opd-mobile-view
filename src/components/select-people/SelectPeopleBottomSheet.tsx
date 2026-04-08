@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
 import {
@@ -15,12 +15,12 @@ import { useToast } from "@/hooks/useToast";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/HealthCheckupsPage.css";
 import "@/pages/HealthCheckupsOverviewPage.css";
-import "@/components/consultation/ConsultationPatientBottomSheet.css";
+import "@/components/select-people/SelectPeopleBottomSheet.css";
 
-export type ConsultationPatientBottomSheetProps = Readonly<{
+export type SelectPeopleBottomSheetProps = Readonly<{
   open: boolean;
   onClose: () => void;
-  /** After selection is saved to consultation storage. */
+  /** After selection is persisted (e.g. consultation storage); parent may refresh UI. */
   onApplied?: () => void;
 }>;
 
@@ -39,12 +39,9 @@ function readStoredPersonId(): string | null {
   }
 }
 
-export function ConsultationPatientBottomSheet({
-  open,
-  onClose,
-  onApplied,
-}: ConsultationPatientBottomSheetProps) {
+export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeopleBottomSheetProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -271,7 +268,9 @@ export function ConsultationPatientBottomSheet({
                   className="hc-add-family"
                   onClick={() => {
                     onClose();
-                    navigate(ROUTES.profileMembersAdd);
+                    navigate(ROUTES.profileMembersAdd, {
+                      state: { returnPath: `${location.pathname}${location.search}` },
+                    });
                   }}
                 >
                   <span className="hc-add-family__ic" aria-hidden="true">

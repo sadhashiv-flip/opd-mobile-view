@@ -1,5 +1,5 @@
 /**
- * Embeds the same Consultation / Virtual select-people layout (hc-*, hco-*) inside the bottom sheet panel.
+ * Select-people layout (hc-*, hco-*) inside a modal bottom sheet panel (booking / services flows).
  */
 .hcp-sp-sheet {
   width: 100%;

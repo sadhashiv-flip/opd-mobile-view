@@ -1,5 +1,7 @@
+import { fetchAllPatientAddresses } from "@/api/patientAddress";
 import { DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
-import { patientJsonList } from "@/api/patientHttp";
+import { patientJson, patientJsonList } from "@/api/patientHttp";
+import { readSelectedAddress } from "@/constants/selectedAddressStorage";
 
 /** Default map center (Hyderabad area) — override via `localStorage` key {@link NETWORK_LIST_LOCATION_STORAGE_KEY}. */
 export const DEFAULT_NETWORK_LIST_LOCATION = "17.44337659121972,78.3751130104065";
@@ -251,4 +253,104 @@ export async function fetchNetworkDoctorListPage(
   return extractRows(raw)
     .map((row, i) => normalizeDoctorRow(row, offset + i, params.speciality_id))
     .filter((x): x is NetworkListDoctorRow => x !== null);
+}
+
+/** Clinic row from `GET /network/list?service=dental` → `data.clnlist[]`. */
+export type DentalNetworkClinicRow = Readonly<{
+  available: boolean;
+  distance: string;
+  name: string;
+  providername: string;
+  city: string;
+  practiceaddress: string;
+  longitude: string;
+  latitude: string;
+  cell: string;
+  providerid: number;
+  clinicid: number;
+  /** Maps / directions URL when provided. */
+  location: string;
+  pin: string;
+  practicename: string;
+  provider: string;
+  primary_clinic: boolean;
+  email: string;
+}>;
+
+function normalizeDentalClinicRow(raw: unknown, index: number): DentalNetworkClinicRow | null {
+  const r = asRecord(raw);
+  if (!r) return null;
+  const name = str(r.name) ?? str(r.practicename) ?? `Clinic ${index + 1}`;
+  const practiceaddress = str(r.practiceaddress) ?? "";
+  const clinicid = num(r.clinicid) ?? num(r.clinic_id) ?? index;
+  const providerid = num(r.providerid) ?? num(r.provider_id) ?? 0;
+  return {
+    available: Boolean(r.available),
+    distance: str(r.distance) ?? "—",
+    name,
+    providername: str(r.providername) ?? "",
+    city: str(r.city) ?? "",
+    practiceaddress,
+    longitude: str(r.longitude) ?? "",
+    latitude: str(r.latitude) ?? "",
+    cell: str(r.cell) ?? "",
+    providerid,
+    clinicid,
+    location: str(r.location) ?? "",
+    pin: str(r.pin) ?? "",
+    practicename: str(r.practicename) ?? name,
+    provider: str(r.provider) ?? "",
+    primary_clinic: Boolean(r.primary_clinic),
+    email: str(r.email) ?? "",
+  };
+}
+
+function extractDentalClnlist(body: unknown): unknown[] {
+  const root = asRecord(body);
+  if (!root) return [];
+  const data = asRecord(root.data);
+  if (!data) return [];
+  const list = data.clnlist;
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * `GET /network/list?location=lat,lng&service=dental` (no `speciality_id`).
+ * Response: `data.clnlist[]`.
+ */
+export async function fetchDentalNetworkClinicList(
+  location: string,
+  init?: { skipGlobalLoading?: boolean },
+): Promise<DentalNetworkClinicRow[]> {
+  const query = [
+    `location=${encodeLocationQueryParam(location.trim())}`,
+    `service=${encodeURIComponent("dental")}`,
+  ].join("&");
+  const raw = await patientJson<unknown>(`network/list?${query}`, {
+    method: "GET",
+    skipGlobalLoading: init?.skipGlobalLoading,
+  });
+  return extractDentalClnlist(raw)
+    .map((row, i) => normalizeDentalClinicRow(row, i))
+    .filter((x): x is DentalNetworkClinicRow => x !== null);
+}
+
+/**
+ * Resolves `lat,lng` for {@link fetchDentalNetworkClinicList} from the same saved address
+ * used in “Choose address” (primary / selected / first), then falls back to {@link readNetworkListLocation}.
+ */
+export async function resolveSelectedAddressLocation(): Promise<string> {
+  try {
+    const list = await fetchAllPatientAddresses();
+    const sel = readSelectedAddress();
+    const row =
+      (sel ? list.find((a) => a.id === sel.id) : undefined) ??
+      list.find((a) => a.isPrimary) ??
+      list[0];
+    const loc = row?.location?.trim();
+    if (loc) return loc;
+  } catch {
+    // ignore
+  }
+  return readNetworkListLocation();
 }
