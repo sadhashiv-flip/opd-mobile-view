@@ -46,7 +46,6 @@ export function LoginPage() {
     setContact,
     phoneComplete,
     usePasswordLogin,
-    setUsePasswordLogin,
     password,
     setPassword,
     passwordVisible,

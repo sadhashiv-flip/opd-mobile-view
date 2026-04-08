@@ -103,8 +103,8 @@ export function ServicesHubPage() {
 
   const items = getHubItems(tabId);
   const heading = getHubHeading(tabId);
-  // Use 2 columns so cards can match the larger tile style consistently.
-  const gridCols = 2;
+  // Help tab: 4-column grid; other tabs keep the shared hub layout.
+  const gridCols = tabId === "help" ? 4 : 2;
 
   const [medicalSelectedId, setMedicalSelectedId] = useState("lab");
 
@@ -129,7 +129,7 @@ export function ServicesHubPage() {
     const normalized = (status ?? "").trim().toLowerCase();
     if (normalized === "0" || normalized === "created") return "Created";
     if (normalized === "1" || normalized === "active") return "Active";
-    if (normalized === "2" || normalized === "inactive") return "Inactive";
+    if (normalized === "2" || normalized === "Closed") return "Closed";
     if (normalized === "closed") return "Closed";
     if (normalized === "resolved") return "Resolved";
     if (normalized === "completed") return "Completed";
@@ -459,11 +459,6 @@ export function ServicesHubPage() {
                             <span className="services-hub__support-card-id">{ticket.id} [<span>{ticket.language ?? "English"}</span>]</span>
                             <span className={`services-hub__support-badge ${badgeClass}`}>{statusText}</span>
                           </div>
-                          {feedbackPending ? (
-                            <p className="services-hub__support-feedback-pending">
-                              Feedback pending — tap to rate this ticket
-                            </p>
-                          ) : null}
                           <div className="services-hub__support-card-body">
                             <p className="services-hub__support-card-message">{ticket.message ?? "No message available."}</p>
                             <div className="services-hub__support-card-meta">
@@ -481,20 +476,20 @@ export function ServicesHubPage() {
                             </div>
                           </div>
                         </button>
-                        {feedbackPending ? (
-                          <button
-                            type="button"
-                            className="services-hub__support-card-feedback-btn"
-                            onClick={() => openHubFeedbackSheet(ticket.id)}
-                            aria-label="Open feedback form for this ticket"
-                          >
-                            <span className="services-hub__support-card-feedback-icon" aria-hidden>
-                              ★
-                            </span>
-                            <span>Rate</span>
-                          </button>
-                        ) : null}
                       </div>
+                      {feedbackPending ? (
+                        <button
+                          type="button"
+                          className="services-hub__support-card-provide-feedback"
+                          onClick={() => openHubFeedbackSheet(ticket.id)}
+                          aria-label="Provide feedback for this ticket"
+                        >
+                          <span className="services-hub__support-card-provide-feedback-icon" aria-hidden>
+                            ★
+                          </span>
+                          <span>Provide feedback</span>
+                        </button>
+                      ) : null}
                       {hasSavedFeedback ? (
                         <button
                           type="button"

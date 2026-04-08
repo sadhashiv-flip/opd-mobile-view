@@ -4,6 +4,8 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
   /** Optional base for `POST /upload` (no trailing slash). Defaults to `VITE_API_BASE_URL`. */
   readonly VITE_API_UPLOAD_URL?: string;
+  /** `app_name` header for `POST /upload` (e.g. document uploads). Defaults to `co-flip-health`. */
+  readonly VITE_UPLOAD_APP_NAME?: string;
   /** Base URL for relative profile image paths (no trailing slash required). */
   readonly VITE_IMAGE_URL?: string;
   /** ≥16 chars; used to encrypt auth payload in localStorage (required for prod build). */

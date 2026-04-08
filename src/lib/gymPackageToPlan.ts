@@ -35,7 +35,6 @@ export function gymPackageToMembershipPlan(pkg: GymCheckPackage, index: number):
   const tierHighlight = words[0] ?? "Membership";
 
   const months = validityMonths(pkg) || 1;
-  const showStrikethrough = mrp > pay && mrp > 0;
 
   return {
     id: pkg.package_code,
