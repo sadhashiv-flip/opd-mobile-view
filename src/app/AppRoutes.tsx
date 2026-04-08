@@ -49,6 +49,11 @@ import { VaccinationSelectPeoplePage } from "@/pages/VaccinationSelectPeoplePage
 import { VaccinationChooseTypePage } from "@/pages/VaccinationChooseTypePage";
 import { VaccinationSlotsPage } from "@/pages/VaccinationSlotsPage";
 import { VaccinationOverviewPage } from "@/pages/VaccinationOverviewPage";
+import { PharmacyDeliveryPage } from "@/pages/PharmacyDeliveryPage";
+import { PharmacyUploadPage } from "@/pages/PharmacyUploadPage";
+import { PharmacySelectPrescriptionPage } from "@/pages/PharmacySelectPrescriptionPage";
+import { PharmacyPrescriptionDetailPage } from "@/pages/PharmacyPrescriptionDetailPage";
+import { PharmacyOrderSuccessPage } from "@/pages/PharmacyOrderSuccessPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -121,10 +126,11 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.dental} element={<PlaceholderPage title="Dental" />} />
       <Route path={ROUTES.vision} element={<PlaceholderPage title="Vision" />} />
-      <Route
-        path={ROUTES.pharmacy}
-        element={<PlaceholderPage title="Pharmacy" />}
-      />
+      <Route path={ROUTES.pharmacy} element={<PharmacyDeliveryPage />} />
+      <Route path={ROUTES.pharmacyUpload} element={<PharmacyUploadPage />} />
+      <Route path={ROUTES.pharmacySelectPrescription} element={<PharmacySelectPrescriptionPage />} />
+      <Route path={ROUTES.pharmacyPrescriptionDetail} element={<PharmacyPrescriptionDetailPage />} />
+      <Route path={ROUTES.pharmacyOrderSuccess} element={<PharmacyOrderSuccessPage />} />
       <Route path={ROUTES.ordersDetail} element={<OrderDetailsPage />} />
       <Route path={ROUTES.orders} element={<OrdersPage />} />
       <Route path={ROUTES.help} element={<Navigate to={ROUTES.servicesHelpTab} replace />} />

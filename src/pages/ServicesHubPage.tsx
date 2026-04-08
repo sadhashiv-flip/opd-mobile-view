@@ -364,6 +364,12 @@ export function ServicesHubPage() {
               cardAction = () => {
                 void navigate(ROUTES.vaccinationSelectPeople);
               };
+            } else if (tabId === "services" && item.id === "pharm") {
+              cardAction = () => {
+                void navigate(ROUTES.pharmacy, {
+                  state: { returnPath: `${ROUTES.services}?tab=services` },
+                });
+              };
             } else if (tabId === "account") {
               cardAction = () => {
                 const route = getAccountRoute(item.id);

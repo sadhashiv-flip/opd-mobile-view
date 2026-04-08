@@ -268,7 +268,7 @@ export function HomePage() {
                 type="button"
                 className="home-card home-card--tile home-card--btn home-card--clickable"
                 aria-label="Open Pharmacy"
-                onClick={() => navigate(ROUTES.pharmacy)}
+                onClick={() => navigate(ROUTES.pharmacy, { state: { returnPath: ROUTES.dashboard } })}
               >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Pharmacy</h3>

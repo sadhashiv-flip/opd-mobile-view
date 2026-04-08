@@ -56,6 +56,10 @@ export const ROUTES = {
   dental: "/dental",
   vision: "/vision",
   pharmacy: "/pharmacy",
+  pharmacyUpload: "/pharmacy/upload",
+  pharmacySelectPrescription: "/pharmacy/select-prescription",
+  pharmacyPrescriptionDetail: "/pharmacy/prescription/:prescriptionId",
+  pharmacyOrderSuccess: "/pharmacy/order-success",
   orders: "/orders",
   /** Invoice / order detail — `GET /invoice/:invoiceId`. */
   ordersDetail: "/orders/:invoiceId",
