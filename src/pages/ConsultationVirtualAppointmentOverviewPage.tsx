@@ -1,7 +1,14 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { ConsultationPatientBottomSheet } from "@/components/consultation/ConsultationPatientBottomSheet";
+import { VirtualAppointmentSlotBottomSheet } from "@/components/consultation/VirtualAppointmentSlotBottomSheet";
 import { ROUTES } from "@/constants";
-import { readConsultSelectedPersonIdNumber } from "@/constants/consultationSelectedMemberStorage";
+import {
+  readConsultSelectedPersonIdNumber,
+  readPrimaryConsultSelectedMemberSnapshot,
+} from "@/constants/consultationSelectedMemberStorage";
 import { bookAppointment } from "@/api/appointmentBook";
+import type { SearchablePickerOption } from "@/components/wellness/SearchablePickerField";
+import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
 import { useToast } from "@/hooks/useToast";
 import { useEffect, useMemo, useState } from "react";
 import "./ConsultationAppointmentOverviewPage.css";
@@ -26,34 +33,6 @@ const CONSULTATION_LANGUAGES: readonly { value: string; label: string }[] = [
   { value: "Urdu", label: "Urdu (اردو)" },
 ] as const;
 
-const STORAGE_PREFIX = "opd-mobile-view.virtualSlots.";
-
-type VirtualSpecialtySlotsState = Readonly<{
-  parent: number;
-  issueTitle: string;
-  spid: number;
-}>;
-
-function readStoredMeta(issueId: string): VirtualSpecialtySlotsState | null {
-  try {
-    const raw = sessionStorage.getItem(`${STORAGE_PREFIX}${issueId}`);
-    if (!raw) return null;
-    const p = JSON.parse(raw) as Partial<VirtualSpecialtySlotsState>;
-    if (
-      typeof p.parent === "number" &&
-      Number.isFinite(p.parent) &&
-      typeof p.spid === "number" &&
-      Number.isFinite(p.spid) &&
-      typeof p.issueTitle === "string"
-    ) {
-      return { parent: p.parent, spid: p.spid, issueTitle: p.issueTitle };
-    }
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
 /** Slot key from slots screen: `YYYY-MM-DD|time` (time normalized to `HH:mm:ss` for the API). */
 function parseVirtualBookingSlot(slotKey: string): { date: string; time: string } | null {
   if (!slotKey) return null;
@@ -72,33 +51,62 @@ function normalizeTimeForApi(raw: string): string {
   return t;
 }
 
+/** `YYYY-MM-DD` + slot time label → e.g. `September 15, 2025 | 2PM-3PM` */
+function formatVirtualDateTimeLine(slotDate: string, timeLabel: string): string {
+  if (!slotDate?.trim()) return timeLabel ? `— | ${timeLabel}` : "—";
+  const d = new Date(`${slotDate.trim()}T12:00:00`);
+  if (Number.isNaN(d.getTime())) {
+    return timeLabel ? `${slotDate} | ${timeLabel}` : slotDate;
+  }
+  const dateStr = d.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  return timeLabel ? `${dateStr} | ${timeLabel}` : dateStr;
+}
+
+function readVirtualSlotDateFromStorage(): string {
+  try {
+    return sessionStorage.getItem("opd-mobile-view.virtualBooking.slotDate") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function readVirtualSlotKeyFromStorage(): string {
+  try {
+    return sessionStorage.getItem("opd-mobile-view.virtualBooking.selectedSlotKey") ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function ConsultationVirtualAppointmentOverviewPage() {
   const params = useParams();
   const issueId = typeof params.issueId === "string" ? params.issueId : "";
 
-  const issueTitle = useMemo(() => readStoredMeta(issueId)?.issueTitle ?? "Appointment Overview", [issueId]);
-
-  const slotDate = useMemo(() => {
-    try {
-      return sessionStorage.getItem("opd-mobile-view.virtualBooking.slotDate") ?? "";
-    } catch {
-      return "";
-    }
-  }, []);
-
-  const slotKey = useMemo(() => {
-    try {
-      return sessionStorage.getItem("opd-mobile-view.virtualBooking.selectedSlotKey") ?? "";
-    } catch {
-      return "";
-    }
-  }, []);
+  const [virtualSlotDate, setVirtualSlotDate] = useState(readVirtualSlotDateFromStorage);
+  const [virtualSlotKey, setVirtualSlotKey] = useState(readVirtualSlotKeyFromStorage);
+  const [patientBump, setPatientBump] = useState(0);
+  const [patientSheetOpen, setPatientSheetOpen] = useState(false);
+  const [slotSheetOpen, setSlotSheetOpen] = useState(false);
 
   const timeLabel = useMemo(() => {
-    if (!slotKey) return "";
-    const parts = slotKey.split("|");
+    if (!virtualSlotKey) return "";
+    const parts = virtualSlotKey.split("|");
     return parts.length >= 2 ? parts.slice(1).join("|") : "";
-  }, [slotKey]);
+  }, [virtualSlotKey]);
+
+  const patientLabel = useMemo(
+    () => readPrimaryConsultSelectedMemberSnapshot()?.name?.trim() || "Patient",
+    [patientBump],
+  );
+
+  const dateTimeDisplay = useMemo(
+    () => formatVirtualDateTimeLine(virtualSlotDate, timeLabel),
+    [virtualSlotDate, timeLabel],
+  );
 
   const navigate = useNavigate();
   const toast = useToast();
@@ -140,14 +148,18 @@ export function ConsultationVirtualAppointmentOverviewPage() {
     }
   }, [language]);
 
-  const patientId = readConsultSelectedPersonIdNumber();
+  const patientId = useMemo(() => readConsultSelectedPersonIdNumber(), [patientBump]);
 
-  const slotParsed = useMemo(() => parseVirtualBookingSlot(slotKey), [slotKey]);
+  const slotParsed = useMemo(() => parseVirtualBookingSlot(virtualSlotKey), [virtualSlotKey]);
 
   const issueIdNum = useMemo(() => {
     const n = Number(issueId);
     return Number.isFinite(n) ? n : Number.NaN;
   }, [issueId]);
+
+  const languagePickerOptions = useMemo((): readonly SearchablePickerOption[] => {
+    return CONSULTATION_LANGUAGES.map((x) => ({ value: x.value, label: x.label }));
+  }, []);
 
   const canBookNow =
     purpose.trim().length > 0 &&
@@ -178,19 +190,15 @@ export function ConsultationVirtualAppointmentOverviewPage() {
       </header>
 
       <main className="cao-main">
-        <section className="cao-doc">
-          <div className="cao-doc__top">
-            <div className="cao-doc__avatar" aria-hidden="true" />
-            <div className="cao-doc__meta">
-              <div className="cao-doc__name">{issueTitle}</div>
-              <div className="cao-doc__sub">Virtual consultation</div>
-            </div>
-            <div className="cao-chip">Cashless Available</div>
-          </div>
-        </section>
 
         <section className="cao-field">
-          <div className="cao-field__label">Purpose of consultation</div>
+          <div className="cao-field__label">
+            Purpose of consultation
+            <span className="cao-field__req" aria-hidden="true">
+              {" "}
+              *
+            </span>
+          </div>
           <textarea
             className="cao-textarea"
             name="purpose"
@@ -199,52 +207,101 @@ export function ConsultationVirtualAppointmentOverviewPage() {
             placeholder="Briefly describe why you need this consultation"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            aria-label="Purpose of consultation"
+            aria-label="Purpose of consultation (required)"
+            required
           />
         </section>
 
         <section className="cao-field">
-          <div className="cao-field__label">Language</div>
-          <div className="cao-field__row cao-field__row--select">
-            <select
-              id="virtual-consult-language"
-              className="cao-select"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              aria-label="Preferred language"
-            >
-              <option value="" disabled>
-                Select language
-              </option>
-              {CONSULTATION_LANGUAGES.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SearchablePickerField
+            label="Language"
+            requiredMark
+            placeholder="Select language"
+            sheetTitle="Preferred language"
+            searchPlaceholder="Search language…"
+            options={languagePickerOptions}
+            value={language}
+            onChange={setLanguage}
+            pageSize={12}
+            emptySearchMessage="No language matches your search"
+            fieldClassName="cao-field__searchable-picker"
+          />
         </section>
 
-        <section className="cao-fees">
-          <div className="cao-fees__row">
-            <span>Doctor&apos;s Fee</span>
-            <strong>₹ 0</strong>
-          </div>
-          <div className="cao-fees__row cao-fees__row--total">
-            <span>Total Amount</span>
-            <strong>₹ 0</strong>
+        <section className="cao-field">
+          <div className="cao-field__label">Patient</div>
+          <div className="cao-field__row">
+            <div className="cao-field__value">{patientLabel}</div>
+            <button
+              type="button"
+              className="cao-edit"
+              aria-label="Edit patient"
+              onClick={() => setPatientSheetOpen(true)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5z"
+                  stroke="#1A73E8"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         </section>
 
         <section className="cao-field">
           <div className="cao-field__label">Date and time</div>
           <div className="cao-field__row">
-            <div className="cao-field__value">
-              {slotDate || "—"} {timeLabel ? `| ${timeLabel}` : ""}
-            </div>
+            <div className="cao-field__value">{dateTimeDisplay}</div>
+            <button
+              type="button"
+              className="cao-edit"
+              aria-label="Edit date and time"
+              onClick={() => setSlotSheetOpen(true)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5z"
+                  stroke="#1A73E8"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </div>
         </section>
+
+        <section className="cao-disc">
+          <div className="cao-disc__title">Disclaimer</div>
+          <ol className="cao-disc__list">
+            <li>
+              The Fees and Timings are tentative and may subject to change at the time of consultation
+            </li>
+            <li>
+              Registration fee charged by Clinic or Hospital are not covered under OPD insurance and has
+              to be borne by the insured
+            </li>
+          </ol>
+        </section>
       </main>
+
+      <ConsultationPatientBottomSheet
+        open={patientSheetOpen}
+        onClose={() => setPatientSheetOpen(false)}
+        onApplied={() => setPatientBump((n) => n + 1)}
+      />
+      <VirtualAppointmentSlotBottomSheet
+        open={slotSheetOpen}
+        onClose={() => setSlotSheetOpen(false)}
+        issueId={issueId}
+        slotDate={virtualSlotDate}
+        slotKey={virtualSlotKey}
+        onApplied={({ slotDate, slotKey }) => {
+          setVirtualSlotDate(slotDate);
+          setVirtualSlotKey(slotKey);
+        }}
+      />
 
       <footer className="cao-footer">
         <button

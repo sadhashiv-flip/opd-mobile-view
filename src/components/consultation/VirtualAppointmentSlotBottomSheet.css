@@ -1,0 +1,55 @@
+/**
+ * Embeds the same virtual slots page layout (cvsl-*) inside the bottom sheet panel.
+ */
+.vas-cvsl-sheet {
+  width: 100%;
+  max-width: 420px;
+  max-height: min(94dvh, 780px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  animation: vas-cvsl-sheet-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes vas-cvsl-sheet-in {
+  from {
+    transform: translateY(104%);
+    opacity: 0.96;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.vas-cvsl-sheet__inner {
+  flex: 1;
+  min-height: 0;
+  max-height: min(94dvh, 780px);
+  display: flex;
+  flex-direction: column;
+}
+
+.vas-cvsl-sheet__inner.cvsl-page {
+  min-height: 0 !important;
+  height: 100%;
+  max-height: inherit;
+}
+
+.vas-cvsl-sheet__inner .cvsl-main {
+  flex: 1;
+  min-height: 0;
+}
+
+.vas-cvsl-top {
+  justify-content: space-between;
+}
+
+.vas-cvsl-top .cvsl-title {
+  flex: 1;
+  min-width: 0;
+}

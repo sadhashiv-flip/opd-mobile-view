@@ -150,6 +150,142 @@
   margin-bottom: 6px;
 }
 
+.cao-field__req {
+  color: #ff541e;
+  font-weight: 900;
+}
+
+/* SearchablePickerField embedded in overview cao-field: align label with .cao-field__label */
+.cao-field .cao-field__searchable-picker.searchable-picker-field {
+  margin-bottom: 0;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__label {
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 900;
+  color: #111111;
+  margin-bottom: 6px;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__req {
+  color: #ff541e;
+}
+
+/* Trigger: same visual rhythm as .cao-field__row + .cao-select */
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger {
+  min-height: 0;
+  padding: 10px 10px 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ededed;
+  background: #ffffff;
+  box-shadow: none;
+  font-family: inherit;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 700;
+  line-height: 1.35;
+  color: #111111;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger:hover:not(:disabled) {
+  border-color: #e4e4e4;
+  background: #ffffff;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger:focus-visible {
+  border-color: #d0d0d0;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.06);
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger-text {
+  font-size: inherit;
+  font-weight: 800;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger-text--placeholder {
+  color: #9a9a9a;
+  font-weight: 600;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger-chevron {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #f3f3f3;
+  color: #111111;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-field__trigger:focus-visible .searchable-picker-field__trigger-chevron {
+  background: #ececec;
+  color: #111111;
+}
+
+/* Sheet opened from overview: align with cao / page typography */
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__title {
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__search {
+  border-radius: 10px;
+  border: 1px solid #ededed;
+  padding: 10px 12px 10px 42px;
+  font-family: inherit;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 600;
+  background: #ffffff;
+  color: #111111;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__search:focus {
+  border-color: #ededed;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.06);
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__search::placeholder {
+  color: #9a9a9a;
+  font-weight: 600;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__meta {
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 700;
+  color: #8f8f8f;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__row {
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #ededed;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__row:hover {
+  background: #fafafa;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__row--active {
+  background: #fff8f5;
+  box-shadow: inset 0 0 0 1px rgba(255, 84, 30, 0.28);
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__row-label {
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 800;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__row-desc {
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 600;
+  color: #616161;
+}
+
+.cao-field .cao-field__searchable-picker .searchable-picker-sheet__check {
+  color: #ff541e;
+}
+
 .cao-field__row {
   border: 1px solid #ededed;
   border-radius: 10px;

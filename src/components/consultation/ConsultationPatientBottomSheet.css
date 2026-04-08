@@ -1,0 +1,53 @@
+/**
+ * Embeds the same Consultation / Virtual select-people layout (hc-*, hco-*) inside the bottom sheet panel.
+ */
+.hcp-sp-sheet {
+  width: 100%;
+  max-width: 420px;
+  max-height: min(92dvh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  animation: hcp-sp-sheet-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hcp-sp-sheet-in {
+  from {
+    transform: translateY(104%);
+    opacity: 0.96;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.hcp-sp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px 8px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-bottom: 1px solid #ececec;
+}
+
+.hcp-sp-top .hco-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.hcp-sp-sheet .hc-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+
+.hcp-sp-sheet .hc-footer {
+  flex-shrink: 0;
+}
