@@ -28,7 +28,11 @@ export type NetworkListDoctorRow = Readonly<{
   /** e.g. "21+ years exp" */
   expLabel: string;
   networkName: string;
+  /** Clinic / hospital address when provided by API. */
+  networkAddress: string;
   consultationFee: number;
+  /** Minutes from speciality `jsonVault` / API when present. */
+  consultationTime: number | null;
   imageUrl: string | null;
 }>;
 
@@ -97,22 +101,34 @@ function consultationPriceFromVault(vault: Record<string, unknown> | null): numb
   return num(vault.consultation_price) ?? num(vault.consultationPrice) ?? null;
 }
 
+function consultationTimeFromVault(vault: Record<string, unknown> | null): number | null {
+  if (!vault) return null;
+  return num(vault.consultation_time) ?? num(vault.consultationTime) ?? null;
+}
+
 /** Prefer `specialities[]` row matching `speciality_id`, then first entry. */
-function extractConsultationPriceFromSpecialities(raw: unknown, specialityId: number): number | null {
+function extractConsultationFromSpecialities(
+  raw: unknown,
+  specialityId: number,
+): Readonly<{ price: number | null; time: number | null }> {
   const r = asRecord(raw);
-  if (!r) return null;
+  if (!r) return { price: null, time: null };
   const specs = r.specialities;
-  if (!Array.isArray(specs) || specs.length === 0) return null;
+  if (!Array.isArray(specs) || specs.length === 0) return { price: null, time: null };
   const match = specs.find((s) => {
     const o = asRecord(s);
     return o != null && num(o.speciality_id) === specialityId;
   });
   const chosen = asRecord(match ?? specs[0]);
-  if (!chosen) return null;
+  if (!chosen) return { price: null, time: null };
   const info = asRecord(chosen.speciality_info);
-  if (!info) return null;
+  if (!info) return { price: null, time: null };
   const vaultRaw = info.jsonVault ?? info.json_vault;
-  return consultationPriceFromVault(parseJsonVault(vaultRaw));
+  const vault = parseJsonVault(vaultRaw);
+  return {
+    price: consultationPriceFromVault(vault),
+    time: consultationTimeFromVault(vault),
+  };
 }
 
 function formatExperienceLabel(r: Record<string, unknown>): string {
@@ -155,19 +171,39 @@ function normalizeDoctorRow(raw: unknown, index: number, specialityId: number): 
     str(r.clinic_name) ??
     str(r.center) ??
     "";
-  const fromVault = extractConsultationPriceFromSpecialities(raw, specialityId);
+  const networkAddress =
+    str(net?.address) ??
+    str(net?.full_address) ??
+    str(net?.location) ??
+    str(r.hospital_address) ??
+    str(r.clinic_address) ??
+    str(r.branch_address) ??
+    "";
+  const fromSpec = extractConsultationFromSpecialities(raw, specialityId);
   const consultationFee =
-    fromVault ??
+    fromSpec.price ??
     num(r.fee) ??
     num(r.consultation_fee) ??
     num(r.consultation_price) ??
     num(r.price) ??
     num(r.amount) ??
     0;
+  const consultationTime = fromSpec.time ?? num(r.consultation_time) ?? null;
   const imageUrl =
     str(r.image) ?? str(r.photo) ?? str(r.profile_image) ?? str(r.avatar) ?? str(r.profileImage) ?? null;
 
-  return { id, networkId, name, degree, expLabel, networkName, consultationFee, imageUrl };
+  return {
+    id,
+    networkId,
+    name,
+    degree,
+    expLabel,
+    networkName,
+    networkAddress,
+    consultationFee,
+    consultationTime,
+    imageUrl,
+  };
 }
 
 /** Resolved location string for `network/list?location=`. */

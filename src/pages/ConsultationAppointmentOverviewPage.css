@@ -16,6 +16,7 @@
   z-index: 20;
   background: #ffffff;
   border-bottom: 1px solid #ececec;
+  min-width: 0;
 }
 
 .cao-back {
@@ -31,8 +32,13 @@
 
 .cao-title {
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cao-main {
@@ -40,114 +46,129 @@
   padding: 8px 14px 96px;
 }
 
-.cao-doc {
+.cao-summary {
   border: 1px solid #ededed;
   border-radius: 14px;
   background: #ffffff;
   padding: 12px;
 }
 
-.cao-doc__top {
+.cao-summary__title {
+  margin: 0 0 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+}
+
+.cao-summary__doc {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
-.cao-doc__avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 999px;
-  background: #f1f1f1;
-  border: 1px solid #e9e9e9;
+.cao-summary__ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fff1ed;
+  border: 1px solid rgba(255, 84, 30, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
-.cao-doc__meta {
+.cao-summary__ic-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.cao-summary__docmeta {
   min-width: 0;
   flex: 1;
 }
 
-.cao-doc__name {
+.cao-summary__name {
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
-  font-weight: 900;
+  font-weight: 800;
+  color: #111111;
+  line-height: 1.25;
 }
 
-.cao-doc__sub {
-  margin-top: 2px;
-  font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 700;
+.cao-summary__deg {
+  margin-top: 4px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 400;
   color: #9a9a9a;
+  line-height: 1.3;
 }
 
-.cao-chip {
-  border-radius: 999px;
-  padding: 4px 8px;
-  background: #12b10f;
-  color: #ffffff;
-  font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 900;
-  white-space: nowrap;
+.cao-summary__spec {
+  margin-top: 4px;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 600;
+  color: #ff541e;
+  line-height: 1.25;
 }
 
-.cao-tags {
-  margin-top: 10px;
+.cao-summary__appt {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #efefef;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cao-summary__appt-row {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 500;
+  color: #757575;
+}
+
+.cao-summary__appt-row--hosp {
   gap: 8px;
 }
 
-.cao-tag {
-  font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 800;
-  color: #ff541e;
+.cao-summary__appt-pair {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.cao-tag--pill {
-  color: #1a73e8;
-  border: 1px solid #d7e6ff;
-  background: #f3f8ff;
-  padding: 4px 8px;
-  border-radius: 999px;
+.cao-summary__meta-ic {
+  display: inline-flex;
+  color: #757575;
+  flex-shrink: 0;
 }
 
-.cao-fees {
-  margin-top: 10px;
-  border: 1px solid #ededed;
-  border-radius: 14px;
-  overflow: hidden;
+.cao-summary__hosp-ic {
+  display: inline-flex;
+  flex-shrink: 0;
 }
 
-.cao-fees__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
-  font-weight: 800;
-  color: #111111;
-  background: #ffffff;
+.cao-summary__hosp-name {
+  flex: 1;
+  min-width: 0;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 500;
+  color: #757575;
+  line-height: 1.35;
 }
 
-.cao-fees__row + .cao-fees__row {
-  border-top: 1px solid #efefef;
-}
-
-.cao-fees__row--total {
-  background: #ffffff;
-}
-
-.cao-field {
-  margin-top: 12px;
-}
 
 .cao-field__label {
-  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
-  font-weight: 900;
-  color: #111111;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+  color: #9a9a9a;
   margin-bottom: 6px;
+  margin: 5px;
 }
 
 .cao-field__req {
@@ -298,7 +319,7 @@
 }
 
 .cao-field__value {
-  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
@@ -325,6 +346,17 @@
 
 .cao-field__row--select {
   padding: 8px 10px;
+}
+
+.cao-purpose {
+  margin-top: 14px;
+}
+
+.cao-purpose__title {
+  margin: 0 7px 8px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 600;
+  color: #111111;
 }
 
 .cao-textarea {
@@ -380,27 +412,33 @@
 }
 
 .cao-disc {
-  margin-top: 12px;
+  margin-top: 14px;
   border: 1px solid #ededed;
-  border-radius: 10px;
-  background: #f0f3f3;
-  padding: 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cao-disc__head {
+  padding: 10px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ededed;
 }
 
 .cao-disc__title {
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
-  font-weight: 900;
+  font-weight: 800;
   color: #111111;
-  margin-bottom: 8px;
+  margin: 0;
 }
 
 .cao-disc__list {
   margin: 0;
-  padding-left: 18px;
+  padding: 12px 12px 12px 10px;
   color: #6f6f6f;
   font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 700;
-  line-height: 1.35;
+  font-weight: 500;
+  line-height: 1.60;
 }
 
 .cao-footer {

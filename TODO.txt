@@ -2,3 +2,6 @@
     -> maintain Homepage css and Remaining 
 => maintain Header all at one object and use it everywhere as like variables.
 => add "/select-people" end point for member selection screen. 
+=> Remove Doctor card in Appointment overview - virtual
+=> add patient changing in Appointment overview screen
+=> Remove the address from "http://localhost:3000/consultation/virtual/specialties" screen

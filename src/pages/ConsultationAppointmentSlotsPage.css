@@ -16,6 +16,7 @@
   z-index: 20;
   background: #ffffff;
   border-bottom: 1px solid #ececec;
+  min-width: 0;
 }
 
 .cas-back {
@@ -31,9 +32,14 @@
 
 .cas-title {
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 900;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cas-main {
@@ -41,15 +47,29 @@
   padding: 8px 14px 96px;
 }
 
-.cas-note {
-  border: 1px solid #ededed;
-  background: #f7f7f7;
-  color: #6f6f6f;
-  border-radius: 8px;
-  padding: 10px;
+.cas-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid rgba(255, 112, 67, 0.35);
+  background: #fff1ee;
+  color: #5c5c5c;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 4px;
+}
+
+.cas-alert__ic {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cas-alert__txt {
+  margin: 0;
   font-size: max(7px, calc(10 * 100cqw / 375));
-  font-weight: 700;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .cas-network-note {
@@ -86,7 +106,7 @@
   align-items: center;
   gap: 8px;
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
-  font-weight: 800;
+  font-weight: 600;
   color: #111111;
 }
 
@@ -131,8 +151,13 @@
 .cas-day__dow {
   margin-top: 2px;
   font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 800;
-  opacity: 0.9;
+  font-weight: 600;
+  color: #757575;
+}
+
+.cas-day--active .cas-day__dow {
+  color: #ffffff;
+  opacity: 1;
 }
 
 .cas-divider {
@@ -150,13 +175,13 @@
   align-items: center;
   gap: 8px;
   font-size: max(7px, calc(10 * 100cqw / 375));
-  font-weight: 900;
-  color: #9a9a9a;
+  font-weight: 600;
+  color: #757575;
   margin-bottom: 10px;
 }
 
 .cas-sun {
-  color: #ff541e;
+  color: #ff7043;
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1;
 }
@@ -166,19 +191,27 @@
 }
 
 .cas-slots {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
+.cas-empty-slots {
+  padding: 28px 8px 8px;
+  text-align: center;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 600;
+  color: #757575;
+}
+
 .cas-slot {
-  height: 34px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 8px 10px;
   border-radius: 999px;
-  border: 1px solid #d9d9d9;
+  border: 1px solid #e0e0e0;
   background: #ffffff;
   font-size: max(7px, calc(10 * 100cqw / 375));
-  font-weight: 900;
+  font-weight: 600;
   color: #111111;
   cursor: pointer;
 }

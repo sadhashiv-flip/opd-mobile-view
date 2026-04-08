@@ -125,14 +125,15 @@
 }
 
 .chr-search {
-  border: 1px solid #e5e5e5;
-  border-radius: 10px;
-  padding: 5px 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #ffffff;
-}
+   margin: 0 0 12px;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 10px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+  }
 
 .chr-search__ic {
   display: inline-flex;
@@ -244,16 +245,6 @@
   margin-top: 0px;
 }
 
-.chr-dlist__head {
-  margin-bottom: 8px;
-}
-
-.chr-dlist__title {
-  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
-  font-weight: 900;
-  color: #111111;
-}
-
 .chr-dlist-more {
   padding: 12px 4px 4px;
   text-align: center;
@@ -321,11 +312,64 @@
   line-height: 1;
 }
 
-.chr-dcard__sec--tags {
+.chr-dtags__hospital-row {
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.chr-dtags__hospital-ic {
+  display: flex;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.chr-dtags__hospital-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  align-items: center;
+}
+
+.chr-dtags__hospital-name {
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+  line-height: 1.25;
+}
+
+.chr-dtags__hospital-addr-line {
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 400;
+  color: #6f6f6f;
+  line-height: 1.45;
+}
+
+.chr-dtags__exp {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.chr-dtags__exp-ic {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.chr-dtags__exp-txt {
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 400;
+  color: #6f6f6f;
+  line-height: 1.35;
+}
+
+.chr-dcard__sec--cta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
 }
 
 .chr-dcard__sec--fee {
@@ -338,17 +382,53 @@
 
 .chr-doc {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
 }
 
-.chr-doc__avatar {
+.chr-doc__avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
+
+.chr-doc__avatar--placeholder {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
   border-radius: 999px;
-  background: #f1f1f1;
-  border: 1px solid #e9e9e9;
   flex-shrink: 0;
+  background: linear-gradient(165deg, #7ec8f5 0%, #42a5f5 55%, #1e88e5 100%);
+  border: 1px solid rgba(30, 136, 229, 0.45);
+  box-sizing: border-box;
+}
+
+.chr-doc__avatar-letter {
+  font-size: clamp(16px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.chr-doc__avatar-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #1565c0;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .chr-doc__avatar-img {
@@ -361,17 +441,62 @@
   display: block;
 }
 
+.chr-doc__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.chr-doc__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
 .chr-doc__name {
+  flex: 1;
+  min-width: 0;
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   color: #111111;
+  line-height: 1.25;
+}
+
+.chr-doc__price-pill {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e6f4ea;
+  color: #1b7a3d;
+  font-size: clamp(10px, calc(10 * 100cqw / 375), calc(10 * 1.12px));
+  font-weight: 800;
+  line-height: 1;
+}
+
+.chr-doc__chev {
+  flex-shrink: 0;
+  color: #111111;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
 }
 
 .chr-doc__deg {
-  margin-top: 1px;
   font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 700;
+  font-weight: 400;
   color: #9a9a9a;
+}
+
+.chr-doc__spec {
+  font-size: clamp(10px, calc(10 * 100cqw / 375), calc(10 * 1.12px));
+  font-weight: 400;
+  color: #ff541e;
+  line-height: 0.9;
 }
 
 .chr-chip {
