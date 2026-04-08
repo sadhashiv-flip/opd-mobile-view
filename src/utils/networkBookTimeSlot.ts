@@ -45,3 +45,13 @@ export function formatNetworkBookTimeSlot(dayName: string, openingTime: string):
   const timePart = normalizeAmPmTime(openingTime);
   return `${datePart} ${timePart}`;
 }
+
+/** Prefer this when the exact calendar day is already chosen in the slot UI. */
+export function formatNetworkBookTimeSlotForDate(date: Date, time12h: string): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const datePart = `${y}-${m}-${day}`;
+  const timePart = normalizeAmPmTime(time12h);
+  return `${datePart} ${timePart}`;
+}

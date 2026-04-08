@@ -14,6 +14,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -21,6 +22,7 @@ import {
 } from "react";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { useToast } from "@/hooks/useToast";
+import consultationAtHospitalSvg from "@/assets/icons/common/ConsultationAtHospital.svg";
 import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationSpecialtiesPage.css";
 
@@ -58,6 +60,13 @@ export function ConsultationSpecialtiesPage() {
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const cspLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
+
+  const filteredHospitalSpecs = useMemo(() => {
+    const q = hospitalSearchQuery.trim().toLowerCase();
+    if (!q) return hospitalSpecs;
+    return hospitalSpecs.filter((s) => s.name.toLowerCase().includes(q));
+  }, [hospitalSpecs, hospitalSearchQuery]);
 
   useEffect(() => {
     if (!isHospital) return;
@@ -264,6 +273,10 @@ export function ConsultationSpecialtiesPage() {
     hospitalSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties available right now.</div>
     );
+  } else if (filteredHospitalSpecs.length === 0) {
+    hospitalSpecialtiesBody = (
+      <div className="csp-issues-msg">No specialties match your search.</div>
+    );
   } else {
     hospitalSpecialtiesBody = (
       <>
@@ -273,23 +286,50 @@ export function ConsultationSpecialtiesPage() {
           aria-label="Common specialties"
           onScroll={onHospitalScroll}
         >
-          {hospitalSpecs.map((s) => {
+          {filteredHospitalSpecs.map((s) => {
             const idStr = String(s.id);
-            const initial = s.name.trim().charAt(0).toUpperCase() || "—";
             return (
               <li key={s.id}>
                 <button
                   type="button"
-                  className="csp-item"
+                  className="csp-item csp-item--hospital"
                   onClick={() => {
                     rememberHospitalSpecialtyName(idStr, s.name);
                     navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: idStr }));
                   }}
                 >
-                  <div className="csp-item__ic" aria-hidden="true">
-                    <span className="csp-item__ic-letter">{initial}</span>
+                  <div className="csp-item__ic csp-item__ic--hospital" aria-hidden="true">
+                    <img
+                      src={consultationAtHospitalSvg}
+                      alt=""
+                      className="csp-item__ic-hospital-img"
+                      width={22}
+                      height={22}
+                      draggable={false}
+                    />
                   </div>
-                  <div className="csp-item__label">{s.name}</div>
+                  <div className="csp-item__text">
+                    <div className="csp-item__label">{s.name}</div>
+                    {typeof s.consultation_time === "number" ? (
+                      <div className="csp-item__meta">{s.consultation_time} min</div>
+                    ) : null}
+                  </div>
+                  {typeof s.consultation_price === "number" ? (
+                    <span className="csp-item__price-pill">
+                      ₹{s.consultation_price.toLocaleString("en-IN")}
+                    </span>
+                  ) : null}
+                  <span className="csp-item__chev" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M9 18l6-6-6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
                 </button>
               </li>
             );
@@ -366,6 +406,17 @@ export function ConsultationSpecialtiesPage() {
                     )}
                   </div>
                   <div className="csp-item__label">{issue.title}</div>
+                  <span className="csp-item__chev" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M9 18l6-6-6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
                 </button>
               </li>
             );
@@ -466,6 +517,33 @@ export function ConsultationSpecialtiesPage() {
 
       <main className="csp-main">
         {topArea}
+
+        {isHospital ? (
+          <div className="csp-search">
+            <span className="csp-search__ic" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path
+                  d="M20 20l-3.5-3.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <input
+              type="search"
+              className="csp-search__input"
+              placeholder="Search specialties"
+              aria-label="Search specialties"
+              value={hospitalSearchQuery}
+              onChange={(e) => setHospitalSearchQuery(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </div>
+        ) : null}
 
         <div className="csp-section">
           <div className="csp-section__title">Common specialties</div>

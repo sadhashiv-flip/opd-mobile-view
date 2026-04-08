@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import Lottie from "lottie-react";
 import { ROUTES } from "@/constants";
+import successLottie from "@/assets/lotties/success.json";
 import "./BookingSuccessPage.css";
 
 const BOOKING_SUCCESS_REDIRECT_MS = 5000;
@@ -8,15 +10,38 @@ const BOOKING_SUCCESS_REDIRECT_MS = 5000;
 export function BookingSuccessPage() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const hideConsultationActions =
-    pathname === ROUTES.consultationHospitalBookingSuccess;
+  const isConsultationHospitalSuccess = pathname === ROUTES.consultationHospitalBookingSuccess;
 
   useEffect(() => {
+    if (isConsultationHospitalSuccess) return;
     const id = globalThis.setTimeout(() => {
       navigate(ROUTES.dashboard, { replace: true });
     }, BOOKING_SUCCESS_REDIRECT_MS);
     return () => globalThis.clearTimeout(id);
-  }, [navigate]);
+  }, [navigate, isConsultationHospitalSuccess]);
+
+  if (isConsultationHospitalSuccess) {
+    return (
+      <div className="bs-page bs-page--consult">
+        <div className="bs-consult-main">
+          <h1 className="bs-consult-title">Appointment Booked!</h1>
+          <p className="bs-consult-sub">Appointment booked successfully.</p>
+          <div className="bs-lottie-wrap" aria-hidden="true">
+            <Lottie animationData={successLottie} loop className="bs-lottie" />
+          </div>
+        </div>
+        <footer className="bs-consult-footer">
+          <button
+            type="button"
+            className="bs-alright"
+            onClick={() => navigate(ROUTES.dashboard, { replace: true })}
+          >
+            Alright
+          </button>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="bs-page">
@@ -37,18 +62,15 @@ export function BookingSuccessPage() {
           Your booking has been confirmed. You can track it in My Orders.
         </p>
 
-        {!hideConsultationActions && (
-          <div className="bs-actions">
-            <Link className="bs-btn bs-btn--primary" to={ROUTES.orders}>
-              My Orders
-            </Link>
-            <Link className="bs-btn bs-btn--ghost" to={ROUTES.dashboard}>
-              Back to Home
-            </Link>
-          </div>
-        )}
+        <div className="bs-actions">
+          <Link className="bs-btn bs-btn--primary" to={ROUTES.orders}>
+            My Orders
+          </Link>
+          <Link className="bs-btn bs-btn--ghost" to={ROUTES.dashboard}>
+            Back to Home
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
-

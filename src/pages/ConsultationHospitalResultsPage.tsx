@@ -22,18 +22,20 @@ import {
 } from "react";
 import { SortSheet, type SortOptionId } from "@/components/sort/SortSheet";
 import "@/components/sort/SortSheet.css";
-import sortSvg from "@/assets/icons/common/Sort.svg";
 import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationHospitalResultsPage.css";
 
-type Hospital = Readonly<{ id: string; name: string; location: string }>;
-
-const HOSPITALS: readonly Hospital[] = [
-  { id: "medicover", name: "Medicover Hospitals", location: "Hitech City · 12km" },
-  { id: "kims", name: "KIMS Hospitals", location: "Gachibowli · 16km" },
-  { id: "yashoda", name: "Yashoda Hospitals", location: "Somajiguda · 9km" },
-  { id: "care", name: "CARE Hospitals", location: "Banjara Hills · 11km" },
-] as const;
+function doctorNameInitial(name: string): string {
+  const t = name.trim();
+  if (!t) return "—";
+  // If name starts with 'Dr ' or 'Dr. ', use character after that
+  const drMatch = /^Dr[.\s]+/i;
+  if (drMatch.test(t)) {
+    const afterDr = t.replace(drMatch, "").trim();
+    return afterDr ? afterDr.charAt(0).toUpperCase() : "—";
+  }
+  return t.charAt(0).toUpperCase();
+}
 
 export function ConsultationHospitalResultsPage() {
   const navigate = useNavigate();
@@ -196,45 +198,82 @@ export function ConsultationHospitalResultsPage() {
           <div key={d.id} className="chr-dcard">
             <div className="chr-dcard__sec chr-dcard__sec--head">
               <div className="chr-doc">
-                {d.imageUrl ? (
-                  <img className="chr-doc__avatar-img" src={d.imageUrl} alt="" width={44} height={44} />
-                ) : (
-                  <div className="chr-doc__avatar" aria-hidden="true" />
-                )}
+                <div className="chr-doc__avatar-wrap">
+                  {d.imageUrl ? (
+                    <img className="chr-doc__avatar-img" src={d.imageUrl} alt="" width={44} height={44} />
+                  ) : (
+                    <div className="chr-doc__avatar--placeholder" aria-hidden="true">
+                      <span className="chr-doc__avatar-letter">{doctorNameInitial(d.name)}</span>
+                      <span className="chr-doc__avatar-badge" aria-hidden="true">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 9h16v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9z"
+                            stroke="#ffffff"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="chr-doc__meta">
-                  <div className="chr-doc__name">{d.name}</div>
+                  <div className="chr-doc__name-row">
+                    <span className="chr-doc__name">{d.name}</span>
+                    <span className="chr-doc__chev" aria-hidden="true">
+                      ›
+                    </span>
+                  </div>
                   <div className="chr-doc__deg">{d.degree || "—"}</div>
+                  <div className="chr-doc__spec">{specialtyLabel}</div>
                 </div>
               </div>
-              <div className="chr-dcard__head-right">
-                <span className="chr-chip">Cashless Available</span>
-                <span className="chr-dcard__chev" aria-hidden="true">
-                  ›
-                </span>
+            </div>
+
+            {d.networkName || d.networkAddress ? (
+              <div className="chr-dcard__sec chr-dcard__sec--hospital">
+                <div className="chr-dtags__hospital-row">
+                  <div className="chr-dtags__hospital-ic" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="3" width="18" height="18" rx="4" fill="#12b10f" />
+                      <path
+                        d="M12 8v8M8 12h8"
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className="chr-dtags__hospital-copy">
+                    {d.networkName ? (
+                      <div className="chr-dtags__hospital-name">{d.networkName}</div>
+                    ) : null}
+                    {d.networkAddress ? (
+                      <div className="chr-dtags__hospital-addr-line">{d.networkAddress}</div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div className="chr-dcard__sec chr-dcard__sec--tags">
-              {d.expLabel ? (
-                <span className="chr-tag chr-tag--exp">
-                  <span className="chr-tag__ic chr-tag__ic--exp" aria-hidden="true" />
-                  {d.expLabel}
-                </span>
-              ) : null}
-              {d.networkName ? (
-                <span className="chr-tag chr-tag--net">
-                  <span className="chr-tag__ic chr-tag__ic--net" aria-hidden="true" />
-                  {d.networkName}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="chr-dcard__sec chr-dcard__sec--fee">
-              <div className="chr-fee__k">Your Consultation Fee</div>
-              <div className="chr-fee__v">₹ {d.consultationFee}</div>
-            </div>
+            ) : null}
 
             <div className="chr-dcard__sec chr-dcard__sec--cta">
+              {d.expLabel ? (
+                <div className="chr-dtags__exp">
+                  <span className="chr-dtags__exp-ic" aria-hidden="true">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 9h16v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9z"
+                        stroke="#9a9a9a"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="chr-dtags__exp-txt">{d.expLabel}</span>
+                </div>
+              ) : null}
               <button
                 type="button"
                 className="chr-book"
@@ -348,43 +387,11 @@ export function ConsultationHospitalResultsPage() {
           <input
             type="search"
             className="chr-search__input"
-            placeholder="Search for doctors, symptoms, health concerns"
-            aria-label="Search"
+            placeholder="Search Doctors"
+            aria-label="Search doctors"
           />
-          <button
-            type="button"
-            className="chr-filter"
-            aria-label="Sort and filters"
-            onClick={() => setIsSortOpen(true)}
-          >
-            <img src={sortSvg} alt="" width={22} height={22} draggable={false} />
-          </button>
         </div>
-
-        <div className="chr-row">
-          <div className="chr-row__k">Featured Hospitals</div>
-          <button type="button" className="chr-row__link">
-            See all <span aria-hidden="true">›</span>
-          </button>
-        </div>
-
-        <div className="chr-hscroll" aria-label="Featured hospitals">
-          {HOSPITALS.map((h) => (
-            <div key={h.id} className="chr-hcard">
-              <div className="chr-hcard__logo" aria-hidden="true">
-                {h.name.split(" ")[0][0]}
-              </div>
-              <div className="chr-hcard__name">{h.name}</div>
-              <div className="chr-hcard__meta">{h.location}</div>
-            </div>
-          ))}
-        </div>
-
         <div className="chr-dlist" aria-label="Doctors list">
-          <div className="chr-dlist__head">
-            <div className="chr-dlist__title">{specialtyLabel}</div>
-          </div>
-
           <div className="chr-dscroll" ref={dscrollRef} onScroll={onDscroll}>
             {doctorsScrollBody}
           </div>

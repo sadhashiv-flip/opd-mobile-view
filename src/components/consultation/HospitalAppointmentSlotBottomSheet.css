@@ -1,0 +1,58 @@
+/* Hospital slot picker: same cas-* UI as ConsultationAppointmentSlotsPage, inside bottom sheet. */
+.hosp-cas-sheet {
+  width: 100%;
+  max-width: 420px;
+  max-height: min(92dvh, 760px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  animation: hosp-cas-sheet-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hosp-cas-sheet-in {
+  from {
+    transform: translateY(104%);
+    opacity: 0.96;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.hosp-cas-sheet__inner {
+  flex: 1;
+  min-height: 0;
+  max-height: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.hosp-cas-sheet__inner.cas-page {
+  min-height: 0 !important;
+  height: 100%;
+}
+
+.hosp-cas-sheet__inner .cas-main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.hosp-cas-top {
+  justify-content: space-between;
+}
+
+.hosp-cas-top .cas-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.hosp-cas-sheet__inner .cas-footer {
+  flex-shrink: 0;
+}

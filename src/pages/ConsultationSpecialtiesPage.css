@@ -339,6 +339,7 @@
   background: transparent;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 10px;
   padding: 11px 0;
   border-bottom: 1px solid #efefef;
@@ -347,6 +348,42 @@
   /* Skip work for rows far off-screen in long lists. */
   content-visibility: auto;
   contain-intrinsic-size: auto 44px;
+}
+
+.csp-item--hospital {
+  align-items: center;
+  contain-intrinsic-size: auto 56px;
+}
+
+.csp-item__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.csp-item--hospital .csp-item__label {
+  flex: none;
+}
+
+.csp-item__meta {
+  font-size: clamp(10px, calc(10 * 100cqw / 375), calc(10 * 1.12px));
+  font-weight: 400;
+  color: #9a9a9a;
+  line-height: 1.2;
+}
+
+.csp-item__price-pill {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e6f4ea;
+  color: #26b658;
+  font-size: clamp(10px, calc(10 * 100cqw / 375), calc(10 * 1.12px));
+  font-weight: 600;
+  line-height: 1;
 }
 
 .csp-item--selected .csp-item__label {
@@ -411,9 +448,33 @@
   line-height: 1;
 }
 
+/* At-hospital list: shared hospital icon in soft peach tile (matches design reference). */
+.csp-item__ic--hospital {
+  border-radius: 10px;
+  background: #fff1ed;
+  border: 1px solid rgba(255, 84, 30, 0.12);
+}
+
+.csp-item__ic-hospital-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 .csp-item__label {
+  flex: 1;
+  min-width: 0;
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   color: #111111;
+}
+
+.csp-item__chev {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9a9a9a;
 }
 
