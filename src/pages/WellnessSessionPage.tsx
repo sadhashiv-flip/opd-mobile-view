@@ -24,10 +24,18 @@ const LANGUAGE_OPTIONS = [
   "Kannada",
 ] as const;
 
+/** Session/API fields may be numbers at runtime despite TS types. */
+function trimStr(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value).trim();
+  return "";
+}
+
 function displayNameFromUser(user: AuthUser): string {
   const combined = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
   if (combined) return combined;
-  return user.name?.trim() || "You";
+  return trimStr(user.name) || "You";
 }
 
 function memberLabel(m: MemberDisplay): string {
@@ -114,18 +122,18 @@ export function WellnessSessionPage() {
   const applyFieldsForMember = useCallback(
     (member: MemberDisplay | null, user: AuthUser) => {
       const primaryName = displayNameFromUser(user);
-      const primaryPhone = user.phone?.trim() ?? "";
-      const primaryEmail = user.email?.trim() ?? "";
-      const primaryLanguage = user.language?.trim() || "English";
+      const primaryPhone = trimStr(user.phone);
+      const primaryEmail = trimStr(user.email);
+      const primaryLanguage = trimStr(user.language) || "English";
 
       setName(member?.name?.trim() ? member.name : primaryName);
-      const mPhone = member?.phone?.trim();
+      const mPhone = trimStr(member?.phone);
       setPhone(mPhone ? mPhone : primaryPhone);
-      const mEmail = member?.email?.trim();
+      const mEmail = trimStr(member?.email);
       setEmail(mEmail ? mEmail : primaryEmail);
 
       if (isMental) {
-        const mLang = member?.language?.trim();
+        const mLang = trimStr(member?.language);
         setLanguage(mLang ? mLang : primaryLanguage);
       }
     },
@@ -415,7 +423,7 @@ export function WellnessSessionPage() {
                   />
                 </svg>
               </span>
-              {submitting ? "Submitting…" : "Connect"}
+              {submitting ? "Submitting…" : "Submit Request"}
             </button>
           </form>
         )}
