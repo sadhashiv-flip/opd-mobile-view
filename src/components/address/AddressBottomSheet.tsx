@@ -69,7 +69,7 @@ export function AddressBottomSheet({ open, onClose, onSelectionChange }: Address
     (a: PatientAddressRecord) => {
       setSelectedId(a.id);
       const displayLine = formatAddressLines(a);
-      writeSelectedAddress({ id: a.id, displayLine });
+      writeSelectedAddress({ id: a.id, displayLine, tag: a.tag.trim() || undefined });
       onSelectionChange?.(a);
     },
     [onSelectionChange],

@@ -16,3 +16,15 @@ export function useSelectedAddressLine(fallback: string = DEFAULT_LOCATION_ADDRE
     () => fallback,
   );
 }
+
+/** Tag from last picked address (e.g. WORK); defaults to "HOME" for strip labels. */
+export function useSelectedAddressTag(defaultTag: string = "HOME"): string {
+  return useSyncExternalStore(
+    subscribeSelectedAddress,
+    () => {
+      const t = readSelectedAddress()?.tag?.trim();
+      return t && t.length > 0 ? t.toUpperCase() : defaultTag;
+    },
+    () => defaultTag,
+  );
+}

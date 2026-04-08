@@ -50,6 +50,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     name: "Gundari Abhinay",
     subtitle: "sponsored by your company",
     section: "self",
+    userId: null,
     phone: "9876543210",
     email: "abhinay@email.com",
   },
@@ -58,6 +59,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     name: "Gundari Abhinay",
     subtitle: "Packages available",
     section: "family",
+    userId: null,
     phone: "9876543210",
     email: "xxxxxxx@email.com",
   },
@@ -101,6 +103,7 @@ function loadMembers(): GymMemberListRow[] {
               name: row.name,
               subtitle: row.subtitle,
               section: "family",
+              userId: null,
               phone: typeof row.phone === "string" ? row.phone : "9876543210",
               email: "xxxxxxx@email.com",
             });

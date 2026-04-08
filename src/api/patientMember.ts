@@ -204,6 +204,8 @@ function normalizeMember(
     isDiabetic: normalizeYesNo(o.isDiabetic ?? o.is_diabetic),
     code: str(o.code),
     patientNumericId:
+      coerceFiniteNumber(o.user_id) ??
+      coerceFiniteNumber(o.userId) ??
       coerceFiniteNumber(o.patient_id) ??
       coerceFiniteNumber(o.patientId) ??
       coerceFiniteNumber(id),

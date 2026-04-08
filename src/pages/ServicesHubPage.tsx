@@ -360,6 +360,10 @@ export function ServicesHubPage() {
                   }),
                 );
               };
+            } else if (tabId === "services" && item.id === "vax") {
+              cardAction = () => {
+                void navigate(ROUTES.vaccinationSelectPeople);
+              };
             } else if (tabId === "account") {
               cardAction = () => {
                 const route = getAccountRoute(item.id);

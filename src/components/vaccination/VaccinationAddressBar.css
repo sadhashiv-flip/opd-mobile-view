@@ -1,0 +1,57 @@
+/* Hospital-style location strip (matches consultation “At Hospital” flow). */
+.vac-flow-loc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vac-flow-loc__pin {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.vac-flow-loc__body {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  gap: 6px;
+}
+
+.vac-flow-loc__title {
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+  flex-shrink: 0;
+}
+
+.vac-flow-loc__sep {
+  color: #d0d0d0;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.vac-flow-loc__addr {
+  min-width: 0;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+  color: #9a9a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vac-flow-loc__chev {
+  display: inline-flex;
+  color: #111111;
+  flex-shrink: 0;
+}

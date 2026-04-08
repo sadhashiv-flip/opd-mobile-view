@@ -45,6 +45,10 @@ import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalRes
 import { WellnessSessionPage } from "@/pages/WellnessSessionPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { OrderDetailsPage } from "@/pages/OrderDetailsPage";
+import { VaccinationSelectPeoplePage } from "@/pages/VaccinationSelectPeoplePage";
+import { VaccinationChooseTypePage } from "@/pages/VaccinationChooseTypePage";
+import { VaccinationSlotsPage } from "@/pages/VaccinationSlotsPage";
+import { VaccinationOverviewPage } from "@/pages/VaccinationOverviewPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -144,6 +148,10 @@ export function AppRoutes() {
         path={ROUTES.gymMembershipSelectClinic}
         element={<GymSelectClinicPage />}
       />
+      <Route path={ROUTES.vaccinationSelectPeople} element={<VaccinationSelectPeoplePage />} />
+      <Route path={ROUTES.vaccinationChooseType} element={<VaccinationChooseTypePage />} />
+      <Route path={ROUTES.vaccinationSlots} element={<VaccinationSlotsPage />} />
+      <Route path={ROUTES.vaccinationOverview} element={<VaccinationOverviewPage />} />
       <Route path={ROUTES.servicesWellness} element={<WellnessSessionPage />} />
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
     </Routes>
