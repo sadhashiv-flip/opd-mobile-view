@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBankDetails";
 import { fetchAllPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
@@ -8,7 +8,6 @@ import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import {
   fetchPatientProfile,
   resolveProfileImageUrl,
-  type BmiCategory,
   type ProfileDisplay,
 } from "@/api/patientProfile";
 import {
@@ -16,6 +15,19 @@ import {
   DeleteAccountModal,
   ForgotPasswordModal,
 } from "@/components/profile";
+import { InfoGrid, type InfoGridItem } from "@/components/profile/page/InfoGrid";
+import { ProfileCard } from "@/components/profile/page/ProfileCard";
+import { ProfileHeader } from "@/components/profile/page/ProfileHeader";
+import {
+  SettingsList,
+  type ManageLinkItem,
+} from "@/components/profile/page/SettingsList";
+import {
+  formatDobAgeGenderLine,
+  formatGender,
+  formatLabel,
+  initialsFromName,
+} from "@/components/profile/page/profilePageUtils";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -24,94 +36,152 @@ import {
 } from "@/lib/authStorage";
 import "./ProfilePage.css";
 
-function initialsFromName(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase() || "?";
-}
-
-function DetailRow({
-  label,
-  value,
-}: Readonly<{ label: string; value: string | null }>) {
-  if (!value) return null;
+function IconPhone() {
   return (
-    <div className="profile-page__row">
-      <span className="profile-page__row-label">{label}</span>
-      <span className="profile-page__row-value">{value}</span>
-    </div>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6.5 3h3l1.5 4.5-2 1.5a12 12 0 006 6l1.5-2L21 14.5V18a2 2 0 01-2.2 2A17 17 0 013 5.2 2 2 0 015 3h1.5z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-function HeroBmi({
-  value,
-  category,
-}: Readonly<{ value: string | null; category: BmiCategory | null }>) {
-  if (!value) return null;
-  const toneClass = category
-    ? `profile-page__bmi-value--${category}`
-    : "profile-page__bmi-value--neutral";
+function IconCalendar() {
   return (
-    <p className="profile-page__hero-bmi">
-      <span className="profile-page__hero-bmi-label">BMI</span>
-      <span className={`profile-page__hero-bmi-value profile-page__bmi-value ${toneClass}`}>
-        {value}
-      </span>
-    </p>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   );
 }
 
-function formatGender(g: string | null): string | null {
-  if (!g) return null;
-  return g.charAt(0).toUpperCase() + g.slice(1).toLowerCase();
+function IconUser() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M5 20v-1c0-3 2.5-5 7-5s7 2 7 5v1"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
-function parseAgeYears(ageStr: string | null): number | null {
-  if (ageStr == null || ageStr === "") return null;
-  const n = Math.trunc(Number(ageStr.trim()));
-  if (Number.isNaN(n) || n < 0 || n >= 150) return null;
-  return n;
+function IconDroplet() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 21c4.5-3.5 7-6.5 7-10a7 7 0 10-14 0c0 3.5 2.5 6.5 7 10z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
-function ageFromDob(dob: string | null): number | null {
-  if (dob == null || dob.trim() === "") return null;
-  const d = new Date(dob.trim());
-  if (Number.isNaN(d.getTime())) return null;
-  const today = new Date();
-  let years = today.getFullYear() - d.getFullYear();
-  const monthDiff = today.getMonth() - d.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) {
-    years -= 1;
-  }
-  if (years < 0 || years >= 130) return null;
-  return years;
+function IconBriefcase() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="3"
+        y="8"
+        width="18"
+        height="11"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+      <path d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
 }
 
-/** e.g. `1994-04-09 (31 Years Old) / Male` */
-function formatDobAgeGenderLine(
-  dob: string | null,
-  age: string | null,
-): string | null {
-  const years = parseAgeYears(age) ?? ageFromDob(dob);
-  const dobTrim = dob?.trim() ?? "";
-
-  let line = dobTrim;
-  if (years != null) {
-    line += line ? ` (${years} Years Old)` : `(${years} Years Old)`;
-  }
- 
-  return line.length > 0 ? line : null;
+function IconGlobe() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M3 12h18M12 3a16 16 0 010 18M12 3a16 16 0 000 18"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
+  );
 }
 
-function formatLabel(s: string | null): string | null {
-  if (!s) return null;
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+function buildInfoGridItems(profile: ProfileDisplay): InfoGridItem[] {
+  const rows: (InfoGridItem | null)[] = [
+    profile.phone
+      ? {
+          key: "phone",
+          icon: <IconPhone />,
+          label: "Phone",
+          value: profile.phone,
+        }
+      : null,
+    formatDobAgeGenderLine(profile.dob, profile.age)
+      ? {
+          key: "dob",
+          icon: <IconCalendar />,
+          label: "Birth",
+          value: formatDobAgeGenderLine(profile.dob, profile.age) ?? "",
+        }
+      : null,
+    formatGender(profile.gender)
+      ? {
+          key: "gender",
+          icon: <IconUser />,
+          label: "Gender",
+          value: formatGender(profile.gender) ?? "",
+        }
+      : null,
+    profile.bloodGroup
+      ? {
+          key: "blood",
+          icon: <IconDroplet />,
+          label: "Blood",
+          value: profile.bloodGroup,
+        }
+      : null,
+    profile.occupation
+      ? {
+          key: "occupation",
+          icon: <IconBriefcase />,
+          label: "Work",
+          value: profile.occupation,
+        }
+      : null,
+    formatLabel(profile.language)
+      ? {
+          key: "language",
+          icon: <IconGlobe />,
+          label: "Language",
+          value: formatLabel(profile.language) ?? "",
+        }
+      : null,
+  ];
+  return rows.filter((r): r is InfoGridItem => r != null);
 }
 
 export function ProfilePage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const accountAnchorRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<ProfileDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +189,8 @@ export function ProfilePage() {
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [manageExtras, setManageExtras] = useState({ bank: false, address: false });
+  const [manageOpen, setManageOpen] = useState(true);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,9 +229,52 @@ export function ProfilePage() {
   }, [load]);
 
   const imageUrl = profile ? resolveProfileImageUrl(profile.image) : null;
-
   const bankSaved = manageExtras.bank;
   const addressSaved = manageExtras.address;
+
+  const infoItems = useMemo(
+    () => (profile ? buildInfoGridItems(profile) : []),
+    [profile],
+  );
+
+  const subline = useMemo(() => {
+    if (!profile) return null;
+    return formatLabel(profile.relationship);
+  }, [profile]);
+
+  const manageLinks: ManageLinkItem[] = useMemo(
+    () => [
+      {
+        to: ROUTES.profileBank,
+        title: "Bank details",
+        meta: bankSaved ? "Saved on device" : null,
+      },
+      {
+        to: ROUTES.profileAddress,
+        title: "Address",
+        meta: addressSaved ? "Saved on device" : null,
+      },
+      {
+        to: ROUTES.profileMembers,
+        title: "Members",
+        meta: "Family & dependents",
+      },
+      {
+        to: ROUTES.profileSubscriptions,
+        title: "Subscriptions",
+        meta: "Plans & billing",
+      },
+    ],
+    [addressSaved, bankSaved],
+  );
+
+  const openAccountSettings = useCallback(() => {
+    setAccountOpen(true);
+    setManageOpen(false);
+    requestAnimationFrame(() => {
+      accountAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }, []);
 
   return (
     <div className="profile-page">
@@ -185,11 +300,16 @@ export function ProfilePage() {
 
       <main className="profile-page__main">
         {loading ? (
-          <div className="profile-page__state" aria-busy="true">
-            <div className="profile-page__skeleton profile-page__skeleton--avatar" />
-            <div className="profile-page__skeleton profile-page__skeleton--line lg" />
-            <div className="profile-page__skeleton profile-page__skeleton--line sm" />
-            <div className="profile-page__skeleton profile-page__skeleton--card" />
+          <div className="profile-page__state profile-page__state--skeleton" aria-busy="true">
+            <div className="profile-page__skeleton-row">
+              <div className="profile-page__skeleton profile-page__skeleton--avatar-sm" />
+              <div className="profile-page__skeleton-col">
+                <div className="profile-page__skeleton profile-page__skeleton--line lg" />
+                <div className="profile-page__skeleton profile-page__skeleton--line sm" />
+              </div>
+            </div>
+            <div className="profile-page__skeleton profile-page__skeleton--grid" />
+            <div className="profile-page__skeleton profile-page__skeleton--sheet" />
           </div>
         ) : null}
 
@@ -204,130 +324,65 @@ export function ProfilePage() {
 
         {!loading && profile && !error ? (
           <>
-            <section className="profile-page__hero" aria-labelledby="profile-name">
-              <div className="profile-page__avatar-wrap">
-                {imageUrl ? (
-                  <img
-                    className="profile-page__avatar"
-                    src={imageUrl}
-                    alt={profile.name}
-                    decoding="async"
-                  />
-                ) : (
-                  <div
-                    className="profile-page__avatar profile-page__avatar--initials"
-                    aria-hidden
-                  >
-                    {initialsFromName(profile.name)}
-                  </div>
-                )}
-              </div>
-              <h2 id="profile-name" className="profile-page__name">
-                {profile.name}
-              </h2>
-              <p className="profile-page__tagline">
-                  {profile.email}
-                </p>
-              {(profile.relationship || profile.phone) && (
-                <p className="profile-page__tagline">
-                  {[formatLabel(profile.relationship), profile.phone].filter(Boolean).join(" · ")}
-                </p>
-              )}
-              <p className="profile-page__tagline">
-                  {profile.empId}
-                </p>
-              <HeroBmi value={profile.bmi} category={profile.bmiCategory} />
-            </section>
+            <ProfileHeader
+              name={profile.name}
+              imageUrl={imageUrl}
+              initials={initialsFromName(profile.name)}
+              email={profile.email}
+              subline={subline}
+              empId={profile.empId}
+              bmiValue={profile.bmi}
+              bmiCategory={profile.bmiCategory}
+              editTo={ROUTES.userDetailsPersonal}
+              onOpenSettings={openAccountSettings}
+            />
 
-            <section className="profile-page__card" aria-label="Your details">
-              <h3 className="profile-page__card-title">Your details</h3>
-              <div className="profile-page__rows">
-                <DetailRow
-                  label="Date of birth"
-                  value={formatDobAgeGenderLine(
-                    profile.dob,
-                    profile.age,
-                  )}
+            {infoItems.length > 0 ? (
+              <ProfileCard ariaLabel="Contact and health details">
+                <InfoGrid items={infoItems} />
+              </ProfileCard>
+            ) : null}
+
+            <div ref={accountAnchorRef}>
+              <ProfileCard className="profile-page__sheet--flush">
+                <SettingsList
+                  manageOpen={manageOpen}
+                  onManageOpenChange={setManageOpen}
+                  manageLinks={manageLinks}
+                  accountOpen={accountOpen}
+                  onAccountOpenChange={setAccountOpen}
+                  accountActions={
+                    <>
+                      <button
+                        type="button"
+                        className="profile-page__account-btn"
+                        onClick={() => setChangePasswordOpen(true)}
+                      >
+                        Change password
+                      </button>
+                      <button
+                        type="button"
+                        className="profile-page__account-btn profile-page__account-btn--logout"
+                        onClick={() => {
+                          clearClientStorageOnUnauthorized();
+                          toast.success("You have been logged out.");
+                          navigate(ROUTES.login, { replace: true });
+                        }}
+                      >
+                        Log out
+                      </button>
+                      <button
+                        type="button"
+                        className="profile-page__account-btn profile-page__account-btn--danger"
+                        onClick={() => setDeleteAccountOpen(true)}
+                      >
+                        Delete account
+                      </button>
+                    </>
+                  }
                 />
-                <DetailRow label="Gender" value={formatGender(profile.gender)} />
-                <DetailRow label="Occupation" value={profile.occupation} />
-                <DetailRow label="Blood group" value={profile.bloodGroup} />
-                <DetailRow label="Language" value={formatGender(profile.language)} />
-              </div>
-            </section>
-
-            <section className="profile-page__manage" aria-label="Manage">
-              <h3 className="profile-page__card-title">Manage</h3>
-              <Link to={ROUTES.profileBank} className="profile-page__manage-row">
-                <span className="profile-page__manage-row-main">
-                  <span className="profile-page__manage-row-title">Bank details</span>
-                  {bankSaved ? (
-                    <span className="profile-page__manage-row-meta">Saved on this device</span>
-                  ) : null}
-                </span>
-                <span className="profile-page__manage-row-chevron" aria-hidden>
-                  ›
-                </span>
-              </Link>
-              <Link to={ROUTES.profileAddress} className="profile-page__manage-row">
-                <span className="profile-page__manage-row-main">
-                  <span className="profile-page__manage-row-title">Address</span>
-                  {addressSaved ? (
-                    <span className="profile-page__manage-row-meta">Saved on this device</span>
-                  ) : null}
-                </span>
-                <span className="profile-page__manage-row-chevron" aria-hidden>
-                  ›
-                </span>
-              </Link>
-              <Link to={ROUTES.profileMembers} className="profile-page__manage-row">
-                <span className="profile-page__manage-row-main">
-                  <span className="profile-page__manage-row-title">Members</span>
-                  <span className="profile-page__manage-row-meta">Add and view saved members</span>
-                </span>
-                <span className="profile-page__manage-row-chevron" aria-hidden>
-                  ›
-                </span>
-              </Link>
-              <Link to={ROUTES.profileSubscriptions} className="profile-page__manage-row">
-                <span className="profile-page__manage-row-main">
-                  <span className="profile-page__manage-row-title">Subscriptions</span>
-                  <span className="profile-page__manage-row-meta">Plans from your account</span>
-                </span>
-                <span className="profile-page__manage-row-chevron" aria-hidden>
-                  ›
-                </span>
-              </Link>
-            </section>
-
-            <section className="profile-page__account" aria-label="Account">
-              <h3 className="profile-page__card-title">Account</h3>
-              <button
-                type="button"
-                className="profile-page__account-btn"
-                onClick={() => setChangePasswordOpen(true)}
-              >
-                Change password
-              </button>
-              <button
-                type="button"
-                className="profile-page__account-btn profile-page__account-btn--logout"
-                onClick={() => {
-                  clearClientStorageOnUnauthorized();
-                  toast.success("You have been logged out.");
-                  navigate(ROUTES.login, { replace: true });
-                }}
-              >
-                Log out
-              </button>
-              <button
-                type="button"
-                className="profile-page__account-btn profile-page__account-btn--danger"
-                onClick={() => setDeleteAccountOpen(true)}
-              >
-                Delete account
-              </button>
-            </section>
+              </ProfileCard>
+            </div>
           </>
         ) : null}
       </main>

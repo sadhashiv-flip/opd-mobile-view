@@ -133,7 +133,7 @@ export function HomeBottomNav() {
               <span className="home-nav__ic" aria-hidden="true">
                 <NavIconMedicalRecords />
               </span>
-              <span className="home-nav__label home-nav__label--medical">Medical Rec…</span>
+              <span className="home-nav__label home-nav__label--medical">Medical Records</span>
             </NavLink>
 
             <NavLink

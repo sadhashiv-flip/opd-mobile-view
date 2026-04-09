@@ -381,6 +381,12 @@ export function ServicesHubPage() {
                   setDeleteAccountOpen(true);
                 }
               };
+            } else if (tabId === "opd-claims" && item.id === "bank") {
+              cardAction = () => {
+                void navigate(ROUTES.profileBank, {
+                  state: { returnPath: `${ROUTES.services}?tab=opd-claims` },
+                });
+              };
             } else if (isMedical) {
               cardAction = () => setMedicalSelectedId(item.id);
             }
