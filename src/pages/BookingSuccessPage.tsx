@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, matchPath, useLocation, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import { ROUTES } from "@/constants";
 import {
@@ -8,6 +8,7 @@ import {
   DEFAULT_CONSULT_SUCCESS_SUB_DENTAL,
   DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL,
   DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL,
+  DEFAULT_CONSULT_SUCCESS_SUB_VISION,
   DEFAULT_CONSULT_SUCCESS_TITLE,
   isBookingSuccessLocationState,
 } from "@/constants/bookingSuccessNavigation";
@@ -20,7 +21,8 @@ function isConsultSuccessPath(pathname: string): boolean {
   return (
     pathname === ROUTES.consultationHospitalBookingSuccess ||
     pathname === ROUTES.consultationVirtualBookingSuccess ||
-    pathname === ROUTES.dentalBookingSuccess
+    pathname === ROUTES.dentalBookingSuccess ||
+    matchPath({ path: ROUTES.visionBookingSuccess, end: true }, pathname) != null
   );
 }
 
@@ -46,6 +48,9 @@ function resolveConsultCopy(
   }
   if (pathname === ROUTES.dentalBookingSuccess) {
     return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_DENTAL };
+  }
+  if (matchPath({ path: ROUTES.visionBookingSuccess, end: true }, pathname)) {
+    return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VISION };
   }
   return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL };
 }

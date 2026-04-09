@@ -27,6 +27,16 @@ export function writeVisionSelectedSlot(row: VisionServiceSlotRow): void {
   }
 }
 
+export function readVisionSelectedSlot(): VisionServiceSlotRow | null {
+  try {
+    const s = sessionStorage.getItem(VISION_SELECTED_SLOT_KEY);
+    if (!s?.trim()) return null;
+    return JSON.parse(s) as VisionServiceSlotRow;
+  } catch {
+    return null;
+  }
+}
+
 /** Home / select-people route state — drives API `service=vision.clinic` vs `vision.store`. */
 export type VisionSheetOption = "eye-checkup" | "glasses-lens";
 

@@ -30,6 +30,8 @@ export const DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL = "Virtual consultation booked 
 
 export const DEFAULT_CONSULT_SUCCESS_SUB_DENTAL = "Dental Service booking successfully.";
 
+export const DEFAULT_CONSULT_SUCCESS_SUB_VISION = "Eye checkup booking successfully.";
+
 export function isBookingSuccessLocationState(value: unknown): value is BookingSuccessLocationState {
   if (value == null || typeof value !== "object") return false;
   const o = value as Record<string, unknown>;

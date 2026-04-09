@@ -14,6 +14,8 @@ export type DiagnosticsSelectedMemberSnapshot = Readonly<{
   dob: string;
   relation?: string;
   sourceSection?: "self" | "family";
+  /** Numeric patient id for booking payloads (`POST /service/vision/request`, etc.). */
+  userId?: number | null;
 }>;
 
 export function buildDiagnosticsMemberSnapshotFromRow(row: GymMemberListRow): DiagnosticsSelectedMemberSnapshot {
@@ -26,6 +28,7 @@ export function buildDiagnosticsMemberSnapshotFromRow(row: GymMemberListRow): Di
     dob: row.dob?.trim() ?? "",
     relation: row.subtitle?.trim() || undefined,
     sourceSection: row.section,
+    userId: row.userId,
   };
 }
 
@@ -64,6 +67,14 @@ export function readDiagnosticsSelectedMembersSnapshots(): DiagnosticsSelectedMe
       const r = row as Record<string, unknown>;
       const id = typeof r.id === "string" ? r.id.trim() : "";
       if (!id) continue;
+      const uidRaw = r.userId ?? r.user_id;
+      let userId: number | null | undefined;
+      if (typeof uidRaw === "number" && Number.isFinite(uidRaw)) {
+        userId = uidRaw;
+      } else if (typeof uidRaw === "string" && uidRaw.trim() !== "") {
+        const n = Number(uidRaw.trim());
+        userId = Number.isFinite(n) ? n : undefined;
+      }
       out.push({
         id,
         name: typeof r.name === "string" ? r.name : "",
@@ -73,6 +84,7 @@ export function readDiagnosticsSelectedMembersSnapshots(): DiagnosticsSelectedMe
         dob: typeof r.dob === "string" ? r.dob : "",
         relation: typeof r.relation === "string" ? r.relation : undefined,
         sourceSection: r.sourceSection === "self" || r.sourceSection === "family" ? r.sourceSection : undefined,
+        ...(userId === undefined ? {} : { userId }),
       });
     }
     return out;

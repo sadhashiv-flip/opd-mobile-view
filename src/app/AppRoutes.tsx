@@ -42,6 +42,7 @@ import {
 import { DentalNetworkListPage } from "@/pages/DentalNetworkListPage";
 import { VisionNetworkListPage } from "@/pages/VisionNetworkListPage";
 import { VisionSlotsPage } from "@/pages/VisionSlotsPage";
+import { VisionOverviewPage } from "@/pages/VisionOverviewPage";
 import { DentalSlotsPage } from "@/pages/DentalSlotsPage";
 import { DentalOverviewPage } from "@/pages/DentalOverviewPage";
 import { ConsultationEntryRedirect } from "@/app/ConsultationEntryRedirect";
@@ -141,6 +142,8 @@ export function AppRoutes() {
       <Route path={ROUTES.visionSelectPeople} element={<VisionSelectPeoplePage />} />
       <Route path={ROUTES.visionNetworkList} element={<VisionNetworkListPage />} />
       <Route path={ROUTES.visionSlots} element={<VisionSlotsPage />} />
+      <Route path={ROUTES.visionOverview} element={<VisionOverviewPage />} />
+      <Route path={ROUTES.visionBookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.dentalNetworkList} element={<DentalNetworkListPage />} />
       <Route path={ROUTES.dentalSlots} element={<DentalSlotsPage />} />
       <Route path={ROUTES.dentalOverview} element={<DentalOverviewPage />} />

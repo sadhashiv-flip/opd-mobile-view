@@ -36,15 +36,11 @@ export function ageFromDob(dob: string | null): number | null {
 /** e.g. `1994-04-09 (31 Years Old)` */
 export function formatDobAgeGenderLine(
   dob: string | null,
-  age: string | null,
+  _age: string | null,
 ): string | null {
-  const years = parseAgeYears(age) ?? ageFromDob(dob);
   const dobTrim = dob?.trim() ?? "";
 
   let line = dobTrim;
-  // if (years != null) {
-  //   line += line ? ` (${years} yrs)` : `${years} yrs`;
-  // }
 
   return line.length > 0 ? line : null;
 }

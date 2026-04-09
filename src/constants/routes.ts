@@ -78,6 +78,10 @@ export const ROUTES = {
   visionNetworkList: "/services/vision/:visionType/network-list",
   /** Vision slots from `GET /service/slots` after choosing a network location. */
   visionSlots: "/services/vision/:visionType/slots",
+  /** Vision booking summary (eye-checkup flow; mirrors dental overview). */
+  visionOverview: "/services/vision/:visionType/overview",
+  /** After vision confirm — same consult-style success as dental. */
+  visionBookingSuccess: "/services/vision/:visionType/booking-success",
   pharmacy: "/pharmacy",
   pharmacyUpload: "/pharmacy/upload",
   pharmacySelectPrescription: "/pharmacy/select-prescription",

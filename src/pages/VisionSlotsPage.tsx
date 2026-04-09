@@ -120,6 +120,10 @@ export function VisionSlotsPage() {
     const row = findSlotById(payload, selectedSlotId);
     if (!row) return;
     writeVisionSelectedSlot(row);
+    if (visionType === VISION_ROUTE_TYPE.eyeCheckup) {
+      void navigate(generatePath(ROUTES.visionOverview, { visionType }));
+      return;
+    }
     void navigate(ROUTES.vision, { state: { visionType } });
   };
 

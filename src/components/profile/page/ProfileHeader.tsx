@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import type { BmiCategory } from "@/api/patientProfile";
 import { bmiToneClass } from "./profilePageUtils";
 
@@ -14,20 +13,6 @@ type ProfileHeaderProps = Readonly<{
   editTo: string;
   onOpenSettings: () => void;
 }>;
-
-function IconPencil() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function IconGear() {
   return (
@@ -59,7 +44,7 @@ export function ProfileHeader({
   empId,
   bmiValue,
   bmiCategory,
-  editTo,
+  editTo: _editTo,
   onOpenSettings,
 }: ProfileHeaderProps) {
   const bmiClass = bmiToneClass(bmiCategory);
