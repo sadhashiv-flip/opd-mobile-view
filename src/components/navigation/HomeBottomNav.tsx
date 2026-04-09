@@ -123,18 +123,6 @@ export function HomeBottomNav() {
             </div>
 
             <NavLink
-              to={ROUTES.servicesHelpTab}
-              className={() =>
-                `home-nav__item${helpTabActive ? " home-nav__item--active" : ""}`
-              }
-            >
-              <span className="home-nav__ic" aria-hidden="true">
-                <NavIconHelp />
-              </span>
-              <span className="home-nav__label">Need Help?</span>
-            </NavLink>
-
-            <NavLink
               to={ROUTES.servicesMedicalRecordsTab}
               className={() =>
                 `home-nav__item${medicalTabActive ? " home-nav__item--active" : ""}`
@@ -146,6 +134,18 @@ export function HomeBottomNav() {
                 <NavIconMedicalRecords />
               </span>
               <span className="home-nav__label home-nav__label--medical">Medical Rec…</span>
+            </NavLink>
+
+            <NavLink
+              to={ROUTES.servicesHelpTab}
+              className={() =>
+                `home-nav__item${helpTabActive ? " home-nav__item--active" : ""}`
+              }
+            >
+              <span className="home-nav__ic" aria-hidden="true">
+                <NavIconHelp />
+              </span>
+              <span className="home-nav__label">Need Help?</span>
             </NavLink>
           </div>
         </div>

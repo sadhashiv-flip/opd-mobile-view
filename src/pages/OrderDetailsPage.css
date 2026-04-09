@@ -321,7 +321,7 @@
 }
 
 .od-table__num {
-  text-align: right;
+  text-align: right !important;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
