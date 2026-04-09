@@ -65,6 +65,12 @@ export const ROUTES = {
   pharmacyPrescriptionDetail: "/pharmacy/prescription/:prescriptionId",
   pharmacyOrderSuccess: "/pharmacy/order-success",
   orders: "/orders",
+  /** OPD wallet: resolves subscription then redirects to {@link ROUTES.walletSubscription}. */
+  wallet: "/wallet",
+  /** Wallet home: balance, module breakup, recent transactions. */
+  walletSubscription: "/wallet/:subscriptionId",
+  /** Paginated transactions + filters. */
+  walletTransactions: "/wallet/:subscriptionId/transactions",
   /** Invoice / order detail — `GET /invoice/:invoiceId`. */
   ordersDetail: "/orders/:invoiceId",
   /** Legacy path; AppRoutes redirects to `servicesHelpTab`. */

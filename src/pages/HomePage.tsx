@@ -46,7 +46,7 @@ export function HomePage() {
 
   return (
     <div className="home-page">
-      <main className="home-page__main">
+      <div className="home-page__chrome">
         <header className="home-top">
           <div className="home-location">
             <span className="home-location__pin" aria-hidden="true">
@@ -66,7 +66,12 @@ export function HomePage() {
             </div>
           </div>
           <div className="home-top__actions">
-            <button type="button" className="home-icon-btn" aria-label="Wallet">
+            <button
+              type="button"
+              className="home-icon-btn"
+              aria-label="Wallet"
+              onClick={() => navigate(ROUTES.wallet)}
+            >
               <HomeWalletIcon />
             </button>
             <button
@@ -95,7 +100,9 @@ export function HomePage() {
             <HomeVoiceRecordIcon />
           </button>
         </div>
+      </div>
 
+      <main className="home-page__main">
         <section className="home-section" aria-labelledby="services-heading">
           <h2 id="services-heading" className="visually-hidden">
             Medical services

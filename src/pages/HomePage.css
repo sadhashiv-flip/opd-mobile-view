@@ -1,6 +1,7 @@
 .home-page {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
   min-height: 100dvh;
   background: #ffffff;
   color: #111111;
@@ -8,11 +9,22 @@
   --service-hub-card-height: min(115px, 31cqw);
 }
 
+/* Location + search stay fixed while the main column scrolls (app-style chrome). */
+.home-page__chrome {
+  flex-shrink: 0;
+  padding: 0 var(--page-pad-x);
+  background: #ffffff;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+
 .home-page__main {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding: 0 var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
 }
 

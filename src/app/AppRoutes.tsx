@@ -58,6 +58,9 @@ import { PharmacyUploadPage } from "@/pages/PharmacyUploadPage";
 import { PharmacySelectPrescriptionPage } from "@/pages/PharmacySelectPrescriptionPage";
 import { PharmacyPrescriptionDetailPage } from "@/pages/PharmacyPrescriptionDetailPage";
 import { PharmacyOrderSuccessPage } from "@/pages/PharmacyOrderSuccessPage";
+import { WalletRedirectPage } from "@/pages/WalletRedirectPage";
+import { WalletPage } from "@/pages/WalletPage";
+import { WalletAllTransactionsPage } from "@/pages/WalletAllTransactionsPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -139,6 +142,9 @@ export function AppRoutes() {
       <Route path={ROUTES.pharmacyOrderSuccess} element={<PharmacyOrderSuccessPage />} />
       <Route path={ROUTES.ordersDetail} element={<OrderDetailsPage />} />
       <Route path={ROUTES.orders} element={<OrdersPage />} />
+      <Route path={ROUTES.walletTransactions} element={<WalletAllTransactionsPage />} />
+      <Route path={ROUTES.walletSubscription} element={<WalletPage />} />
+      <Route path={ROUTES.wallet} element={<WalletRedirectPage />} />
       <Route path={ROUTES.help} element={<Navigate to={ROUTES.servicesHelpTab} replace />} />
       <Route
         path={ROUTES.gymMembership}
