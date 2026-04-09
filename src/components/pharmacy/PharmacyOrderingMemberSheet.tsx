@@ -7,7 +7,7 @@ import type { GymMemberListRow } from "@/lib/gymMemberDisplay";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/HealthCheckupsPage.css";
 import "@/pages/HealthCheckupsOverviewPage.css";
-import "@/components/consultation/ConsultationPatientBottomSheet.css";
+import "@/components/select-people/SelectPeopleBottomSheet.css";
 
 export type PharmacyOrderingMemberSheetProps = Readonly<{
   open: boolean;
