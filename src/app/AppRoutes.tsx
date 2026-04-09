@@ -37,8 +37,12 @@ import {
   ConsultationSelectPeoplePage,
   DentalSelectPeoplePage,
   DiagnosticsSelectPeoplePage,
+  VisionSelectPeoplePage,
 } from "@/pages/ConsultationSelectPeoplePage";
 import { DentalNetworkListPage } from "@/pages/DentalNetworkListPage";
+import { VisionNetworkListPage } from "@/pages/VisionNetworkListPage";
+import { DentalSlotsPage } from "@/pages/DentalSlotsPage";
+import { DentalOverviewPage } from "@/pages/DentalOverviewPage";
 import { ConsultationEntryRedirect } from "@/app/ConsultationEntryRedirect";
 import { DiagnosticsEntryRedirect } from "@/app/DiagnosticsEntryRedirect";
 import { UserDetailsPersonalInfoPage } from "@/pages/UserDetailsPersonalInfoPage";
@@ -131,8 +135,15 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessPage />} />
+      <Route path={ROUTES.consultationVirtualBookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.dentalSelectPeople} element={<DentalSelectPeoplePage />} />
+      <Route path={ROUTES.visionSelectPeople} element={<VisionSelectPeoplePage />} />
+      <Route path={ROUTES.visionNetworkList} element={<VisionNetworkListPage />} />
       <Route path={ROUTES.dentalNetworkList} element={<DentalNetworkListPage />} />
+      <Route path={ROUTES.dentalSlots} element={<DentalSlotsPage />} />
+      <Route path={ROUTES.dentalOverview} element={<DentalOverviewPage />} />
+      <Route path={ROUTES.dentalBookingSuccess} element={<BookingSuccessPage />} />
+      <Route path={ROUTES.bookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.dental} element={<PlaceholderPage title="Dental" />} />
       <Route path={ROUTES.vision} element={<PlaceholderPage title="Vision" />} />
       <Route path={ROUTES.pharmacy} element={<PharmacyDeliveryPage />} />

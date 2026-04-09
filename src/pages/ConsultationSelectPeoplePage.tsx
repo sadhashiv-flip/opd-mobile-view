@@ -1,4 +1,5 @@
 import { ROUTES } from "@/constants";
+import { VISION_FLOW_OPTION_KEY } from "@/constants/visionBookingStorage";
 import {
   buildConsultMemberSnapshotFromRow,
   writeConsultSelectedMembersSnapshots,
@@ -20,7 +21,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 
-export type SelectPeopleFlowKind = "consultation" | "diagnostics" | "dental";
+export type SelectPeopleFlowKind = "consultation" | "diagnostics" | "dental" | "vision";
 
 function defaultSelection(rows: GymMemberListRow[]): string[] {
   const primary = rows.find((r) => r.section === "self");
@@ -49,11 +50,24 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   let headerTitle: string;
   if (flow === "consultation") {
     headerTitle = "Consultation";
+  } else if (flow === "vision") {
+    headerTitle = "Vision";
   } else if (flow === "dental") {
     headerTitle = "Dental";
   } else {
     headerTitle = diagnosticsTitle;
   }
+
+  const visionOption = useMemo(() => {
+    const s = location.state;
+    if (s && typeof s === "object" && "visionOption" in s) {
+      const v = (s as { visionOption?: unknown }).visionOption;
+      return v === "eye-checkup" || v === "glasses-lens" ? v : undefined;
+    }
+    return undefined;
+  }, [location.state]);
+  const visionModeLabel =
+    visionOption === "eye-checkup" ? "Eye Checkup" : visionOption === "glasses-lens" ? "Glasses/Lens" : null;
 
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,6 +167,20 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       return;
     }
 
+    if (flow === "vision") {
+      writeDiagnosticsSelectedPersonIds([selected]);
+      writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
+      try {
+        sessionStorage.setItem(VISION_FLOW_OPTION_KEY, visionOption ?? "");
+      } catch {
+        // ignore
+      }
+      void navigate(ROUTES.visionNetworkList, {
+        state: { visionOption: visionOption ?? undefined },
+      });
+      return;
+    }
+
     writeDiagnosticsSelectedPersonIds([selected]);
     writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
     try {
@@ -181,6 +209,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
           <div className="hco-title-wrap">
             <h1 className="hco-title">{headerTitle}</h1>
             <span className="hco-consult-mode">{consultationLabel}</span>
+          </div>
+        ) : flow === "vision" && visionModeLabel ? (
+          <div className="hco-title-wrap">
+            <h1 className="hco-title">{headerTitle}</h1>
+            <span className="hco-consult-mode">{visionModeLabel}</span>
           </div>
         ) : (
           <h1 className="hco-title">{headerTitle}</h1>
@@ -312,4 +345,8 @@ export function DiagnosticsSelectPeoplePage() {
 
 export function DentalSelectPeoplePage() {
   return <SelectPeopleFlowPage flow="dental" />;
+}
+
+export function VisionSelectPeoplePage() {
+  return <SelectPeopleFlowPage flow="vision" />;
 }

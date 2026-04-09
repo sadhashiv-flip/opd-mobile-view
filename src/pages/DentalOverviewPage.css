@@ -1,0 +1,106 @@
+/* Lock layout to the viewport so `.hco-main__content` gets a bounded height and scrolls. */
+.dental-overview.hco-page {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+.dental-overview__main.hco-main {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.dental-overview__footer.hc-footer {
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dental-overview__scroll.hco-main__content {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  /* Hide scrollbar (scroll still works) */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dental-overview__scroll.hco-main__content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.dental-overview__clinic {
+  padding: 8px 0 14px;
+  border-bottom: 1px solid #eeeeee;
+  margin-bottom: 12px;
+}
+
+.dental-overview__clinic-name {
+  margin: 0 0 6px;
+  font-size: clamp(12px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+}
+
+.dental-overview__clinic-addr {
+  margin: 0;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+  line-height: 1.45;
+  color: #8e8e8e;
+}
+
+.dental-overview__service {
+  margin: 0 0 6px;
+  font-size: clamp(12px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+}
+
+.dental-overview__for {
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9a9a9a;
+}
+
+/* From Wallet — accent like reference */
+.dental-overview__wallet-row.hco-totals__muted .hco-totals__v {
+  color: #ff541e;
+  font-weight: 800;
+}
+
+.dental-overview__remarks.hco-remarks {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8f8f8;
+  border: 1px solid #ececec;
+  line-height: 1.45;
+}
+
+.dental-overview__remarks .hco-remarks__k {
+  display: block;
+  margin-bottom: 6px;
+  font-size: clamp(11px, 3.1vw, 13px);
+  font-weight: 800;
+  color: #ff541e;
+  letter-spacing: 0.02em;
+}
+
+.dental-overview__remarks .hco-remarks__v {
+  margin-top: 0;
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 600;
+  line-height: 1.5;
+  color: #5c5c5c;
+}

@@ -41,6 +41,9 @@ async function patientFetchWithBase(
   if (!headers.has("Pragma")) {
     headers.set("Pragma", "no-cache");
   }
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
 
   if (!skipGlobalLoading) beginApiLoadingRequest();
   try {
@@ -116,8 +119,17 @@ export async function patientJson<T>(
     throw new Error(await readPatientApiError(res));
   }
   const text = await res.text();
-  if (!text) throw new Error("Empty response");
-  return JSON.parse(text) as T;
+  if (!text) {
+    throw new Error(`Empty response body (HTTP ${res.status}) for ${path}`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const preview = text.replace(/\s+/g, " ").slice(0, 200);
+    throw new Error(
+      `Invalid JSON (HTTP ${res.status}) for ${path}: ${preview || "(empty after trim)"}`,
+    );
+  }
 }
 
 /**

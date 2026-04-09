@@ -53,12 +53,26 @@ export const ROUTES = {
     "/consultation/at_hospital/specialties/:specialtyId/appointment/:networkId/:doctorId/overview",
   /** After `POST /appointment/network_book` succeeds. */
   consultationHospitalBookingSuccess: "/consultation/at_hospital/booking-success",
+  /** After virtual consultation booking succeeds. */
+  consultationVirtualBookingSuccess: "/consultation/virtual/booking-success",
   dental: "/dental",
   /** Dental booking: member selection (from home / dashboard Dental card). */
   dentalSelectPeople: "/services/dental/select-people",
   /** Dental booking: clinic network list for chosen address. */
   dentalNetworkList: "/services/dental/network-list",
+  /** Dental booking: date & time slots for selected clinic. */
+  dentalSlots: "/services/dental/slots",
+  /** Dental booking: summary before confirm. */
+  dentalOverview: "/services/dental/overview",
+  /** Dental booking success — same consult-style screen as at-hospital / virtual. */
+  dentalBookingSuccess: "/services/dental/booking-success",
+  /** Generic booking success — pass `BookingSuccessLocationState` via `navigate(..., { state })`. */
+  bookingSuccess: "/services/booking-success",
   vision: "/vision",
+  /** Vision booking: member selection (Eye Checkup / Glasses·Lens from home). */
+  visionSelectPeople: "/services/vision/select-people",
+  /** Vision booking: clinic network list (`service=vision.clinic` or `vision.store`). */
+  visionNetworkList: "/services/vision/network-list",
   pharmacy: "/pharmacy",
   pharmacyUpload: "/pharmacy/upload",
   pharmacySelectPrescription: "/pharmacy/select-prescription",

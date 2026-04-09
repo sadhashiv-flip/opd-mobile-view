@@ -50,3 +50,33 @@ export function writeDiagnosticsSelectedMembersSnapshots(members: DiagnosticsSel
     // ignore
   }
 }
+
+export function readDiagnosticsSelectedMembersSnapshots(): DiagnosticsSelectedMemberSnapshot[] {
+  try {
+    const raw = sessionStorage.getItem(DIAG_SELECTED_MEMBER_SNAPSHOT_KEY);
+    if (!raw?.trim()) return [];
+    const p = JSON.parse(raw) as { members?: unknown };
+    const m = p.members;
+    if (!Array.isArray(m)) return [];
+    const out: DiagnosticsSelectedMemberSnapshot[] = [];
+    for (const row of m) {
+      if (!row || typeof row !== "object") continue;
+      const r = row as Record<string, unknown>;
+      const id = typeof r.id === "string" ? r.id.trim() : "";
+      if (!id) continue;
+      out.push({
+        id,
+        name: typeof r.name === "string" ? r.name : "",
+        phone: typeof r.phone === "string" ? r.phone : "",
+        email: typeof r.email === "string" ? r.email : "",
+        gender: typeof r.gender === "string" ? r.gender : "",
+        dob: typeof r.dob === "string" ? r.dob : "",
+        relation: typeof r.relation === "string" ? r.relation : undefined,
+        sourceSection: r.sourceSection === "self" || r.sourceSection === "family" ? r.sourceSection : undefined,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}

@@ -33,16 +33,18 @@ export function HomePage() {
 
   const [isDiagnosticsSheetOpen, setIsDiagnosticsSheetOpen] = useState(false);
   const [isConsultationSheetOpen, setIsConsultationSheetOpen] = useState(false);
+  const [isVisionSheetOpen, setIsVisionSheetOpen] = useState(false);
 
   useEffect(() => {
-    const isAnySheetOpen = isDiagnosticsSheetOpen || isConsultationSheetOpen;
+    const isAnySheetOpen =
+      isDiagnosticsSheetOpen || isConsultationSheetOpen || isVisionSheetOpen;
     if (!isAnySheetOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prevOverflow;
     };
-  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen]);
+  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen]);
 
   return (
     <div className="home-page">
@@ -259,8 +261,8 @@ export function HomePage() {
               <button
                 type="button"
                 className="home-card home-card--tile home-card--btn home-card--clickable"
-                aria-label="Open Vision"
-                onClick={() => navigate(ROUTES.vision)}
+                aria-label="Open Vision options"
+                onClick={() => setIsVisionSheetOpen(true)}
               >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Vision</h3>
@@ -499,6 +501,87 @@ export function HomePage() {
                 onClick={() => {
                   setIsConsultationSheetOpen(false);
                   navigate("/consultation/virtual");
+                }}
+              />
+            </div>
+          </section>
+        </dialog>
+      ) : null}
+
+      {isVisionSheetOpen ? (
+        <dialog
+          className="home-sheet-dialog"
+          open
+          aria-label="Vision"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsVisionSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setIsVisionSheetOpen(false);
+          }}
+        >
+          <section className="home-sheet home-sheet--vision">
+            <header className="home-sheet__header">
+              <h3 className="home-sheet__title">Vision</h3>
+              <button
+                type="button"
+                className="home-sheet__close"
+                aria-label="Close"
+                onClick={() => setIsVisionSheetOpen(false)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </header>
+
+            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              <ServiceHubCard
+                icon={
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <rect
+                      x="5"
+                      y="3"
+                      width="14"
+                      height="18"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <circle cx="12" cy="10" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+                    <path
+                      d="M9 15.5h6"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                }
+                title="Eye Checkup"
+                description="Comprehensive eye examination"
+                onClick={() => {
+                  setIsVisionSheetOpen(false);
+                  navigate(ROUTES.visionSelectPeople, { state: { visionOption: "eye-checkup" } });
+                }}
+              />
+              <ServiceHubCard
+                icon={
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" />
+                    <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                  </svg>
+                }
+                title="Glasses/Lens"
+                description="Browse glasses & contact lenses"
+                onClick={() => {
+                  setIsVisionSheetOpen(false);
+                  navigate(ROUTES.visionSelectPeople, { state: { visionOption: "glasses-lens" } });
                 }}
               />
             </div>
