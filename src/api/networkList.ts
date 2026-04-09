@@ -335,6 +335,110 @@ export async function fetchDentalNetworkClinicList(
     .filter((x): x is DentalNetworkClinicRow => x !== null);
 }
 
+/** Vision network list: `GET /network/list?service=vision.clinic|vision.store` → `data[]` clinic rows. */
+export type VisionNetworkService = "vision.clinic" | "vision.store";
+
+function parseCoordinatePair(coords: string): Readonly<{ lat: number; lng: number }> | null {
+  const parts = coords.split(",").map((s) => s.trim());
+  if (parts.length < 2) return null;
+  const lat = Number(parts[0]);
+  const lng = Number(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+/** Distance in km between two WGS84 points (haversine). */
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function hashStringToClinicId(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  const n = Math.abs(h);
+  return n === 0 ? 1 : n;
+}
+
+function googleMapsDirUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
+function normalizeVisionClinicRow(
+  raw: unknown,
+  index: number,
+  userLat: number | null,
+  userLng: number | null,
+): DentalNetworkClinicRow | null {
+  const r = asRecord(raw);
+  if (!r) return null;
+  const idRaw = str(r.id) ?? `vision-${index}`;
+  const name = str(r.name) ?? `Clinic ${index + 1}`;
+  const displayAddress = str(r.display_address) ?? "";
+  const coordsStr = str(r.coordinates) ?? "";
+  const parsed = parseCoordinatePair(coordsStr);
+  const vendor = asRecord(r.vendor);
+  const vendorId = num(r.vendor_id) ?? num(vendor?.id) ?? 0;
+
+  let distanceLabel = "—";
+  if (parsed && userLat != null && userLng != null) {
+    distanceLabel = haversineKm(userLat, userLng, parsed.lat, parsed.lng).toFixed(1);
+  }
+
+  const locationUrl = parsed ? googleMapsDirUrl(parsed.lat, parsed.lng) : "";
+
+  return {
+    available: r.status !== false,
+    distance: distanceLabel,
+    name,
+    providername: str(vendor?.name) ?? "",
+    city: str(asRecord(r.address)?.city) ?? "",
+    practiceaddress: displayAddress,
+    longitude: parsed ? String(parsed.lng) : "",
+    latitude: parsed ? String(parsed.lat) : "",
+    cell: str(r.phone) ?? "",
+    providerid: vendorId,
+    clinicid: hashStringToClinicId(idRaw),
+    location: locationUrl,
+    pin: str(asRecord(r.address)?.pincode) ?? "",
+    practicename: name,
+    provider: "",
+    primary_clinic: false,
+    email: str(r.email) ?? "",
+  };
+}
+
+/**
+ * `GET /network/list?location=lat,lng&service=vision.clinic|vision.store` (no `speciality_id`).
+ * Response: `{ data: Clinic[] }` (array of clinics with `display_address`, `coordinates`, etc.).
+ */
+export async function fetchVisionNetworkClinicList(
+  location: string,
+  service: VisionNetworkService,
+  init?: { skipGlobalLoading?: boolean },
+): Promise<DentalNetworkClinicRow[]> {
+  const query = [
+    `location=${encodeLocationQueryParam(location.trim())}`,
+    `service=${encodeURIComponent(service)}`,
+  ].join("&");
+  const raw = await patientJson<unknown>(`network/list?${query}`, {
+    method: "GET",
+    skipGlobalLoading: init?.skipGlobalLoading,
+  });
+  const user = parseCoordinatePair(location.trim());
+  const userLat = user?.lat ?? null;
+  const userLng = user?.lng ?? null;
+  return extractRows(raw)
+    .map((row, i) => normalizeVisionClinicRow(row, i, userLat, userLng))
+    .filter((x): x is DentalNetworkClinicRow => x !== null);
+}
+
 /**
  * Resolves `lat,lng` for {@link fetchDentalNetworkClinicList} from the same saved address
  * used in “Choose address” (primary / selected / first), then falls back to {@link readNetworkListLocation}.

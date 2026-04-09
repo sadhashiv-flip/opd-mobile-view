@@ -69,6 +69,10 @@ export const ROUTES = {
   /** Generic booking success — pass `BookingSuccessLocationState` via `navigate(..., { state })`. */
   bookingSuccess: "/services/booking-success",
   vision: "/vision",
+  /** Vision booking: member selection (Eye Checkup / Glasses·Lens from home). */
+  visionSelectPeople: "/services/vision/select-people",
+  /** Vision booking: clinic network list (`service=vision.clinic` or `vision.store`). */
+  visionNetworkList: "/services/vision/network-list",
   pharmacy: "/pharmacy",
   pharmacyUpload: "/pharmacy/upload",
   pharmacySelectPrescription: "/pharmacy/select-prescription",

@@ -1,4 +1,9 @@
-/** Shared base URL + error parsing for `/patient/*` endpoints. */
+/**
+ * Shared base URL + error parsing for `/patient/*` endpoints.
+ *
+ * Dev CORS: set `VITE_API_BASE_URL` to `http://localhost:3000/dev-api` (same port as Vite) and
+ * `VITE_DEV_API_PROXY_TARGET` in `.env` so `vite.config.js` forwards `/dev-api/*` to the real API.
+ */
 
 export function getPatientApiBase(): string {
   const raw = import.meta.env.VITE_API_BASE_URL;
@@ -23,14 +28,16 @@ export function getUploadApiBase(): string {
 
 export async function readPatientApiError(res: Response): Promise<string> {
   const text = await res.text();
-  if (!text) return `Request failed (${res.status})`;
+  const prefix = `HTTP ${res.status}`;
+  if (!text) return `${prefix} — empty response body`;
   try {
     const data = JSON.parse(text) as Record<string, unknown>;
     const msg = data.message ?? data.error ?? data.detail;
-    if (typeof msg === "string" && msg.trim()) return msg;
-    if (Array.isArray(msg) && typeof msg[0] === "string") return msg[0];
+    if (typeof msg === "string" && msg.trim()) return `${prefix}: ${msg.trim()}`;
+    if (Array.isArray(msg) && typeof msg[0] === "string") return `${prefix}: ${msg[0]}`;
   } catch {
     // not JSON
   }
-  return text.slice(0, 200) || `Request failed (${res.status})`;
+  const snippet = text.replace(/\s+/g, " ").slice(0, 200);
+  return snippet ? `${prefix}: ${snippet}` : `${prefix}`;
 }
