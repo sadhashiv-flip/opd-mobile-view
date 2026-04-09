@@ -1,31 +1,90 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import { ROUTES } from "@/constants";
+import {
+  DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
+  DEFAULT_BOOKING_SUCCESS_TITLE,
+  DEFAULT_CONSULT_SUCCESS_SUB_DENTAL,
+  DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL,
+  DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL,
+  DEFAULT_CONSULT_SUCCESS_TITLE,
+  isBookingSuccessLocationState,
+} from "@/constants/bookingSuccessNavigation";
 import successLottie from "@/assets/lotties/success.json";
 import "./BookingSuccessPage.css";
 
 const BOOKING_SUCCESS_REDIRECT_MS = 5000;
 
+function isConsultSuccessPath(pathname: string): boolean {
+  return (
+    pathname === ROUTES.consultationHospitalBookingSuccess ||
+    pathname === ROUTES.consultationVirtualBookingSuccess ||
+    pathname === ROUTES.dentalBookingSuccess
+  );
+}
+
+function useConsultLayout(pathname: string, rawState: unknown): boolean {
+  if (isConsultSuccessPath(pathname)) return true;
+  if (pathname !== ROUTES.bookingSuccess) return false;
+  const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
+  return s?.layout === "consult";
+}
+
+function resolveConsultCopy(
+  pathname: string,
+  rawState: unknown,
+): Readonly<{ title: string; sub: string }> {
+  const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
+  const title = s?.title?.trim() || DEFAULT_CONSULT_SUCCESS_TITLE;
+  const desc = s?.description?.trim();
+  if (desc) {
+    return { title, sub: desc };
+  }
+  if (pathname === ROUTES.consultationVirtualBookingSuccess) {
+    return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL };
+  }
+  if (pathname === ROUTES.dentalBookingSuccess) {
+    return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_DENTAL };
+  }
+  return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL };
+}
+
 export function BookingSuccessPage() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const isConsultationHospitalSuccess = pathname === ROUTES.consultationHospitalBookingSuccess;
+  const { pathname, state: rawState } = useLocation();
+  const consultLayout = useConsultLayout(pathname, rawState);
+  const consultCopy = useMemo(() => resolveConsultCopy(pathname, rawState), [pathname, rawState]);
+
+  const cardCopy = useMemo(() => {
+    if (!isBookingSuccessLocationState(rawState)) {
+      return {
+        title: DEFAULT_BOOKING_SUCCESS_TITLE,
+        description: DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
+      };
+    }
+    const t = rawState.title?.trim();
+    const d = rawState.description?.trim();
+    return {
+      title: t || DEFAULT_BOOKING_SUCCESS_TITLE,
+      description: d || DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
+    };
+  }, [rawState]);
 
   useEffect(() => {
-    if (isConsultationHospitalSuccess) return;
+    if (consultLayout) return;
     const id = globalThis.setTimeout(() => {
       navigate(ROUTES.dashboard, { replace: true });
     }, BOOKING_SUCCESS_REDIRECT_MS);
     return () => globalThis.clearTimeout(id);
-  }, [navigate, isConsultationHospitalSuccess]);
+  }, [consultLayout, navigate]);
 
-  if (isConsultationHospitalSuccess) {
+  if (consultLayout) {
     return (
       <div className="bs-page bs-page--consult">
         <div className="bs-consult-main">
-          <h1 className="bs-consult-title">Appointment Booked!</h1>
-          <p className="bs-consult-sub">Appointment booked successfully.</p>
+          <h1 className="bs-consult-title">{consultCopy.title}</h1>
+          <p className="bs-consult-sub">{consultCopy.sub}</p>
           <div className="bs-lottie-wrap" aria-hidden="true">
             <Lottie animationData={successLottie} loop className="bs-lottie" />
           </div>
@@ -57,10 +116,8 @@ export function BookingSuccessPage() {
             />
           </svg>
         </div>
-        <h1 className="bs-title">Appointment booking successfully.</h1>
-        <p className="bs-sub">
-          Your booking has been confirmed. You can track it in My Orders.
-        </p>
+        <h1 className="bs-title">{cardCopy.title}</h1>
+        <p className="bs-sub">{cardCopy.description}</p>
 
         <div className="bs-actions">
           <Link className="bs-btn bs-btn--primary" to={ROUTES.orders}>

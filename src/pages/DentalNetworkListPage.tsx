@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import {
@@ -16,10 +16,10 @@ import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelect
 import clinicDistanceIcon from "@/assets/icons/common/ClinicDistance.svg";
 import "@/pages/HealthCheckupsPage.css";
 import "./DentalNetworkListPage.css";
-
-const DENTAL_SELECTED_CLINIC_KEY = "opd-mobile-view.dental.selectedClinic";
+import { DENTAL_SELECTED_CLINIC_KEY } from "@/constants/dentalBookingStorage";
 
 export function DentalNetworkListPage() {
+  const navigate = useNavigate();
   const toast = useToast();
   const addrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
   const addrTag = useSelectedAddressTag("HOME");
@@ -68,7 +68,7 @@ export function DentalNetworkListPage() {
     } catch {
       // ignore
     }
-    toast.success("Clinic selected.");
+    void navigate(ROUTES.dentalSlots);
   };
 
   return (

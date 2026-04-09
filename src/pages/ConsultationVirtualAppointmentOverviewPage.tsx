@@ -321,7 +321,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
                   issue_id: issueIdNum,
                   purpose: purpose.trim(),
                 });
-                navigate(generatePath(ROUTES.diagnosticsBookingSuccess, { type: "health-checkups" }));
+                navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : "Could not book appointment");
               } finally {
