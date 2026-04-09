@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, generatePath, useLocation, useParams } from "react-router-dom";
 import { useCallback, useMemo } from "react";
 import { ROUTES } from "@/constants";
 import { fetchVisionNetworkClinicList, resolveSelectedAddressLocation } from "@/api/networkList";
@@ -10,10 +10,16 @@ import { NetworkClinicListView } from "@/pages/NetworkClinicListView";
 
 export function VisionNetworkListPage() {
   const location = useLocation();
+  const params = useParams<{ visionType: string }>();
+  const visionType = params.visionType?.trim();
+
+  if (visionType !== "eye-checkup" && visionType !== "glasses-lens") {
+    return <Navigate to={ROUTES.dashboard} replace />;
+  }
 
   const { flowOption, service } = useMemo(
-    () => resolveVisionBookingContext(location.state),
-    [location.state],
+    () => resolveVisionBookingContext(location.state, visionType),
+    [location.state, visionType],
   );
 
   const title = useMemo(() => {
@@ -23,23 +29,23 @@ export function VisionNetworkListPage() {
   }, [flowOption]);
 
   const fetchClinics = useCallback(async () => {
-    const { service: svc } = resolveVisionBookingContext(location.state);
+    const { service: svc } = resolveVisionBookingContext(location.state, visionType);
     if (!svc) return [];
     const loc = await resolveSelectedAddressLocation();
     return fetchVisionNetworkClinicList(loc, svc);
-  }, [location.state]);
+  }, [location.state, visionType]);
 
   if (!service) {
-    return <Navigate to={ROUTES.visionSelectPeople} replace />;
+    return <Navigate to={generatePath(ROUTES.visionSelectPeople, { visionType })} replace />;
   }
 
   return (
     <NetworkClinicListView
       title={title}
-      backTo={ROUTES.visionSelectPeople}
+      backTo={generatePath(ROUTES.visionSelectPeople, { visionType })}
       fetchClinics={fetchClinics}
       selectedClinicStorageKey={VISION_SELECTED_CLINIC_KEY}
-      continueTo={ROUTES.vision}
+      continueTo={generatePath(ROUTES.visionSlots, { visionType })}
     />
   );
 }

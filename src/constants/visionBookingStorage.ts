@@ -1,10 +1,31 @@
 /** Session keys for the vision booking flow (select people → network list → …). */
 
-import type { VisionNetworkService } from "@/api/networkList";
+import type { DentalNetworkClinicRow, VisionNetworkService } from "@/api/networkList";
+import type { VisionServiceSlotRow } from "@/api/visionServiceSlots";
 
 export const VISION_FLOW_OPTION_KEY = "opd-mobile-view.vision.flowOption";
 
 export const VISION_SELECTED_CLINIC_KEY = "opd-mobile-view.vision.selectedClinic";
+
+export const VISION_SELECTED_SLOT_KEY = "opd-mobile-view.vision.selectedSlot";
+
+export function readVisionSelectedClinic(): DentalNetworkClinicRow | null {
+  try {
+    const s = sessionStorage.getItem(VISION_SELECTED_CLINIC_KEY);
+    if (!s?.trim()) return null;
+    return JSON.parse(s) as DentalNetworkClinicRow;
+  } catch {
+    return null;
+  }
+}
+
+export function writeVisionSelectedSlot(row: VisionServiceSlotRow): void {
+  try {
+    sessionStorage.setItem(VISION_SELECTED_SLOT_KEY, JSON.stringify(row));
+  } catch {
+    // ignore
+  }
+}
 
 /** Home / select-people route state — drives API `service=vision.clinic` vs `vision.store`. */
 export type VisionSheetOption = "eye-checkup" | "glasses-lens";
@@ -13,6 +34,10 @@ function parseVisionOptionFromNavState(nav: unknown): VisionSheetOption | null {
   if (!nav || typeof nav !== "object") return null;
   const v = (nav as { visionOption?: unknown }).visionOption;
   return v === "eye-checkup" || v === "glasses-lens" ? v : null;
+}
+
+function isVisionSheetOptionString(v: string | undefined | null): v is VisionSheetOption {
+  return v === "eye-checkup" || v === "glasses-lens";
 }
 
 export function readVisionFlowOptionFromStorage(): VisionSheetOption | null {
@@ -31,14 +56,25 @@ function toApiService(opt: VisionSheetOption | null): VisionNetworkService | nul
 }
 
 /**
- * Resolves vision flow from React Router `location.state` first, then sessionStorage.
- * When `location.state` carries `visionOption`, it is written to session (same tick as render
- * so child effects that load clinics see a consistent service key).
+ * Resolves vision flow from the URL segment `/:visionType` first (same idea as consultation `/:type`),
+ * then `location.state`, then sessionStorage.
  */
-export function resolveVisionBookingContext(navState: unknown): Readonly<{
+export function resolveVisionBookingContext(
+  navState: unknown,
+  visionTypeFromPath?: string | null,
+): Readonly<{
   flowOption: VisionSheetOption | null;
   service: VisionNetworkService | null;
 }> {
+  const trimmed = visionTypeFromPath?.trim();
+  if (trimmed && isVisionSheetOptionString(trimmed)) {
+    try {
+      sessionStorage.setItem(VISION_FLOW_OPTION_KEY, trimmed);
+    } catch {
+      // ignore
+    }
+    return { flowOption: trimmed, service: toApiService(trimmed) };
+  }
   const fromNav = parseVisionOptionFromNavState(navState);
   if (fromNav) {
     try {

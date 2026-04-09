@@ -1,5 +1,5 @@
-import { ROUTES } from "@/constants";
-import { VISION_FLOW_OPTION_KEY } from "@/constants/visionBookingStorage";
+import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { VISION_FLOW_OPTION_KEY, type VisionSheetOption } from "@/constants/visionBookingStorage";
 import {
   buildConsultMemberSnapshotFromRow,
   writeConsultSelectedMembersSnapshots,
@@ -16,7 +16,7 @@ import selectSvg from "@/assets/icons/Dashboard/Select.svg";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
-import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
@@ -58,16 +58,24 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     headerTitle = diagnosticsTitle;
   }
 
-  const visionOption = useMemo(() => {
+  const visionTypeParam = params.visionType?.trim();
+  const visionOption = useMemo((): VisionSheetOption | undefined => {
+    if (visionTypeParam === VISION_ROUTE_TYPE.eyeCheckup || visionTypeParam === VISION_ROUTE_TYPE.glassesLens) {
+      return visionTypeParam;
+    }
     const s = location.state;
     if (s && typeof s === "object" && "visionOption" in s) {
       const v = (s as { visionOption?: unknown }).visionOption;
       return v === "eye-checkup" || v === "glasses-lens" ? v : undefined;
     }
     return undefined;
-  }, [location.state]);
+  }, [visionTypeParam, location.state]);
   const visionModeLabel =
     visionOption === "eye-checkup" ? "Eye Checkup" : visionOption === "glasses-lens" ? "Glasses/Lens" : null;
+
+  if (flow === "vision" && visionOption == null) {
+    return <Navigate to={ROUTES.dashboard} replace />;
+  }
 
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,16 +176,18 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     }
 
     if (flow === "vision") {
+      if (!visionOption) return;
       writeDiagnosticsSelectedPersonIds([selected]);
       writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
       try {
-        sessionStorage.setItem(VISION_FLOW_OPTION_KEY, visionOption ?? "");
+        sessionStorage.setItem(VISION_FLOW_OPTION_KEY, visionOption);
       } catch {
         // ignore
       }
-      void navigate(ROUTES.visionNetworkList, {
-        state: { visionOption: visionOption ?? undefined },
-      });
+      void navigate(
+        generatePath(ROUTES.visionNetworkList, { visionType: visionOption }),
+        { state: { visionOption } },
+      );
       return;
     }
 

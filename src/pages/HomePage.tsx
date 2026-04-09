@@ -14,10 +14,10 @@ import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
-import { HOME_BANNER_SLIDES, HOME_IMAGE_URLS, ROUTES } from "@/constants";
+import { HOME_BANNER_SLIDES, HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { generatePath, Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
 import "./ServicesHubPage.css";
 
@@ -566,7 +566,7 @@ export function HomePage() {
                 description="Comprehensive eye examination"
                 onClick={() => {
                   setIsVisionSheetOpen(false);
-                  navigate(ROUTES.visionSelectPeople, { state: { visionOption: "eye-checkup" } });
+                  navigate(generatePath(ROUTES.visionSelectPeople, { visionType: VISION_ROUTE_TYPE.eyeCheckup }));
                 }}
               />
               <ServiceHubCard
@@ -581,7 +581,7 @@ export function HomePage() {
                 description="Browse glasses & contact lenses"
                 onClick={() => {
                   setIsVisionSheetOpen(false);
-                  navigate(ROUTES.visionSelectPeople, { state: { visionOption: "glasses-lens" } });
+                  navigate(generatePath(ROUTES.visionSelectPeople, { visionType: VISION_ROUTE_TYPE.glassesLens }));
                 }}
               />
             </div>

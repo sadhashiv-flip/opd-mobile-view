@@ -69,10 +69,15 @@ export const ROUTES = {
   /** Generic booking success — pass `BookingSuccessLocationState` via `navigate(..., { state })`. */
   bookingSuccess: "/services/booking-success",
   vision: "/vision",
-  /** Vision booking: member selection (Eye Checkup / Glasses·Lens from home). */
-  visionSelectPeople: "/services/vision/select-people",
-  /** Vision booking: clinic network list (`service=vision.clinic` or `vision.store`). */
-  visionNetworkList: "/services/vision/network-list",
+  /**
+   * Vision sub-flows (same pattern as {@link ROUTES.consultation} `/:type`).
+   * Path param `visionType`: `eye-checkup` | `glasses-lens` — use {@link VISION_ROUTE_TYPE}.
+   */
+  visionSelectPeople: "/services/vision/:visionType/select-people",
+  /** Clinic / store network list — `service=vision.clinic` vs `vision.store` from subtype. */
+  visionNetworkList: "/services/vision/:visionType/network-list",
+  /** Vision slots from `GET /service/slots` after choosing a network location. */
+  visionSlots: "/services/vision/:visionType/slots",
   pharmacy: "/pharmacy",
   pharmacyUpload: "/pharmacy/upload",
   pharmacySelectPrescription: "/pharmacy/select-prescription",
@@ -113,6 +118,12 @@ export const ROUTES = {
 export const WELLNESS_SESSION_KIND = {
   mentalWellness: "mental-wellness",
   nutrition: "nutrition",
+} as const;
+
+/** Path param `visionType` for {@link ROUTES.visionSelectPeople} and {@link ROUTES.visionNetworkList}. */
+export const VISION_ROUTE_TYPE = {
+  eyeCheckup: "eye-checkup",
+  glassesLens: "glasses-lens",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

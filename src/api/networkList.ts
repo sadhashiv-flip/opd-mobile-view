@@ -222,7 +222,7 @@ export function readNetworkListLocation(): string {
 /**
  * `lat,lng` with a literal comma — `URLSearchParams` encodes comma as `%2C`, which some backends reject.
  */
-function encodeLocationQueryParam(location: string): string {
+export function encodeLocationQueryParam(location: string): string {
   const t = location.trim();
   if (!t.includes(",")) return encodeURIComponent(t);
   return t
@@ -275,6 +275,8 @@ export type DentalNetworkClinicRow = Readonly<{
   provider: string;
   primary_clinic: boolean;
   email: string;
+  /** Vision: `network/list` row `id` — used for `GET /service/slots`. */
+  networkEntityId?: string;
 }>;
 
 function normalizeDentalClinicRow(raw: unknown, index: number): DentalNetworkClinicRow | null {
@@ -411,6 +413,7 @@ function normalizeVisionClinicRow(
     provider: "",
     primary_clinic: false,
     email: str(r.email) ?? "",
+    networkEntityId: idRaw,
   };
 }
 
