@@ -1,6 +1,7 @@
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { readSelectedAddress } from "@/constants/selectedAddressStorage";
 import {
+  readVisionGlassesPrescriptions,
   readVisionSelectedClinic,
   readVisionSelectedSlot,
 } from "@/constants/visionBookingStorage";
@@ -24,6 +25,7 @@ import "./DentalOverviewPage.css";
 
 /** Shown in “Added items” for the eye-checkup overview (vision.clinic). */
 const EYE_CHECKUP_SERVICE_NAME = "Eye Checkup";
+const GLASSES_LENS_SERVICE_NAME = "Glasses / Lens";
 
 function displayVisionSlot(row: VisionServiceSlotRow): string {
   const parts = row.slot_date.trim().split("-").map(Number);
@@ -36,6 +38,20 @@ function displayVisionSlot(row: VisionServiceSlotRow): string {
   const day = new Date(y, mo - 1, d);
   const api = formatPreferredApiDateTime(day, row.start_time);
   return formatVaccineSlotDisplay(api);
+}
+
+function formatGlassesRxUploadedAt(iso: string): string {
+  if (!iso.trim()) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 export function VisionOverviewPage() {
@@ -54,8 +70,20 @@ export function VisionOverviewPage() {
 
   const slotDisplay = useMemo(() => (slotRow ? displayVisionSlot(slotRow) : ""), [slotRow]);
 
+  const isEye = visionType === VISION_ROUTE_TYPE.eyeCheckup;
+  const isGlasses = visionType === VISION_ROUTE_TYPE.glassesLens;
+
+  const glassesPrescriptions = useMemo(
+    () => (isGlasses ? readVisionGlassesPrescriptions() : []),
+    [isGlasses],
+  );
+  const serviceLabel = isGlasses ? GLASSES_LENS_SERVICE_NAME : EYE_CHECKUP_SERVICE_NAME;
+  const backTo = isGlasses
+    ? generatePath(ROUTES.visionAddPrescription, { visionType })
+    : generatePath(ROUTES.visionSlots, { visionType });
+
   useEffect(() => {
-    if (visionType !== VISION_ROUTE_TYPE.eyeCheckup) {
+    if (!isEye && !isGlasses) {
       return;
     }
     if (!member) {
@@ -70,8 +98,12 @@ export function VisionOverviewPage() {
     }
     if (!slotRow) {
       void navigate(generatePath(ROUTES.visionSlots, { visionType }), { replace: true });
+      return;
     }
-  }, [clinic, member, slotRow, visionType, navigate, toast]);
+    if (isGlasses && readVisionGlassesPrescriptions().length === 0) {
+      void navigate(generatePath(ROUTES.visionAddPrescription, { visionType }), { replace: true });
+    }
+  }, [clinic, isEye, isGlasses, member, slotRow, visionType, navigate, toast]);
 
   useEffect(() => {
     void (async () => {
@@ -110,32 +142,54 @@ export function VisionOverviewPage() {
     }
     if (!slotRow) return;
 
+    const rxStored = readVisionGlassesPrescriptions();
+    if (isGlasses) {
+      const withIds = rxStored.filter((r) => r.attachmentId.trim());
+      if (withIds.length === 0) {
+        toast.error("Add at least one prescription first.");
+        void navigate(generatePath(ROUTES.visionAddPrescription, { visionType }), { replace: true });
+        return;
+      }
+    }
+
     setBusy(true);
     try {
-      await postVisionServiceRequest({
-        booking_type: "clinic",
-        user_id: uid,
-        network_id: netId,
-        address_id: addr.id.trim(),
-        slot: {
-          slot_id: slotRow.slot_id,
-          slot_date: slotRow.slot_date,
-          start_time: slotRow.start_time,
-          end_time: slotRow.end_time,
-        },
-      });
-      void navigate(
-        generatePath(ROUTES.visionBookingSuccess, { visionType: VISION_ROUTE_TYPE.eyeCheckup }),
-        { replace: true },
+      const slotPayload = {
+        slot_id: slotRow.slot_id,
+        slot_date: slotRow.slot_date,
+        start_time: slotRow.start_time,
+        end_time: slotRow.end_time,
+      };
+
+      await postVisionServiceRequest(
+        isGlasses
+          ? {
+              booking_type: "store",
+              user_id: uid,
+              network_id: netId,
+              address_id: addr.id.trim(),
+              slot: slotPayload,
+              prescription: rxStored
+                .filter((r) => r.attachmentId.trim())
+                .map((r) => ({ id: r.attachmentId.trim() })),
+            }
+          : {
+              booking_type: "clinic",
+              user_id: uid,
+              network_id: netId,
+              address_id: addr.id.trim(),
+              slot: slotPayload,
+            },
       );
+      void navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), { replace: true });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not complete booking");
     } finally {
       setBusy(false);
     }
-  }, [clinic, member, navigate, slotRow, toast]);
+  }, [clinic, isGlasses, member, navigate, slotRow, toast, visionType]);
 
-  if (visionType !== VISION_ROUTE_TYPE.eyeCheckup) {
+  if (!isEye && !isGlasses) {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
 
@@ -147,7 +201,7 @@ export function VisionOverviewPage() {
     <div className="hco-page dental-overview">
       <header className="hco-top">
         <Link
-          to={generatePath(ROUTES.visionSlots, { visionType })}
+          to={backTo}
           className="hco-back"
           aria-label="Back"
         >
@@ -177,7 +231,7 @@ export function VisionOverviewPage() {
           <div className="hco-subhead">
             <span className="hco-subhead__title">Added Items (1)</span>
           </div>
-          <p className="dental-overview__service">{EYE_CHECKUP_SERVICE_NAME}</p>
+          <p className="dental-overview__service">{serviceLabel}</p>
           <p className="dental-overview__for">{patientLine}</p>
 
           <section className="hco-block">
@@ -221,6 +275,30 @@ export function VisionOverviewPage() {
               </button>
             </div>
           </section>
+
+          {isGlasses && glassesPrescriptions.length > 0 ? (
+            <section className="hco-block dental-overview__rx" aria-labelledby="vision-overview-rx-heading">
+              <div className="hco-label" id="vision-overview-rx-heading">
+                Uploaded Prescriptions
+              </div>
+              <ul className="dental-overview__rx-list">
+                {glassesPrescriptions.map((rx) => {
+                  const title = rx.title.trim() || rx.attachmentId;
+                  const short = title.length > 42 ? `${title.slice(0, 40)}…` : title;
+                  return (
+                    <li key={rx.attachmentId} className="dental-overview__rx-item">
+                      <span className="dental-overview__rx-name" title={title}>
+                        {short}
+                      </span>
+                      <span className="dental-overview__rx-time">
+                        {formatGlassesRxUploadedAt(rx.uploadedAt)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
 
           <section className="hco-totals">
             <div className="hco-totals__row">

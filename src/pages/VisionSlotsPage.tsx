@@ -124,7 +124,7 @@ export function VisionSlotsPage() {
       void navigate(generatePath(ROUTES.visionOverview, { visionType }));
       return;
     }
-    void navigate(ROUTES.vision, { state: { visionType } });
+    void navigate(generatePath(ROUTES.visionAddPrescription, { visionType }));
   };
 
   if (visionType !== VISION_ROUTE_TYPE.eyeCheckup && visionType !== VISION_ROUTE_TYPE.glassesLens) {

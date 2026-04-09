@@ -114,6 +114,7 @@ export function parsePrescriptionUploadResponse(parsed: unknown): PrescriptionUp
     file_name:
       (typeof inner.file_name === "string" && inner.file_name.trim()) ||
       (typeof inner.name === "string" && inner.name.trim()) ||
+      (typeof inner.title === "string" && inner.title.trim()) ||
       undefined,
     url: typeof inner.url === "string" && inner.url.trim() ? inner.url.trim() : undefined,
     type: typeof inner.type === "string" && inner.type.trim() ? inner.type.trim() : undefined,

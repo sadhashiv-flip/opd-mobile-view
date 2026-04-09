@@ -7,12 +7,16 @@ export type VisionBookingSlotPayload = Readonly<{
   end_time: string;
 }>;
 
+export type VisionPrescriptionRef = Readonly<{ id: string }>;
+
 export type VisionServiceRequestPayload = Readonly<{
   booking_type: "clinic" | "store";
   user_id: number;
   network_id: string;
   address_id: string;
   slot: VisionBookingSlotPayload;
+  /** Required when `booking_type` is `"store"` (glasses/lens) — upload attachment ids from `/upload`. */
+  prescription?: readonly VisionPrescriptionRef[];
 }>;
 
 /** POST `/service/vision/request` */

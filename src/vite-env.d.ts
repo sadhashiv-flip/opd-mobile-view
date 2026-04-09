@@ -2,7 +2,11 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
-  /** Optional base for `POST /upload` (no trailing slash). Defaults to `VITE_API_BASE_URL`. */
+  /**
+   * Optional server root for `POST /upload` (no trailing slash), e.g. `http://localhost:2017`.
+   * Not `{...}/patient` — upload is `{this}/upload`, not `{...}/patient/upload`.
+   * If unset, `patient` is stripped from `VITE_API_BASE_URL` when it ends with `/patient`.
+   */
   readonly VITE_API_UPLOAD_URL?: string;
   /** `app_name` header for `POST /upload` (e.g. document uploads). Defaults to `co-flip-health`. */
   readonly VITE_UPLOAD_APP_NAME?: string;

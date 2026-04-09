@@ -104,3 +104,40 @@
   line-height: 1.5;
   color: #5c5c5c;
 }
+
+/* Glasses/lens — uploaded prescriptions (overview) */
+.dental-overview__rx.hco-block {
+  margin-top: 4px;
+}
+
+.dental-overview__rx-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dental-overview__rx-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #f8f8f8;
+  border: 1px solid #ececec;
+  border-radius: 10px;
+}
+
+.dental-overview__rx-name {
+  font-size: clamp(11px, 3vw, 13px);
+  font-weight: 700;
+  color: #111;
+  word-break: break-word;
+}
+
+.dental-overview__rx-time {
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+  color: #8e8e8e;
+}

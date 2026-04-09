@@ -14,16 +14,33 @@ export function getPatientApiBase(): string {
   return base;
 }
 
+const PATIENT_SUFFIX = "/patient";
+
 /**
- * Base URL for `POST /upload` (e.g. cheque). Falls back to {@link getPatientApiBase} if unset.
- * Set `VITE_API_UPLOAD_URL` when the upload service differs from the main patient API.
+ * Uploads use `POST {base}/upload`. The patient REST API often lives at `{host}/patient`, while
+ * upload is at `{host}/upload` — not `{host}/patient/upload`. Strip a trailing `/patient` from the
+ * chosen base so `patientFetchUpload("upload", …)` resolves to the root upload route.
+ */
+function normalizeUploadApiBase(raw: string): string {
+  let base = raw.trim().replace(/\/$/, "");
+  if (base.endsWith(PATIENT_SUFFIX)) {
+    base = base.slice(0, -PATIENT_SUFFIX.length);
+  }
+  return base.replace(/\/$/, "");
+}
+
+/**
+ * Base URL for `POST /upload` (e.g. prescription, cheque). Result never ends with `/patient`.
+ * Set `VITE_API_UPLOAD_URL` to the server root (e.g. `http://localhost:2017`) when uploads must not
+ * go to `{VITE_API_BASE_URL}/upload` under a `/patient` prefix.
+ * If unset, derives from {@link getPatientApiBase} with `/patient` stripped when present.
  */
 export function getUploadApiBase(): string {
   const raw = import.meta.env.VITE_API_UPLOAD_URL;
   if (typeof raw === "string" && raw.trim()) {
-    return raw.trim().replace(/\/$/, "");
+    return normalizeUploadApiBase(raw);
   }
-  return getPatientApiBase();
+  return normalizeUploadApiBase(getPatientApiBase());
 }
 
 export async function readPatientApiError(res: Response): Promise<string> {
