@@ -269,7 +269,7 @@
   font-weight: 800;
 }
 
-.hc-continue {
+.bottom-continue {
   width: 100%;
   border: none;
   border-radius: 10px;
@@ -281,7 +281,7 @@
   cursor: pointer;
 }
 
-.hc-continue:disabled {
+.bottom-continue:disabled {
   background: #c4c4c4;
   color: #ffffff;
   cursor: not-allowed;

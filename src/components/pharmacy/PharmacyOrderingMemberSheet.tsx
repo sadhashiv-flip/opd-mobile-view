@@ -204,7 +204,7 @@ export function PharmacyOrderingMemberSheet({
         </main>
 
         <footer className="hc-footer">
-          <button type="button" className="hc-continue" disabled={!canContinue} onClick={onContinue}>
+          <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
             Continue
           </button>
         </footer>

@@ -205,7 +205,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             <p className="hc-member-error__text">{fetchError}</p>
             <button
               type="button"
-              className="hc-continue"
+              className="bottom-continue"
               onClick={() => {
                 setFetchError(null);
                 setLoading(true);
@@ -294,7 +294,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       </main>
 
       <footer className="hc-footer">
-        <button type="button" className="hc-continue" disabled={!canContinue} onClick={onContinue}>
+        <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
           Continue
         </button>
       </footer>

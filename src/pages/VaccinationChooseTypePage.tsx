@@ -109,7 +109,7 @@ export function VaccinationChooseTypePage() {
         {load === "error" ? (
           <div className="vac-choose__err">
             <p>Could not load vaccines.</p>
-            <button type="button" className="hc-continue" onClick={() => void loadList()}>
+            <button type="button" className="bottom-continue" onClick={() => void loadList()}>
               Retry
             </button>
           </div>
@@ -167,7 +167,7 @@ export function VaccinationChooseTypePage() {
         ) : (
           <span className="vac-choose__selection vac-choose__selection--muted">Select at least one vaccine</span>
         )}
-        <button type="button" className="hc-continue" disabled={!canContinue} onClick={onContinue}>
+        <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
           Continue
         </button>
       </footer>

@@ -223,7 +223,7 @@ export function GymMembershipSelectPeoplePage() {
             <p className="hc-member-error__text">{fetchError}</p>
             <button
               type="button"
-              className="hc-continue"
+              className="bottom-continue"
               onClick={() => {
                 setFetchError(null);
                 setLoading(true);
@@ -380,7 +380,7 @@ export function GymMembershipSelectPeoplePage() {
         ) : null}
         <button
           type="button"
-          className="hc-continue"
+          className="bottom-continue"
           disabled={!canContinue}
           onClick={() => {
             if (selectedIds.length === 0) return;

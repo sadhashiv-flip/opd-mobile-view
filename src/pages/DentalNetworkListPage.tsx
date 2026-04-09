@@ -215,7 +215,7 @@ export function DentalNetworkListPage() {
       <footer className="hc-footer">
         <button
           type="button"
-          className="hc-continue"
+          className="bottom-continue"
           disabled={selectedIndex == null || load !== "ok"}
           onClick={onContinue}
         >

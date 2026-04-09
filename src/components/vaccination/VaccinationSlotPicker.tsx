@@ -236,7 +236,7 @@ export function VaccinationSlotPicker({
         <footer className="hc-footer vac-slot-pick__footer">
           <button
             type="button"
-            className="hc-continue"
+            className="bottom-continue"
             disabled={flatAvailable.length === 0 || (continueDisabled ?? !selectedSlot)}
             onClick={onContinue}
           >

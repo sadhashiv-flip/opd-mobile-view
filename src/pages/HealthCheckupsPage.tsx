@@ -245,7 +245,7 @@ export function HealthCheckupsPage() {
       <footer className="hc-footer">
         <button
           type="button"
-          className="hc-continue"
+          className="bottom-continue"
           onClick={() => {
             try {
               localStorage.setItem("opd-mobile-view.health-checkups.selectedPersonId", selectedId);
