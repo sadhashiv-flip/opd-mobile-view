@@ -28,9 +28,12 @@ export const DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL = "Appointment booked successf
 
 export const DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL = "Virtual consultation booked successfully.";
 
-export const DEFAULT_CONSULT_SUCCESS_SUB_DENTAL = "Dental Service booking successfully.";
+export const DEFAULT_CONSULT_SUCCESS_SUB_DENTAL = "Dental service booked successfully.";
 
-export const DEFAULT_CONSULT_SUCCESS_SUB_VISION = "Eye checkup booking successfully.";
+export const DEFAULT_CONSULT_SUCCESS_SUB_VISION = "Eye checkup service booked successfully.";
+
+/** Vision booking success subline when `visionType` is `glasses-lens`. */
+export const DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS = "Glasses/Lens service booked successfully.";
 
 export function isBookingSuccessLocationState(value: unknown): value is BookingSuccessLocationState {
   if (value == null || typeof value !== "object") return false;

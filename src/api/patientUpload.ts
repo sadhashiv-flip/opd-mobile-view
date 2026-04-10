@@ -68,6 +68,8 @@ export type PrescriptionUploadResult = Readonly<{
     prescription_id?: string;
     attachment_id?: string;
     file_name?: string;
+    /** Relative storage path — combine with `VITE_IMAGE_URL` for preview. */
+    path?: string;
     url?: string;
     type?: string;
   }>;
@@ -105,6 +107,8 @@ export function parsePrescriptionUploadResponse(parsed: unknown): PrescriptionUp
   }
 
   const id = pickNonEmptyString(inner.id, data?.id, fileObj?.id, root.id);
+  const path =
+    pickNonEmptyString(inner.path, data?.path, inner.logo, data?.logo, fileObj?.path) || undefined;
   const meta = {
     id: id || undefined,
     prescription_id:
@@ -116,6 +120,7 @@ export function parsePrescriptionUploadResponse(parsed: unknown): PrescriptionUp
       (typeof inner.name === "string" && inner.name.trim()) ||
       (typeof inner.title === "string" && inner.title.trim()) ||
       undefined,
+    path,
     url: typeof inner.url === "string" && inner.url.trim() ? inner.url.trim() : undefined,
     type: typeof inner.type === "string" && inner.type.trim() ? inner.type.trim() : undefined,
   };

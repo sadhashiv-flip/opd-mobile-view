@@ -120,13 +120,64 @@
 }
 
 .dental-overview__rx-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   padding: 10px 12px;
   background: #f8f8f8;
   border: 1px solid #ececec;
   border-radius: 10px;
+}
+
+.dental-overview__rx-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dental-overview__rx-thumb {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0e0e0;
+  box-sizing: border-box;
+}
+
+.dental-overview__rx-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dental-overview__rx-thumb-pdf,
+.dental-overview__rx-thumb-file {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #2e7d32;
+}
+
+.dental-overview__rx-thumb-file {
+  color: #1565c0;
+}
+
+.dental-overview__rx-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9e9e9e;
+}
+
+.dental-overview__rx-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .dental-overview__rx-name {
@@ -140,4 +191,24 @@
   font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 600;
   color: #8e8e8e;
+}
+
+.dental-overview__rx-preview-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #ff541e;
+  cursor: pointer;
+}
+
+.dental-overview__rx-preview-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
