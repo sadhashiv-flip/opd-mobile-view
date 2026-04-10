@@ -10,6 +10,11 @@ export const ROUTES = {
   userDetailsBmiResult: "/user-details/bmi/result",
   /** Link phone/email after verify when API returns `link`: PHONE | EMAIL */
   accountLink: "/account/link",
+  /**
+   * Shown when GET `/required_lab_tests` indicates `required_test` or `access_block` is true
+   * (after OTP/password verify). Placeholder for the full lab flow.
+   */
+  requiredLabTests: "/required-lab-tests",
   dashboard: "/dashboard",
   profile: "/profile",
   profileBank: "/profile/bank",
@@ -118,6 +123,8 @@ export const ROUTES = {
   /** Help tab: open ticket thread (chat + attachments). */
   servicesSupportTicketChat: "/services/support/ticket/:ticketId",
   cartOverview: "/cart-overview",
+  /** In-app notification list; loads `GET /notification`. */
+  notifications: "/notifications",
 } as const;
 
 /** Path param for {@link ROUTES.servicesWellness}. */

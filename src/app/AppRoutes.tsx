@@ -12,7 +12,8 @@ import { HealthCheckupsOverviewPage } from "../pages/HealthCheckupsOverviewPage"
 import { HealthCheckupsPlanPage } from "../pages/HealthCheckupsPlanPage";
 import { HomePage } from "../pages/HomePage";
 import { AccountLinkPage } from "@/pages/AccountLinkPage";
-import { LoginPage } from "../pages/LoginPage";
+import { PreLoginNoticeGate } from "../pages/PreLoginNoticeGate";
+import { RequiredLabTestsPage } from "@/pages/RequiredLabTestsPage";
 import { OtpPage } from "../pages/OtpPage";
 import { PlaceholderPage } from "../pages/PlaceholderPage";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
@@ -55,6 +56,7 @@ import { ConsultationTypePage } from "../pages/ConsultationTypePage";
 import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalResultsPage";
 import { WellnessSessionPage } from "@/pages/WellnessSessionPage";
 import { OrdersPage } from "@/pages/OrdersPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
 import { OrderDetailsPage } from "@/pages/OrderDetailsPage";
 import { VaccinationSelectPeoplePage } from "@/pages/VaccinationSelectPeoplePage";
 import { VaccinationChooseTypePage } from "@/pages/VaccinationChooseTypePage";
@@ -74,8 +76,9 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path={ROUTES.root} element={<SplashPage />} />
-      <Route path={ROUTES.login} element={<LoginPage />} />
+      <Route path={ROUTES.login} element={<PreLoginNoticeGate />} />
       <Route path={ROUTES.otp} element={<OtpPage />} />
+      <Route path={ROUTES.requiredLabTests} element={<RequiredLabTestsPage />} />
       <Route path={ROUTES.userDetailsPersonal} element={<UserDetailsPersonalInfoPage />} />
       <Route path={ROUTES.userDetailsBmi} element={<UserDetailsBmiPage />} />
       <Route path={ROUTES.userDetailsBmiResult} element={<UserDetailsBmiResultPage />} />
@@ -160,6 +163,7 @@ export function AppRoutes() {
       <Route path={ROUTES.pharmacyOrderSuccess} element={<PharmacyOrderSuccessPage />} />
       <Route path={ROUTES.ordersDetail} element={<OrderDetailsPage />} />
       <Route path={ROUTES.orders} element={<OrdersPage />} />
+      <Route path={ROUTES.notifications} element={<NotificationsPage />} />
       <Route path={ROUTES.walletTransactions} element={<WalletAllTransactionsPage />} />
       <Route path={ROUTES.walletSubscription} element={<WalletPage />} />
       <Route path={ROUTES.wallet} element={<WalletRedirectPage />} />

@@ -28,6 +28,198 @@
   padding: 0 var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
 }
 
+.home-gym-row {
+  margin-bottom: 16px;
+}
+
+.home-dash-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+  font: inherit;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 600;
+  color: #111111;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.home-dash-pill--gym:active {
+  opacity: 0.88;
+}
+
+/* Banners + ongoing in one carousel */
+.home-banner--mixed {
+  --home-banner-carousel-h: 176px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  /* Let viewport shadow sit outside; slides stay clipped inside the viewport */
+  overflow: visible;
+}
+
+.home-banner--mixed .home-banner__viewport {
+  height: var(--home-banner-carousel-h);
+  min-height: var(--home-banner-carousel-h);
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.05),
+    0 6px 16px rgba(0, 0, 0, 0.08);
+  /* Slight fill so very light promo art still reads as a card on #fff page */
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.home-banner--mixed .home-banner__track {
+  height: 100%;
+}
+
+.home-banner--mixed .home-banner__slide {
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
+}
+
+.home-banner--mixed .home-banner__api-hit {
+  min-height: 100%;
+  height: 100%;
+}
+
+.home-banner__slide--ongoing {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.home-ongoing-slide {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 168px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.home-ongoing-slide__bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.home-ongoing-slide__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.5) 0%,
+    rgba(0, 0, 0, 0.28) 42%,
+    rgba(0, 0, 0, 0.62) 100%
+  );
+}
+
+.home-ongoing-slide__body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 100%;
+  padding: 16px 56px 34px 16px;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.home-ongoing-slide__kicker {
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(167, 243, 208, 0.95);
+}
+
+.home-ongoing-slide__title {
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
+  font-weight: 700;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.home-ongoing-slide__meta {
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.88);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-ongoing-slide__action {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  color: #111111;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+
+.home-ongoing-slide__action:active {
+  opacity: 0.88;
+}
+
+.home-ongoing-slide__action:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.home-banner--mixed .home-ongoing-slide {
+  min-height: 0;
+  height: 100%;
+}
+
+.home-banner--mixed .home-banner__dots {
+  bottom: 10px;
+}
+
+/* Readable on both image promos and light ongoing cards */
+.home-banner--mixed .home-banner__dot {
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.home-banner--mixed .home-banner__dot--active {
+  width: 18px;
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.home-banner--mixed .home-banner__dot:focus-visible {
+  outline-color: #ffffff;
+  outline-offset: 2px;
+}
+
 .home-page__main--placeholder {
   display: flex;
   flex-direction: column;
@@ -107,6 +299,33 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+}
+
+.home-notif-btn {
+  position: relative;
+  color: #111111;
+}
+
+.home-notif-btn__icon {
+  display: block;
+}
+
+.home-notif-btn__badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #e53935;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+  box-sizing: border-box;
 }
 
 .home-icon-btn {
@@ -191,7 +410,7 @@
 }
 
 .home-section {
-  margin-bottom: 8px;
+  margin: 8px 0;
 }
 
 /* Figma: radius 15px, hairline #6C6C6C, shadow 2 / 2 / 4 @ 10% black */
@@ -668,11 +887,33 @@
   box-sizing: border-box;
 }
 
+.home-banner__slide--api {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.home-banner__api-hit {
+  display: block;
+  position: relative;
+  min-height: 168px;
+  border-radius: inherit;
+  text-decoration: none;
+  color: inherit;
+}
+
 .home-banner__bg {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
+}
+
+/* Promo API banners: avoid cropping wide artwork on the left/right (cover fills height and clips sides). */
+.home-banner__slide--api .home-banner__bg {
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-color: #ececec;
 }
 
 .home-banner__overlay {

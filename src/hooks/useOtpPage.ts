@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { verifyPatientLogin } from "@/api/patientVerify";
 import { DEMO_PHONE, ROUTES } from "@/constants";
-import { navigateAfterAuthVerify } from "@/lib/postVerifyNavigation";
+import { completeAuthAndNavigate } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
 import type { OtpLocationState } from "@/types/navigation";
 import { useToast } from "@/hooks/useToast";
@@ -48,7 +48,7 @@ export function useOtpPage(): OtpPageController {
       });
       await saveAuthSession(data);
       toast.success(data.message?.trim() || "Login successful");
-      navigateAfterAuthVerify(navigate, data);
+      await completeAuthAndNavigate(navigate, data);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Verification failed");
     } finally {

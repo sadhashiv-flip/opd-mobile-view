@@ -1,0 +1,67 @@
+.required-lab-tests-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: max(20px, env(safe-area-inset-top)) var(--page-pad-x, 20px)
+    max(20px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.required-lab-tests-page__card {
+  width: min(100%, 400px);
+  padding: 24px 22px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow:
+    0 4px 24px rgba(15, 23, 42, 0.08),
+    0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.required-lab-tests-page__title {
+  margin: 0 0 12px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.required-lab-tests-page__body {
+  margin: 0 0 16px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.required-lab-tests-page__meta {
+  margin: 0 0 20px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+.required-lab-tests-page__btn {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: #0f172a;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.required-lab-tests-page__btn:active {
+  transform: scale(0.98);
+  opacity: 0.92;
+}
+
+.required-lab-tests-page__btn:focus-visible {
+  outline: 2px solid #0ea5e9;
+  outline-offset: 2px;
+}

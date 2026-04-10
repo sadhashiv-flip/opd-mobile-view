@@ -1,0 +1,32 @@
+.prelogin-notice-gate--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  gap: 14px;
+  background: #ffffff;
+  color: #64748b;
+  font-family: "Poppins", system-ui, sans-serif;
+}
+
+.prelogin-notice-gate__spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0f172a;
+  animation: prelogin-notice-spin 0.75s linear infinite;
+}
+
+.prelogin-notice-gate__loading-text {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+@keyframes prelogin-notice-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

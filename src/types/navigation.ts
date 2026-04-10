@@ -1,3 +1,4 @@
+import type { RequiredLabTestsData } from "@/api/patientRequiredLabTests";
 import type { VerifyLinkKind } from "@/lib/parseVerifyLink";
 
 /** Router `location.state` for OTP screen (DIP: pages depend on this shape, not `unknown`). */
@@ -26,4 +27,9 @@ export type UserDetailsBmiResultLocationState = Readonly<{
   weightKg: number;
   nutritionSuggestion: boolean;
   message?: string;
+}>;
+
+/** Router `location.state` for required lab tests gate (from {@link ROUTES.requiredLabTests}). */
+export type RequiredLabTestsLocationState = Readonly<{
+  labTests: RequiredLabTestsData;
 }>;

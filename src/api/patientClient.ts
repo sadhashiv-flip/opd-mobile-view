@@ -43,6 +43,14 @@ export function getUploadApiBase(): string {
   return normalizeUploadApiBase(getPatientApiBase());
 }
 
+/**
+ * Host root for routes outside `/patient` (e.g. `GET /notice-board`). Strips a trailing `/patient` from
+ * {@link getPatientApiBase} — same normalization as the upload base when `VITE_API_UPLOAD_URL` is unset.
+ */
+export function getPatientApiRootBase(): string {
+  return normalizeUploadApiBase(getPatientApiBase());
+}
+
 export async function readPatientApiError(res: Response): Promise<string> {
   const text = await res.text();
   const prefix = `HTTP ${res.status}`;

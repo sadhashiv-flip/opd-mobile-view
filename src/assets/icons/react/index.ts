@@ -4,6 +4,7 @@ export { HomeProfileIcon } from "./HomeProfileIcon";
 export { HomeVoiceRecordIcon } from "./HomeVoiceRecordIcon";
 export { HomeSearchIcon } from "./HomeSearchIcon";
 export { HomeWalletIcon } from "./HomeWalletIcon";
+export { HomeNotificationIcon } from "./HomeNotificationIcon";
 export { LoginFieldValidIcon } from "./LoginFieldValidIcon";
 export { NavIconHelp } from "./NavIconHelp";
 export { NavIconHome } from "./NavIconHome";

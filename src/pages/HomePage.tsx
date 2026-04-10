@@ -1,6 +1,7 @@
 import {
   HomeChevronDownIcon,
   HomeLocationPinIcon,
+  HomeNotificationIcon,
   HomeProfileIcon,
   HomeVoiceRecordIcon,
   HomeSearchIcon,
@@ -14,22 +15,56 @@ import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
-import { HOME_BANNER_SLIDES, HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { cssBackgroundUrl } from "@/lib/cssBackgroundUrl";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
+import { useHomeDashboard } from "@/hooks/useHomeDashboard";
 import { useEffect, useState } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
 import "./ServicesHubPage.css";
 
+const PLACEHOLDER_ADDRESS = "Street, 7th floor, Building A…";
+
+/** Home card artwork by ongoing `type` / `order_type` from dashboard API. */
+function ongoingSlideBackgroundUrl(type: string, orderType: string): string {
+  const u = `${type} ${orderType}`.toLowerCase().replaceAll("_", "");
+  if (u.includes("vaccine")) return HOME_IMAGE_URLS.vaccine;
+  if (u.includes("nutrition") || u.includes("diet")) return HOME_IMAGE_URLS.nutrition;
+  if (
+    u.includes("mental") ||
+    u.includes("mentalwellness") ||
+    (u.includes("wellness") && !u.includes("nutrition"))
+  ) {
+    return HOME_IMAGE_URLS.mentalhealth;
+  }
+  if (u.includes("dental")) return HOME_IMAGE_URLS.dental;
+  if (u.includes("vision")) return HOME_IMAGE_URLS.vision;
+  if (u.includes("pharmacy")) return HOME_IMAGE_URLS.pharmacy;
+  if (
+    u.includes("consult") ||
+    u.includes("virtual") ||
+    u.includes("athospital") ||
+    u.includes("at-hospital")
+  ) {
+    return HOME_IMAGE_URLS.doctorConsultation;
+  }
+  return HOME_IMAGE_URLS.diagnostics;
+}
+
 export function HomePage() {
   const navigate = useNavigate();
-  const bannerCount = HOME_BANNER_SLIDES.length;
+  const { apiBanners, notificationCount, primaryAddressLine, ongoing, gym } =
+    useHomeDashboard();
+  const ongoingCount = ongoing.length;
+  const apiBannerCount = apiBanners.length;
+  const homeCarouselCount = apiBannerCount + ongoingCount;
   const {
-    activeIndex: activeBanner,
-    goTo: goToBanner,
-    onTouchStart: onBannerTouchStart,
-    onTouchEnd: onBannerTouchEnd,
-  } = useHomeBannerCarousel({ slideCount: bannerCount });
+    activeIndex: activeHomeCarousel,
+    goTo: goToHomeCarousel,
+    onTouchStart: onHomeCarouselTouchStart,
+    onTouchEnd: onHomeCarouselTouchEnd,
+  } = useHomeBannerCarousel({ slideCount: homeCarouselCount });
 
   const [isDiagnosticsSheetOpen, setIsDiagnosticsSheetOpen] = useState(false);
   const [isConsultationSheetOpen, setIsConsultationSheetOpen] = useState(false);
@@ -63,7 +98,7 @@ export function HomePage() {
                 />
               </button>
               <p className="home-location__addr">
-                Street, 7th floor, Building A…
+                {primaryAddressLine ?? PLACEHOLDER_ADDRESS}
               </p>
             </div>
           </div>
@@ -75,6 +110,23 @@ export function HomePage() {
               onClick={() => navigate(ROUTES.wallet)}
             >
               <HomeWalletIcon />
+            </button>
+            <button
+              type="button"
+              className="home-icon-btn home-notif-btn"
+              aria-label={
+                notificationCount > 0
+                  ? `Notifications, ${notificationCount} unread`
+                  : "Notifications"
+              }
+              onClick={() => navigate(ROUTES.notifications)}
+            >
+              <HomeNotificationIcon className="home-notif-btn__icon" />
+              {notificationCount > 0 ? (
+                <span className="home-notif-btn__badge">
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </span>
+              ) : null}
             </button>
             <button
               type="button"
@@ -105,6 +157,18 @@ export function HomePage() {
       </div>
 
       <main className="home-page__main">
+        {/* {gym?.gymModule ? (
+          <div className="home-gym-row">
+            <button
+              type="button"
+              className="home-dash-pill home-dash-pill--gym"
+              onClick={() => navigate(ROUTES.gymMembership)}
+            >
+              {gym.packageName ? `Gym · ${gym.packageName}` : "Gym membership"}
+            </button>
+          </div>
+        ) : null} */}
+
         <section className="home-section" aria-labelledby="services-heading">
           <h2 id="services-heading" className="visually-hidden">
             Medical services
@@ -174,7 +238,7 @@ export function HomePage() {
             </div>
             <div
               className="home-card__media home-card__media--lg"
-              style={{ backgroundImage: `url(${HOME_IMAGE_URLS.diagnostics})` }}
+              style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.diagnostics) }}
             />
           </button>
 
@@ -239,7 +303,7 @@ export function HomePage() {
                 </div>
                 <div
                   className="home-card__media"
-                  style={{ backgroundImage: `url(${HOME_IMAGE_URLS.consultation})` }}
+                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.consultation) }}
                 />
               </button>
               <button
@@ -255,7 +319,7 @@ export function HomePage() {
                 </div>
                 <div
                   className="home-card__media"
-                  style={{ backgroundImage: `url(${HOME_IMAGE_URLS.dental})` }}
+                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.dental) }}
                 />
               </button>
               <button
@@ -270,7 +334,7 @@ export function HomePage() {
                 </div>
                 <div
                   className="home-card__media"
-                  style={{ backgroundImage: `url(${HOME_IMAGE_URLS.vision})` }}
+                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.vision) }}
                 />
               </button>
               <button
@@ -285,7 +349,7 @@ export function HomePage() {
                 </div>
                 <div
                   className="home-card__media"
-                  style={{ backgroundImage: `url(${HOME_IMAGE_URLS.pharmacy})` }}
+                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.pharmacy) }}
                 />
               </button>
             </div>
@@ -296,68 +360,145 @@ export function HomePage() {
           </Link>
         </section>
 
-        <section
-          className="home-banner"
-          aria-label="Promotions"
-          aria-roledescription="carousel"
-        >
-          <div
-            className="home-banner__viewport"
-            onTouchStart={onBannerTouchStart}
-            onTouchEnd={onBannerTouchEnd}
+        {homeCarouselCount > 0 ? (
+          <section
+            className="home-banner home-banner--mixed"
+            aria-label="Promotions and ongoing orders"
+            aria-roledescription="carousel"
           >
             <div
-              className="home-banner__track"
-              style={{
-                width: `${bannerCount * 100}%`,
-                transform: `translateX(-${(activeBanner * 100) / bannerCount}%)`,
-              }}
+              className="home-banner__viewport"
+              onTouchStart={onHomeCarouselTouchStart}
+              onTouchEnd={onHomeCarouselTouchEnd}
             >
-              {HOME_BANNER_SLIDES.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  className="home-banner__slide"
-                  style={{ flex: `0 0 ${100 / bannerCount}%` }}
-                  aria-hidden={index !== activeBanner}
-                >
+              <div
+                className="home-banner__track"
+                style={{
+                  width: `${homeCarouselCount * 100}%`,
+                  transform: `translateX(-${(activeHomeCarousel * 100) / homeCarouselCount}%)`,
+                }}
+              >
+                {apiBanners.map((slide, index) => (
                   <div
-                    className="home-banner__bg"
-                    style={{ backgroundImage: `url(${slide.image})` }}
-                  />
-                  <div
-                    className={`home-banner__overlay home-banner__overlay--${slide.overlay}`}
-                  />
-                  <div className="home-banner__content">
-                    <div className="home-banner__text">
-                      <h3 className="home-banner__title">{slide.title}</h3>
-                      <p className="home-banner__date">{slide.date}</p>
-                    </div>
-                    <button type="button" className="home-banner__join">
-                      {slide.cta}
-                    </button>
+                    key={slide.id ?? `banner-${slide.image}-${index}`}
+                    className="home-banner__slide home-banner__slide--api"
+                    style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
+                    aria-hidden={index !== activeHomeCarousel}
+                  >
+                    {slide.link ? (
+                      <a
+                        href={slide.link}
+                        className="home-banner__api-hit"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Open promotion"
+                      >
+                        <div
+                          className="home-banner__bg"
+                          style={{ backgroundImage: cssBackgroundUrl(slide.image) }}
+                        />
+                      </a>
+                    ) : (
+                      <div className="home-banner__api-hit">
+                        <div
+                          className="home-banner__bg"
+                          style={{ backgroundImage: cssBackgroundUrl(slide.image) }}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+                {ongoing.map((item, i) => {
+                  const index = apiBannerCount + i;
+                  const bgUrl = ongoingSlideBackgroundUrl(item.type, item.orderType);
+                  return (
+                    <div
+                      key={item.id}
+                      className="home-banner__slide home-banner__slide--ongoing"
+                      style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
+                      aria-hidden={index !== activeHomeCarousel}
+                    >
+                      <div className="home-ongoing-slide">
+                        <div
+                          className="home-ongoing-slide__bg"
+                          style={{ backgroundImage: cssBackgroundUrl(bgUrl) }}
+                          aria-hidden
+                        />
+                        <div className="home-ongoing-slide__scrim" aria-hidden />
+                        <div className="home-ongoing-slide__body">
+                          <span className="home-ongoing-slide__kicker">Ongoing</span>
+                          <span className="home-ongoing-slide__title">{item.title}</span>
+                          {item.meta ? (
+                            <span className="home-ongoing-slide__meta">{item.meta}</span>
+                          ) : null}
+                        </div>
+                        <button
+                          type="button"
+                          className="home-ongoing-slide__action"
+                          aria-label={`View order: ${item.title}`}
+                          onClick={() =>
+                            navigate(
+                              generatePath(ROUTES.ordersDetail, {
+                                invoiceId: item.invoiceId,
+                              }),
+                            )
+                          }
+                        >
+                          <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden
+                          >
+                            <path
+                              d="M9 6l6 6-6 6"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          <div
-            className="home-banner__dots"
-            role="tablist"
-            aria-label="Choose promotion slide"
-          >
-            {HOME_BANNER_SLIDES.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                role="tab"
-                aria-selected={index === activeBanner}
-                aria-label={`${slide.title}, slide ${index + 1} of ${bannerCount}`}
-                className={`home-banner__dot${index === activeBanner ? " home-banner__dot--active" : ""}`}
-                onClick={() => goToBanner(index)}
-              />
-            ))}
-          </div>
-        </section>
+            <div
+              className="home-banner__dots"
+              role="tablist"
+              aria-label="Choose slide"
+            >
+              {apiBanners.map((slide, index) => (
+                <button
+                  key={`dot-banner-${slide.id ?? slide.image}-${index}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === activeHomeCarousel}
+                  aria-label={`Promotion, slide ${index + 1} of ${homeCarouselCount}`}
+                  className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
+                  onClick={() => goToHomeCarousel(index)}
+                />
+              ))}
+              {ongoing.map((item, i) => {
+                const index = apiBannerCount + i;
+                return (
+                  <button
+                    key={`dot-ongoing-${item.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={index === activeHomeCarousel}
+                    aria-label={`${item.title}, ongoing slide ${index + 1} of ${homeCarouselCount}`}
+                    className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
+                    onClick={() => goToHomeCarousel(index)}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
       </main>
 
       {isDiagnosticsSheetOpen ? (

@@ -1,6 +1,11 @@
 import { beginApiLoadingRequest, endApiLoadingRequest } from "@/api/apiLoadingStore";
 import { clearSession, AUTH_SESSION_EXPIRED_EVENT, getAccessToken, notifyUnauthorizedAndSignOut } from "@/lib/authStorage";
-import { getPatientApiBase, getUploadApiBase, readPatientApiError } from "@/api/patientClient";
+import {
+  getPatientApiBase,
+  getPatientApiRootBase,
+  getUploadApiBase,
+  readPatientApiError,
+} from "@/api/patientClient";
 import {
   applyListPaginationToPath,
   type ListPaginationOpts,
@@ -86,6 +91,14 @@ export async function patientFetchUpload(
   return patientFetchWithBase(getUploadApiBase(), path, init);
 }
 
+/** Same as {@link patientFetch} but uses {@link getPatientApiRootBase} (no `/patient` prefix; e.g. `GET /notice-board`). */
+export async function patientFetchRoot(
+  path: string,
+  init: PatientHttpInit = {},
+): Promise<Response> {
+  return patientFetchWithBase(getPatientApiRootBase(), path, init);
+}
+
 /** Throws with server message when `!res.ok`. */
 export async function patientFetchChecked(
   path: string,
@@ -115,6 +128,29 @@ export async function patientJson<T>(
   init: PatientHttpInit = {},
 ): Promise<T> {
   const res = await patientFetch(path, init);
+  if (!res.ok) {
+    throw new Error(await readPatientApiError(res));
+  }
+  const text = await res.text();
+  if (!text) {
+    throw new Error(`Empty response body (HTTP ${res.status}) for ${path}`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const preview = text.replace(/\s+/g, " ").slice(0, 200);
+    throw new Error(
+      `Invalid JSON (HTTP ${res.status}) for ${path}: ${preview || "(empty after trim)"}`,
+    );
+  }
+}
+
+/** JSON helper for {@link patientFetchRoot} (routes on API host root, not under `/patient`). */
+export async function patientJsonRoot<T>(
+  path: string,
+  init: PatientHttpInit = {},
+): Promise<T> {
+  const res = await patientFetchRoot(path, init);
   if (!res.ok) {
     throw new Error(await readPatientApiError(res));
   }
