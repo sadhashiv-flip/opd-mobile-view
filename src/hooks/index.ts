@@ -1,3 +1,4 @@
+export { useConsultationPaymentVerify } from "./useConsultationPaymentVerify";
 export { useGymPaymentVerify } from "./useGymPaymentVerify";
 export { useLoginPage } from "./useLoginPage";
 export { useToast } from "./useToast";

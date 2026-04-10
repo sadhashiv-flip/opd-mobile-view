@@ -29,6 +29,8 @@ export type PatientDashboardResponse = Readonly<{
   ongoing?: unknown;
   mood?: number;
   notificationCount?: number;
+  /** May be empty; home carousel banners usually come from `GET /banners`. */
+  banners?: unknown;
   water_consumed?: number;
   calories_burnt?: number;
   jm_token?: string | null;
@@ -103,6 +105,74 @@ export function primaryAddressLineFromOngoing(raw: unknown): string | null {
   return null;
 }
 
+const CONSULTATION_META_PURPOSE_MAX = 72;
+
+function truncateMetaSegment(s: string, maxLen: number): string {
+  const t = s.trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, Math.max(0, maxLen - 1)).trim()}…`;
+}
+
+/** Virtual / clinic consultation rows: `order_type` APPOINTMENT, `doctor`, `purpose`, `additional_info.booking_details`. */
+function consultationTitleAndMeta(row: Record<string, unknown>): { title: string; meta: string } {
+  const doc = row.doctor;
+  let doctorName = "";
+  let specialityName = "";
+  if (doc && typeof doc === "object") {
+    const d = doc as Record<string, unknown>;
+    doctorName = typeof d.name === "string" ? d.name.trim() : "";
+    const spec = d.speciality;
+    if (spec && typeof spec === "object") {
+      const n = (spec as Record<string, unknown>).name;
+      specialityName = typeof n === "string" ? n.trim() : "";
+    }
+  }
+
+  const title =
+    doctorName ||
+    specialityName ||
+    (typeof row.communication === "string" && row.communication.toUpperCase() === "ONLINE"
+      ? "Online consultation"
+      : "Consultation");
+
+  const add = row.additional_info;
+  let timeSlot = "";
+  let specialtiesLabel = "";
+  if (add && typeof add === "object") {
+    const bd = (add as Record<string, unknown>).booking_details;
+    if (bd && typeof bd === "object") {
+      const b = bd as Record<string, unknown>;
+      const ts = b.time_slot;
+      if (typeof ts === "string" && ts.trim()) timeSlot = ts.trim();
+      const specs = b.specialties;
+      if (Array.isArray(specs)) {
+        const names = specs.filter((x): x is string => typeof x === "string" && x.trim() !== "");
+        specialtiesLabel = names.join(", ");
+      }
+    }
+  }
+  if (!timeSlot) {
+    const d = typeof row.date === "string" ? row.date.trim() : "";
+    const t = typeof row.time === "string" ? row.time.trim() : "";
+    timeSlot = d && t ? `${d} ${t}` : d || t;
+  }
+
+  const purposeRaw = typeof row.purpose === "string" ? row.purpose.trim() : "";
+  const purpose =
+    purposeRaw.length > 0 ? truncateMetaSegment(purposeRaw, CONSULTATION_META_PURPOSE_MAX) : "";
+  const language = typeof row.language === "string" ? row.language.trim() : "";
+
+  const metaParts = [
+    timeSlot,
+    specialtiesLabel || specialityName || "",
+    purpose,
+    language,
+  ].filter(Boolean);
+  const meta = metaParts.join(" · ");
+
+  return { title, meta };
+}
+
 function ongoingTitleAndMeta(
   type: string,
   orderType: string,
@@ -117,7 +187,7 @@ function ongoingTitleAndMeta(
     const req = details.request;
     let reqLabel = "";
     if (Array.isArray(req)) {
-      const names = req.filter((x): x is string => typeof x === "string" && x.trim());
+      const names = req.filter((x): x is string => typeof x === "string" && x.trim() !== "");
       reqLabel = names.join(", ");
     }
     const meta = [when, reqLabel].filter(Boolean).join(" · ");
@@ -151,7 +221,11 @@ function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
     row.details && typeof row.details === "object"
       ? (row.details as Record<string, unknown>)
       : {};
-  const { title, meta } = ongoingTitleAndMeta(type, orderType, details);
+  const ot = orderType.toUpperCase();
+  const { title, meta } =
+    ot === "APPOINTMENT"
+      ? consultationTitleAndMeta(row)
+      : ongoingTitleAndMeta(type, orderType, details);
   return { id, invoiceId, type, orderType, title, meta, status };
 }
 

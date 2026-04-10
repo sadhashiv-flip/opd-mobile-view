@@ -44,6 +44,7 @@ function ongoingSlideBackgroundUrl(type: string, orderType: string): string {
   if (
     u.includes("consult") ||
     u.includes("virtual") ||
+    u.includes("appointment") ||
     u.includes("athospital") ||
     u.includes("at-hospital")
   ) {
@@ -54,8 +55,7 @@ function ongoingSlideBackgroundUrl(type: string, orderType: string): string {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { apiBanners, notificationCount, primaryAddressLine, ongoing, gym } =
-    useHomeDashboard();
+  const { apiBanners, notificationCount, primaryAddressLine, ongoing } = useHomeDashboard();
   const ongoingCount = ongoing.length;
   const apiBannerCount = apiBanners.length;
   const homeCarouselCount = apiBannerCount + ongoingCount;

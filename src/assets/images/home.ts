@@ -3,7 +3,7 @@ import consultationImg from "./Consultation/Consultation.svg?url";
 import dentalImg from "./Dental.svg?url";
 import diagnosticImg from "./Diagnostic.svg?url";
 /** Raster hero art for ongoing slides — replace files in `src/assets/images/` as needed. */
-import doctorConsultationImg from "./doctorConsultation.png?url";
+import doctorConsultationImg from "./doctorConsultation.jpg?url";
 import mentalhealthImg from "./mentalhealth.jpg?url";
 import nutritionImg from "./nutrition.jpg?url";
 import vaccineImg from "./vaccine.jpg?url";

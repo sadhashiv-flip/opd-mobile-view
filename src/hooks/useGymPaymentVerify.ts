@@ -1,5 +1,5 @@
 import { verifyGymPayment } from "@/api/patientGymPayment";
-import { GYM_PAYMENT_DONE_EVENT } from "@/constants/gymPaymentEvents";
+import { GYM_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import type { RazorpayPaymentSuccess } from "@/types/razorpay-window";
 import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";

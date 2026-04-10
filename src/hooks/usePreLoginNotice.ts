@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchActivePreLoginNotice } from "@/api/patientNoticeBanners";
+import {
+  readPreLoginNoticeBoardSession,
+  writePreLoginNoticeBoardSession,
+} from "@/constants/preLoginNoticeBoardSession";
 import type { ActivePreLoginNotice } from "@/lib/noticeBoard";
 
 export type PreLoginNoticePhase = "loading" | "ready";
@@ -17,12 +21,20 @@ export function usePreLoginNotice(): UsePreLoginNoticeResult {
   const [activeNotice, setActiveNotice] = useState<ActivePreLoginNotice | null>(null);
 
   useEffect(() => {
+    const cached = readPreLoginNoticeBoardSession();
+    if (!cached.shouldFetch) {
+      setActiveNotice(cached.notice);
+      setPhase("ready");
+      return;
+    }
+
     const ac = new AbortController();
 
     (async () => {
       try {
         const notice = await fetchActivePreLoginNotice(new Date(), { signal: ac.signal });
         if (ac.signal.aborted) return;
+        writePreLoginNoticeBoardSession(notice);
         setActiveNotice(notice);
       } catch {
         if (ac.signal.aborted) return;

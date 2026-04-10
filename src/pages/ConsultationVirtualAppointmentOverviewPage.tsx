@@ -6,11 +6,24 @@ import {
   readConsultSelectedPersonIdNumber,
   readPrimaryConsultSelectedMemberSnapshot,
 } from "@/constants/consultationSelectedMemberStorage";
-import { bookAppointment } from "@/api/appointmentBook";
+import {
+  bookAppointment,
+  bookAppointmentConfirm,
+  isAppointmentPaymentRequired,
+  readAppointmentResponseMessage,
+  readRazorpayPayloadFromAppointmentResponse,
+} from "@/api/appointmentBook";
+import { PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
+import { useConsultationPaymentVerify } from "@/hooks/useConsultationPaymentVerify";
+import {
+  isPaymentCancelledMessage,
+  loadRazorpayScript,
+  openRazorpayCheckoutWithEvent,
+} from "@/lib/razorpayCheckout";
 import type { SearchablePickerOption } from "@/components/wellness/SearchablePickerField";
 import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
 import { useToast } from "@/hooks/useToast";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./ConsultationAppointmentOverviewPage.css";
 
 const VIRTUAL_PURPOSE_KEY = "opd-mobile-view.virtualBooking.purpose";
@@ -114,6 +127,32 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   /** Empty until user picks a language (placeholder option). */
   const [language, setLanguage] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
+
+  const paymentSuccessToastRef = useRef<string | undefined>(undefined);
+  const onPaymentVerifiedRef = useRef<() => void>(() => {});
+  const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
+  const setBookingBusyRef = useRef<(busy: boolean) => void>(() => {});
+
+  useEffect(() => {
+    setBookingBusyRef.current = setBookingLoading;
+    onPaymentVerifiedRef.current = () => {
+      const msg = paymentSuccessToastRef.current;
+      if (msg) toast.success(msg);
+      paymentSuccessToastRef.current = undefined;
+      setBookingLoading(false);
+      navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
+    };
+    onPaymentVerifyErrorRef.current = (message: string) => {
+      toast.error(message);
+      setBookingLoading(false);
+    };
+  }, [navigate, toast]);
+
+  useConsultationPaymentVerify({
+    onSuccessRef: onPaymentVerifiedRef,
+    onErrorRef: onPaymentVerifyErrorRef,
+    setBusyRef: setBookingBusyRef,
+  });
 
   useEffect(() => {
     try {
@@ -313,15 +352,55 @@ export function ConsultationVirtualAppointmentOverviewPage() {
             void (async () => {
               setBookingLoading(true);
               try {
-                await bookAppointment({
+                const payload = {
                   date: slotParsed.date,
                   time: slotParsed.time,
                   language,
                   patient_id: patientId,
                   issue_id: issueIdNum,
                   purpose: purpose.trim(),
+                };
+                const bookRes = await bookAppointment(payload);
+
+                if (!isAppointmentPaymentRequired(bookRes)) {
+                  const confirmRes = await bookAppointmentConfirm(payload);
+                  const messageToShow =
+                    readAppointmentResponseMessage(confirmRes) ??
+                    readAppointmentResponseMessage(bookRes);
+                  if (messageToShow) {
+                    toast.success(messageToShow);
+                  }
+                  navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
+                  return;
+                }
+
+                const confirmRes = await bookAppointmentConfirm(payload);
+                const rzpPayload = readRazorpayPayloadFromAppointmentResponse(confirmRes);
+                if (!rzpPayload || Object.keys(rzpPayload).length === 0) {
+                  toast.error(
+                    readAppointmentResponseMessage(confirmRes) ??
+                      readAppointmentResponseMessage(bookRes) ??
+                      "Could not start payment",
+                  );
+                  return;
+                }
+
+                paymentSuccessToastRef.current =
+                  readAppointmentResponseMessage(confirmRes) ??
+                  readAppointmentResponseMessage(bookRes);
+
+                await loadRazorpayScript();
+                if (!window.Razorpay) {
+                  toast.error("Razorpay Checkout could not load. Check your network or ad blocker.");
+                  return;
+                }
+
+                openRazorpayCheckoutWithEvent(rzpPayload, PAYMENT_DONE_EVENT, (failMsg) => {
+                  if (!isPaymentCancelledMessage(failMsg)) {
+                    toast.error(failMsg);
+                  }
+                  setBookingLoading(false);
                 });
-                navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : "Could not book appointment");
               } finally {
