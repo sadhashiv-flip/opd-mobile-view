@@ -4,11 +4,18 @@ import {
   readVisionGlassesPrescriptions,
   readVisionSelectedClinic,
   readVisionSelectedSlot,
+  writeVisionSelectedSlot,
   type VisionGlassesPrescriptionStored,
 } from "@/constants/visionBookingStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import { postVisionServiceRequest } from "@/api/visionServiceBooking";
-import type { VisionServiceSlotRow } from "@/api/visionServiceSlots";
+import { resolveSelectedAddressLocation, type VisionNetworkService } from "@/api/networkList";
+import {
+  fetchVisionServiceSlots,
+  type VisionServiceSlotRow,
+  type VisionServiceSlotsData,
+} from "@/api/visionServiceSlots";
+import { VisionSlotPicker } from "@/components/vision/VisionSlotPicker";
 import {
   formatPreferredApiDateTime,
   formatVaccineSlotDisplay,
@@ -22,12 +29,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 import "./VaccinationOverviewPage.css";
+import "@/components/address/AddressBottomSheet.css";
+import "@/components/consultation/VirtualAppointmentSlotBottomSheet.css";
+import "@/pages/ConsultationVirtualSlotsPage.css";
 import "./DentalOverviewPage.css";
+import "./DentalSlotsPage.css";
 import "./VisionAddPrescriptionPage.css";
 
 /** Shown in “Added items” for the eye-checkup overview (vision.clinic). */
 const EYE_CHECKUP_SERVICE_NAME = "Eye Checkup";
 const GLASSES_LENS_SERVICE_NAME = "Glasses / Lens";
+
+function findVisionSlotById(data: VisionServiceSlotsData, slotId: string): VisionServiceSlotRow | null {
+  const all = [...data.slots.morning, ...data.slots.afternoon, ...data.slots.evening];
+  return all.find((s) => s.slot_id === slotId) ?? null;
+}
 
 function displayVisionSlot(row: VisionServiceSlotRow): string {
   const parts = row.slot_date.trim().split("-").map(Number);
@@ -151,11 +167,24 @@ export function VisionOverviewPage() {
   const [primaryPhone, setPrimaryPhone] = useState<string | null>(null);
   const [previewAttachmentId, setPreviewAttachmentId] = useState<string | null>(null);
 
+  const [selectedSlotRow, setSelectedSlotRow] = useState<VisionServiceSlotRow | null>(() =>
+    readVisionSelectedSlot(),
+  );
+
+  const [slotSheetOpen, setSlotSheetOpen] = useState(false);
+  const [slotSheetPayload, setSlotSheetPayload] = useState<VisionServiceSlotsData | null>(null);
+  const [slotSheetLoad, setSlotSheetLoad] = useState<"idle" | "loading" | "error" | "ok">("idle");
+  const [slotSheetError, setSlotSheetError] = useState<string | null>(null);
+  const [sheetIsoDate, setSheetIsoDate] = useState("");
+  const [sheetSlotId, setSheetSlotId] = useState<string | null>(null);
+
   const clinic = useMemo(() => readVisionSelectedClinic(), []);
-  const slotRow = useMemo(() => readVisionSelectedSlot(), []);
   const member = useMemo(() => readDiagnosticsSelectedMembersSnapshots()[0] ?? null, []);
 
-  const slotDisplay = useMemo(() => (slotRow ? displayVisionSlot(slotRow) : ""), [slotRow]);
+  const slotDisplay = useMemo(
+    () => (selectedSlotRow ? displayVisionSlot(selectedSlotRow) : ""),
+    [selectedSlotRow],
+  );
 
   const isEye = visionType === VISION_ROUTE_TYPE.eyeCheckup;
   const isGlasses = visionType === VISION_ROUTE_TYPE.glassesLens;
@@ -183,14 +212,14 @@ export function VisionOverviewPage() {
       void navigate(generatePath(ROUTES.visionNetworkList, { visionType }), { replace: true });
       return;
     }
-    if (!slotRow) {
+    if (!selectedSlotRow) {
       void navigate(generatePath(ROUTES.visionSlots, { visionType }), { replace: true });
       return;
     }
     if (isGlasses && readVisionGlassesPrescriptions().length === 0) {
       void navigate(generatePath(ROUTES.visionAddPrescription, { visionType }), { replace: true });
     }
-  }, [clinic, isEye, isGlasses, member, slotRow, visionType, navigate, toast]);
+  }, [clinic, isEye, isGlasses, member, selectedSlotRow, visionType, navigate, toast]);
 
   useEffect(() => {
     void (async () => {
@@ -216,6 +245,84 @@ export function VisionOverviewPage() {
       globalThis.removeEventListener("keydown", onKey);
     };
   }, [previewAttachmentId]);
+
+  useEffect(() => {
+    if (!slotSheetOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSlotSheetOpen(false);
+    };
+    globalThis.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      globalThis.removeEventListener("keydown", onKey);
+    };
+  }, [slotSheetOpen]);
+
+  useEffect(() => {
+    if (!slotSheetOpen) return;
+    if ((!isEye && !isGlasses) || !clinic?.networkEntityId?.trim()) return;
+    const service: VisionNetworkService = isGlasses ? "vision.store" : "vision.clinic";
+    let cancelled = false;
+    const networkId = clinic.networkEntityId.trim();
+
+    void (async () => {
+      setSlotSheetLoad("loading");
+      setSlotSheetError(null);
+      setSlotSheetPayload(null);
+      try {
+        const loc = await resolveSelectedAddressLocation();
+        const data = await fetchVisionServiceSlots({
+          location: loc,
+          service,
+          networkId,
+        });
+        if (cancelled) return;
+        setSlotSheetPayload(data);
+        const firstDay = data.daysList[0] ?? "";
+        const cur = selectedSlotRow;
+        if (cur && data.daysList.includes(cur.slot_date)) {
+          setSheetIsoDate(cur.slot_date);
+          setSheetSlotId(cur.slot_id);
+        } else {
+          setSheetIsoDate(firstDay);
+          setSheetSlotId(null);
+        }
+        setSlotSheetLoad("ok");
+      } catch (e) {
+        if (cancelled) return;
+        setSlotSheetPayload(null);
+        setSlotSheetLoad("error");
+        const msg = e instanceof Error ? e.message : "Could not load slots";
+        setSlotSheetError(msg);
+        toast.error(msg);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slotSheetOpen, isEye, isGlasses, clinic, selectedSlotRow, toast]);
+
+  const sheetCanApply = useMemo(() => {
+    if (!slotSheetPayload || !sheetSlotId || !sheetIsoDate) return false;
+    const all = [
+      ...slotSheetPayload.slots.morning,
+      ...slotSheetPayload.slots.afternoon,
+      ...slotSheetPayload.slots.evening,
+    ];
+    return all.some((r) => r.slot_id === sheetSlotId && r.slot_date === sheetIsoDate);
+  }, [slotSheetPayload, sheetSlotId, sheetIsoDate]);
+
+  const applySlotSheet = useCallback(() => {
+    if (!slotSheetPayload || !sheetSlotId || !sheetCanApply) return;
+    const row = findVisionSlotById(slotSheetPayload, sheetSlotId);
+    if (!row) return;
+    writeVisionSelectedSlot(row);
+    setSelectedSlotRow(row);
+    setSlotSheetOpen(false);
+  }, [slotSheetPayload, sheetSlotId, sheetCanApply]);
 
   const displayPhone = primaryPhone ?? "—";
   const patientLine = member?.name?.trim() ? `For ${member.name.trim()}` : "For —";
@@ -246,7 +353,7 @@ export function VisionOverviewPage() {
       toast.error("Missing network location. Go back and choose a clinic again.");
       return;
     }
-    if (!slotRow) return;
+    if (!selectedSlotRow) return;
 
     const rxStored = readVisionGlassesPrescriptions();
     if (isGlasses) {
@@ -261,10 +368,10 @@ export function VisionOverviewPage() {
     setBusy(true);
     try {
       const slotPayload = {
-        slot_id: slotRow.slot_id,
-        slot_date: slotRow.slot_date,
-        start_time: slotRow.start_time,
-        end_time: slotRow.end_time,
+        slot_id: selectedSlotRow.slot_id,
+        slot_date: selectedSlotRow.slot_date,
+        start_time: selectedSlotRow.start_time,
+        end_time: selectedSlotRow.end_time,
       };
 
       await postVisionServiceRequest(
@@ -293,18 +400,18 @@ export function VisionOverviewPage() {
     } finally {
       setBusy(false);
     }
-  }, [clinic, isGlasses, member, navigate, slotRow, toast, visionType]);
+  }, [clinic, isGlasses, member, navigate, selectedSlotRow, toast, visionType]);
 
   if (!isEye && !isGlasses) {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
 
-  if (!clinic || !slotRow || !member) {
+  if (!clinic || !selectedSlotRow || !member) {
     return null;
   }
 
   return (
-    <div className="hco-page dental-overview">
+    <div className="hc-page dental-slots-page dental-overview">
       <header className="hco-top">
         <Link
           to={backTo}
@@ -325,7 +432,7 @@ export function VisionOverviewPage() {
         <span className="hco-top__balance" aria-hidden />
       </header>
 
-      <main className="hco-main dental-overview__main">
+      <main className="hc-main dental-slots-page__main dental-overview__main">
         <div className="hco-main__content dental-overview__scroll">
           <VaccinationAddressBar />
 
@@ -368,7 +475,7 @@ export function VisionOverviewPage() {
                 type="button"
                 className="hco-dt__edit"
                 aria-label="Edit date and time"
-                onClick={() => void navigate(generatePath(ROUTES.visionSlots, { visionType }))}
+                onClick={() => setSlotSheetOpen(true)}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
@@ -458,6 +565,85 @@ export function VisionOverviewPage() {
           {busy ? "Submitting…" : "Confirm"}
         </button>
       </footer>
+
+      {slotSheetOpen ? (
+        <dialog
+          className="addr-sheet-dialog"
+          open
+          aria-modal="true"
+          aria-labelledby="vo-vision-slot-sheet-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSlotSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSlotSheetOpen(false);
+          }}
+        >
+          <div className="vas-cvsl-sheet">
+            <div className="cvsl-page vas-cvsl-sheet__inner">
+              <header className="cvsl-top vas-cvsl-top">
+                <h1 id="vo-vision-slot-sheet-title" className="cvsl-title">
+                  Select Your Vision Slots
+                </h1>
+                <button
+                  type="button"
+                  className="addr-sheet__close"
+                  aria-label="Close"
+                  onClick={() => setSlotSheetOpen(false)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M18 6L6 18M6 6l12 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </header>
+
+              <main className="cvsl-main">
+                {slotSheetLoad === "loading" ? (
+                  <div className="cvsl-msg" aria-busy="true">
+                    Loading slots…
+                  </div>
+                ) : null}
+                {slotSheetLoad === "error" && slotSheetError ? (
+                  <div className="cvsl-msg cvsl-msg--err" role="alert">
+                    {slotSheetError}
+                  </div>
+                ) : null}
+                {slotSheetLoad === "ok" && slotSheetPayload && slotSheetPayload.daysList.length === 0 ? (
+                  <div className="cvsl-msg" role="status">
+                    No available days for booking.
+                  </div>
+                ) : null}
+                {slotSheetLoad === "ok" && slotSheetPayload && slotSheetPayload.daysList.length > 0 ? (
+                  <VisionSlotPicker
+                    daysList={slotSheetPayload.daysList}
+                    slots={slotSheetPayload.slots}
+                    selectedIsoDate={sheetIsoDate || slotSheetPayload.daysList[0]!}
+                    onSelectIsoDate={setSheetIsoDate}
+                    selectedSlotId={sheetSlotId}
+                    onSelectSlotId={setSheetSlotId}
+                  />
+                ) : null}
+              </main>
+
+              <footer className="cvsl-footer">
+                <button
+                  type="button"
+                  className="cvsl-footer__book"
+                  disabled={!sheetCanApply}
+                  onClick={applySlotSheet}
+                >
+                  Continue
+                </button>
+              </footer>
+            </div>
+          </div>
+        </dialog>
+      ) : null}
 
       {previewRx ? (
         <div

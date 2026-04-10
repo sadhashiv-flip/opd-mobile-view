@@ -1,5 +1,6 @@
 /* Lock layout to the viewport so `.hco-main__content` gets a bounded height and scrolls. */
-.dental-overview.hco-page {
+.dental-overview.hco-page,
+.dental-overview.hc-page.dental-slots-page {
   height: 100dvh;
   max-height: 100dvh;
   min-height: 0;
@@ -8,9 +9,18 @@
   max-width: 100%;
 }
 
-.dental-overview__main.hco-main {
+.dental-overview__main.hco-main,
+.dental-overview__main.hc-main.dental-slots-page__main {
   flex: 1 1 0;
   min-height: 0;
+}
+
+/* `hc-main` alone has no column flex — mirror `.hco-main` so inner `.hco-main__content` can scroll */
+.dental-overview__main.hc-main.dental-slots-page__main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
 }
 
 .dental-overview__footer.hc-footer {
@@ -27,11 +37,16 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
-  /* Hide scrollbar (scroll still works) */
+}
+
+/* Scrollbar hidden (scroll still works) — include hc-main shell for specificity */
+.dental-overview__main.hc-main.dental-slots-page__main .dental-overview__scroll.hco-main__content,
+.dental-overview__scroll.hco-main__content {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
+.dental-overview__main.hc-main.dental-slots-page__main .dental-overview__scroll.hco-main__content::-webkit-scrollbar,
 .dental-overview__scroll.hco-main__content::-webkit-scrollbar {
   display: none;
   width: 0;
