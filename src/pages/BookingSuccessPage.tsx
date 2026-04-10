@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { Link, matchPath, useLocation, useNavigate } from "react-router-dom";
+import { Link, matchPath, useLocation, useNavigate, useParams } from "react-router-dom";
 import Lottie from "lottie-react";
-import { ROUTES } from "@/constants";
+import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import {
   DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
   DEFAULT_BOOKING_SUCCESS_TITLE,
@@ -9,6 +9,7 @@ import {
   DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL,
   DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL,
   DEFAULT_CONSULT_SUCCESS_SUB_VISION,
+  DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS,
   DEFAULT_CONSULT_SUCCESS_TITLE,
   isBookingSuccessLocationState,
 } from "@/constants/bookingSuccessNavigation";
@@ -36,6 +37,7 @@ function useConsultLayout(pathname: string, rawState: unknown): boolean {
 function resolveConsultCopy(
   pathname: string,
   rawState: unknown,
+  visionTypeParam: string | undefined,
 ): Readonly<{ title: string; sub: string }> {
   const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
   const title = s?.title?.trim() || DEFAULT_CONSULT_SUCCESS_TITLE;
@@ -50,6 +52,10 @@ function resolveConsultCopy(
     return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_DENTAL };
   }
   if (matchPath({ path: ROUTES.visionBookingSuccess, end: true }, pathname)) {
+    const vt = visionTypeParam?.trim();
+    if (vt === VISION_ROUTE_TYPE.glassesLens) {
+      return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS };
+    }
     return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VISION };
   }
   return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL };
@@ -58,8 +64,12 @@ function resolveConsultCopy(
 export function BookingSuccessPage() {
   const navigate = useNavigate();
   const { pathname, state: rawState } = useLocation();
+  const { visionType: visionTypeParam } = useParams<{ visionType?: string }>();
   const consultLayout = useConsultLayout(pathname, rawState);
-  const consultCopy = useMemo(() => resolveConsultCopy(pathname, rawState), [pathname, rawState]);
+  const consultCopy = useMemo(
+    () => resolveConsultCopy(pathname, rawState, visionTypeParam),
+    [pathname, rawState, visionTypeParam],
+  );
 
   const cardCopy = useMemo(() => {
     if (!isBookingSuccessLocationState(rawState)) {

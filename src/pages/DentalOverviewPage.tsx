@@ -2,15 +2,31 @@ import { ROUTES } from "@/constants";
 import {
   readDentalPreferredDateTime,
   readDentalSelectedClinicRaw,
+  writeDentalPreferredDateTime,
 } from "@/constants/dentalBookingStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import type { DentalNetworkClinicRow } from "@/api/networkList";
+import { DentalSlotPicker } from "@/components/dental/DentalSlotPicker";
 import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddressBar";
-import { formatVaccineSlotDisplay } from "@/components/vaccination/VaccinationSlotPicker";
+import {
+  formatPreferredApiDateTime,
+  formatVaccineSlotDisplay,
+  parsePreferredApiDateTime,
+} from "@/components/vaccination/VaccinationSlotPicker";
 import { fetchPatientProfile } from "@/api/patientProfile";
+import {
+  DENTAL_BOOKING_DAY_COUNT,
+  firstDayWithBookableDentalSlots,
+  flatDentalSlotLabelsForDay,
+  getDentalBookingDays,
+  sameCalendarDay,
+} from "@/utils/dentalSlotRules";
 import { useToast } from "@/hooks/useToast";
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import "@/components/address/AddressBottomSheet.css";
+import "@/components/consultation/VirtualAppointmentSlotBottomSheet.css";
+import "./DentalSlotsPage.css";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 import "./VaccinationOverviewPage.css";
@@ -35,8 +51,72 @@ export function DentalOverviewPage() {
   const [primaryPhone, setPrimaryPhone] = useState<string | null>(null);
 
   const clinic = useMemo(() => parseDentalClinic(readDentalSelectedClinicRaw()), []);
-  const preferredDateTime = useMemo(() => readDentalPreferredDateTime(), []);
+  const [preferredDateTime, setPreferredDateTime] = useState<string | null>(() =>
+    readDentalPreferredDateTime(),
+  );
   const member = useMemo(() => readDiagnosticsSelectedMembersSnapshots()[0] ?? null, []);
+
+  const bookingDates = useMemo(
+    () => getDentalBookingDays(DENTAL_BOOKING_DAY_COUNT).dates,
+    [],
+  );
+
+  const [slotSheetOpen, setSlotSheetOpen] = useState(false);
+  const [sheetDay, setSheetDay] = useState<Date>(() => new Date());
+  const [sheetSlot, setSheetSlot] = useState<string | null>(null);
+  const [sheetNowTick, setSheetNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!slotSheetOpen) return;
+    const id = globalThis.setInterval(() => setSheetNowTick(Date.now()), 15_000);
+    return () => globalThis.clearInterval(id);
+  }, [slotSheetOpen]);
+
+  const sheetBookingNow = useMemo(() => new Date(sheetNowTick), [sheetNowTick]);
+
+  useEffect(() => {
+    if (!slotSheetOpen) return;
+    setSheetNowTick(Date.now());
+    const now = new Date();
+    const parsed = parsePreferredApiDateTime(preferredDateTime);
+    if (parsed) {
+      const inStrip = bookingDates.find((d) => sameCalendarDay(d, parsed.day));
+      setSheetDay(inStrip ?? firstDayWithBookableDentalSlots(bookingDates, now));
+      setSheetSlot(parsed.slot12h);
+    } else {
+      setSheetDay(firstDayWithBookableDentalSlots(bookingDates, now));
+      setSheetSlot(null);
+    }
+  }, [slotSheetOpen, preferredDateTime, bookingDates]);
+
+  const sheetFlatAvailable = useMemo(
+    () => flatDentalSlotLabelsForDay(sheetDay, sheetBookingNow),
+    [sheetDay, sheetBookingNow],
+  );
+
+  const sheetCanContinue = Boolean(sheetSlot) && sheetFlatAvailable.length > 0;
+
+  const applyDentalSlotSheet = useCallback(() => {
+    if (!sheetSlot || sheetFlatAvailable.length === 0) return;
+    const iso = formatPreferredApiDateTime(sheetDay, sheetSlot);
+    writeDentalPreferredDateTime(iso);
+    setPreferredDateTime(iso);
+    setSlotSheetOpen(false);
+  }, [sheetDay, sheetSlot, sheetFlatAvailable.length]);
+
+  useEffect(() => {
+    if (!slotSheetOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSlotSheetOpen(false);
+    };
+    globalThis.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      globalThis.removeEventListener("keydown", onKey);
+    };
+  }, [slotSheetOpen]);
 
   useEffect(() => {
     if (!member) {
@@ -143,7 +223,7 @@ export function DentalOverviewPage() {
                 type="button"
                 className="hco-dt__edit"
                 aria-label="Edit date and time"
-                onClick={() => void navigate(ROUTES.dentalSlots)}
+                onClick={() => setSlotSheetOpen(true)}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
@@ -184,6 +264,67 @@ export function DentalOverviewPage() {
           {busy ? "Submitting…" : "Confirm"}
         </button>
       </footer>
+
+      {slotSheetOpen ? (
+        <dialog
+          className="addr-sheet-dialog"
+          open
+          aria-modal="true"
+          aria-labelledby="dental-overview-slot-sheet-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSlotSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setSlotSheetOpen(false);
+          }}
+        >
+          <div className="vas-cvsl-sheet">
+            <div className="cvsl-page vas-cvsl-sheet__inner">
+              <header className="cvsl-top vas-cvsl-top">
+                <h1 id="dental-overview-slot-sheet-title" className="cvsl-title">
+                  Select Your Dental Slots
+                </h1>
+                <button
+                  type="button"
+                  className="addr-sheet__close"
+                  aria-label="Close"
+                  onClick={() => setSlotSheetOpen(false)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M18 6L6 18M6 6l12 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </header>
+
+              <main className="cvsl-main">
+                <DentalSlotPicker
+                  bookingDates={bookingDates}
+                  selectedDay={sheetDay}
+                  onSelectDay={setSheetDay}
+                  selectedSlot={sheetSlot}
+                  onSelectSlot={setSheetSlot}
+                />
+              </main>
+
+              <footer className="cvsl-footer">
+                <button
+                  type="button"
+                  className="cvsl-footer__book"
+                  disabled={!sheetCanContinue}
+                  onClick={applyDentalSlotSheet}
+                >
+                  Continue
+                </button>
+              </footer>
+            </div>
+          </div>
+        </dialog>
+      ) : null}
     </div>
   );
 }

@@ -16,6 +16,10 @@ export type VisionGlassesPrescriptionStored = Readonly<{
   attachmentId: string;
   title: string;
   uploadedAt: string;
+  /** Relative path from upload `data.path` — preview via `VITE_IMAGE_URL`. */
+  path?: string;
+  /** Upload `data.type`, e.g. `IMG`, `PDF`. */
+  type?: string;
 }>;
 
 export function readVisionSelectedClinic(): DentalNetworkClinicRow | null {
@@ -77,7 +81,9 @@ export function readVisionGlassesPrescriptions(): VisionGlassesPrescriptionStore
       if (!attachmentId) continue;
       const title = typeof r.title === "string" ? r.title : "";
       const uploadedAt = typeof r.uploadedAt === "string" ? r.uploadedAt : "";
-      out.push({ attachmentId, title, uploadedAt });
+      const path = typeof r.path === "string" && r.path.trim() ? r.path.trim() : undefined;
+      const type = typeof r.type === "string" && r.type.trim() ? r.type.trim() : undefined;
+      out.push({ attachmentId, title, uploadedAt, path, type });
     }
     return out;
   } catch {

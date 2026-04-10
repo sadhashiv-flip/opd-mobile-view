@@ -25,7 +25,7 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 0 var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
+  padding: 10px var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
 }
 
 .home-gym-row {

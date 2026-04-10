@@ -1,242 +1,139 @@
-/* Vision — glasses/lens add prescription (upload step) */
+/* Vision — add prescription: pharmacy-aligned grid + sheet + full preview */
 
-.hc-page.vap-page {
-  background: #fafafa;
-}
-
-.vap-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-}
-
-.vap-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin-left: -8px;
-  color: #111;
-  text-decoration: none;
-}
-
-.vap-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #111;
-}
-
-.vap-top__spacer {
-  width: 40px;
-}
-
-.vap-main.hc-main {
-  min-height: 0;
-  overflow: auto;
-}
-
-.vap-hero {
-  background: #fff0e8;
-  border-radius: 16px;
-  padding: 20px 16px;
-  text-align: center;
-  margin-bottom: 14px;
-}
-
-.vap-hero__icon {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-
-.vap-hero__title {
-  margin: 0 0 6px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #111;
-}
-
-.vap-hero__sub {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.vap-file-input {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.vap-trigger {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 22px 16px;
-  margin-bottom: 22px;
-  background: #fff;
-  border: 2px solid #e85d04;
-  border-radius: 14px;
-  cursor: pointer;
-  font: inherit;
-}
-
-.vap-trigger__icon {
-  display: flex;
-}
-
-.vap-trigger__label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #e85d04;
-}
-
-.vap-section-title {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #111;
-}
-
-.vap-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 28px 16px;
-  color: #999;
-}
-
-.vap-empty__icon {
-  margin-bottom: 10px;
-  opacity: 0.85;
-}
-
-.vap-empty__text {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.vap-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.vap-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #eee;
-}
-
-.vap-row__thumb {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: #f0f0f0;
-}
-
-.vap-row__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.vap-row__pdf {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #c62828;
-}
-
-.vap-row__loading {
+/* Tap target over thumb opens modal preview (sits under corner remove + ok badges). */
+.ph-file-thumb__open {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(255 255 255 / 0.65);
-}
-
-.vap-row__spinner {
-  width: 22px;
-  height: 22px;
-  border: 2px solid #e85d04;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: vap-spin 0.7s linear infinite;
-}
-
-@keyframes vap-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.vap-row__meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.vap-row__name {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #111;
-  word-break: break-word;
-}
-
-.vap-row__time {
-  margin-top: 4px;
-  font-size: 0.78rem;
-  color: #666;
-}
-
-.vap-row__trash {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+  margin: 0;
   padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
+  border-radius: 10px;
+  z-index: 0;
 }
 
-.vap-row__trash:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.ph-file-thumb__pdf-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+  display: block;
 }
 
-/* Bottom sheet */
+/* Full-screen attachment preview */
+.vap-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.vap-preview-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  max-height: min(92vh, 720px);
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.2);
+}
+
+.vap-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.vap-preview-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.vap-preview-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -6px -6px 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+}
+
+.vap-preview-close:hover {
+  background: #f0f0f0;
+}
+
+.vap-preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.vap-preview__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(75vh, 600px);
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.vap-preview__iframe {
+  display: block;
+  width: 100%;
+  min-height: min(70vh, 560px);
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.vap-preview__file-fallback {
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.vap-preview__file-msg {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.vap-preview__open-link {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+/* Bottom sheet — choose gallery / camera / files */
 .vap-sheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 55;
   background: rgb(0 0 0 / 0.45);
   display: flex;
   align-items: flex-end;
