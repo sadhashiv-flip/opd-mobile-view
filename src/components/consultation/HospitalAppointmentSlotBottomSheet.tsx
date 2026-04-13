@@ -1,16 +1,64 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchNetworkSlots, type NetworkDoctorSchedule, type NetworkSlotTiming } from "@/api/networkSlots";
-import { formatNetworkBookTimeSlot } from "@/utils/networkBookTimeSlot";
+import { fetchNetworkSlots, type NetworkDoctorSchedule } from "@/api/networkSlots";
+import { formatNetworkBookTimeSlotForDate } from "@/utils/networkBookTimeSlot";
 import { useToast } from "@/hooks/useToast";
+import {
+  buildFiveCalendarDaysStartingTomorrow,
+  filterSlotsAfterNowIfToday,
+  findScheduleForDate,
+  generateSlotsFromTimings,
+  groupSlotsByCategory,
+  isSameCalendarDay,
+  parseTimeToMinutes,
+  type GeneratedSlot,
+} from "@/utils/consultationSlotGrid";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/ConsultationAppointmentSlotsPage.css";
 import "@/components/consultation/HospitalAppointmentSlotBottomSheet.css";
 
-function timingLabel(t: NetworkSlotTiming): string {
-  const o = t.opening.trim();
-  const c = t.closing.trim();
-  if (o && c) return `${o} – ${c}`;
-  return o || c || "Slot";
+function formatMonthYearIST(date: Date): string {
+  try {
+    const s = date.toLocaleString("en-IN", {
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+    return `${s} (IST)`;
+  } catch {
+    const s = date.toLocaleString("en-IN", { month: "long", year: "numeric" });
+    return `${s} (IST)`;
+  }
+}
+
+function formatWeekdayShortIST(d: Date): string {
+  try {
+    return d.toLocaleDateString("en-IN", { weekday: "short", timeZone: "Asia/Kolkata" });
+  } catch {
+    return d.toLocaleDateString("en-IN", { weekday: "short" });
+  }
+}
+
+function slotKey(s: GeneratedSlot): string {
+  return `${s.timingId}-${s.minutesFromMidnight}`;
+}
+
+/** Parse `YYYY-MM-DD` prefix from stored `time_slot` (same shape as overview). */
+function parseStoredBookingDate(timeSlotApi: string): Date | null {
+  const re = /^(\d{4})-(\d{2})-(\d{2})\s/;
+  const m = re.exec(timeSlotApi.trim());
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
+  return new Date(y, mo - 1, d);
+}
+
+/** Time portion after date from stored `time_slot`. */
+function parseStoredBookingTimeLine(timeSlotApi: string): string | null {
+  const re = /^(\d{4})-(\d{2})-(\d{2})\s+(.+)$/;
+  const m = re.exec(timeSlotApi.trim());
+  return m ? m[4].trim() : null;
 }
 
 export type HospitalAppointmentSlotBottomSheetProps = Readonly<{
@@ -35,21 +83,10 @@ export function HospitalAppointmentSlotBottomSheet({
   const [networkLabel, setNetworkLabel] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<readonly NetworkDoctorSchedule[]>([]);
 
-  const [selectedScheduleIdx, setSelectedScheduleIdx] = useState(0);
-  const [selectedTiming, setSelectedTiming] = useState<NetworkSlotTiming | null>(null);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
+  const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
 
-  const schedulesWithSlots = useMemo(
-    () => schedules.filter((s) => s.timings.length > 0),
-    [schedules],
-  );
-
-  const activeSchedule = schedulesWithSlots[selectedScheduleIdx] ?? null;
-  const slotTimings = activeSchedule?.timings ?? [];
-
-  const isSelectedTiming = useCallback(
-    (t: NetworkSlotTiming) => selectedTiming?.id === t.id,
-    [selectedTiming],
-  );
+  const fiveDays = useMemo(() => buildFiveCalendarDaysStartingTomorrow(), []);
 
   useEffect(() => {
     if (!open) return;
@@ -77,8 +114,8 @@ export function HospitalAppointmentSlotBottomSheet({
           // ignore
         }
         setSchedules(data.schedules);
-        setSelectedScheduleIdx(0);
-        setSelectedTiming(null);
+        setSelectedDayIdx(0);
+        setSelectedSlot(null);
         setLoad("ok");
       } catch (e: unknown) {
         if (cancelled) return;
@@ -94,27 +131,68 @@ export function HospitalAppointmentSlotBottomSheet({
     };
   }, [open, networkId, doctorId, toast]);
 
-  /** Restore prior slot from localStorage when reopening the sheet. */
+  const selectedCalendarDate = fiveDays[selectedDayIdx] ?? fiveDays[0];
+
+  const slotsForSelectedDay = useMemo(() => {
+    if (!selectedCalendarDate) return [];
+    const sch = findScheduleForDate(schedules, selectedCalendarDate);
+    if (!sch || sch.timings.length === 0) return [];
+    const raw = generateSlotsFromTimings(sch.timings);
+    return filterSlotsAfterNowIfToday(selectedCalendarDate, raw);
+  }, [schedules, selectedCalendarDate]);
+
+  const categorized = useMemo(() => groupSlotsByCategory(slotsForSelectedDay), [slotsForSelectedDay]);
+
+  const hasNoSlotsForSelectedDate =
+    load === "ok" &&
+    selectedCalendarDate != null &&
+    (() => {
+      const sch = findScheduleForDate(schedules, selectedCalendarDate);
+      if (!sch || sch.timings.length === 0) return true;
+      return slotsForSelectedDay.length === 0;
+    })();
+
+  const activeScheduleForSelected = selectedCalendarDate
+    ? findScheduleForDate(schedules, selectedCalendarDate)
+    : undefined;
+
+  /** Restore prior slot from localStorage — same calendar + grid as ConsultationAppointmentSlotsPage. */
   useEffect(() => {
-    if (!open || load !== "ok" || schedulesWithSlots.length === 0) return;
-    let slotIdRaw: string | null = null;
+    if (!open || load !== "ok" || schedules.length === 0) return;
+    let timeSlotApi = "";
     try {
-      slotIdRaw = localStorage.getItem("opd-mobile-view.consultation.slotId");
+      timeSlotApi = localStorage.getItem("opd-mobile-view.consultation.timeSlot")?.trim() ?? "";
     } catch {
       return;
     }
-    if (!slotIdRaw?.trim()) return;
-    const id = Number(slotIdRaw.trim());
-    if (!Number.isFinite(id)) return;
-    for (let i = 0; i < schedulesWithSlots.length; i++) {
-      const t = schedulesWithSlots[i].timings.find((x) => x.id === id);
-      if (t) {
-        setSelectedScheduleIdx(i);
-        setSelectedTiming(t);
-        return;
-      }
+    if (!timeSlotApi) return;
+
+    const bookedDate = parseStoredBookingDate(timeSlotApi);
+    const timeLine = parseStoredBookingTimeLine(timeSlotApi);
+    if (!bookedDate || !timeLine) return;
+
+    const dayIdx = fiveDays.findIndex((d) => isSameCalendarDay(d, bookedDate));
+    if (dayIdx < 0) return;
+
+    const calendarDay = fiveDays[dayIdx];
+    if (calendarDay === undefined) return;
+
+    const sch = findScheduleForDate(schedules, calendarDay);
+    if (!sch) return;
+
+    const raw = generateSlotsFromTimings(sch.timings);
+    const filtered = filterSlotsAfterNowIfToday(calendarDay, raw);
+    const wantMin = parseTimeToMinutes(timeLine);
+    let match: GeneratedSlot | undefined;
+    if (wantMin === null) {
+      match = filtered.find((s) => s.label.trim() === timeLine.trim());
+    } else {
+      match = filtered.find((s) => s.minutesFromMidnight === wantMin);
     }
-  }, [open, load, schedulesWithSlots]);
+
+    setSelectedDayIdx(dayIdx);
+    setSelectedSlot(match ?? null);
+  }, [open, load, schedules, fiveDays]);
 
   useEffect(() => {
     if (!open) return;
@@ -125,15 +203,24 @@ export function HospitalAppointmentSlotBottomSheet({
     };
   }, [open]);
 
+  const selectSlot = useCallback((s: GeneratedSlot) => {
+    setSelectedSlot(s);
+  }, []);
+
+  const isSlotSelected = useCallback(
+    (s: GeneratedSlot) => selectedSlot != null && slotKey(selectedSlot) === slotKey(s),
+    [selectedSlot],
+  );
+
   const apply = useCallback(() => {
-    if (!selectedTiming || !activeSchedule) return;
+    if (!selectedSlot || !selectedCalendarDate || !activeScheduleForSelected) return;
     try {
-      localStorage.setItem("opd-mobile-view.consultation.slotId", String(selectedTiming.id));
-      localStorage.setItem("opd-mobile-view.consultation.slotLabel", timingLabel(selectedTiming));
-      localStorage.setItem("opd-mobile-view.consultation.dayLabel", activeSchedule.day ?? "");
+      localStorage.setItem("opd-mobile-view.consultation.slotId", String(selectedSlot.timingId));
+      localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedSlot.label);
+      localStorage.setItem("opd-mobile-view.consultation.dayLabel", activeScheduleForSelected.day ?? "");
       localStorage.setItem(
         "opd-mobile-view.consultation.timeSlot",
-        formatNetworkBookTimeSlot(activeSchedule.day, selectedTiming.opening),
+        formatNetworkBookTimeSlotForDate(selectedCalendarDate, selectedSlot.label),
       );
       localStorage.setItem("opd-mobile-view.consultation.doctorName", doctorName);
       localStorage.setItem("opd-mobile-view.consultation.networkId", networkId);
@@ -147,8 +234,9 @@ export function HospitalAppointmentSlotBottomSheet({
     onApplied?.();
     onClose();
   }, [
-    selectedTiming,
-    activeSchedule,
+    selectedSlot,
+    selectedCalendarDate,
+    activeScheduleForSelected,
     doctorName,
     networkId,
     doctorId,
@@ -197,9 +285,22 @@ export function HospitalAppointmentSlotBottomSheet({
               </div>
             ) : null}
 
-            <div className="cas-note">
-              Note : Flip Health will call and try to schedule ur appointment in your preferred slot or
-              the next available slot
+            <div className="cas-alert" role="note">
+              <span className="cas-alert__ic" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="#FF7043" strokeWidth="2" />
+                  <path
+                    d="M12 10v5M12 7.5v.01"
+                    stroke="#FF7043"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <p className="cas-alert__txt">
+                Flip Health will call and try to schedule an appointment with the doctor on the selected date
+                and time slot.
+              </p>
             </div>
 
             {load === "loading" && <div className="cas-loading">Loading slots…</div>}
@@ -208,41 +309,43 @@ export function HospitalAppointmentSlotBottomSheet({
                 {loadErr ?? "Could not load slots"}
               </div>
             )}
-            {load === "ok" && schedulesWithSlots.length === 0 && (
+            {load === "ok" && schedules.length === 0 && (
               <div className="cas-loading">No open slots for this doctor right now.</div>
             )}
-            {load === "ok" && schedulesWithSlots.length > 0 && (
+            {load === "ok" && schedules.length > 0 && (
               <>
                 <div className="cas-row">
                   <div className="cas-row__left">
                     <span className="cas-row__ic" aria-hidden="true">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
-                        <path d="M12 7v6l3 2" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
+                        <circle cx="12" cy="12" r="9" stroke="#FF7043" strokeWidth="2" />
+                        <path d="M12 7v6l3 2" stroke="#FF7043" strokeWidth="2" strokeLinecap="round" />
                       </svg>
-                    </span>
-                    choose day and time
+                    </span>{" "}
+                    Choose date and time
                   </div>
-                  <div className="cas-row__right">Available days</div>
+                  <div className="cas-row__right">
+                    {selectedCalendarDate ? formatMonthYearIST(selectedCalendarDate) : ""}
+                  </div>
                 </div>
 
-                <div className="cas-days" role="radiogroup" aria-label="Choose day">
-                  {schedulesWithSlots.map((s, idx) => {
-                    const active = idx === selectedScheduleIdx;
+                <div className="cas-days" role="radiogroup" aria-label="Choose date">
+                  {fiveDays.map((d, idx) => {
+                    const active = idx === selectedDayIdx;
                     return (
                       <button
-                        key={`${s.short_code}-${s.id}`}
+                        key={`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
                         type="button"
                         className={`cas-day${active ? " cas-day--active" : ""}`}
                         role="radio"
                         aria-checked={active}
                         onClick={() => {
-                          setSelectedScheduleIdx(idx);
-                          setSelectedTiming(null);
+                          setSelectedDayIdx(idx);
+                          setSelectedSlot(null);
                         }}
                       >
-                        <div className="cas-day__num">{s.short_code.toUpperCase()}</div>
-                        <div className="cas-day__dow">{s.day}</div>
+                        <div className="cas-day__num">{d.getDate()}</div>
+                        <div className="cas-day__dow">{formatWeekdayShortIST(d)}</div>
                       </button>
                     );
                   })}
@@ -250,31 +353,37 @@ export function HospitalAppointmentSlotBottomSheet({
 
                 <div className="cas-divider" />
 
-                <section className="cas-section">
-                  <div className="cas-section__head">
-                    <span className="cas-sun" aria-hidden="true">
-                      ☀
-                    </span>
-                    Available hours
-                  </div>
-                  <div className="cas-slots" role="radiogroup" aria-label="Time slots">
-                    {slotTimings.map((t) => {
-                      const active = isSelectedTiming(t);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          className={`cas-slot${active ? " cas-slot--active" : ""}`}
-                          role="radio"
-                          aria-checked={active}
-                          onClick={() => setSelectedTiming(t)}
-                        >
-                          {timingLabel(t)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                {hasNoSlotsForSelectedDate ? (
+                  <div className="cas-empty-slots">No slots available for this date</div>
+                ) : (
+                  categorized.map((group) => (
+                    <section key={group.category} className="cas-section">
+                      <div className="cas-section__head">
+                        <span className="cas-sun" aria-hidden="true">
+                          ☀
+                        </span>
+                        {group.title}
+                      </div>
+                      <div className="cas-slots" role="radiogroup" aria-label={`${group.title} slots`}>
+                        {group.slots.map((s) => {
+                          const active = isSlotSelected(s);
+                          return (
+                            <button
+                              key={slotKey(s)}
+                              type="button"
+                              className={`cas-slot${active ? " cas-slot--active" : ""}`}
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => selectSlot(s)}
+                            >
+                              {s.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))
+                )}
               </>
             )}
           </main>
@@ -283,7 +392,7 @@ export function HospitalAppointmentSlotBottomSheet({
             <button
               type="button"
               className="cas-confirm"
-              disabled={load !== "ok" || !selectedTiming}
+              disabled={load !== "ok" || !selectedSlot || !selectedCalendarDate}
               onClick={apply}
             >
               Confirm
