@@ -52,6 +52,8 @@ export type DashboardOngoingItem = Readonly<{
   title: string;
   meta: string;
   status: number;
+  /** True when `order_type` is APPOINTMENT and `communication` is ONLINE (video consult). */
+  canJoinVideoCall: boolean;
 }>;
 
 export type DashboardGymState = Readonly<{
@@ -217,6 +219,9 @@ function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
   const type = typeof row.type === "string" ? row.type : "";
   const orderType = typeof row.order_type === "string" ? row.order_type : "";
   const status = typeof row.status === "number" && Number.isFinite(row.status) ? row.status : -1;
+  const comm =
+    typeof row.communication === "string" ? row.communication.trim().toUpperCase() : "";
+  const canJoinVideoCall = orderType.toUpperCase() === "APPOINTMENT" && comm === "ONLINE";
   const details =
     row.details && typeof row.details === "object"
       ? (row.details as Record<string, unknown>)
@@ -226,7 +231,7 @@ function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
     ot === "APPOINTMENT"
       ? consultationTitleAndMeta(row)
       : ongoingTitleAndMeta(type, orderType, details);
-  return { id, invoiceId, type, orderType, title, meta, status };
+  return { id, invoiceId, type, orderType, title, meta, status, canJoinVideoCall };
 }
 
 export function normalizeDashboardOngoing(raw: unknown): DashboardOngoingItem[] {

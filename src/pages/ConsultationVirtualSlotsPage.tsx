@@ -9,6 +9,7 @@ import {
   formatLocalYmd,
   type AvailableSlot,
   type SpecialityDoctor,
+  type VirtualSpecialtySlotsState,
 } from "@/api/consultationVirtual";
 import "./ConsultationVirtualSlotsPage.css";
 
@@ -19,11 +20,7 @@ function maxIsoDate(a: string, b: string): string {
   return a >= b ? a : b;
 }
 
-export type VirtualSpecialtySlotsState = Readonly<{
-  parent: number;
-  issueTitle: string;
-  spid: number;
-}>;
+export type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
 
 function readStoredMeta(issueId: string): VirtualSpecialtySlotsState | null {
   try {

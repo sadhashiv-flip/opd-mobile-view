@@ -2,6 +2,16 @@ import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination
 import { patientJson, patientJsonList } from "@/api/patientHttp";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 
+/**
+ * Virtual slots screen `location.state` + `sessionStorage` under `opd-mobile-view.virtualSlots.{issueId}`.
+ * `spid` for `availableSlots` is the issue’s parent specialty id (same as {@link VirtualSpecialtySlotsState.parent}).
+ */
+export type VirtualSpecialtySlotsState = Readonly<{
+  parent: number;
+  issueTitle: string;
+  spid: number;
+}>;
+
 export type SpecialityDoctor = Readonly<{
   id: number;
   name: string;

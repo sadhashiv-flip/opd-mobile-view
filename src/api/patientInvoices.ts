@@ -1,4 +1,6 @@
+import type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
 import { patientJson } from "@/api/patientHttp";
+import { resolveProfileImageUrl } from "@/api/patientProfile";
 
 /**
  * Query `type` for `GET /invoice` — align with backend `transaction_type` filters
@@ -23,12 +25,19 @@ export type InvoiceOrderRow = Readonly<{
   id: string;
   categoryLabel: string;
   categoryKey: string;
+  /** `#` + `data.info.id` when present; otherwise empty (no label). */
   orderIdLine: string;
   metaLine: string;
-  statusTone: "completed" | "processing" | "cancelled" | "other";
+  statusTone: "completed" | "processing" | "cancelled" | "other" | "expired";
   statusLabel: string;
   isFree: boolean;
   amountFormatted: string | null;
+  /** True when `transaction_type` is consultation and communication (from `info` or `data.info`) is ONLINE. */
+  canJoinOnlineConsultation: boolean;
+  /** Appointment id for {@link ROUTES.videoCall} (join/end/chat/feedback paths). */
+  videoAppointmentId: string | null;
+  /** Consultation list: channel chip next to `#info.id` (null for non-consultation). */
+  consultationPlaceTag: "virtual" | "inPerson" | null;
 }>;
 
 export type InvoicesPageResult = Readonly<{
@@ -169,6 +178,77 @@ function statusToneFrom(raw: string | null): InvoiceOrderRow["statusTone"] {
   return "other";
 }
 
+/** `info` on the row or nested `data.info` (list payloads often wrap under `data`). */
+function readInvoiceInfoObject(o: Record<string, unknown>): Record<string, unknown> | null {
+  const direct = asRecord(o.info);
+  if (direct) return direct;
+  const data = asRecord(o.data);
+  if (data) {
+    const nested = asRecord(data.info);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function readInvoiceDataObject(o: Record<string, unknown>): Record<string, unknown> | null {
+  return asRecord(o.data);
+}
+
+function normalizedTransactionKind(raw: string): string {
+  return raw.trim().toUpperCase().replaceAll("_", "").replaceAll(/\s+/g, "");
+}
+
+function communicationFromInvoiceRow(o: Record<string, unknown>, info: Record<string, unknown> | null): string | null {
+  const fromInfo = info ? str(info.communication) : null;
+  if (fromInfo) return fromInfo;
+  return str(o.communication);
+}
+
+function videoAppointmentIdFromRow(
+  o: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+  data: Record<string, unknown> | null,
+): string | null {
+  const add = asRecord(o.additional_info);
+  const fromInfo = (rec: Record<string, unknown> | null) =>
+    rec
+      ? str(rec.appointment_id) ??
+        str(rec.appointmentId) ??
+        str(rec.booking_id) ??
+        str(rec.bookingId) ??
+        str(rec.reference_appointment_id) ??
+        str(rec.referenceAppointmentId)
+      : null;
+  const infoId =
+    info != null
+      ? (() => {
+          const id = str(info.id);
+          return id && /^APP/i.test(id) ? id : null;
+        })()
+      : null;
+  return (
+    str(o.appointment_id) ??
+    str(o.appointmentId) ??
+    str(o.booking_id) ??
+    str(o.bookingId) ??
+    (data
+      ? str(data.appointment_id) ??
+        str(data.appointmentId) ??
+        str(data.booking_id) ??
+        str(data.bookingId)
+      : null) ??
+    fromInfo(info) ??
+    infoId ??
+    fromInfo(add)
+  );
+}
+
+export function sortInvoiceOrderRowsByIdAsc(rows: readonly InvoiceOrderRow[]): InvoiceOrderRow[] {
+  return [...rows].sort((a, b) =>
+    a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: "base" }),
+  );
+}
+
 function categoryKeyFromLabel(label: string): string {
   const s = label.toLowerCase();
   if (s.includes("consult")) return "consultation";
@@ -243,6 +323,42 @@ function deriveInvoiceStatus(o: Record<string, unknown>): {
   };
 }
 
+/** Badge tone for list rows from `data.info.status` (consultation). */
+export function consultationInfoStatusOrderRowTone(
+  status: unknown,
+): InvoiceOrderRow["statusTone"] {
+  const raw = num(status);
+  const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
+  if (n === 1) return "completed";
+  if (n === 2) return "cancelled";
+  return "processing";
+}
+
+/** Start of consultation slot in ms (virtual expiry / join windows); not for list display. */
+function consultationSlotStartMsFromInfo(info: Record<string, unknown>): number | null {
+  const add = asRecord(info.additional_info);
+  const booking = add ? asRecord(add.booking_details) : null;
+  const timeSlot = booking ? str(booking.time_slot) : null;
+  if (timeSlot?.trim()) {
+    const raw = timeSlot.trim().replace(" ", "T");
+    const p = Date.parse(raw.length <= 10 ? `${raw}T12:00:00` : raw);
+    return Number.isNaN(p) ? null : p;
+  }
+  const d = str(info.date)?.trim();
+  const timePart = str(info.time)?.trim();
+  if (d && timePart) {
+    const iso = `${d}T${timePart.length === 5 ? `${timePart}:00` : timePart}`;
+    const p = Date.parse(iso);
+    return Number.isNaN(p) ? null : p;
+  }
+  if (d) {
+    const iso = /^\d{4}-\d{2}-\d{2}/.test(d) ? `${d.slice(0, 10)}T12:00:00` : d;
+    const p = Date.parse(iso);
+    return Number.isNaN(p) ? null : p;
+  }
+  return null;
+}
+
 function parseInvoicePricing(o: Record<string, unknown>): Pick<InvoiceOrderRow, "isFree" | "amountFormatted"> {
   const priceLabel = str(o.price_label);
   const freeExplicit =
@@ -284,8 +400,16 @@ function parseInvoicePricing(o: Record<string, unknown>): Pick<InvoiceOrderRow, 
 }
 
 function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
-  const o = asRecord(v);
-  if (!o) return null;
+  const root = asRecord(v);
+  if (!root) return null;
+  const dataRec = asRecord(root.data);
+  const o =
+    dataRec != null && !Array.isArray(root.data)
+      ? {
+          ...root,
+          ...dataRec,
+        }
+      : root;
 
   const id =
     str(o.id) ??
@@ -306,19 +430,8 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
     str(o.orderType) ??
     "";
 
-  const categoryLabel = displayCategoryLabel(typeRaw || null);
-  const categoryKey = categoryKeyFromLabel(categoryLabel);
-
-  const orderNum =
-    str(o.order_number) ??
-    str(o.orderNumber) ??
-    str(o.order_id) ??
-    str(o.orderId) ??
-    str(o.display_id) ??
-    str(o.invoice_number) ??
-    str(o.invoice_id) ??
-    id;
-  const orderIdLine = `Order ID: ${orderNum}`;
+  const baseCategoryLabel = displayCategoryLabel(typeRaw || null);
+  const categoryKey = categoryKeyFromLabel(baseCategoryLabel);
 
   const memberName =
     str(o.patient_name) ??
@@ -341,15 +454,92 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
     str(o.date);
 
   const dateFmt = formatOrderDate(dateRaw);
-  let metaLine = "—";
-  if (memberName != null && memberName.length > 0) {
-    metaLine = dateFmt ? `${memberName} • ${dateFmt}` : memberName;
-  } else if (dateFmt != null) {
-    metaLine = dateFmt;
+
+  const infoObj = readInvoiceInfoObject(o);
+  const dataObj = readInvoiceDataObject(o);
+  const typeNorm = normalizedTransactionKind(typeRaw);
+  const isConsultation = typeNorm === "CONSULTATION";
+
+  let categoryLabel = baseCategoryLabel;
+  if (isConsultation && infoObj != null) {
+    categoryLabel = "Consultation";
   }
 
-  const { label: statusLabel, tone: statusTone } = deriveInvoiceStatus(o);
+  const infoListId = infoObj != null ? str(infoObj.id) : null;
+  const orderIdLine = infoListId?.trim() ? `#${infoListId.trim()}` : "";
+
+  const comm = communicationFromInvoiceRow(o, infoObj);
+  const commNorm = comm != null ? comm.trim().toUpperCase() : "";
+  const isOnline = commNorm === "ONLINE";
+  const consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"] =
+    isConsultation && infoObj != null ? (isOnline ? "virtual" : "inPerson") : null;
+
+  const consultationInfoStatusNum =
+    isConsultation && infoObj != null ? num(infoObj.status) : null;
+  const slotStartMs =
+    isConsultation && infoObj != null ? consultationSlotStartMsFromInfo(infoObj) : null;
+  const isExpiredVirtual =
+    isConsultation &&
+    isOnline &&
+    consultationInfoStatusNum === 5 &&
+    slotStartMs != null &&
+    Date.now() > slotStartMs + 10 * 60 * 1000;
+
+  let statusLabel: string;
+  let statusTone: InvoiceOrderRow["statusTone"];
+  if (isConsultation && infoObj != null && consultationInfoStatusNum !== null) {
+    if (isExpiredVirtual) {
+      statusLabel = "Expired";
+      statusTone = "expired";
+    } else {
+      statusLabel = consultationInfoStatusLabelOffline(infoObj.status);
+      statusTone = consultationInfoStatusOrderRowTone(infoObj.status);
+    }
+  } else {
+    const d = deriveInvoiceStatus(o);
+    statusLabel = d.label;
+    statusTone = d.tone;
+  }
+
   const { isFree, amountFormatted } = parseInvoicePricing(o);
+
+  const videoAppointmentId = videoAppointmentIdFromRow(o, infoObj, dataObj);
+  const canJoinOnlineConsultation =
+    isConsultation &&
+    isOnline &&
+    !isExpiredVirtual &&
+    videoAppointmentId != null &&
+    videoAppointmentId.length > 0 &&
+    statusTone !== "cancelled";
+
+  const createdAtRaw = str(o.createdAt) ?? str(o.created_at);
+  const consultationCreatedLine =
+    createdAtRaw != null ? formatOrderDateTime(createdAtRaw) : null;
+  const consultationCreatedDisplay =
+    consultationCreatedLine != null && consultationCreatedLine !== "—"
+      ? consultationCreatedLine
+      : null;
+
+  const metaLines: string[] = [];
+  if (isConsultation) {
+    if (memberName != null && memberName.length > 0 && consultationCreatedDisplay != null) {
+      metaLines.push(`${memberName} • ${consultationCreatedDisplay}`);
+    } else if (memberName != null && memberName.length > 0) {
+      metaLines.push(memberName);
+    } else if (consultationCreatedDisplay != null) {
+      metaLines.push(consultationCreatedDisplay);
+    }
+  } else {
+    if (memberName != null && memberName.length > 0) {
+      metaLines.push(dateFmt ? `${memberName} • ${dateFmt}` : memberName);
+    } else if (dateFmt != null) {
+      metaLines.push(dateFmt);
+    }
+  }
+  if (amountFormatted != null) {
+    metaLines.push(amountFormatted);
+  }
+  const metaLine = metaLines.length > 0 ? metaLines.join("\n") : "—";
 
   return {
     id,
@@ -361,6 +551,9 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
     statusLabel,
     isFree,
     amountFormatted,
+    canJoinOnlineConsultation,
+    videoAppointmentId,
+    consultationPlaceTag,
   };
 }
 
@@ -444,6 +637,12 @@ export type InvoiceDetailModel = Readonly<{
   bannerTitle: string;
   bannerSubtitle: string;
   orderIdDisplay: string;
+  /** Same as list: Virtual / In-person chip next to appointment id when consultation. */
+  consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"];
+  /** `info.status` when consultation (`1` completed, `2` cancelled, …); null if absent. */
+  consultationInfoStatus: number | null;
+  /** `info.id` — path param for `PATCH /service/request/cancel/:serviceId` (service cancel). */
+  consultationInfoId: string | null;
   serviceTypeLabel: string;
   categoryKey: string;
   orderDateTimeDisplay: string;
@@ -658,10 +857,60 @@ function bannerCopy(tone: InvoiceDetailBannerTone): { title: string; subtitle: s
   }
 }
 
+/**
+ * Order-detail banner title = {@link consultationInfoStatusLabelOffline} (`info.status` codes 1–5 + default).
+ * Subtitle is a short line matched to that status.
+ */
+export function consultationInfoStatusBannerCopy(status: unknown): { title: string; subtitle: string } {
+  const raw = num(status);
+  const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
+  const title = consultationInfoStatusLabelOffline(status);
+  switch (n) {
+    case 1:
+      return { title, subtitle: "Your consultation is complete" };
+    case 2:
+      return { title, subtitle: "This appointment was cancelled" };
+    case 3:
+      return { title, subtitle: "Please review and confirm the updates" };
+    case 4:
+      return { title, subtitle: "Complete payment to continue with this booking" };
+    case 5:
+      return { title, subtitle: "Your appointment is coming up" };
+    default:
+      return { title, subtitle: "We're updating this appointment" };
+  }
+}
+
 function mapStatusToneToBanner(tone: InvoiceOrderRow["statusTone"]): InvoiceDetailBannerTone {
   if (tone === "completed") return "completed";
-  if (tone === "cancelled") return "cancelled";
+  if (tone === "cancelled" || tone === "expired") return "cancelled";
   return "processing";
+}
+
+/**
+ * Appointment `data.info.status` labels (consultation) — same codes for online/offline; drives order-detail banner when set.
+ */
+export function consultationInfoStatusLabelOffline(status: unknown): string {
+  const raw = num(status);
+  const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
+  switch (n) {
+    case 1:
+      return "Completed";
+    case 2:
+      return "Cancelled";
+    case 3:
+      return "Confirm Changes";
+    case 4:
+      return "Payment pending";
+    case 5:
+      return "Upcoming Appointment";
+    default:
+      return "Pending";
+  }
+}
+
+function toneFromConsultationInfoStatus(status: unknown): InvoiceOrderRow["statusTone"] {
+  return consultationInfoStatusOrderRowTone(status);
 }
 
 function detailPatientName(o: Record<string, unknown>): string {
@@ -942,9 +1191,67 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
 
   const orderDateTimeDisplay = formatOrderDateTime(dateRaw);
 
-  const { label: statusLabel, tone: statusValueTone } = deriveInvoiceStatus(o);
+  const typeNorm = normalizedTransactionKind(typeRaw);
+  const isConsultationInvoice = typeNorm === "CONSULTATION";
+  const infoForStatus = readInvoiceInfoObject(o);
+  const consultationInfoStatusNum =
+    isConsultationInvoice && infoForStatus != null ? num(infoForStatus.status) : null;
+  const consultationInfoStatus =
+    consultationInfoStatusNum != null && !Number.isNaN(consultationInfoStatusNum)
+      ? Math.trunc(consultationInfoStatusNum)
+      : null;
+  const useConsultationInfoStatusForBanner =
+    isConsultationInvoice && infoForStatus != null && consultationInfoStatusNum !== null;
+
+  const comm = communicationFromInvoiceRow(o, infoForStatus);
+  const commNorm = comm != null ? comm.trim().toUpperCase() : "";
+  const isOnline = commNorm === "ONLINE";
+  const consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"] =
+    isConsultationInvoice && infoForStatus != null ? (isOnline ? "virtual" : "inPerson") : null;
+
+  const consultationInfoIdRaw =
+    isConsultationInvoice && infoForStatus != null ? str(infoForStatus.id)?.trim() : null;
+  const consultationInfoId =
+    consultationInfoIdRaw != null && consultationInfoIdRaw.length > 0
+      ? consultationInfoIdRaw
+      : null;
+
+  const slotStartMs =
+    isConsultationInvoice && infoForStatus != null
+      ? consultationSlotStartMsFromInfo(infoForStatus)
+      : null;
+  const isExpiredVirtual =
+    isConsultationInvoice &&
+    isOnline &&
+    consultationInfoStatusNum === 5 &&
+    slotStartMs != null &&
+    Date.now() > slotStartMs + 10 * 60 * 1000;
+
+  let statusLabel: string;
+  let statusValueTone: InvoiceOrderRow["statusTone"];
+  if (useConsultationInfoStatusForBanner) {
+    if (isExpiredVirtual) {
+      statusLabel = "Expired";
+      statusValueTone = "expired";
+    } else {
+      statusLabel = consultationInfoStatusLabelOffline(infoForStatus.status);
+      statusValueTone = toneFromConsultationInfoStatus(infoForStatus.status);
+    }
+  } else {
+    const d = deriveInvoiceStatus(o);
+    statusLabel = d.label;
+    statusValueTone = d.tone;
+  }
+
   const bannerTone = mapStatusToneToBanner(statusValueTone);
-  const { title: bannerTitle, subtitle: bannerSubtitle } = bannerCopy(bannerTone);
+  const { title: bannerTitle, subtitle: bannerSubtitle } = isExpiredVirtual
+    ? {
+        title: "Expired",
+        subtitle: "This virtual consultation time slot has ended",
+      }
+    : useConsultationInfoStatusForBanner && infoForStatus != null
+      ? consultationInfoStatusBannerCopy(infoForStatus.status)
+      : bannerCopy(bannerTone);
 
   const patientName = detailPatientName(o);
   const vendorName = detailVendorName(o);
@@ -975,6 +1282,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     bannerTitle,
     bannerSubtitle,
     orderIdDisplay,
+    consultationPlaceTag,
+    consultationInfoStatus,
+    consultationInfoId,
     serviceTypeLabel,
     categoryKey,
     orderDateTimeDisplay,
@@ -992,10 +1302,244 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   };
 }
 
+// --- Completed online consultation (order detail extras) ---
+
+export type ConsultationPrescriptionRow = Readonly<{
+  id: string;
+  createdAtLabel: string | null;
+  medicineNames: readonly string[];
+}>;
+
+export type ConsultationAttachmentRow = Readonly<{
+  label: string;
+  url: string | null;
+}>;
+
+export type ConsultationDoctorCard = Readonly<{
+  name: string;
+  speciality: string;
+  imageUrl: string | null;
+}>;
+
 /**
- * Single invoice for order details — `GET /invoice/:id`.
+ * Parsed from `GET /invoice/:id` when `transaction_type` is consultation, `info.communication` is
+ * ONLINE, and a `details[]` line has `status === 1` (completed consultation line).
  */
-export async function fetchInvoiceById(invoiceId: string): Promise<InvoiceDetailModel> {
+/** Follow-up virtual consult entry from a completed invoice `info` block. */
+export type VirtualFollowUpFromInvoice = Readonly<{
+  issueId: number;
+  slotsMeta: VirtualSpecialtySlotsState;
+  priorAppointmentId: string;
+  patientId: number | null;
+  language: string | null;
+}>;
+
+export type InvoiceConsultationCompletedView = Readonly<{
+  symptoms: string | null;
+  diagnosis: string | null;
+  recommendation: string | null;
+  history: string | null;
+  appointmentId: string | null;
+  prescriptions: readonly ConsultationPrescriptionRow[];
+  attachments: readonly ConsultationAttachmentRow[];
+  doctor: ConsultationDoctorCard | null;
+  /** Follow-up CTA payload; only when `info.status === 1`. */
+  followUp: VirtualFollowUpFromInvoice | null;
+}>;
+
+function nonEmptyTrimmedText(v: unknown): string | null {
+  const s = str(v);
+  if (!s) return null;
+  const t = s.trim();
+  return t.length ? t : null;
+}
+
+function hasCompletedConsultationDetailLine(o: Record<string, unknown>): boolean {
+  const rootType = normalizedTransactionKind(
+    str(o.transaction_type) ?? str(o.transactionType) ?? "",
+  );
+  if (rootType !== "CONSULTATION") return false;
+  const details = o.details;
+  if (!Array.isArray(details)) return false;
+  for (const item of details) {
+    const r = asRecord(item);
+    if (!r) continue;
+    if (num(r.status) !== 1) continue;
+    const pt = normalizedTransactionKind(str(r.product_type) ?? str(r.productType) ?? "");
+    if (pt === "CONSULTATION") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parseMedicineNamesFromPrescriptionDetails(detailsRaw: unknown): string[] {
+  const details = asRecord(detailsRaw);
+  if (!details) return [];
+  const names: string[] = [];
+  for (const key of ["others", "chronic"] as const) {
+    const arr = details[key];
+    if (!Array.isArray(arr)) continue;
+    for (const item of arr) {
+      const r = asRecord(item);
+      const n = r ? str(r.name) : null;
+      if (n != null && n.trim().length > 0) {
+        names.push(n.trim());
+      }
+    }
+  }
+  return names;
+}
+
+function parseConsultationPrescriptions(info: Record<string, unknown>): ConsultationPrescriptionRow[] {
+  const raw = info.prescriptions;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationPrescriptionRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    const id = str(r.id) ?? `prescription-${i}`;
+    const medicineNames = parseMedicineNamesFromPrescriptionDetails(r.details);
+    out.push({
+      id,
+      createdAtLabel: str(r.createdAtDate) ?? str(r.created_at_label) ?? null,
+      medicineNames,
+    });
+  }
+  return out;
+}
+
+function parseConsultationAttachments(info: Record<string, unknown>): ConsultationAttachmentRow[] {
+  const raw = info.attachments;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    const url =
+      str(r.url) ??
+      str(r.file) ??
+      str(r.link) ??
+      str(r.path) ??
+      str(r.document) ??
+      null;
+    const label =
+      str(r.name) ??
+      str(r.file_name) ??
+      str(r.fileName) ??
+      str(r.title) ??
+      str(r.original_name) ??
+      `Attachment ${i + 1}`;
+    out.push({ label, url });
+  }
+  return out;
+}
+
+function parseConsultationDoctor(info: Record<string, unknown>): ConsultationDoctorCard | null {
+  const doc = asRecord(info.doctor);
+  if (!doc) return null;
+  const name = str(doc.name);
+  if (!name) return null;
+  const specRec = asRecord(doc.speciality) ?? asRecord(doc.specialty);
+  const speciality =
+    str(specRec?.name) ?? str(doc.speciality_name) ?? str(doc.specialityName) ?? str(doc.specialty) ?? "—";
+  const imageUrl = resolveProfileImageUrl(str(doc.image));
+  return {
+    name,
+    speciality: speciality.length ? speciality : "—",
+    imageUrl,
+  };
+}
+
+function parseInvoiceFollowUp(
+  info: Record<string, unknown>,
+  priorAppointmentId: string | null,
+): VirtualFollowUpFromInvoice | null {
+  const prior = priorAppointmentId?.trim();
+  if (!prior) return null;
+
+  const issueFromRoot = num(info.issue_id);
+  const issuesRec = asRecord(info.issues);
+  const issueFromNested = issuesRec ? num(issuesRec.id) : null;
+  const issueId = issueFromRoot ?? issueFromNested;
+  if (issueId == null || !Number.isFinite(issueId)) return null;
+
+  const specRoot = num(info.speciality_id);
+  const specNestedRec = asRecord(info.speciality);
+  const specFromNested = specNestedRec ? num(specNestedRec.id) : null;
+  const parent = specRoot ?? specFromNested;
+  if (parent == null || !Number.isFinite(parent)) return null;
+
+  const parentInt = Math.floor(parent);
+  const issueTitle =
+    (issuesRec ? str(issuesRec.title) : null)?.trim() ||
+    str(asRecord(info.doctor)?.name)?.trim() ||
+    "Consultation";
+
+  const patientId = num(info.patient_id);
+  const language = nonEmptyTrimmedText(info.language);
+
+  return {
+    issueId: Math.floor(issueId),
+    slotsMeta: {
+      parent: parentInt,
+      issueTitle,
+      spid: parentInt,
+    },
+    priorAppointmentId: prior,
+    patientId: patientId != null && Number.isFinite(patientId) ? Math.floor(patientId) : null,
+    language,
+  };
+}
+
+function appointmentIdFromConsultationPayload(
+  o: Record<string, unknown>,
+  info: Record<string, unknown>,
+): string | null {
+  const addRoot = asRecord(o.additional_info);
+  const addInfo = asRecord(info.additional_info);
+  return (
+    str(addRoot?.appointment_id) ??
+    str(addRoot?.appointmentId) ??
+    str(addInfo?.appointment_id) ??
+    str(addInfo?.appointmentId) ??
+    str(info.appointment_id) ??
+    str(info.appointmentId) ??
+    str(info.id)
+  );
+}
+
+export function parseInvoiceConsultationCompletedView(
+  payload: Record<string, unknown>,
+): InvoiceConsultationCompletedView | null {
+  if (!hasCompletedConsultationDetailLine(payload)) return null;
+  const info = readInvoiceInfoObject(payload);
+  if (!info) return null;
+  const comm = str(info.communication)?.trim().toUpperCase() ?? "";
+  if (comm !== "ONLINE") return null;
+
+  const prescriptions = parseConsultationPrescriptions(info);
+  const attachments = parseConsultationAttachments(info);
+  const doctor = parseConsultationDoctor(info);
+  const appointmentId = appointmentIdFromConsultationPayload(payload, info);
+  const infoStatus = num(info.status);
+  const followUp =
+    infoStatus === 1 ? parseInvoiceFollowUp(info, appointmentId) : null;
+
+  return {
+    symptoms: nonEmptyTrimmedText(info.symptoms),
+    diagnosis: nonEmptyTrimmedText(info.diagnosis),
+    recommendation: nonEmptyTrimmedText(info.recommendation),
+    history: nonEmptyTrimmedText(info.history),
+    appointmentId,
+    prescriptions,
+    attachments,
+    doctor,
+    followUp,
+  };
+}
+
+async function fetchInvoicePayload(invoiceId: string): Promise<Record<string, unknown>> {
   const id = invoiceId.trim();
   if (!id) {
     throw new Error("Missing invoice id");
@@ -1006,5 +1550,62 @@ export async function fetchInvoiceById(invoiceId: string): Promise<InvoiceDetail
   if (!payload) {
     throw new Error("Invalid invoice response");
   }
+  return payload;
+}
+
+/**
+ * Single invoice for order details — `GET /invoice/:id`.
+ */
+export async function fetchInvoiceById(invoiceId: string): Promise<InvoiceDetailModel> {
+  const payload = await fetchInvoicePayload(invoiceId);
   return normalizeInvoiceDetail(payload);
+}
+
+export type InvoiceOrderPageData = Readonly<{
+  detail: InvoiceDetailModel;
+  consultationCompleted: InvoiceConsultationCompletedView | null;
+  /**
+   * Service reference for the order card (appointment / booking id from payload).
+   * When null, the UI falls back to {@link InvoiceDetailModel.orderIdDisplay}.
+   */
+  appointmentIdForOrderCard: string | null;
+}>;
+
+function resolveOrderDetailAppointmentId(
+  payload: Record<string, unknown>,
+  consultationCompleted: InvoiceConsultationCompletedView | null,
+): string | null {
+  const fromCc = consultationCompleted?.appointmentId?.trim();
+  if (fromCc) return fromCc;
+  const info = readInvoiceInfoObject(payload);
+  const data = readInvoiceDataObject(payload);
+  const fromBooking = videoAppointmentIdFromRow(payload, info, data);
+  if (fromBooking?.trim()) return fromBooking.trim();
+  return null;
+}
+
+/**
+ * Invoice detail plus optional completed-online-consultation blocks for the order screen.
+ */
+export async function fetchInvoiceOrderPageData(invoiceId: string): Promise<InvoiceOrderPageData> {
+  const payload = await fetchInvoicePayload(invoiceId);
+  const consultationCompleted = parseInvoiceConsultationCompletedView(payload);
+  return {
+    detail: normalizeInvoiceDetail(payload),
+    consultationCompleted,
+    appointmentIdForOrderCard: resolveOrderDetailAppointmentId(payload, consultationCompleted),
+  };
+}
+
+/**
+ * Prescription PDF download for the order detail screen.
+ * Replace with a real `patientFetch` call when the endpoint is available.
+ */
+export async function downloadConsultationPrescriptionPdf(prescriptionId: string): Promise<void> {
+  const id = prescriptionId.trim();
+  if (!id) {
+    throw new Error("Missing prescription id");
+  }
+  void id;
+  throw new Error("Prescription download API is not configured yet");
 }

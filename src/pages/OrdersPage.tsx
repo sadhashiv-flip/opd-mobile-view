@@ -8,7 +8,7 @@ import {
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ROUTES } from "@/constants";
-import { generatePath, Link } from "react-router-dom";
+import { generatePath, Link, useNavigate } from "react-router-dom";
 import "./OrdersPage.css";
 
 const FILTER_TABS: readonly { id: InvoiceFilterId; label: string }[] = [
@@ -46,7 +46,18 @@ function OrderCard({ row }: Readonly<{ row: InvoiceOrderRow }>) {
       </div>
       <div className="orders-card__mid">
         <h2 className="orders-card__title">{row.categoryLabel}</h2>
-        <p className="orders-card__order-id">{row.orderIdLine}</p>
+        {row.orderIdLine.trim().length > 0 ? (
+          <div className="orders-card__id-row">
+            <p className="orders-card__order-id">{row.orderIdLine}</p>
+            {row.consultationPlaceTag ? (
+              <span
+                className={`orders-card__place-tag orders-card__place-tag--${row.consultationPlaceTag}`}
+              >
+                {row.consultationPlaceTag === "virtual" ? "Virtual" : "In-person"}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
         <p className="orders-card__meta">{row.metaLine}</p>
       </div>
       <div className="orders-card__right">
@@ -67,6 +78,7 @@ function OrderCard({ row }: Readonly<{ row: InvoiceOrderRow }>) {
 }
 
 export function OrdersPage() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<InvoiceFilterId>("all");
   const [items, setItems] = useState<readonly InvoiceOrderRow[]>([]);
   const [page, setPage] = useState(1);
@@ -172,13 +184,28 @@ export function OrdersPage() {
         {!loading && !error && items.length > 0 ? (
           <ul className="orders-list">
             {items.map((row) => (
-              <li key={row.id}>
-                <Link
-                  to={generatePath(ROUTES.ordersDetail, { invoiceId: row.id })}
-                  className="orders-card-link"
-                >
-                  <OrderCard row={row} />
-                </Link>
+              <li key={row.id} className="orders-list__item">
+                <div className="orders-list__row">
+                  <Link
+                    to={generatePath(ROUTES.ordersDetail, { invoiceId: row.id })}
+                    className="orders-card-link"
+                  >
+                    <OrderCard row={row} />
+                  </Link>
+                  {row.canJoinOnlineConsultation && row.videoAppointmentId ? (
+                    <button
+                      type="button"
+                      className="orders-join-call"
+                      onClick={() => {
+                        const appointmentId = row.videoAppointmentId;
+                        if (!appointmentId) return;
+                        navigate(generatePath(ROUTES.videoCall, { appointmentId }));
+                      }}
+                    >
+                      Join call
+                    </button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

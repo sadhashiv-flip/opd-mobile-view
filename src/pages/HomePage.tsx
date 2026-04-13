@@ -418,7 +418,9 @@ export function HomePage() {
                       style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
                       aria-hidden={index !== activeHomeCarousel}
                     >
-                      <div className="home-ongoing-slide">
+                      <div
+                        className={`home-ongoing-slide${item.canJoinVideoCall ? " home-ongoing-slide--video" : ""}`}
+                      >
                         <div
                           className="home-ongoing-slide__bg"
                           style={{ backgroundImage: cssBackgroundUrl(bgUrl) }}
@@ -430,6 +432,20 @@ export function HomePage() {
                           <span className="home-ongoing-slide__title">{item.title}</span>
                           {item.meta ? (
                             <span className="home-ongoing-slide__meta">{item.meta}</span>
+                          ) : null}
+                          {item.canJoinVideoCall ? (
+                            <button
+                              type="button"
+                              className="home-ongoing-slide__join-call"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(
+                                  generatePath(ROUTES.videoCall, { appointmentId: item.id }),
+                                );
+                              }}
+                            >
+                              Join call
+                            </button>
                           ) : null}
                         </div>
                         <button

@@ -16,6 +16,8 @@ export const ROUTES = {
    */
   requiredLabTests: "/required-lab-tests",
   dashboard: "/dashboard",
+  /** Patient video room; `appointmentId` is the ongoing appointment id (e.g. `APP…T…`) for join/end/chat/feedback. */
+  videoCall: "/video/:appointmentId",
   profile: "/profile",
   profileBank: "/profile/bank",
   profileBankAdd: "/profile/bank/add",

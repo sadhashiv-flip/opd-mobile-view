@@ -26,6 +26,11 @@ interface ImportMetaEnv {
   readonly VITE_GYM_PAYMENT_VERIFY_PATH?: string;
   /** POST free confirm when payment_required is false. Default: `gym/payment_confirm`. */
   readonly VITE_GYM_PAYMENT_CONFIRM_PATH?: string;
+  /**
+   * WebSocket URL for video consultation signaling (e.g. API Gateway `wss://…/production`).
+   * Required to open the video call screen; join REST still uses {@link VITE_API_BASE_URL}.
+   */
+  readonly VITE_SOCKET_URL?: string;
 }
 
 interface ImportMeta {

@@ -73,6 +73,36 @@
   gap: 12px;
 }
 
+.orders-list__item {
+  display: block;
+}
+
+.orders-list__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orders-join-call {
+  align-self: stretch;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #052e16;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.28);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.orders-join-call:active {
+  opacity: 0.92;
+}
+
 .orders-card-link {
   display: block;
   text-decoration: none;
@@ -180,12 +210,57 @@
   background: #f0f0f0;
 }
 
-.orders-card__order-id,
+.orders-card__badge--expired {
+  color: #6d4c41;
+  background: #efebe9;
+}
+
+.orders-card__id-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.orders-card__order-id {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #757575;
+  line-height: 1.35;
+  flex: 1;
+  min-width: 0;
+  display: contents;
+}
+
+.orders-card__place-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.orders-card__place-tag--virtual {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+
+.orders-card__place-tag--inPerson {
+  color: #6a1b9a;
+  background: #f3e5f5;
+}
+
 .orders-card__meta {
   margin: 0;
   font-size: 0.75rem;
   color: #757575;
   line-height: 1.35;
+  white-space: pre-line;
+  word-break: break-word;
 }
 
 .orders-card__price {

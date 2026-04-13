@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { SessionNoticeGateLayout } from "@/app/SessionNoticeGateLayout";
 import { ROUTES } from "../constants";
 import { ProfileMembersAddPage } from "@/pages/ProfileMembersAddPage";
 import { BookingSuccessPage } from "../pages/BookingSuccessPage";
@@ -70,6 +71,7 @@ import { PharmacyOrderSuccessPage } from "@/pages/PharmacyOrderSuccessPage";
 import { WalletRedirectPage } from "@/pages/WalletRedirectPage";
 import { WalletPage } from "@/pages/WalletPage";
 import { WalletAllTransactionsPage } from "@/pages/WalletAllTransactionsPage";
+import { VideoCallPage } from "@/pages/VideoCallPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -77,6 +79,7 @@ export function AppRoutes() {
     <Routes>
       <Route path={ROUTES.root} element={<SplashPage />} />
       <Route path={ROUTES.login} element={<PreLoginNoticeGate />} />
+      <Route element={<SessionNoticeGateLayout />}>
       <Route path={ROUTES.otp} element={<OtpPage />} />
       <Route path={ROUTES.requiredLabTests} element={<RequiredLabTestsPage />} />
       <Route path={ROUTES.userDetailsPersonal} element={<UserDetailsPersonalInfoPage />} />
@@ -84,6 +87,7 @@ export function AppRoutes() {
       <Route path={ROUTES.userDetailsBmiResult} element={<UserDetailsBmiResultPage />} />
       <Route path={ROUTES.accountLink} element={<AccountLinkPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
+      <Route path={ROUTES.videoCall} element={<VideoCallPage />} />
       <Route path={ROUTES.profile} element={<ProfilePage />} />
       <Route path={ROUTES.profileBank} element={<ProfileBankPage />} />
       <Route path={ROUTES.profileBankAdd} element={<ProfileBankFormPage />} />
@@ -194,6 +198,7 @@ export function AppRoutes() {
       <Route path={ROUTES.vaccinationOverview} element={<VaccinationOverviewPage />} />
       <Route path={ROUTES.servicesWellness} element={<WellnessSessionPage />} />
       <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
+      </Route>
     </Routes>
   );
 }

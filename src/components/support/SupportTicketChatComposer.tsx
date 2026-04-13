@@ -17,6 +17,8 @@ export type SupportTicketChatComposerProps = Readonly<{
   /** When true, Send stays disabled (e.g. uploads in progress or nothing to send). */
   sendDisabled?: boolean;
   attachDisabled?: boolean;
+  /** Message field placeholder (default: support copy). */
+  placeholder?: string;
   onPickFiles: () => void;
   onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemoveAttachment: (id: string) => void;
@@ -31,6 +33,7 @@ export function SupportTicketChatComposer({
   sending,
   sendDisabled = false,
   attachDisabled = false,
+  placeholder = "Message support…",
   onPickFiles,
   onFileChange,
   onRemoveAttachment,
@@ -93,7 +96,7 @@ export function SupportTicketChatComposer({
         <textarea
           className="support-chat__input"
           rows={1}
-          placeholder="Message support…"
+          placeholder={placeholder}
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
           disabled={sending}

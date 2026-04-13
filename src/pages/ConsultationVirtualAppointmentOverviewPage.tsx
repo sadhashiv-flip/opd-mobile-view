@@ -3,6 +3,12 @@ import { SelectPeopleBottomSheet } from "@/components/select-people/SelectPeople
 import { VirtualAppointmentSlotBottomSheet } from "@/components/consultation/VirtualAppointmentSlotBottomSheet";
 import { ROUTES } from "@/constants";
 import {
+  clearVirtualFollowUpAppointmentId,
+  readVirtualFollowUpAppointmentId,
+  VIRTUAL_CONSULT_LANGUAGE_KEY,
+  VIRTUAL_CONSULT_PURPOSE_KEY,
+} from "@/constants/virtualConsultationSessionStorage";
+import {
   readConsultSelectedPersonIdNumber,
   readPrimaryConsultSelectedMemberSnapshot,
 } from "@/constants/consultationSelectedMemberStorage";
@@ -25,9 +31,6 @@ import { SearchablePickerField } from "@/components/wellness/SearchablePickerFie
 import { useToast } from "@/hooks/useToast";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./ConsultationAppointmentOverviewPage.css";
-
-const VIRTUAL_PURPOSE_KEY = "opd-mobile-view.virtualBooking.purpose";
-const VIRTUAL_LANGUAGE_KEY = "opd-mobile-view.virtualBooking.language";
 
 /** English first, then major Indian languages (ISO-style labels for display). */
 const CONSULTATION_LANGUAGES: readonly { value: string; label: string }[] = [
@@ -140,6 +143,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
       if (msg) toast.success(msg);
       paymentSuccessToastRef.current = undefined;
       setBookingLoading(false);
+      clearVirtualFollowUpAppointmentId();
       navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
     };
     onPaymentVerifyErrorRef.current = (message: string) => {
@@ -156,9 +160,9 @@ export function ConsultationVirtualAppointmentOverviewPage() {
 
   useEffect(() => {
     try {
-      const p = sessionStorage.getItem(VIRTUAL_PURPOSE_KEY);
+      const p = sessionStorage.getItem(VIRTUAL_CONSULT_PURPOSE_KEY);
       if (p) setPurpose(p);
-      const lang = sessionStorage.getItem(VIRTUAL_LANGUAGE_KEY);
+      const lang = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY);
       if (lang && CONSULTATION_LANGUAGES.some((x) => x.value === lang)) {
         setLanguage(lang);
       }
@@ -169,7 +173,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(VIRTUAL_PURPOSE_KEY, purpose);
+      sessionStorage.setItem(VIRTUAL_CONSULT_PURPOSE_KEY, purpose);
     } catch {
       // ignore
     }
@@ -178,9 +182,9 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   useEffect(() => {
     try {
       if (language) {
-        sessionStorage.setItem(VIRTUAL_LANGUAGE_KEY, language);
+        sessionStorage.setItem(VIRTUAL_CONSULT_LANGUAGE_KEY, language);
       } else {
-        sessionStorage.removeItem(VIRTUAL_LANGUAGE_KEY);
+        sessionStorage.removeItem(VIRTUAL_CONSULT_LANGUAGE_KEY);
       }
     } catch {
       // ignore
@@ -352,6 +356,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
             void (async () => {
               setBookingLoading(true);
               try {
+                const followUpApptId = readVirtualFollowUpAppointmentId();
                 const payload = {
                   date: slotParsed.date,
                   time: slotParsed.time,
@@ -359,6 +364,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
                   patient_id: patientId,
                   issue_id: issueIdNum,
                   purpose: purpose.trim(),
+                  ...(followUpApptId ? { appointment_id: followUpApptId } : {}),
                 };
                 const bookRes = await bookAppointment(payload);
 
@@ -370,6 +376,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
                   if (messageToShow) {
                     toast.success(messageToShow);
                   }
+                  clearVirtualFollowUpAppointmentId();
                   navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
                   return;
                 }

@@ -38,6 +38,7 @@ export function usePreLoginNotice(): UsePreLoginNoticeResult {
         setActiveNotice(notice);
       } catch {
         if (ac.signal.aborted) return;
+        writePreLoginNoticeBoardSession(null);
         setActiveNotice(null);
       } finally {
         if (!ac.signal.aborted) {

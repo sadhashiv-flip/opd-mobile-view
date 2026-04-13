@@ -420,7 +420,8 @@ function partitionTicketMessagesList(
     return { embeddedParts, chatItems };
 }
 
-function mapAndSortThreadMessages(chatItems: unknown[]): SupportTicketThreadMessage[] {
+/** Maps raw API rows to thread messages and sorts by {@link SupportTicketThreadMessage.createdAt}. */
+export function mapAndSortThreadMessages(chatItems: unknown[]): SupportTicketThreadMessage[] {
     const messages = chatItems
         .map((item, index) => normalizeThreadMessage(item, index))
         .filter((m): m is SupportTicketThreadMessage => m != null);
@@ -428,7 +429,8 @@ function mapAndSortThreadMessages(chatItems: unknown[]): SupportTicketThreadMess
     return messages;
 }
 
-function normalizeThreadMessage(item: unknown, index: number): SupportTicketThreadMessage | null {
+/** Normalizes one chat row (support ticket thread, video call chat, etc.). */
+export function normalizeThreadMessage(item: unknown, index: number): SupportTicketThreadMessage | null {
     const o = asRecord(item);
     if (!o) return null;
 

@@ -8,6 +8,12 @@ const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const proxyTarget = env.VITE_DEV_API_PROXY_TARGET?.trim();
+  /** Default on so LAN / device testing gets a secure context for camera+mic. Set VITE_DEV_SERVER_HTTPS=false for plain http. */
+  const devHttpsOff =
+    env.VITE_DEV_SERVER_HTTPS === "false" ||
+    env.VITE_DEV_SERVER_HTTPS === "0" ||
+    env.VITE_DEV_SERVER_HTTPS === "no";
+  const devHttps = !devHttpsOff;
 
   return {
     plugins: [react()],
@@ -19,6 +25,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: true,
+      ...(devHttps ? { https: true } : {}),
       ...(proxyTarget
         ? {
             proxy: {

@@ -2,6 +2,7 @@ import { Link, generatePath, useLocation, useNavigate, useParams } from "react-r
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
+import { clearVirtualFollowUpAppointmentId } from "@/constants/virtualConsultationSessionStorage";
 import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
@@ -380,6 +381,7 @@ export function ConsultationSpecialtiesPage() {
                   type="button"
                   className="csp-item"
                   onClick={() => {
+                    clearVirtualFollowUpAppointmentId();
                     sessionStorage.setItem(
                       `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
                       JSON.stringify(slotState),

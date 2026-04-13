@@ -7,6 +7,8 @@ export type BookAppointmentPayload = Readonly<{
   patient_id: number;
   issue_id: number;
   purpose: string;
+  /** Prior appointment id for follow-up booking (optional). */
+  appointment_id?: string;
 }>;
 
 /** Merge top-level JSON with nested `data` (common API envelope). */
