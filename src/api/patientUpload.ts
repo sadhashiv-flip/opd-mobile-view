@@ -1,4 +1,4 @@
-import { patientFetchUploadChecked } from "@/api/patientHttp";
+import { patientFetchChecked, patientFetchUploadChecked } from "@/api/patientHttp";
 import { getAccessToken } from "@/lib/authStorage";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -164,11 +164,48 @@ export async function uploadPrescriptionFile(file: File): Promise<PrescriptionUp
   return parsePrescriptionUploadResponse(parsed);
 }
 
+export type ConsultationUploadRefType = "ATTACHMENT" | "REPORT";
+
 /**
- * POST `{VITE_API_UPLOAD_URL || VITE_API_BASE_URL}/upload` — multipart: `type=document`, `file`, `token`.
- * Sends `app_name` (from `VITE_UPLOAD_APP_NAME`, default `co-flip-health`).
- * Returns the full parsed JSON body from `/upload` (forwarded as-is to `POST support/ticket/:id`).
+ * POST `attachment` on the patient API — multipart: `type=CONSULTATION`, `file`, `ref_id` (appointment id),
+ * `ref_type` (`ATTACHMENT` | `REPORT`). Auth via Bearer (not the `/upload` host).
  */
+export async function uploadConsultationRefDocumentFile(
+  file: File,
+  refId: string,
+  refType: ConsultationUploadRefType,
+): Promise<unknown> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+  const rid = refId.trim();
+  if (!rid) throw new Error("Missing appointment id");
+
+  const fd = new FormData();
+  fd.append("type", "CONSULTATION");
+  fd.append("file", file, file.name);
+  fd.append("ref_id", rid);
+  fd.append("ref_type", refType);
+
+  const res = await patientFetchChecked("attachment", {
+    method: "POST",
+    body: fd,
+    skipGlobalLoading: true,
+  });
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty attachment response");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid attachment response");
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    throw new Error("Attachment response must be a JSON object or array");
+  }
+  return parsed;
+}
+
 export async function uploadSupportDocumentFile(file: File): Promise<unknown> {
   const token = await getAccessToken();
   if (!token) throw new Error("Not signed in");

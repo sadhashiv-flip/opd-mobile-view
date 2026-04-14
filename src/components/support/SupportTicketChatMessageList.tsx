@@ -1,7 +1,10 @@
 import type { SupportTicketThreadMessage } from "@/api/supportTicket";
-import { SupportChatPdfViewer } from "@/components/support/SupportChatPdfViewer";
+import {
+  AttachmentFilePreview,
+  type AttachmentFilePreviewViewer,
+} from "@/components/attachments/AttachmentFilePreview";
 import type { CSSProperties, RefObject } from "react";
-import { useEffect, useId, useState } from "react";
+import { useState } from "react";
 
 function isImageAttachment(url: string, mime: string | null, messageType: string | null): boolean {
   if ((messageType ?? "").toUpperCase() === "IMG") return true;
@@ -15,11 +18,7 @@ function isPdfAttachment(url: string, mime: string | null, messageType: string |
   return /\.pdf(\?|$)/i.test(url);
 }
 
-type AttachmentViewer =
-  | null
-  | Readonly<{ kind: "image"; url: string; name: string | null }>
-  | Readonly<{ kind: "pdf"; url: string; name: string | null }>
-  | Readonly<{ kind: "file"; url: string; name: string | null }>;
+type AttachmentViewer = AttachmentFilePreviewViewer;
 
 function SupportChatPdfListIcon() {
   return (
@@ -72,68 +71,6 @@ export type SupportTicketChatMessageListProps = Readonly<{
   messages: SupportTicketThreadMessage[];
   listEndRef: RefObject<HTMLDivElement | null>;
 }>;
-
-function SupportChatAttachmentViewer({
-  viewer,
-  onClose,
-}: Readonly<{ viewer: Exclude<AttachmentViewer, null>; onClose: () => void }>) {
-  const titleId = useId();
-
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    globalThis.addEventListener("keydown", onKey);
-    return () => globalThis.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const title = viewer.name?.trim() || (viewer.kind === "image" ? "Image" : "Attachment");
-
-  return (
-    <div className="support-chat__viewer-root">
-      <button
-        type="button"
-        className="support-chat__viewer-backdrop"
-        aria-label="Close preview"
-        onClick={onClose}
-      />
-      <div
-        className={`support-chat__viewer-panel support-chat__viewer-panel--${viewer.kind}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <header className="support-chat__viewer-toolbar">
-          <h2 id={titleId} className="support-chat__viewer-title">
-            {title}
-          </h2>
-          <div className="support-chat__viewer-actions">
-            <button type="button" className="support-chat__viewer-btn support-chat__viewer-btn--close" onClick={onClose} aria-label="Close">
-              ×
-            </button>
-          </div>
-        </header>
-        <div className="support-chat__viewer-body">
-          {viewer.kind === "image" ? (
-            <img src={viewer.url} alt={viewer.name ?? "Attachment preview"} className="support-chat__viewer-img" />
-          ) : null}
-          {viewer.kind === "pdf" ? <SupportChatPdfViewer url={viewer.url} /> : null}
-          {viewer.kind === "file" ? (
-            <p className="support-chat__viewer-file-hint">This file opens best in your browser or another app.</p>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function SupportTicketChatMessageList({ messages, listEndRef }: SupportTicketChatMessageListProps) {
   const [viewer, setViewer] = useState<AttachmentViewer>(null);
@@ -219,7 +156,7 @@ export function SupportTicketChatMessageList({ messages, listEndRef }: SupportTi
         })}
         <div ref={listEndRef} />
       </div>
-      {viewer ? <SupportChatAttachmentViewer viewer={viewer} onClose={() => setViewer(null)} /> : null}
+      {viewer ? <AttachmentFilePreview viewer={viewer} onClose={() => setViewer(null)} /> : null}
     </div>
   );
 }

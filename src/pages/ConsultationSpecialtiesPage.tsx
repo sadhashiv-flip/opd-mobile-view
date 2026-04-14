@@ -3,9 +3,10 @@ import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
 import { clearVirtualFollowUpAppointmentId } from "@/constants/virtualConsultationSessionStorage";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
 import {
   DEFAULT_ISSUES_PARENT,
@@ -61,6 +62,7 @@ export function ConsultationSpecialtiesPage() {
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const cspLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const cspLocAddrTag = useSelectedAddressTag("HOME");
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
 
   const filteredHospitalSpecs = useMemo(() => {
@@ -68,6 +70,11 @@ export function ConsultationSpecialtiesPage() {
     if (!q) return hospitalSpecs;
     return hospitalSpecs.filter((s) => s.name.toLowerCase().includes(q));
   }, [hospitalSpecs, hospitalSearchQuery]);
+
+  useEffect(() => {
+    if (!isHospital) return;
+    void ensureDefaultSelectedAddressIfNeeded();
+  }, [isHospital]);
 
   useEffect(() => {
     if (!isHospital) return;
@@ -473,7 +480,7 @@ export function ConsultationSpecialtiesPage() {
                 <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
               </svg>
             </span>
-            <span className="csp-loc__title">Home</span>
+            <span className="csp-loc__title">{cspLocAddrTag}</span>
             <span className="csp-loc__sep" aria-hidden="true">
               |
             </span>

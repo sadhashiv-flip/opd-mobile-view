@@ -610,6 +610,8 @@ export type InvoiceDetailBannerTone = "completed" | "processing" | "cancelled";
 export type InvoiceDetailLineItem = Readonly<{
   productName: string;
   qty: number;
+  /** List / MRP column when present (from line `additional_info.mrp` or list `price`). */
+  mrpFormatted: string | null;
   unitPriceFormatted: string;
   lineTotalFormatted: string;
 }>;
@@ -618,6 +620,7 @@ export type InvoiceDetailLineItem = Readonly<{
 export type InvoiceRefundDetailLine = Readonly<{ label: string; value: string }>;
 
 export type InvoicePaymentRow = Readonly<{
+  /** Payment method label (e.g. netbanking, SUBSCRIPTION). */
   title: string;
   subtitle: string | null;
   amountFormatted: string;
@@ -625,10 +628,35 @@ export type InvoicePaymentRow = Readonly<{
   paymentSrc: string | null;
   paymentId: string | null;
   paymentType: string | null;
+  /** Server note on the payment row (e.g. refund explanation). */
+  paymentNote: string | null;
   /** Raw refunded amount from API (for UI checks). */
   amountRefunded: number;
   refundAmountFormatted: string | null;
   refundLines: readonly InvoiceRefundDetailLine[];
+}>;
+
+export type ConsultationAttachmentRow = Readonly<{
+  label: string;
+  url: string | null;
+}>;
+
+/** In-person / offline consultation blocks for order details (from `info` + `user`). */
+export type ConsultationOrderPatientUi = Readonly<{
+  phone: string | null;
+  email: string | null;
+  ageGenderLine: string | null;
+}>;
+
+export type ConsultationOrderBookingUi = Readonly<{
+  scheduleDisplay: string | null;
+  clinicName: string | null;
+  doctorName: string | null;
+  specialty: string | null;
+  qualification: string | null;
+  experienceLabel: string | null;
+  addressLine: string | null;
+  mapsUrl: string | null;
 }>;
 
 export type InvoiceDetailModel = Readonly<{
@@ -643,6 +671,22 @@ export type InvoiceDetailModel = Readonly<{
   consultationInfoStatus: number | null;
   /** `info.id` — path param for `PATCH /service/request/cancel/:serviceId` (service cancel). */
   consultationInfoId: string | null;
+  /** Appointment id for `POST /upload` (`ref_id`) — from invoice `additional_info` / `info` when set, else `info.id`. */
+  consultationUploadRefId: string | null;
+  /** Strict `info.additional_info.payment_required === true` (consultation invoices). */
+  consultationPaymentRequired: boolean;
+  /** Parsed `net_amount` / payable number for UI logic (e.g. pay CTA). */
+  netPayAmount: number;
+  /** `transaction_type` consultation — drives order-details layout. */
+  isConsultationOrder: boolean;
+  consultationPatient: ConsultationOrderPatientUi | null;
+  consultationBooking: ConsultationOrderBookingUi | null;
+  /** From `info.doctor` for virtual rows (pending or completed); visit card uses offline booking only. */
+  consultationOrderDoctor: ConsultationDoctorCard | null;
+  /** From `info.attachments` (pending or completed). */
+  consultationAttachments: readonly ConsultationAttachmentRow[];
+  /** From `info.reports` (lab / admin uploads, etc.). */
+  consultationReports: readonly ConsultationAttachmentRow[];
   serviceTypeLabel: string;
   categoryKey: string;
   orderDateTimeDisplay: string;
@@ -781,6 +825,7 @@ function collectLineItemArrays(o: Record<string, unknown>): unknown[] {
 type ParsedLineRow = Readonly<{
   productName: string;
   qty: number;
+  mrp: number | null;
   unitPrice: number | null;
   lineTotal: number | null;
   dedupeKey: string;
@@ -812,12 +857,13 @@ function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
   const offerPrice = num(o.offer_price) ?? num(o.offerPrice);
   const price = num(o.price);
   const unitPrice = offerPrice ?? price ?? mrpFromAdd;
+  const mrp = mrpFromAdd ?? price ?? null;
 
   const hasProductFields = str(o.product_name) != null || str(o.productName) != null;
   if (hasProductFields) {
     const lineTotal = unitPrice == null ? null : unitPrice * qty;
     const dedupeKey = str(o.id) ?? `${productName}:${qty}:${unitPrice ?? "x"}`;
-    return { productName, qty, unitPrice, lineTotal, dedupeKey };
+    return { productName, qty, mrp, unitPrice, lineTotal, dedupeKey };
   }
 
   const legacyUnit =
@@ -831,6 +877,7 @@ function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
   return {
     productName,
     qty: 1,
+    mrp: legacyUnit,
     unitPrice: legacyUnit,
     lineTotal: legacyUnit,
     dedupeKey,
@@ -969,6 +1016,7 @@ function buildDetailLineItems(o: Record<string, unknown>): {
   const lineItems: InvoiceDetailLineItem[] = parsedLines.map((pl) => ({
     productName: pl.productName,
     qty: pl.qty,
+    mrpFormatted: pl.mrp == null ? null : formatInr(pl.mrp),
     unitPriceFormatted: pl.unitPrice == null ? "—" : formatInr(pl.unitPrice),
     lineTotalFormatted: pl.lineTotal == null ? "—" : formatInr(pl.lineTotal),
   }));
@@ -982,7 +1030,14 @@ function invoiceDiscountAmount(o: Record<string, unknown>): number {
 
 function invoiceCollectionFeeAmount(o: Record<string, unknown>): number {
   const add = asRecord(o.additional_info);
-  const fromAdd = add ? num(add.collection_fee) ?? num(add.collectionFee) : null;
+  const fromAdd = add
+    ? num(add.collection_fee) ??
+      num(add.collectionFee) ??
+      num(add.processing_fee) ??
+      num(add.processingFee) ??
+      num(add.convenience_fee) ??
+      num(add.convenienceFee)
+    : null;
   return fromAdd ?? num(o.collection_fee) ?? num(o.collectionFee) ?? 0;
 }
 
@@ -1043,6 +1098,8 @@ function parseInvoicePayments(o: Record<string, unknown>): InvoicePaymentRow[] {
     const paymentId = str(r.id) ?? str(r.payment_id) ?? str(r.paymentId) ?? null;
     const paymentType = str(r.type) ?? str(r.payment_type) ?? str(r.paymentType) ?? null;
     const title =
+      str(r.payment_mode) ??
+      str(r.paymentMode) ??
       str(r.method) ??
       str(r.payment_method) ??
       str(r.paymentMethod) ??
@@ -1050,6 +1107,7 @@ function parseInvoicePayments(o: Record<string, unknown>): InvoicePaymentRow[] {
       str(r.mode) ??
       str(r.gateway) ??
       `Payment ${i + 1}`;
+    const paymentNote = str(r.note) ?? str(r.remark) ?? null;
     const statusLabel =
       str(r.status) ?? str(r.payment_status) ?? str(r.paymentStatus) ?? null;
     const ref =
@@ -1079,6 +1137,7 @@ function parseInvoicePayments(o: Record<string, unknown>): InvoicePaymentRow[] {
       paymentSrc,
       paymentId,
       paymentType,
+      paymentNote,
       amountRefunded,
       refundAmountFormatted,
       refundLines,
@@ -1137,6 +1196,193 @@ function resolveDetailNetPay(
   if (explicit != null) return explicit;
   const afterDiscountAndFee = itemsTotal - discountNum + collectionFeeNum;
   return afterDiscountAndFee - (walletNum ?? 0);
+}
+
+function consultationAttachmentRowFromRecord(
+  r: Record<string, unknown>,
+  fallbackLabel: string,
+): ConsultationAttachmentRow {
+  const label =
+    str(r.name) ??
+    str(r.file_name) ??
+    str(r.fileName) ??
+    str(r.title) ??
+    str(r.document_name) ??
+    str(r.original_name) ??
+    fallbackLabel;
+  const urlRaw =
+    str(r.url)?.trim() ||
+    str(r.file)?.trim() ||
+    str(r.link)?.trim() ||
+    str(r.document)?.trim() ||
+    null;
+  const pathRaw = str(r.path)?.trim() || null;
+  let url: string | null = null;
+  if (urlRaw && /^https?:\/\//i.test(urlRaw)) {
+    url = urlRaw;
+  } else if (urlRaw) {
+    url = resolveProfileImageUrl(urlRaw);
+  } else if (pathRaw) {
+    url = resolveProfileImageUrl(pathRaw);
+  }
+  return { label: label.trim() || fallbackLabel, url };
+}
+
+function parseConsultationAttachments(info: Record<string, unknown>): ConsultationAttachmentRow[] {
+  const raw = info.attachments;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Attachment ${i + 1}`));
+  }
+  return out;
+}
+
+function parseConsultationReports(info: Record<string, unknown>): ConsultationAttachmentRow[] {
+  const raw = info.reports;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Report ${i + 1}`));
+  }
+  return out;
+}
+
+function mapsUrlFromCoordinates(raw: string | null): string | null {
+  if (!raw?.trim()) return null;
+  const parts = raw.split(",").map((x) => x.trim());
+  if (parts.length !== 2) return null;
+  const [a, b] = parts;
+  if (!a || !b) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a},${b}`)}`;
+}
+
+function formatConsultationScheduleDisplay(info: Record<string, unknown>): string | null {
+  const add = asRecord(info.additional_info);
+  const ts = add ? str(add.time_slot) : null;
+  if (ts?.trim()) {
+    const t = ts.trim();
+    const isoGuess = t.includes("T") ? t : t.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
+    const p = Date.parse(isoGuess);
+    if (!Number.isNaN(p)) {
+      const d = new Date(p);
+      const datePart = d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+      const timePart = d.toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return `${datePart}, ${timePart}`;
+    }
+    return t;
+  }
+  const date = str(info.date)?.trim();
+  const timePart = str(info.time)?.trim();
+  if (!date) return null;
+  const iso =
+    timePart && timePart.length >= 5
+      ? `${date}T${timePart.length === 5 ? `${timePart}:00` : timePart}`
+      : `${date}T12:00:00`;
+  const p = Date.parse(iso);
+  if (!Number.isNaN(p)) {
+    const d = new Date(p);
+    const dateStr = d.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const timeStr = d.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${dateStr}, ${timeStr}`;
+  }
+  return timePart ? `${date} ${timePart}` : date;
+}
+
+function parseConsultationOrderPatientUi(o: Record<string, unknown>): ConsultationOrderPatientUi | null {
+  const user = asRecord(o.user);
+  if (!user) return null;
+  const phone = str(user.phone);
+  const email = str(user.email);
+  const age = num(user.age);
+  const genderRaw = str(user.gender)?.trim().toLowerCase();
+  const ageGenderLine =
+    age != null && genderRaw
+      ? `${Math.floor(age)} · ${genderRaw}`
+      : age != null
+        ? `${Math.floor(age)}`
+        : genderRaw ?? null;
+  if (!phone && !email && !ageGenderLine) return null;
+  return { phone, email, ageGenderLine };
+}
+
+function parseConsultationOrderBookingUi(info: Record<string, unknown>): ConsultationOrderBookingUi {
+  const add = asRecord(info.additional_info);
+  const booking = add ? asRecord(add.booking_details) : null;
+  const clinic = add ? asRecord(add.clinic) : null;
+  const specRec = add ? asRecord(add.speciality) ?? asRecord(add.specialty) : null;
+
+  const clinicName =
+    (booking ? str(booking.clinic_name) : null) ?? (clinic ? str(clinic.clinic_name) : null) ?? null;
+  const doctorName =
+    (booking ? str(booking.doctor_name) ?? str(booking.name) : null) ??
+    (clinic ? str(clinic.name) : null) ??
+    null;
+
+  let specialty: string | null =
+    (specRec ? str(specRec.specialty) ?? str(specRec.name) : null) ??
+    (clinic ? str(clinic.specialty) : null) ??
+    null;
+  const specsRaw = booking?.specialties;
+  if (
+    !specialty &&
+    Array.isArray(specsRaw) &&
+    specsRaw.length > 0
+  ) {
+    const first = specsRaw[0];
+    if (typeof first === "string") {
+      specialty = first.trim() || null;
+    } else {
+      const fr = asRecord(first);
+      specialty = fr ? str(fr.name) ?? str(fr.specialty) : null;
+    }
+  }
+
+  const qualification = clinic ? str(clinic.qualification) : null;
+  const exp = clinic ? num(clinic.experience) : null;
+  const experienceLabel =
+    exp != null && Number.isFinite(exp)
+      ? `${Math.floor(exp)} year${Math.floor(exp) === 1 ? "" : "s"} experience`
+      : null;
+
+  const addressLine =
+    (booking ? str(booking.clinic_address) ?? str(booking.address) : null) ??
+    (clinic ? str(clinic.address) : null) ??
+    null;
+
+  const coords = booking ? str(booking.coordinates) : null;
+  const mapsUrl = mapsUrlFromCoordinates(coords);
+
+  return {
+    scheduleDisplay: formatConsultationScheduleDisplay(info),
+    clinicName,
+    doctorName,
+    specialty,
+    qualification,
+    experienceLabel,
+    addressLine,
+    mapsUrl,
+  };
 }
 
 function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel {
@@ -1216,6 +1462,15 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
       ? consultationInfoIdRaw
       : null;
 
+  const consultationUploadRefIdRaw =
+    isConsultationInvoice && infoForStatus != null
+      ? appointmentIdFromConsultationPayload(o, infoForStatus)?.trim()
+      : null;
+  const consultationUploadRefId =
+    consultationUploadRefIdRaw && consultationUploadRefIdRaw.length > 0
+      ? consultationUploadRefIdRaw
+      : consultationInfoId;
+
   const slotStartMs =
     isConsultationInvoice && infoForStatus != null
       ? consultationSlotStartMsFromInfo(infoForStatus)
@@ -1276,6 +1531,25 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const collectionFeeFormatted =
     collectionFeeNum > 0 ? `+ ${formatInr(collectionFeeNum)}` : null;
 
+  const infoAdd =
+    isConsultationInvoice && infoForStatus != null
+      ? asRecord(infoForStatus.additional_info)
+      : null;
+  const consultationPaymentRequired = infoAdd != null && infoAdd.payment_required === true;
+  const consultationPatient = isConsultationInvoice ? parseConsultationOrderPatientUi(o) : null;
+  const consultationBooking =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationOrderBookingUi(infoForStatus)
+      : null;
+  const consultationOrderDoctor =
+    isConsultationInvoice && infoForStatus != null ? parseConsultationDoctor(infoForStatus) : null;
+  const consultationAttachments =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationAttachments(infoForStatus)
+      : [];
+  const consultationReports =
+    isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
+
   return {
     id,
     bannerTone,
@@ -1285,6 +1559,15 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationPlaceTag,
     consultationInfoStatus,
     consultationInfoId,
+    consultationUploadRefId,
+    consultationPaymentRequired,
+    netPayAmount: netPayNum,
+    isConsultationOrder: isConsultationInvoice,
+    consultationPatient,
+    consultationBooking,
+    consultationOrderDoctor,
+    consultationAttachments,
+    consultationReports,
     serviceTypeLabel,
     categoryKey,
     orderDateTimeDisplay,
@@ -1308,11 +1591,6 @@ export type ConsultationPrescriptionRow = Readonly<{
   id: string;
   createdAtLabel: string | null;
   medicineNames: readonly string[];
-}>;
-
-export type ConsultationAttachmentRow = Readonly<{
-  label: string;
-  url: string | null;
 }>;
 
 export type ConsultationDoctorCard = Readonly<{
@@ -1405,32 +1683,6 @@ function parseConsultationPrescriptions(info: Record<string, unknown>): Consulta
       createdAtLabel: str(r.createdAtDate) ?? str(r.created_at_label) ?? null,
       medicineNames,
     });
-  }
-  return out;
-}
-
-function parseConsultationAttachments(info: Record<string, unknown>): ConsultationAttachmentRow[] {
-  const raw = info.attachments;
-  if (!Array.isArray(raw)) return [];
-  const out: ConsultationAttachmentRow[] = [];
-  for (let i = 0; i < raw.length; i++) {
-    const r = asRecord(raw[i]);
-    if (!r) continue;
-    const url =
-      str(r.url) ??
-      str(r.file) ??
-      str(r.link) ??
-      str(r.path) ??
-      str(r.document) ??
-      null;
-    const label =
-      str(r.name) ??
-      str(r.file_name) ??
-      str(r.fileName) ??
-      str(r.title) ??
-      str(r.original_name) ??
-      `Attachment ${i + 1}`;
-    out.push({ label, url });
   }
   return out;
 }

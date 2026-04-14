@@ -36,3 +36,13 @@ export function readVirtualFollowUpAppointmentId(): string | null {
 export function clearVirtualFollowUpAppointmentId(): void {
   writeVirtualFollowUpAppointmentId(null);
 }
+
+/** Clears overview form seeds — use when starting a new virtual booking (not follow-up). */
+export function clearVirtualConsultPurposeAndLanguage(): void {
+  try {
+    sessionStorage.removeItem(VIRTUAL_CONSULT_PURPOSE_KEY);
+    sessionStorage.removeItem(VIRTUAL_CONSULT_LANGUAGE_KEY);
+  } catch {
+    // ignore
+  }
+}

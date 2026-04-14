@@ -1,5 +1,6 @@
 import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
 import { patientFetchChecked, patientJsonList } from "@/api/patientHttp";
+import { readSelectedAddress, writeSelectedAddress } from "@/constants/selectedAddressStorage";
 
 /** Normalized address row from GET /patient/address (`addressess` array, etc.). */
 export type PatientAddressRecord = Readonly<{
@@ -170,4 +171,25 @@ export function formatAddressLines(a: PatientAddressRecord): string {
 
 export function hasAnySavedAddresses(list: readonly PatientAddressRecord[]): boolean {
   return list.length > 0;
+}
+
+/**
+ * When nothing is stored or the stored id no longer exists, persist primary (else first)
+ * saved address so flows that use {@link readSelectedAddress} get a valid `address_id`
+ * and {@link resolveSelectedAddressLocation} matches the visible home strip.
+ */
+export async function ensureDefaultSelectedAddressIfNeeded(): Promise<void> {
+  try {
+    const data = await fetchAllPatientAddresses();
+    if (data.length === 0) return;
+    const stored = readSelectedAddress();
+    const match = stored ? data.find((a) => a.id === stored.id) : undefined;
+    if (match) return;
+    const pick = data.find((a) => a.isPrimary) ?? data[0] ?? null;
+    if (!pick) return;
+    const displayLine = formatAddressLines(pick);
+    writeSelectedAddress({ id: pick.id, displayLine, tag: pick.tag.trim() || undefined });
+  } catch {
+    // ignore
+  }
 }

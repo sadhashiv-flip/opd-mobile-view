@@ -3,6 +3,7 @@ import { SelectPeopleBottomSheet } from "@/components/select-people/SelectPeople
 import { VirtualAppointmentSlotBottomSheet } from "@/components/consultation/VirtualAppointmentSlotBottomSheet";
 import { ROUTES } from "@/constants";
 import {
+  clearVirtualConsultPurposeAndLanguage,
   clearVirtualFollowUpAppointmentId,
   readVirtualFollowUpAppointmentId,
   VIRTUAL_CONSULT_LANGUAGE_KEY,
@@ -29,7 +30,7 @@ import {
 import type { SearchablePickerOption } from "@/components/wellness/SearchablePickerField";
 import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
 import { useToast } from "@/hooks/useToast";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import "./ConsultationAppointmentOverviewPage.css";
 
 /** English first, then major Indian languages (ISO-style labels for display). */
@@ -158,7 +159,17 @@ export function ConsultationVirtualAppointmentOverviewPage() {
     setBusyRef: setBookingBusyRef,
   });
 
-  useEffect(() => {
+  /**
+   * Follow-up seeds purpose/language from sessionStorage.
+   * New flow clears stale values (e.g. after order-details follow-up) before persist effects run.
+   */
+  useLayoutEffect(() => {
+    if (!readVirtualFollowUpAppointmentId()) {
+      clearVirtualConsultPurposeAndLanguage();
+      setPurpose("");
+      setLanguage("");
+      return;
+    }
     try {
       const p = sessionStorage.getItem(VIRTUAL_CONSULT_PURPOSE_KEY);
       if (p) setPurpose(p);
@@ -169,7 +180,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [issueId]);
 
   useEffect(() => {
     try {

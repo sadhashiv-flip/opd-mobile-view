@@ -1,13 +1,17 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import {
+  DEFAULT_LOCATION_ADDRESS_LINE,
+  subscribeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
 import { readHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import {
   fetchNetworkDoctorListPage,
   NETWORK_LIST_PAGE_SIZE,
-  readNetworkListLocation,
+  resolveSelectedAddressLocation,
   type NetworkListDoctorRow,
 } from "@/api/networkList";
 import { useToast } from "@/hooks/useToast";
@@ -43,12 +47,15 @@ export function ConsultationHospitalResultsPage() {
   const params = useParams();
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
   const chrLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const chrLocAddrTag = useSelectedAddressTag("HOME");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortId, setSortId] = useState<SortOptionId>("relevance");
   const [doctors, setDoctors] = useState<readonly NetworkListDoctorRow[]>([]);
   const [doctorsLoad, setDoctorsLoad] = useState<"loading" | "error" | "ok">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  /** Bumps when the user picks another address so doctor list refetches for the new `lat,lng`. */
+  const [addrEpoch, setAddrEpoch] = useState(0);
   const [doctorsError, setDoctorsError] = useState<string | null>(null);
   const nextPageRef = useRef(1);
   const hasMoreRef = useRef(true);
@@ -59,6 +66,11 @@ export function ConsultationHospitalResultsPage() {
     const n = Number(specialtyId);
     return Number.isFinite(n) ? n : null;
   }, [specialtyId]);
+
+  useEffect(() => {
+    const unsub = subscribeSelectedAddress(() => setAddrEpoch((n) => n + 1));
+    return unsub;
+  }, []);
 
   useEffect(() => {
     if (specialtyIdNum == null) {
@@ -77,14 +89,19 @@ export function ConsultationHospitalResultsPage() {
     nextPageRef.current = 1;
     hasMoreRef.current = true;
     loadingMoreRef.current = false;
-    void fetchNetworkDoctorListPage({
-      location: readNetworkListLocation(),
-      service: "consultation",
-      speciality_id: specialtyIdNum,
-      page: 1,
-      limit: NETWORK_LIST_PAGE_SIZE,
-    })
-      .then((list) => {
+    void (async () => {
+      await ensureDefaultSelectedAddressIfNeeded();
+      if (cancelled) return;
+      const location = await resolveSelectedAddressLocation();
+      if (cancelled) return;
+      try {
+        const list = await fetchNetworkDoctorListPage({
+          location,
+          service: "consultation",
+          speciality_id: specialtyIdNum,
+          page: 1,
+          limit: NETWORK_LIST_PAGE_SIZE,
+        });
         if (cancelled) return;
         setDoctors(list);
         if (list.length === 0) {
@@ -93,8 +110,7 @@ export function ConsultationHospitalResultsPage() {
           nextPageRef.current = 2;
         }
         setDoctorsLoad("ok");
-      })
-      .catch((e: unknown) => {
+      } catch (e: unknown) {
         if (!cancelled) {
           setDoctors([]);
           setDoctorsLoad("error");
@@ -102,11 +118,12 @@ export function ConsultationHospitalResultsPage() {
           setDoctorsError(msg);
           toast.error(msg);
         }
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [specialtyIdNum, toast]);
+  }, [specialtyIdNum, toast, addrEpoch]);
 
   const loadMore = useCallback(async () => {
     if (specialtyIdNum == null || !hasMoreRef.current || doctorsLoad !== "ok") return;
@@ -114,9 +131,10 @@ export function ConsultationHospitalResultsPage() {
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
+      const location = await resolveSelectedAddressLocation();
       const list = await fetchNetworkDoctorListPage(
         {
-          location: readNetworkListLocation(),
+          location,
           service: "consultation",
           speciality_id: specialtyIdNum,
           page: nextPageRef.current,
@@ -341,7 +359,7 @@ export function ConsultationHospitalResultsPage() {
             <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
           </svg>
         </span>
-        <span className="chr-loc__title">Home</span>
+        <span className="chr-loc__title">{chrLocAddrTag}</span>
         <span className="chr-loc__sep" aria-hidden="true">
           |
         </span>

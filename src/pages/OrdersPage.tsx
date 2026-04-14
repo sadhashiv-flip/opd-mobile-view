@@ -49,13 +49,13 @@ function OrderCard({ row }: Readonly<{ row: InvoiceOrderRow }>) {
         {row.orderIdLine.trim().length > 0 ? (
           <div className="orders-card__id-row">
             <p className="orders-card__order-id">{row.orderIdLine}</p>
-            {row.consultationPlaceTag ? (
+            {/* {row.consultationPlaceTag ? (
               <span
                 className={`orders-card__place-tag orders-card__place-tag--${row.consultationPlaceTag}`}
               >
                 {row.consultationPlaceTag === "virtual" ? "Virtual" : "In-person"}
               </span>
-            ) : null}
+            ) : null} */}
           </div>
         ) : null}
         <p className="orders-card__meta">{row.metaLine}</p>

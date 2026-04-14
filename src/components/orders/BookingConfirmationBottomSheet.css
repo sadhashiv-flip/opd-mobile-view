@@ -1,0 +1,222 @@
+.od-bc-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  border: none;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 90;
+  box-sizing: border-box;
+}
+
+.od-bc-dialog::backdrop {
+  background: transparent;
+}
+
+.od-bc-panel {
+  width: 100%;
+  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-height: min(78dvh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.14);
+  padding: 18px 16px 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.od-bc-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.od-bc-panel__title {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111111;
+}
+
+.od-bc-panel__close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: #f3f3f3;
+  color: #424242;
+  cursor: pointer;
+}
+
+.od-bc-panel__close:active {
+  opacity: 0.88;
+}
+
+.od-bc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.od-bc-skeleton {
+  padding: 8px 0 12px;
+}
+
+.od-bc-skeleton-line {
+  height: 14px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eeeeee 0%, #f5f5f5 50%, #eeeeee 100%);
+  background-size: 200% 100%;
+  animation: od-bc-shimmer 1.1s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+
+.od-bc-skeleton-line--short {
+  width: 55%;
+}
+
+@keyframes od-bc-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.od-bc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.od-bc-row__k {
+  font-size: 0.9375rem;
+  color: #424242;
+}
+
+.od-bc-row__v {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111111;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-bc-wallet {
+  border-radius: 12px;
+  background: #f5f5f7;
+  padding: 12px 14px 14px;
+  margin-bottom: 14px;
+}
+
+.od-bc-wallet__title {
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-bc-wallet__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.od-bc-wallet__k {
+  font-size: 0.875rem;
+  color: #424242;
+}
+
+.od-bc-wallet__v {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111111;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-bc-wallet__limit {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #757575;
+}
+
+.od-bc-payable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+  margin-bottom: 14px;
+}
+
+.od-bc-payable__k {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-bc-payable__v {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111111;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-bc-sep {
+  height: 1px;
+  background: #eeeeee;
+  margin: 4px 0 12px;
+}
+
+.od-bc-note {
+  margin: 0 0 14px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #757575;
+}
+
+.od-bc-cta {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5c4dd6 0%, #4a3cb5 100%);
+  color: #ffffff;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(92, 77, 214, 0.35);
+}
+
+.od-bc-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.od-bc-cta:active:not(:disabled) {
+  opacity: 0.92;
+}

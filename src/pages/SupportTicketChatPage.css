@@ -602,22 +602,53 @@
 .support-chat__viewer-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
   padding: 10px 12px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   background: #fafafa;
 }
 
-.support-chat__viewer-title {
-  margin: 0;
+.support-chat__viewer-title-wrap {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.support-chat__viewer-title {
+  margin: 0;
+  width: 100%;
   font-size: clamp(14px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.support-chat__viewer-position {
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 600;
+  color: #757575;
+  font-variant-numeric: tabular-nums;
+}
+
+.support-chat__viewer-btn--nav {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+  background: #eeeeee;
+  color: #212121;
+}
+
+.support-chat__viewer-btn--nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .support-chat__viewer-actions {
