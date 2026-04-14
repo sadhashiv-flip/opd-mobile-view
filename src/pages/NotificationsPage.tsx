@@ -63,7 +63,7 @@ export function NotificationsPage() {
   const onRowActivate = (row: PatientNotificationRow) => {
     const invoiceId = invoiceIdFromNotificationDetails(row.details);
     if (invoiceId) {
-      navigate(generatePath(ROUTES.ordersDetail, { invoiceId }));
+      navigate(generatePath(ROUTES.ordersDetailLegacy, { invoiceId }));
       return;
     }
     toast.show("No order details are linked to this notification.", { variant: "info" });

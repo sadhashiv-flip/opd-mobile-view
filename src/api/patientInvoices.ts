@@ -182,10 +182,20 @@ function statusToneFrom(raw: string | null): InvoiceOrderRow["statusTone"] {
 function readInvoiceInfoObject(o: Record<string, unknown>): Record<string, unknown> | null {
   const direct = asRecord(o.info);
   if (direct) return direct;
+  const inv = asRecord(o.invoice);
+  if (inv) {
+    const fromInv = asRecord(inv.info);
+    if (fromInv) return fromInv;
+  }
   const data = asRecord(o.data);
   if (data) {
     const nested = asRecord(data.info);
     if (nested) return nested;
+    const inv2 = asRecord(data.invoice);
+    if (inv2) {
+      const fromInv2 = asRecord(inv2.info);
+      if (fromInv2) return fromInv2;
+    }
   }
   return null;
 }
@@ -249,7 +259,8 @@ export function sortInvoiceOrderRowsByIdAsc(rows: readonly InvoiceOrderRow[]): I
   );
 }
 
-function categoryKeyFromLabel(label: string): string {
+/** Maps a service / transaction label to a stable UI category key (orders list, icons, URLs). */
+export function categoryKeyFromLabel(label: string): string {
   const s = label.toLowerCase();
   if (s.includes("consult")) return "consultation";
   if (s.includes("lab")) return "lab";
@@ -614,6 +625,8 @@ export type InvoiceDetailLineItem = Readonly<{
   mrpFormatted: string | null;
   unitPriceFormatted: string;
   lineTotalFormatted: string;
+  /** From line `payment_required` / `additional_info.payment_required` when present. */
+  paymentRequired: boolean;
 }>;
 
 /** One label/value row parsed from a payment’s `refunded` object. */
@@ -659,6 +672,15 @@ export type ConsultationOrderBookingUi = Readonly<{
   mapsUrl: string | null;
 }>;
 
+/** Pharmacy pickup / delivery block on order detail (from merged invoice + envelope). */
+export type PharmacyOrderLocationCardUi = Readonly<{
+  cardTitle: string;
+  headerName: string | null;
+  addressText: string | null;
+  phoneText: string | null;
+  mapsUrl: string | null;
+}>;
+
 export type InvoiceDetailModel = Readonly<{
   id: string;
   bannerTone: InvoiceDetailBannerTone;
@@ -669,23 +691,43 @@ export type InvoiceDetailModel = Readonly<{
   consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"];
   /** `info.status` when consultation (`1` completed, `2` cancelled, …); null if absent. */
   consultationInfoStatus: number | null;
-  /** `info.id` — path param for `PATCH /service/request/cancel/:serviceId` (service cancel). */
+  /**
+   * `info.id` when present — consultation appointment id, pharmacy medicine order id (`PM…`), etc.
+   * Used with `PATCH …/appointment/cancel/:id` from the order detail screen when cancellation is allowed.
+   */
   consultationInfoId: string | null;
+  /** `#` + {@link consultationInfoId} for display as the canonical order reference on order detail. */
+  infoOrderIdFormatted: string | null;
+  /** Display label for `info.visit_type` (falls back to root `visit_type` on merged payloads). */
+  serviceVisitTypeLabel: string | null;
   /** Appointment id for `POST /upload` (`ref_id`) — from invoice `additional_info` / `info` when set, else `info.id`. */
   consultationUploadRefId: string | null;
   /** Strict `info.additional_info.payment_required === true` (consultation invoices). */
   consultationPaymentRequired: boolean;
+  /** `info.status` when an `info` block exists (e.g. pharmacy medicine order `4` = pending payment). */
+  serviceInfoStatus: number | null;
+  /** `info.additional_info.payment_required === true` for any invoice type when `info` is present. */
+  infoPaymentRequired: boolean;
+  /**
+   * Non-pharmacy: merged root `additional_info.payment_required` exists.
+   * Pharmacy: `data.additional_info` (and nested `.info`) first; if `payment_required` is missing there,
+   * `data.info.additional_info` (same coercion). Other services unchanged.
+   */
+  dataAdditionalInfoPaymentRequiredKeyPresent: boolean;
+  /** When {@link dataAdditionalInfoPaymentRequiredKeyPresent}, whether payment is required (true). */
+  dataAdditionalInfoPaymentRequired: boolean;
   /** Parsed `net_amount` / payable number for UI logic (e.g. pay CTA). */
   netPayAmount: number;
   /** `transaction_type` consultation — drives order-details layout. */
   isConsultationOrder: boolean;
+  /** From `user` on the invoice payload when present (consultation, pharmacy, etc.). */
   consultationPatient: ConsultationOrderPatientUi | null;
   consultationBooking: ConsultationOrderBookingUi | null;
   /** From `info.doctor` for virtual rows (pending or completed); visit card uses offline booking only. */
   consultationOrderDoctor: ConsultationDoctorCard | null;
-  /** From `info.attachments` (pending or completed). */
+  /** From `info.attachments` when `info` is present (consultation, pharmacy, etc.). */
   consultationAttachments: readonly ConsultationAttachmentRow[];
-  /** From `info.reports` (lab / admin uploads, etc.). */
+  /** From `info.reports` for consultation invoices only. */
   consultationReports: readonly ConsultationAttachmentRow[];
   serviceTypeLabel: string;
   categoryKey: string;
@@ -694,11 +736,15 @@ export type InvoiceDetailModel = Readonly<{
   statusValueTone: InvoiceOrderRow["statusTone"];
   patientName: string;
   vendorName: string;
+  /** Pharmacy-only: pickup center or delivery address, delivery charges line when applicable. */
+  pharmacyOrderLocation: PharmacyOrderLocationCardUi | null;
   lineItems: readonly InvoiceDetailLineItem[];
-  /** Sum of line totals (qty × unit) before discount, collection fee (+), and wallet. */
+  /** Sum of line totals (qty × unit) before discount, fees (+), and wallet. */
   subTotalFormatted: string;
   discountFormatted: string | null;
   collectionFeeFormatted: string | null;
+  /** From `additional_info.delivery_charges` when present (e.g. pharmacy home delivery). */
+  deliveryChargesFormatted: string | null;
   walletDebitFormatted: string | null;
   netPayFormatted: string;
   payments: readonly InvoicePaymentRow[];
@@ -756,6 +802,95 @@ const INVOICE_ROOT_MERGE_KEYS = [
   "transactionType",
 ] as const;
 
+/** Preserved on nested merge so pharmacy pay gate reads the order envelope’s `additional_info` from `GET /invoice/:id`. */
+const FH_ENVELOPE_ADDITIONAL_INFO_KEY = "__FH_DATA_ADDITIONAL_INFO__";
+
+/**
+ * When `GET /invoice/:id` returns `data.invoice`, merge the inner invoice row with the outer `data`
+ * envelope (address, visit_type, vendor_details, `data.additional_info`, etc.) so normalization
+ * sees line items and envelope fields on one object.
+ */
+function mergeNestedEnvelopeDataWithInvoice(
+  envelope: Record<string, unknown>,
+  invoice: Record<string, unknown>,
+): Record<string, unknown> {
+  const envAdd = asRecord(envelope.additional_info);
+  const invAdd = asRecord(invoice.additional_info);
+  const mergedAdditional: Record<string, unknown> = {
+    ...(invAdd ?? {}),
+    ...(envAdd ?? {}),
+  };
+  const merged: Record<string, unknown> = { ...invoice, ...envelope };
+  merged[FH_ENVELOPE_ADDITIONAL_INFO_KEY] = envelope.additional_info;
+  merged.additional_info = Object.keys(mergedAdditional).length > 0 ? mergedAdditional : merged.additional_info;
+  const resolvedInfo = asRecord(envelope.info) ?? asRecord(invoice.info);
+  if (resolvedInfo != null) merged.info = resolvedInfo;
+  merged.user = invoice.user ?? envelope.user ?? merged.user;
+  merged.details = invoice.details ?? envelope.details ?? merged.details;
+  return merged;
+}
+
+/**
+ * Order-level `data.additional_info` from the live invoice response (never merged with
+ * `invoice.additional_info`), used only for pharmacy payment gating.
+ */
+function envelopeDataAdditionalInfoForPaymentGate(o: Record<string, unknown>): Record<string, unknown> | null {
+  const stashed = o[FH_ENVELOPE_ADDITIONAL_INFO_KEY];
+  if (stashed != null && typeof stashed === "object" && !Array.isArray(stashed)) {
+    return stashed as Record<string, unknown>;
+  }
+  const nestedData = asRecord(o.data);
+  if (nestedData != null) {
+    const fromNested = asRecord(nestedData.additional_info);
+    if (fromNested != null) return fromNested;
+  }
+  return asRecord(o.additional_info);
+}
+
+/**
+ * Pharmacy: `data.additional_info.info.payment_required` when nested `info` has the key; otherwise
+ * `data.additional_info.payment_required`. Coerces common string/number forms to true|false.
+ */
+function pharmacyDataPaymentRequiredFlags(dataLevelAdditional: Record<string, unknown> | null): Readonly<{
+  keyPresent: boolean;
+  requiredTrue: boolean;
+}> {
+  if (dataLevelAdditional == null) return { keyPresent: false, requiredTrue: false };
+  const infoRec = asRecord(dataLevelAdditional.info);
+  const source: Record<string, unknown> | null =
+    infoRec != null && Object.prototype.hasOwnProperty.call(infoRec, "payment_required")
+      ? infoRec
+      : Object.prototype.hasOwnProperty.call(dataLevelAdditional, "payment_required")
+        ? dataLevelAdditional
+        : null;
+  if (source == null) return { keyPresent: false, requiredTrue: false };
+  const v = source.payment_required;
+  if (v === true) return { keyPresent: true, requiredTrue: true };
+  if (v === false) return { keyPresent: true, requiredTrue: false };
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "true" || s === "1" || s === "yes") return { keyPresent: true, requiredTrue: true };
+    return { keyPresent: true, requiredTrue: false };
+  }
+  if (typeof v === "number" && v === 1) return { keyPresent: true, requiredTrue: true };
+  return { keyPresent: true, requiredTrue: false };
+}
+
+/**
+ * Pharmacy only: order envelope `data.additional_info` first; if `payment_required` is absent there,
+ * fall back to `data.info.additional_info` (flat `GET /invoice/:id` where the invoice row has `info`).
+ * Does not run for other service types.
+ */
+function pharmacyPaymentRequiredFromPayload(
+  o: Record<string, unknown>,
+  infoForStatus: Record<string, unknown> | null,
+): Readonly<{ keyPresent: boolean; requiredTrue: boolean }> {
+  const fromEnvelope = pharmacyDataPaymentRequiredFlags(envelopeDataAdditionalInfoForPaymentGate(o));
+  if (fromEnvelope.keyPresent) return fromEnvelope;
+  const infoAdd = infoForStatus != null ? asRecord(infoForStatus.additional_info) : null;
+  return pharmacyDataPaymentRequiredFlags(infoAdd);
+}
+
 function tryMergeInvoiceFromLineItemsArray(
   root: Record<string, unknown>,
   data: unknown[],
@@ -779,16 +914,36 @@ function tryMergeInvoiceFromLineItemsArray(
   return merged;
 }
 
+/**
+ * Resolves the primary payload node for `GET /invoice/:id` across common HTTP wrapper shapes
+ * (`data`, `result.data`, `payload.data`, `response.data`) — whatever the API returns at runtime.
+ */
+function resolveSingleInvoiceDataNode(root: Record<string, unknown>): unknown {
+  const fromResult = asRecord(root.result)?.data;
+  const fromPayload = asRecord(root.payload)?.data;
+  const fromResponse = asRecord(root.response)?.data;
+  if (root.data !== undefined && root.data !== null) return root.data;
+  if (fromResult !== undefined && fromResult !== null) return fromResult;
+  if (fromPayload !== undefined && fromPayload !== null) return fromPayload;
+  if (fromResponse !== undefined && fromResponse !== null) return fromResponse;
+  return undefined;
+}
+
 function extractInvoicePayload(body: unknown): Record<string, unknown> | null {
   const root = asRecord(body);
   if (!root) return null;
-  const data = root.data;
+  const data = resolveSingleInvoiceDataNode(root);
   if (Array.isArray(data) && data.length > 0) {
     const merged = tryMergeInvoiceFromLineItemsArray(root, data);
     if (merged != null) return merged;
   }
   if (data != null && typeof data === "object" && !Array.isArray(data)) {
-    return data as Record<string, unknown>;
+    const d = data as Record<string, unknown>;
+    const inv = asRecord(d.invoice);
+    if (inv != null) {
+      return mergeNestedEnvelopeDataWithInvoice(d, inv);
+    }
+    return d;
   }
   const inv = root.invoice ?? root.result ?? root.payload;
   const rec = asRecord(inv);
@@ -829,7 +984,18 @@ type ParsedLineRow = Readonly<{
   unitPrice: number | null;
   lineTotal: number | null;
   dedupeKey: string;
+  paymentRequired: boolean;
 }>;
+
+function truthyLinePaymentRequired(v: unknown): boolean {
+  return v === true || v === "true" || v === 1 || v === "1";
+}
+
+function lineRecordPaymentRequired(o: Record<string, unknown>): boolean {
+  if (truthyLinePaymentRequired(o.payment_required ?? o.paymentRequired)) return true;
+  const add = asRecord(o.additional_info);
+  return add != null && truthyLinePaymentRequired(add.payment_required ?? add.paymentRequired);
+}
 
 function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
   const o = asRecord(v);
@@ -837,6 +1003,7 @@ function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
 
   const add = asRecord(o.additional_info);
   const mrpFromAdd = add ? num(add.mrp) : null;
+  const paymentRequired = lineRecordPaymentRequired(o);
 
   const productName =
     str(o.product_name) ??
@@ -863,7 +1030,7 @@ function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
   if (hasProductFields) {
     const lineTotal = unitPrice == null ? null : unitPrice * qty;
     const dedupeKey = str(o.id) ?? `${productName}:${qty}:${unitPrice ?? "x"}`;
-    return { productName, qty, mrp, unitPrice, lineTotal, dedupeKey };
+    return { productName, qty, mrp, unitPrice, lineTotal, dedupeKey, paymentRequired };
   }
 
   const legacyUnit =
@@ -881,6 +1048,7 @@ function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
     unitPrice: legacyUnit,
     lineTotal: legacyUnit,
     dedupeKey,
+    paymentRequired,
   };
 }
 
@@ -992,6 +1160,11 @@ function detailVendorName(o: Record<string, unknown>): string {
     str(o.hospital_name) ??
     str(o.center_name);
   if (direct) return direct;
+  const vd = asRecord(o.vendor_details);
+  if (vd) {
+    const n = str(vd.name);
+    if (n) return n;
+  }
   const info = asRecord(o.info);
   if (!info) return "—";
   return (
@@ -1019,6 +1192,7 @@ function buildDetailLineItems(o: Record<string, unknown>): {
     mrpFormatted: pl.mrp == null ? null : formatInr(pl.mrp),
     unitPriceFormatted: pl.unitPrice == null ? "—" : formatInr(pl.unitPrice),
     lineTotalFormatted: pl.lineTotal == null ? "—" : formatInr(pl.lineTotal),
+    paymentRequired: pl.paymentRequired,
   }));
   const lineSum = parsedLines.reduce((s, pl) => s + (pl.lineTotal ?? 0), 0);
   return { lineItems, lineSum };
@@ -1039,6 +1213,12 @@ function invoiceCollectionFeeAmount(o: Record<string, unknown>): number {
       num(add.convenienceFee)
     : null;
   return fromAdd ?? num(o.collection_fee) ?? num(o.collectionFee) ?? 0;
+}
+
+function invoiceDeliveryChargesAmount(o: Record<string, unknown>): number {
+  const add = asRecord(o.additional_info);
+  if (!add) return 0;
+  return num(add.delivery_charges) ?? num(add.deliveryCharges) ?? 0;
 }
 
 function humanizeRefundKey(key: string): string {
@@ -1184,6 +1364,7 @@ function resolveDetailNetPay(
   itemsTotal: number,
   discountNum: number,
   collectionFeeNum: number,
+  deliveryChargesNum: number,
   walletNum: number | null,
 ): number {
   const explicit =
@@ -1194,7 +1375,8 @@ function resolveDetailNetPay(
     num(o.net_amount) ??
     num(o.netAmount);
   if (explicit != null) return explicit;
-  const afterDiscountAndFee = itemsTotal - discountNum + collectionFeeNum;
+  const afterDiscountAndFee =
+    itemsTotal - discountNum + collectionFeeNum + deliveryChargesNum;
   return afterDiscountAndFee - (walletNum ?? 0);
 }
 
@@ -1259,6 +1441,84 @@ function mapsUrlFromCoordinates(raw: string | null): string | null {
   const [a, b] = parts;
   if (!a || !b) return null;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a},${b}`)}`;
+}
+
+function formatStructuredAddressLine(rec: Record<string, unknown> | null): string | null {
+  if (!rec) return null;
+  const line1 = str(rec.line_1) ?? str(rec.line1);
+  const line2 = str(rec.line_2) ?? str(rec.line2);
+  const landmark = str(rec.landmark);
+  const area = str(rec.area);
+  const city = str(rec.city);
+  const state = str(rec.state);
+  const pin = str(rec.pincode) ?? str(rec.pin_code) ?? str(rec.pin);
+  const cityState = [city, state].filter((x) => (x ?? "").trim().length > 0).join(", ");
+  const parts = [line1, line2, landmark, area, cityState, pin]
+    .map((x) => (typeof x === "string" ? x.trim() : ""))
+    .filter((x) => x.length > 0);
+  const single = parts.join(", ");
+  return single.length > 0 ? single : null;
+}
+
+function parsePharmacyOrderLocationCardUi(
+  o: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+  categoryKey: string,
+): PharmacyOrderLocationCardUi | null {
+  if (categoryKey !== "pharmacy" || info == null) return null;
+  const visitRaw = (str(info.visit_type) ?? str(o.visit_type) ?? "").trim().toUpperCase();
+  const isHomeDelivery =
+    visitRaw === "HOME_DELIVERY" ||
+    (visitRaw.includes("HOME") && visitRaw.includes("DELIVER"));
+
+  const vendorRec = asRecord(o.vendor_details);
+  const vendorName = str(vendorRec?.name)?.trim() || null;
+  const infoAdd = asRecord(info.additional_info);
+  const center = infoAdd ? asRecord(infoAdd.center) : null;
+  const assigned = asRecord(info.assigned_user);
+
+  const phoneFrom = (addr: Record<string, unknown> | null): string | null => {
+    const p =
+      (addr ? str(addr.phone) ?? str(addr.mobile) : null)?.trim() ||
+      str(assigned?.phone)?.trim() ||
+      null;
+    return p && p.length > 0 ? p : null;
+  };
+
+  if (isHomeDelivery) {
+    const addr = asRecord(o.address) ?? asRecord(info.address);
+    const addressText = formatStructuredAddressLine(addr);
+    const phoneText = phoneFrom(addr);
+    const mapsUrl = mapsUrlFromCoordinates(str(addr?.location));
+    const headerName = vendorName;
+    const cardTitle = "Delivery address";
+    const hasAny =
+      Boolean(headerName) || Boolean(addressText) || Boolean(phoneText) || Boolean(mapsUrl);
+    if (!hasAny) return null;
+    return { cardTitle, headerName, addressText, phoneText, mapsUrl };
+  }
+
+  const centerName =
+    str(center?.pharmacy_name)?.trim() ||
+    str(center?.name)?.trim() ||
+    str(center?.store_name)?.trim() ||
+    vendorName;
+  const addressText = formatStructuredAddressLine(center);
+  const phoneText =
+    str(center?.phone)?.trim() ||
+    str(center?.mobile)?.trim() ||
+    str(assigned?.phone)?.trim() ||
+    null;
+  const mapsUrl = mapsUrlFromCoordinates(str(center?.location));
+  const headerName = centerName;
+  const cardTitle = "Pickup center";
+  const hasAny =
+    Boolean(headerName) ||
+    Boolean(addressText) ||
+    Boolean(phoneText) ||
+    Boolean(mapsUrl);
+  if (!hasAny) return null;
+  return { cardTitle, headerName, addressText, phoneText, mapsUrl };
 }
 
 function formatConsultationScheduleDisplay(info: Record<string, unknown>): string | null {
@@ -1385,6 +1645,25 @@ function parseConsultationOrderBookingUi(info: Record<string, unknown>): Consult
   };
 }
 
+function formatVisitTypeForDisplay(raw: string | null): string | null {
+  const s = str(raw)?.trim();
+  if (!s) return null;
+  const norm = s.toUpperCase().replace(/\s+/g, "_");
+  const table: Record<string, string> = {
+    HOME_DELIVERY: "Home delivery",
+    STORE_PICKUP: "Store pickup",
+    IN_STORE_PICKUP: "In-store pickup",
+    PICKUP: "Pickup",
+    CURBSIDE_PICKUP: "Curbside pickup",
+  };
+  if (table[norm]) return table[norm];
+  return norm
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel {
   const id =
     str(o.id) ??
@@ -1455,12 +1734,19 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"] =
     isConsultationInvoice && infoForStatus != null ? (isOnline ? "virtual" : "inPerson") : null;
 
-  const consultationInfoIdRaw =
-    isConsultationInvoice && infoForStatus != null ? str(infoForStatus.id)?.trim() : null;
+  const consultationInfoIdRaw = infoForStatus != null ? str(infoForStatus.id)?.trim() : null;
   const consultationInfoId =
     consultationInfoIdRaw != null && consultationInfoIdRaw.length > 0
       ? consultationInfoIdRaw
       : null;
+  const infoOrderIdFormatted =
+    consultationInfoId != null ? `#${consultationInfoId.replace(/^#/, "")}` : null;
+
+  const visitTypeRaw = infoForStatus != null ? str(infoForStatus.visit_type)?.trim() : null;
+  const visitTypeFallback = str(o.visit_type)?.trim() ?? null;
+  const serviceVisitTypeLabel = formatVisitTypeForDisplay(
+    visitTypeRaw ?? visitTypeFallback ?? null,
+  );
 
   const consultationUploadRefIdRaw =
     isConsultationInvoice && infoForStatus != null
@@ -1514,12 +1800,14 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const itemsGrossTotal = resolveDetailSubtotal(o, lineSum);
   const discountNum = invoiceDiscountAmount(o);
   const collectionFeeNum = invoiceCollectionFeeAmount(o);
+  const deliveryChargesNum = invoiceDeliveryChargesAmount(o);
   const walletNum = resolveDetailWallet(o);
   const netPayNum = resolveDetailNetPay(
     o,
     itemsGrossTotal,
     discountNum,
     collectionFeeNum,
+    deliveryChargesNum,
     walletNum,
   );
   const payments = parseInvoicePayments(o);
@@ -1530,25 +1818,51 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     discountNum > 0 ? `- ${formatInr(discountNum)}` : null;
   const collectionFeeFormatted =
     collectionFeeNum > 0 ? `+ ${formatInr(collectionFeeNum)}` : null;
+  const deliveryChargesFormatted =
+    deliveryChargesNum > 0 ? `+ ${formatInr(deliveryChargesNum)}` : null;
 
   const infoAdd =
     isConsultationInvoice && infoForStatus != null
       ? asRecord(infoForStatus.additional_info)
       : null;
   const consultationPaymentRequired = infoAdd != null && infoAdd.payment_required === true;
-  const consultationPatient = isConsultationInvoice ? parseConsultationOrderPatientUi(o) : null;
+
+  const infoAddForPayment =
+    infoForStatus != null ? asRecord(infoForStatus.additional_info) : null;
+  const infoPaymentRequired =
+    infoAddForPayment != null && infoAddForPayment.payment_required === true;
+  const rootAdd = asRecord(o.additional_info);
+  let dataAdditionalInfoPaymentRequiredKeyPresent =
+    rootAdd != null && Object.prototype.hasOwnProperty.call(rootAdd, "payment_required");
+  let dataAdditionalInfoPaymentRequired =
+    dataAdditionalInfoPaymentRequiredKeyPresent &&
+    rootAdd != null &&
+    rootAdd.payment_required === true;
+  if (categoryKey === "pharmacy") {
+    const phFlags = pharmacyPaymentRequiredFromPayload(o, infoForStatus);
+    dataAdditionalInfoPaymentRequiredKeyPresent = phFlags.keyPresent;
+    dataAdditionalInfoPaymentRequired = phFlags.requiredTrue;
+  }
+  const serviceInfoStatusRaw = infoForStatus != null ? num(infoForStatus.status) : null;
+  const serviceInfoStatus =
+    serviceInfoStatusRaw != null && !Number.isNaN(serviceInfoStatusRaw)
+      ? Math.trunc(serviceInfoStatusRaw)
+      : null;
+
+  /** Parsed from `o.user` when present — used on consultation and other service order detail UIs. */
+  const consultationPatient = parseConsultationOrderPatientUi(o);
   const consultationBooking =
     isConsultationInvoice && infoForStatus != null
       ? parseConsultationOrderBookingUi(infoForStatus)
       : null;
   const consultationOrderDoctor =
     isConsultationInvoice && infoForStatus != null ? parseConsultationDoctor(infoForStatus) : null;
+  /** `info.attachments` for any invoice type (e.g. pharmacy prescriptions); reports stay consultation-only. */
   const consultationAttachments =
-    isConsultationInvoice && infoForStatus != null
-      ? parseConsultationAttachments(infoForStatus)
-      : [];
+    infoForStatus != null ? parseConsultationAttachments(infoForStatus) : [];
   const consultationReports =
     isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
+  const pharmacyOrderLocation = parsePharmacyOrderLocationCardUi(o, infoForStatus, categoryKey);
 
   return {
     id,
@@ -1559,8 +1873,14 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationPlaceTag,
     consultationInfoStatus,
     consultationInfoId,
+    infoOrderIdFormatted,
+    serviceVisitTypeLabel,
     consultationUploadRefId,
     consultationPaymentRequired,
+    serviceInfoStatus,
+    infoPaymentRequired,
+    dataAdditionalInfoPaymentRequiredKeyPresent,
+    dataAdditionalInfoPaymentRequired,
     netPayAmount: netPayNum,
     isConsultationOrder: isConsultationInvoice,
     consultationPatient,
@@ -1575,10 +1895,12 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     statusValueTone,
     patientName,
     vendorName,
+    pharmacyOrderLocation,
     lineItems,
     subTotalFormatted: formatInr(itemsGrossTotal),
     discountFormatted,
     collectionFeeFormatted,
+    deliveryChargesFormatted,
     walletDebitFormatted,
     netPayFormatted: formatInr(netPayNum),
     payments,
@@ -1816,25 +2138,7 @@ export async function fetchInvoiceById(invoiceId: string): Promise<InvoiceDetail
 export type InvoiceOrderPageData = Readonly<{
   detail: InvoiceDetailModel;
   consultationCompleted: InvoiceConsultationCompletedView | null;
-  /**
-   * Service reference for the order card (appointment / booking id from payload).
-   * When null, the UI falls back to {@link InvoiceDetailModel.orderIdDisplay}.
-   */
-  appointmentIdForOrderCard: string | null;
 }>;
-
-function resolveOrderDetailAppointmentId(
-  payload: Record<string, unknown>,
-  consultationCompleted: InvoiceConsultationCompletedView | null,
-): string | null {
-  const fromCc = consultationCompleted?.appointmentId?.trim();
-  if (fromCc) return fromCc;
-  const info = readInvoiceInfoObject(payload);
-  const data = readInvoiceDataObject(payload);
-  const fromBooking = videoAppointmentIdFromRow(payload, info, data);
-  if (fromBooking?.trim()) return fromBooking.trim();
-  return null;
-}
 
 /**
  * Invoice detail plus optional completed-online-consultation blocks for the order screen.
@@ -1845,7 +2149,6 @@ export async function fetchInvoiceOrderPageData(invoiceId: string): Promise<Invo
   return {
     detail: normalizeInvoiceDetail(payload),
     consultationCompleted,
-    appointmentIdForOrderCard: resolveOrderDetailAppointmentId(payload, consultationCompleted),
   };
 }
 

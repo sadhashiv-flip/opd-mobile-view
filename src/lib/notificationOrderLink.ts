@@ -1,6 +1,6 @@
 /**
  * Notifications from `GET /notification` include a `details` blob; invoice-backed
- * orders use `invoice_id` (same id as {@link ROUTES.ordersDetail}).
+ * orders use `invoice_id` (same id as {@link ROUTES.ordersDetailLegacy} / `invoiceId` on `/order/...` detail routes).
  */
 export function invoiceIdFromNotificationDetails(details: unknown): string | null {
   if (!details || typeof details !== "object") return null;

@@ -1,3 +1,5 @@
+import { readSelectedAddress } from "@/constants/selectedAddressStorage";
+
 const KEY = "opd-mobile-view.pharmacy.flow.v1";
 
 export type PharmacyFlowState = Readonly<{
@@ -5,6 +7,11 @@ export type PharmacyFlowState = Readonly<{
   patientName: string;
   /** `POST /medicine` payload `patient_id`. */
   patientId: number;
+  /**
+   * Last delivery address used in the pharmacy flow; kept in sync with the location strip
+   * ({@link readSelectedAddress}) when the user changes address on `/pharmacy`.
+   */
+  addressId?: string;
 }>;
 
 function safeParse(raw: string | null): PharmacyFlowState | null {
@@ -23,7 +30,11 @@ function safeParse(raw: string | null): PharmacyFlowState | null {
           ? Number(pidRaw)
           : NaN;
     if (!memberId || !patientName || !Number.isFinite(patientId)) return null;
-    return { memberId, patientName, patientId };
+    const aidRaw = o.addressId;
+    const addressId =
+      typeof aidRaw === "string" && aidRaw.trim().length > 0 ? aidRaw.trim() : undefined;
+    const base = { memberId, patientName, patientId } as const;
+    return addressId ? { ...base, addressId } : base;
   } catch {
     return null;
   }
@@ -51,4 +62,15 @@ export function clearPharmacyFlowState(): void {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * `address_id` for `POST /medicine`: prefer global selection (matches the location strip and
+ * {@link ensureDefaultSelectedAddressIfNeeded}); fall back to flow snapshot if nothing is stored.
+ */
+export function resolvePharmacyOrderAddressId(flow: PharmacyFlowState | null): string | null {
+  const fromStore = readSelectedAddress()?.id?.trim();
+  if (fromStore) return fromStore;
+  const fromFlow = flow?.addressId?.trim();
+  return fromFlow || null;
 }

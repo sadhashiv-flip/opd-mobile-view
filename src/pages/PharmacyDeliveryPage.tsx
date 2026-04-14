@@ -1,10 +1,12 @@
 import { PharmacyOrderingMemberSheet } from "@/components/pharmacy/PharmacyOrderingMemberSheet";
 import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddressBar";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
-import { readSelectedAddress } from "@/constants/selectedAddressStorage";
+import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import {
   readPharmacyFlowState,
+  resolvePharmacyOrderAddressId,
   writePharmacyFlowState,
   type PharmacyFlowState,
 } from "@/constants/pharmacyFlowStorage";
@@ -34,6 +36,15 @@ const FAQS = [
   },
 ] as const;
 
+function flowWithSyncedAddress(cur: PharmacyFlowState): PharmacyFlowState {
+  const sel = readSelectedAddress()?.id?.trim();
+  if (sel && sel !== cur.addressId) return { ...cur, addressId: sel };
+  if (!sel && cur.addressId) {
+    return { memberId: cur.memberId, patientName: cur.patientName, patientId: cur.patientId };
+  }
+  return cur;
+}
+
 export function PharmacyDeliveryPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,10 +72,15 @@ export function PharmacyDeliveryPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      await ensureDefaultSelectedAddressIfNeeded();
       const existing = readPharmacyFlowState();
       if (existing) {
+        const synced = flowWithSyncedAddress(existing);
+        if (synced !== existing) {
+          writePharmacyFlowState(synced);
+        }
         if (!cancelled) {
-          setFlow(existing);
+          setFlow(synced);
         }
         try {
           const list = await fetchAllPatientMembers();
@@ -89,10 +105,12 @@ export function PharmacyDeliveryPage() {
           setFlow(null);
           return;
         }
+        const selAddr = readSelectedAddress()?.id?.trim();
         const next: PharmacyFlowState = {
           memberId: self.id,
           patientName: self.name,
           patientId: self.userId,
+          ...(selAddr ? { addressId: selAddr } : {}),
         };
         writePharmacyFlowState(next);
         setFlow(next);
@@ -110,16 +128,31 @@ export function PharmacyDeliveryPage() {
     };
   }, [toast]);
 
+  useEffect(() => {
+    return subscribeSelectedAddress(() => {
+      const cur = readPharmacyFlowState();
+      if (!cur) return;
+      const synced = flowWithSyncedAddress(cur);
+      if (synced === cur) return;
+      writePharmacyFlowState(synced);
+      setFlow(synced);
+    });
+  }, []);
+
   const selectMember = useCallback(
     (row: GymMemberListRow) => {
       if (row.userId == null) {
         toast.error("This member is missing a user id. Update the profile and try again.");
         return;
       }
+      const prev = readPharmacyFlowState();
+      const selAddr = readSelectedAddress()?.id?.trim();
+      const keepAddr = selAddr ?? prev?.addressId?.trim();
       const next: PharmacyFlowState = {
         memberId: row.id,
         patientName: row.name,
         patientId: row.userId,
+        ...(keepAddr ? { addressId: keepAddr } : {}),
       };
       writePharmacyFlowState(next);
       setFlow(next);
@@ -129,20 +162,21 @@ export function PharmacyDeliveryPage() {
   );
 
   const confirmOtc = useCallback(async () => {
-    const addr = readSelectedAddress();
     const cur = readPharmacyFlowState();
-    if (!addr?.id) {
-      toast.error("Choose a delivery address.");
-      return;
-    }
     if (!cur) {
       toast.error("Select who you are ordering for.");
+      return;
+    }
+    await ensureDefaultSelectedAddressIfNeeded();
+    const addressId = resolvePharmacyOrderAddressId(readPharmacyFlowState());
+    if (!addressId) {
+      toast.error("Choose a delivery address.");
       return;
     }
     setOtcBusy(true);
     try {
       await postMedicineOrder({
-        address_id: addr.id,
+        address_id: addressId,
         prescriptions: [],
         patient_id: cur.patientId,
       });

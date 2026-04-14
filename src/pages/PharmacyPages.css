@@ -746,12 +746,16 @@ label.ph-upload-zone {
 
 .ph-footer-btn {
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 50%;
   bottom: 0;
+  transform: translateX(-50%);
   display: flex;
   justify-content: center;
+  width: 100%;
+  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
   padding: 12px var(--ph-gutter) calc(12px + env(safe-area-inset-bottom, 0));
+  padding-left: max(var(--ph-gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--ph-gutter), env(safe-area-inset-right, 0px));
   background: #ffffff;
   border-top: 1px solid #eee;
   z-index: 20;
@@ -760,7 +764,7 @@ label.ph-upload-zone {
 
 .ph-footer-btn__inner {
   width: 100%;
-  max-width: var(--ph-max);
+  max-width: 100%;
   padding: 14px;
   border: none;
   border-radius: 12px;

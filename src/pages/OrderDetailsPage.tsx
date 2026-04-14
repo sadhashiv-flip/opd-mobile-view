@@ -11,7 +11,6 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type RefObject,
 } from "react";
 import {
   downloadConsultationPrescriptionPdf,
@@ -21,14 +20,19 @@ import {
   type InvoiceDetailModel,
 } from "@/api/patientInvoices";
 import {
+  patchPharmacyOrderPaymentConfirm,
+  patchPharmacyOrderPaymentPreview,
+} from "@/api/patientPharmacyOrderPayment";
+import {
   mapOfflinePaymentPreviewToSheetModel,
   patchOfflineAppointmentPaymentConfirm,
   patchOfflineAppointmentPaymentPreview,
   type OfflineBookingPaymentSheetModel,
 } from "@/api/patientOfflineAppointmentPayment";
 import { BookingConfirmationBottomSheet } from "@/components/orders/BookingConfirmationBottomSheet";
-import { PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
+import { PAYMENT_DONE_EVENT, PHARMACY_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import { useConsultationPaymentVerify } from "@/hooks/useConsultationPaymentVerify";
+import { usePharmacyOrderPaymentVerify } from "@/hooks/usePharmacyOrderPaymentVerify";
 import {
   isPaymentCancelledMessage,
   loadRazorpayScript,
@@ -39,7 +43,17 @@ import {
   attachmentPreviewKindFromUrl,
   type AttachmentFilePreviewViewer,
 } from "@/components/attachments/AttachmentFilePreview";
-import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
+import {
+  ConsultationAttachReportsReadOnlyTabs,
+  ConsultationManagedFilesTabs,
+} from "@/components/orders/OrderDetailConsultationAttachments";
+import {
+  ORDER_DETAIL_LINE_ITEMS_PREVIEW,
+  OrderDetailInvoiceSection,
+  OrderDetailPatientSection,
+  OrderDetailPaymentSummaryFallback,
+  OrderDetailServiceMetaCard,
+} from "@/components/orders/OrderDetailSharedSections";
 import { ROUTES } from "@/constants";
 import {
   VIRTUAL_CONSULT_LANGUAGE_KEY,
@@ -51,10 +65,9 @@ import {
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
 import { useToast } from "@/hooks/useToast";
+import { orderDetailKindInUrlFromCategoryKey } from "@/lib/orderDetailRoutes";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import "./OrderDetailsPage.css";
-
-const LINE_ITEMS_PREVIEW = 5;
 
 function BannerIcon({
   tone,
@@ -148,55 +161,6 @@ function PrescriptionListIcon() {
   );
 }
 
-type ConsultationAttachIconKind = "image" | "pdf" | "file";
-
-function consultationAttachmentIconKind(url: string | null, label: string): ConsultationAttachIconKind {
-  const raw = `${url ?? ""} ${label}`.toLowerCase();
-  if (/\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(raw)) return "image";
-  if (/\.pdf(\?|#|$)/i.test(raw)) return "pdf";
-  return "file";
-}
-
-function AttachmentKindIcon({ kind }: Readonly<{ kind: ConsultationAttachIconKind }>) {
-  if (kind === "image") {
-    return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-        <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
-        <path
-          d="M21 15l-5-5-4 4-3-3-6 6"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  if (kind === "pdf") {
-    return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M7 3h7l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path d="M14 3v5h5M9 12h6M9 16h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M7 3h7l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function formatTxnIdDisplay(raw: string | null): string | null {
   const t = raw?.trim();
   if (!t) return null;
@@ -261,341 +225,16 @@ function doctorInitial(name: string): string {
   return t.length ? t.charAt(0).toUpperCase() : "?";
 }
 
-type ConsultationManagedFilesTabsProps = Readonly<{
-  attachments: readonly ConsultationAttachmentRow[];
-  reports: readonly ConsultationAttachmentRow[];
-  refId: string | null;
-  onPreview: (rows: readonly ConsultationAttachmentRow[], url: string | null, name: string) => void;
-  attachmentFileInputRef: RefObject<HTMLInputElement | null>;
-  reportFileInputRef: RefObject<HTMLInputElement | null>;
-  attachmentAddBusy: boolean;
-  reportUploadBusy: boolean;
-  onPickAttachments: () => void;
-  onPickReports: () => void;
-  onAttachmentFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  onReportFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
-}>;
-
-function ConsultationManagedFilesTabs({
-  attachments,
-  reports,
-  refId,
-  onPreview,
-  attachmentFileInputRef,
-  reportFileInputRef,
-  attachmentAddBusy,
-  reportUploadBusy,
-  onPickAttachments,
-  onPickReports,
-  onAttachmentFileChange,
-  onReportFileChange,
-}: ConsultationManagedFilesTabsProps) {
-  const [tab, setTab] = useState<ConsultationUploadRefType>("ATTACHMENT");
-  const [listKind, setListKind] = useState<ConsultationUploadRefType | null>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const dialogTitleId = useId();
-
-  useEffect(() => {
-    const d = dialogRef.current;
-    if (!d) return;
-    if (listKind != null) {
-      if (!d.open) d.showModal();
-    } else if (d.open) {
-      d.close();
-    }
-  }, [listKind]);
-
-  const items = tab === "ATTACHMENT" ? attachments : reports;
-  const listItems = listKind === "REPORT" ? reports : attachments;
-  const listHeading = listKind === "REPORT" ? "Reports" : "Attachments";
-  const uploadBusy = tab === "ATTACHMENT" ? attachmentAddBusy : reportUploadBusy;
-  const addDisabled = !refId?.trim() || uploadBusy;
-  const rowKeyPrefix = tab === "ATTACHMENT" ? "att" : "rep";
-
-  return (
-    <>
-      <section className="od-card od-card--attach od-card--attach-managed od-card--attach-tabs" aria-label="Files">
-        <div className="od-attach-tabs" role="tablist" aria-label="Attachments or reports">
-          <button
-            type="button"
-            role="tab"
-            className="od-attach-tabs__tab"
-            aria-selected={tab === "ATTACHMENT"}
-            onClick={() => setTab("ATTACHMENT")}
-          >
-            Attachments
-            {attachments.length > 0 ? (
-              <span className="od-attach-tabs__count">{attachments.length}</span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className="od-attach-tabs__tab"
-            aria-selected={tab === "REPORT"}
-            onClick={() => setTab("REPORT")}
-          >
-            Reports
-            {reports.length > 0 ? <span className="od-attach-tabs__count">{reports.length}</span> : null}
-          </button>
-        </div>
-        <div className="od-attach-tabs__panel" role="tabpanel">
-          <div className="od-attach-tabs__toolbar">
-            <button
-              type="button"
-              className="od-attach-add-btn"
-              disabled={addDisabled}
-              onClick={() => (tab === "ATTACHMENT" ? onPickAttachments() : onPickReports())}
-            >
-              {uploadBusy ? "Adding…" : "Add"}
-            </button>
-          </div>
-          <input
-            ref={attachmentFileInputRef}
-            type="file"
-            className="od-attach-file-input"
-            accept="image/*,.pdf,.doc,.docx,application/pdf"
-            multiple
-            aria-label="Add consultation attachment"
-            onChange={(e) => void onAttachmentFileChange(e)}
-          />
-          <input
-            ref={reportFileInputRef}
-            type="file"
-            className="od-attach-file-input"
-            accept="image/*,.pdf,.doc,.docx,application/pdf"
-            multiple
-            aria-label="Add consultation report"
-            onChange={(e) => void onReportFileChange(e)}
-          />
-          <div className="od-attach-strip">
-            <div className="od-attach-strip__icons">
-              {items.length === 0 ? (
-                <span className="od-attach-strip__empty">
-                  No files yet — use Add or open the list
-                </span>
-              ) : (
-                items.slice(0, 8).map((a, i) => {
-                  const k = consultationAttachmentIconKind(a.url, a.label);
-                  const hasUrl = Boolean(a.url?.trim());
-                  const rows = tab === "ATTACHMENT" ? attachments : reports;
-                  return (
-                    <button
-                      key={`${rowKeyPrefix}-${a.label}-${i}`}
-                      type="button"
-                      className="od-attach-strip__chip"
-                      data-attach-kind={k}
-                      title={a.label}
-                      disabled={!hasUrl}
-                      onClick={() => onPreview(rows, a.url, a.label)}
-                    >
-                      <AttachmentKindIcon kind={k} />
-                    </button>
-                  );
-                })
-              )}
-            </div>
-            <button type="button" className="od-attach-strip__cta" onClick={() => setListKind(tab)}>
-              {items.length > 0 ? `View list (${items.length})` : "Open list"}
-            </button>
-          </div>
-        </div>
-      </section>
-      <dialog
-        ref={dialogRef}
-        className="od-attach-dialog"
-        aria-labelledby={dialogTitleId}
-        onClose={() => setListKind(null)}
-        onCancel={(e) => {
-          e.preventDefault();
-          setListKind(null);
-        }}
-      >
-        <div className="od-attach-dialog__panel">
-          <h2 id={dialogTitleId} className="od-attach-dialog__title">
-            {listHeading}
-          </h2>
-          {listItems.length === 0 ? (
-            <p className="od-attach-dialog__empty">Nothing uploaded yet.</p>
-          ) : (
-            <ul className="od-attach-dialog__list">
-              {listItems.map((a, i) => {
-                const k = consultationAttachmentIconKind(a.url, a.label);
-                const dlgPrefix = listKind === "REPORT" ? "rep" : "att";
-                return (
-                  <li key={`${dlgPrefix}-dlg-${a.label}-${i}`} className="od-attach-dialog__item">
-                    <span className="od-attach-dialog__item-kind" data-attach-kind={k}>
-                      <AttachmentKindIcon kind={k} />
-                    </span>
-                    <div className="od-attach-dialog__item-main">
-                      <span className="od-attach-dialog__item-label">{a.label}</span>
-                      {a.url ? (
-                        <button
-                          type="button"
-                          className="od-attach-dialog__link od-attach-dialog__link--btn"
-                          onClick={() => {
-                            onPreview(listItems, a.url, a.label);
-                            setListKind(null);
-                          }}
-                        >
-                          View
-                        </button>
-                      ) : (
-                        <span className="od-attach-dialog__muted">No link</span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <footer className="od-attach-dialog__footer">
-            <button type="button" className="od-attach-dialog__btn" onClick={() => setListKind(null)}>
-              Done
-            </button>
-          </footer>
-        </div>
-      </dialog>
-    </>
-  );
-}
-
-type ConsultationAttachReportsReadOnlyTabsProps = Readonly<{
-  attachments: readonly ConsultationAttachmentRow[];
-  reports: readonly ConsultationAttachmentRow[];
-  onPreview: (rows: readonly ConsultationAttachmentRow[], url: string | null, name: string) => void;
-}>;
-
-function ConsultationAttachReportsReadOnlyTabs({
-  attachments,
-  reports,
-  onPreview,
-}: ConsultationAttachReportsReadOnlyTabsProps) {
-  const [tab, setTab] = useState<ConsultationUploadRefType>("ATTACHMENT");
-  const hasAtt = attachments.length > 0;
-  const hasRep = reports.length > 0;
-
-  if (!hasAtt && !hasRep) {
-    return (
-      <section className="od-card od-card--attach" aria-label="Attachments">
-        <h3 className="od-card__title">Attachments</h3>
-        <p className="od-attach-empty">No attachments</p>
-      </section>
-    );
-  }
-
-  if (!hasRep) {
-    return (
-      <section className="od-card od-card--attach" aria-label="Attachments">
-        <h3 className="od-card__title">Attachments</h3>
-        <ul className="od-attach-list">
-          {attachments.map((a, i) => (
-            <li key={`${a.label}-${i}`} className="od-attach-item">
-              {a.url ? (
-                <button
-                  type="button"
-                  className="od-attach-item__link od-attach-item__link--btn"
-                  onClick={() => onPreview(attachments, a.url, a.label)}
-                >
-                  {a.label}
-                </button>
-              ) : (
-                <span className="od-attach-item__text">{a.label}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
-  }
-
-  if (!hasAtt) {
-    return (
-      <section className="od-card od-card--attach" aria-label="Reports">
-        <h3 className="od-card__title">Reports</h3>
-        <ul className="od-attach-list">
-          {reports.map((a, i) => (
-            <li key={`rep-${a.label}-${i}`} className="od-attach-item">
-              {a.url ? (
-                <button
-                  type="button"
-                  className="od-attach-item__link od-attach-item__link--btn"
-                  onClick={() => onPreview(reports, a.url, a.label)}
-                >
-                  {a.label}
-                </button>
-              ) : (
-                <span className="od-attach-item__text">{a.label}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
-  }
-
-  const items = tab === "ATTACHMENT" ? attachments : reports;
-  const emptyMsg = tab === "ATTACHMENT" ? "No attachments" : "No reports";
-
-  return (
-    <section className="od-card od-card--attach od-card--attach-tabs" aria-label="Attachments and reports">
-      <div className="od-attach-tabs" role="tablist" aria-label="Attachments or reports">
-        <button
-          type="button"
-          role="tab"
-          className="od-attach-tabs__tab"
-          aria-selected={tab === "ATTACHMENT"}
-          onClick={() => setTab("ATTACHMENT")}
-        >
-          Attachments
-          <span className="od-attach-tabs__count">{attachments.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className="od-attach-tabs__tab"
-          aria-selected={tab === "REPORT"}
-          onClick={() => setTab("REPORT")}
-        >
-          Reports
-          <span className="od-attach-tabs__count">{reports.length}</span>
-        </button>
-      </div>
-      <div className="od-attach-tabs__panel od-attach-tabs__panel--readonly" role="tabpanel">
-        {items.length === 0 ? (
-          <p className="od-attach-empty od-attach-empty--tab">{emptyMsg}</p>
-        ) : (
-          <ul className="od-attach-list od-attach-list--tab">
-            {items.map((a, i) => (
-              <li key={`${tab}-${a.label}-${i}`} className="od-attach-item">
-                {a.url ? (
-                  <button
-                    type="button"
-                    className="od-attach-item__link od-attach-item__link--btn"
-                    onClick={() => onPreview(items, a.url, a.label)}
-                  >
-                    {a.label}
-                  </button>
-                ) : (
-                  <span className="od-attach-item__text">{a.label}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </section>
-  );
-}
-
 export function OrderDetailsPage() {
-  const { invoiceId } = useParams<{ invoiceId: string }>();
+  const { orderKind: orderKindFromUrl, invoiceId } = useParams<{
+    orderKind?: string;
+    invoiceId: string;
+  }>();
   const navigate = useNavigate();
   const toast = useToast();
   const [detail, setDetail] = useState<InvoiceDetailModel | null>(null);
   const [consultationCompleted, setConsultationCompleted] =
     useState<InvoiceConsultationCompletedView | null>(null);
-  const [appointmentIdForOrderCard, setAppointmentIdForOrderCard] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linesExpanded, setLinesExpanded] = useState(false);
@@ -618,29 +257,27 @@ export function OrderDetailsPage() {
   const reportFileInputRef = useRef<HTMLInputElement>(null);
   const cancelDialogTitleId = useId();
   const cancelReasonFieldId = useId();
+  /** `order_id` for `medicine/order/paymentverify` when returned on confirm; else Razorpay order id. */
+  const pharmacyVerifyOrderIdRef = useRef<string | null>(null);
   const load = useCallback(async () => {
     if (!invoiceId) {
       setError("Missing order id");
       setDetail(null);
       setConsultationCompleted(null);
-      setAppointmentIdForOrderCard(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const { detail: d, consultationCompleted: cc, appointmentIdForOrderCard: apptId } =
-        await fetchInvoiceOrderPageData(invoiceId);
+      const { detail: d, consultationCompleted: cc } = await fetchInvoiceOrderPageData(invoiceId);
       setDetail(d);
       setConsultationCompleted(cc);
-      setAppointmentIdForOrderCard(apptId);
-      setLinesExpanded(d.lineItems.length <= LINE_ITEMS_PREVIEW);
+      setLinesExpanded(d.lineItems.length <= ORDER_DETAIL_LINE_ITEMS_PREVIEW);
       setPrescriptionOpen(cc != null && cc.prescriptions.length <= 1);
     } catch (e) {
       setDetail(null);
       setConsultationCompleted(null);
-      setAppointmentIdForOrderCard(null);
       setError(e instanceof Error ? e.message : "Could not load order");
     } finally {
       setLoading(false);
@@ -697,18 +334,32 @@ export function OrderDetailsPage() {
     void load();
   }, [load]);
 
-  const canCancelConsultation = useMemo(() => {
-    if (detail?.consultationPlaceTag == null) return false;
+  useEffect(() => {
+    if (!detail || !invoiceId) return;
+    const canonical = orderDetailKindInUrlFromCategoryKey(detail.categoryKey);
+    if (orderKindFromUrl !== canonical) {
+      navigate(generatePath(ROUTES.ordersDetail, { orderKind: canonical, invoiceId }), { replace: true });
+    }
+  }, [detail, invoiceId, navigate, orderKindFromUrl]);
+
+  const canCancelOrder = useMemo(() => {
+    if (!detail) return false;
     const serviceId = detail.consultationInfoId?.trim();
     if (!serviceId) return false;
-    const st = detail.consultationInfoStatus;
+    if (detail.isConsultationOrder) {
+      if (detail.consultationPlaceTag == null) return false;
+      const st = detail.consultationInfoStatus;
+      if (st === null) return false;
+      return st !== 1 && st !== 2;
+    }
+    const st = detail.serviceInfoStatus;
     if (st === null) return false;
     return st !== 1 && st !== 2;
   }, [detail]);
 
   useEffect(() => {
-    if (!canCancelConsultation) setCancelDialogOpen(false);
-  }, [canCancelConsultation]);
+    if (!canCancelOrder) setCancelDialogOpen(false);
+  }, [canCancelOrder]);
 
   useEffect(() => {
     const d = cancelDialogRef.current;
@@ -822,7 +473,7 @@ export function OrderDetailsPage() {
     setCancelBusy(true);
     try {
       await patchCancelServiceRequest(serviceId, cancelReason.trim());
-      toast.success("Appointment cancelled");
+      toast.success(detail?.isConsultationOrder ? "Appointment cancelled" : "Order cancelled");
       setCancelDialogOpen(false);
       await load();
     } catch (e) {
@@ -830,7 +481,7 @@ export function OrderDetailsPage() {
     } finally {
       setCancelBusy(false);
     }
-  }, [cancelReason, detail?.consultationInfoId, load, toast]);
+  }, [cancelReason, detail?.consultationInfoId, detail?.isConsultationOrder, load, toast]);
 
   const useWalletForOfflinePayment = false;
 
@@ -839,10 +490,14 @@ export function OrderDetailsPage() {
     if (!id) return;
     setBookingSheetOpen(true);
     setOfflinePaymentPreview(null);
+    pharmacyVerifyOrderIdRef.current = null;
     setBookingPreviewLoading(true);
     void (async () => {
       try {
-        const raw = await patchOfflineAppointmentPaymentPreview(id, useWalletForOfflinePayment);
+        const raw =
+          detail?.categoryKey === "pharmacy" && detail.consultationInfoId?.trim()
+            ? await patchPharmacyOrderPaymentPreview(detail.consultationInfoId.trim(), useWalletForOfflinePayment)
+            : await patchOfflineAppointmentPaymentPreview(id, useWalletForOfflinePayment);
         setOfflinePaymentPreview(mapOfflinePaymentPreviewToSheetModel(raw));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not load payment details");
@@ -851,17 +506,17 @@ export function OrderDetailsPage() {
         setBookingPreviewLoading(false);
       }
     })();
-  }, [invoiceId, toast]);
-
-  const consultationBookingSuccessRoute = useMemo(() => {
-    return detail?.consultationPlaceTag === "virtual"
-      ? ROUTES.consultationVirtualBookingSuccess
-      : ROUTES.consultationHospitalBookingSuccess;
-  }, [detail?.consultationPlaceTag]);
+  }, [detail?.categoryKey, detail?.consultationInfoId, invoiceId, toast]);
 
   const onPaymentVerifiedRef = useRef<() => void>(() => {});
   const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
   const setBookingProceedBusyRef = useRef<(busy: boolean) => void>(() => {});
+
+  const pharmacyPayReturnPath = useMemo(() => {
+    if (!invoiceId) return ROUTES.orders;
+    const kind = orderDetailKindInUrlFromCategoryKey(detail?.categoryKey ?? "pharmacy");
+    return generatePath(ROUTES.ordersDetail, { orderKind: kind, invoiceId });
+  }, [invoiceId, detail?.categoryKey]);
 
   useEffect(() => {
     setBookingProceedBusyRef.current = setBookingProceedBusy;
@@ -869,15 +524,46 @@ export function OrderDetailsPage() {
       setBookingSheetOpen(false);
       setOfflinePaymentPreview(null);
       setBookingProceedBusy(false);
-      navigate(consultationBookingSuccessRoute, { replace: true });
+      pharmacyVerifyOrderIdRef.current = null;
+      if (detail?.isConsultationOrder) {
+        navigate(
+          detail.consultationPlaceTag === "virtual"
+            ? ROUTES.consultationVirtualBookingSuccess
+            : ROUTES.consultationHospitalBookingSuccess,
+          { replace: true },
+        );
+      } else if (detail?.categoryKey === "pharmacy") {
+        navigate(ROUTES.pharmacyOrderSuccess, {
+          replace: true,
+          state: { returnPath: pharmacyPayReturnPath },
+        });
+      } else {
+        toast.success("Payment successful");
+        void load();
+      }
     };
     onPaymentVerifyErrorRef.current = (message: string) => {
       toast.error(message);
       setBookingProceedBusy(false);
     };
-  }, [consultationBookingSuccessRoute, navigate, toast]);
+  }, [
+    detail?.categoryKey,
+    detail?.consultationPlaceTag,
+    detail?.isConsultationOrder,
+    load,
+    navigate,
+    pharmacyPayReturnPath,
+    toast,
+  ]);
 
   useConsultationPaymentVerify({
+    onSuccessRef: onPaymentVerifiedRef,
+    onErrorRef: onPaymentVerifyErrorRef,
+    setBusyRef: setBookingProceedBusyRef,
+  });
+
+  usePharmacyOrderPaymentVerify({
+    verifyOrderIdRef: pharmacyVerifyOrderIdRef,
     onSuccessRef: onPaymentVerifiedRef,
     onErrorRef: onPaymentVerifyErrorRef,
     setBusyRef: setBookingProceedBusyRef,
@@ -888,6 +574,42 @@ export function OrderDetailsPage() {
     if (!id) return;
     setBookingProceedBusy(true);
     try {
+      if (detail?.categoryKey === "pharmacy" && detail.consultationInfoId?.trim()) {
+        const medicineOrderId = detail.consultationInfoId.trim();
+        const res = await patchPharmacyOrderPaymentConfirm(medicineOrderId, useWalletForOfflinePayment);
+        pharmacyVerifyOrderIdRef.current = res.verifyOrderId ?? medicineOrderId;
+        const rzp = res.razorpayPayload;
+        if (rzp != null && Object.keys(rzp).length > 0) {
+          await loadRazorpayScript();
+          if (!window.Razorpay) {
+            toast.error("Razorpay Checkout could not load. Check your network or ad blocker.");
+            setBookingProceedBusy(false);
+            return;
+          }
+          openRazorpayCheckoutWithEvent(rzp, PHARMACY_PAYMENT_DONE_EVENT, (failMsg) => {
+            if (!isPaymentCancelledMessage(failMsg)) {
+              toast.error(failMsg);
+            }
+            setBookingProceedBusy(false);
+          });
+          return;
+        }
+        if (!res.paymentRequired) {
+          setBookingSheetOpen(false);
+          setOfflinePaymentPreview(null);
+          setBookingProceedBusy(false);
+          pharmacyVerifyOrderIdRef.current = null;
+          navigate(ROUTES.pharmacyOrderSuccess, {
+            replace: true,
+            state: { returnPath: pharmacyPayReturnPath },
+          });
+          return;
+        }
+        toast.error(res.message ?? "Payment could not be started");
+        setBookingProceedBusy(false);
+        return;
+      }
+
       const res = await patchOfflineAppointmentPaymentConfirm(id, useWalletForOfflinePayment);
       const rzp = res.razorpayPayload;
       if (rzp != null && Object.keys(rzp).length > 0) {
@@ -909,7 +631,17 @@ export function OrderDetailsPage() {
         setBookingSheetOpen(false);
         setOfflinePaymentPreview(null);
         setBookingProceedBusy(false);
-        navigate(consultationBookingSuccessRoute, { replace: true });
+        if (detail?.isConsultationOrder) {
+          navigate(
+            detail.consultationPlaceTag === "virtual"
+              ? ROUTES.consultationVirtualBookingSuccess
+              : ROUTES.consultationHospitalBookingSuccess,
+            { replace: true },
+          );
+        } else {
+          toast.success("Payment successful");
+          void load();
+        }
         return;
       }
       toast.error(res.message ?? "Payment could not be started");
@@ -918,7 +650,17 @@ export function OrderDetailsPage() {
       toast.error(e instanceof Error ? e.message : "Could not proceed");
       setBookingProceedBusy(false);
     }
-  }, [consultationBookingSuccessRoute, invoiceId, navigate, toast]);
+  }, [
+    detail?.categoryKey,
+    detail?.consultationInfoId,
+    detail?.consultationPlaceTag,
+    detail?.isConsultationOrder,
+    invoiceId,
+    load,
+    navigate,
+    pharmacyPayReturnPath,
+    toast,
+  ]);
 
   useEffect(() => {
     if (!bookingSheetOpen) return;
@@ -932,9 +674,11 @@ export function OrderDetailsPage() {
   const lineItemsSlice = useMemo(() => {
     if (!detail) return { visible: [], hasMore: false, total: 0 };
     const total = detail.lineItems.length;
-    const hasMore = total > LINE_ITEMS_PREVIEW;
+    const hasMore = total > ORDER_DETAIL_LINE_ITEMS_PREVIEW;
     const visible =
-      !hasMore || linesExpanded ? detail.lineItems : detail.lineItems.slice(0, LINE_ITEMS_PREVIEW);
+      !hasMore || linesExpanded
+        ? detail.lineItems
+        : detail.lineItems.slice(0, ORDER_DETAIL_LINE_ITEMS_PREVIEW);
     return { visible, hasMore, total };
   }, [detail, linesExpanded]);
 
@@ -946,15 +690,8 @@ export function OrderDetailsPage() {
       cc.recommendation != null ||
       cc.history != null);
   const showInvoiceDetailsCard = detail != null && detail.lineItems.length > 0;
-  const orderReferenceLabel = appointmentIdForOrderCard ? "Appointment ID" : "Order ID";
-  const orderReferenceRaw = appointmentIdForOrderCard ?? detail?.orderIdDisplay ?? "—";
-  const orderReferenceValue =
-    appointmentIdForOrderCard &&
-    detail?.consultationPlaceTag &&
-    orderReferenceRaw !== "—" &&
-    !orderReferenceRaw.startsWith("#")
-      ? `#${orderReferenceRaw}`
-      : orderReferenceRaw;
+  const orderReferenceLabel = "Order ID";
+  const orderReferenceValue = detail?.infoOrderIdFormatted ?? "—";
   const discountRowLabel = cc != null ? "Saved (Discount)" : "Discount";
   const collectionFeeRowLabel = cc != null ? "Convenience fee" : "Collection fee";
   const showFollowUpFooter = !loading && !error && detail != null && cc?.followUp != null;
@@ -967,22 +704,34 @@ export function OrderDetailsPage() {
     }
   };
 
-  const headerTitle = loading ? "Loading…" : "Order Details";
+  const headerTitle = useMemo(() => {
+    if (loading) return "Loading…";
+    if (detail) return `${detail.serviceTypeLabel} details`;
+    return "Order details";
+  }, [loading, detail]);
 
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
+
+  /** Razorpay / offline preview flow — consultation keeps legacy flags; other services use `info` status + unpaid. */
   const showPayConfirmBooking = useMemo(() => {
-    if (!detail?.isConsultationOrder) return false;
-    return (
-      detail.netPayAmount > 0 &&
-      detail.consultationInfoStatus === 4 &&
-      detail.consultationPaymentRequired === true
-    );
+    if (!detail) return false;
+    if (detail.netPayAmount <= 0) return false;
+    if (detail.isConsultationOrder) {
+      return detail.consultationInfoStatus === 4 && detail.consultationPaymentRequired === true;
+    }
+    if (detail.serviceInfoStatus !== 4) return false;
+    if (!detail.dataAdditionalInfoPaymentRequiredKeyPresent) return false;
+    if (!detail.dataAdditionalInfoPaymentRequired) return false;
+    return true;
   }, [detail]);
 
   const isPaymentPendingBanner = useMemo(() => {
-    if (!detail?.isConsultationOrder) return false;
-    return detail.consultationInfoStatus === 4 && detail.consultationPaymentRequired === true;
-  }, [detail]);
+    if (!detail) return false;
+    if (detail.isConsultationOrder) {
+      return detail.consultationInfoStatus === 4 && detail.consultationPaymentRequired === true;
+    }
+    return showPayConfirmBooking;
+  }, [detail, showPayConfirmBooking]);
 
   const visitCardVisible = useMemo(() => {
     if (detail?.consultationPlaceTag === "virtual") return false;
@@ -1004,14 +753,13 @@ export function OrderDetailsPage() {
   }, [detail?.consultationInfoStatus, detail?.isConsultationOrder]);
 
   const patientDetailsVisible = useMemo(() => {
-    if (!detail?.isConsultationOrder) return false;
+    if (!detail) return false;
     if (detail.patientName.trim().length > 0) return true;
     const p = detail.consultationPatient;
     return Boolean(p?.phone || p?.email || p?.ageGenderLine);
   }, [detail]);
 
-  const showConsultationFooter =
-    isConsultationLayout && (canCancelConsultation || showPayConfirmBooking);
+  const showOrderActionFooter = showPayConfirmBooking || canCancelOrder;
 
   return (
     <div className="od-detail-page">
@@ -1034,7 +782,7 @@ export function OrderDetailsPage() {
       </header>
 
       <main
-        className={`od-main${showFollowUpFooter ? " od-main--follow" : ""}${showConsultationFooter ? " od-main--consult-footer" : ""}`}
+        className={`od-main${showFollowUpFooter ? " od-main--follow" : ""}${showOrderActionFooter ? " od-main--consult-footer" : ""}`}
       >
         {loading ? (
           <>
@@ -1129,39 +877,10 @@ export function OrderDetailsPage() {
                 </section>
 
                 {patientDetailsVisible ? (
-                  <section className="od-card od-card--patient" aria-label="Patient details">
-                    <h3 className="od-card__title">Patient Details</h3>
-                    {detail.patientName.trim().length > 0 ? (
-                      <div className="od-row">
-                        <span className="od-row__label">Patient Name</span>
-                        <span className="od-row__value od-row__value--other">{detail.patientName}</span>
-                      </div>
-                    ) : null}
-                    {detail.consultationPatient?.phone ? (
-                      <div className="od-row">
-                        <span className="od-row__label">Phone</span>
-                        <span className="od-row__value od-row__value--other">
-                          {detail.consultationPatient.phone}
-                        </span>
-                      </div>
-                    ) : null}
-                    {detail.consultationPatient?.email ? (
-                      <div className="od-row">
-                        <span className="od-row__label">Email</span>
-                        <span className="od-row__value od-row__value--other">
-                          {detail.consultationPatient.email}
-                        </span>
-                      </div>
-                    ) : null}
-                    {detail.consultationPatient?.ageGenderLine ? (
-                      <div className="od-row">
-                        <span className="od-row__label">Age / Gender</span>
-                        <span className="od-row__value od-row__value--other">
-                          {detail.consultationPatient.ageGenderLine}
-                        </span>
-                      </div>
-                    ) : null}
-                  </section>
+                  <OrderDetailPatientSection
+                    patientName={detail.patientName}
+                    consultationPatient={detail.consultationPatient}
+                  />
                 ) : null}
 
                 {detail.consultationPlaceTag === "virtual" &&
@@ -1233,62 +952,62 @@ export function OrderDetailsPage() {
                 ) : null}
               </>
             ) : (
-              <section className="od-card od-card--order-patient">
-                <div className="od-card__head od-card__head--order-user">
-                  <h3 className="od-card__title">Order &amp; user</h3>
-                  {detail.consultationPlaceTag ? (
-                    <span
-                      className={`od-place-tag od-place-tag--${detail.consultationPlaceTag}`}
-                    >
-                      {detail.consultationPlaceTag === "virtual" ? "Virtual" : "In-person"}
-                    </span>
-                  ) : null}
-                </div>
-                <div className="od-row">
-                  <span className="od-row__label">{orderReferenceLabel}</span>
-                  <span className="od-row__value od-row__value--other">{orderReferenceValue}</span>
-                </div>
-                <div className="od-row od-service-row">
-                  <span className="od-row__label">Service Type</span>
-                  <div className="od-row__value-row">
-                    <span className="od-row__value od-row__value--other">{detail.serviceTypeLabel}</span>
-                    <OrderCategoryIcon
-                      categoryKey={detail.categoryKey}
-                      width={22}
-                      height={22}
-                      className="od-row__svc-icon"
-                    />
-                  </div>
-                </div>
-                <div className="od-row">
-                  <span className="od-row__label">Order Date</span>
-                  <span className="od-row__value od-row__value--other">{detail.orderDateTimeDisplay}</span>
-                </div>
-                <div className="od-row">
-                  <span className="od-row__label">User</span>
-                  <span className="od-row__value od-row__value--other">{detail.patientName}</span>
-                </div>
-                {detail.vendorName === "—" ? null : (
-                  <div className="od-row">
-                    <span className="od-row__label">Vendor</span>
-                    <span className="od-row__value od-row__value--other">{detail.vendorName}</span>
-                  </div>
-                )}
-                {canCancelConsultation && !showConsultationFooter ? (
-                  <div className="od-order-cancel-wrap">
-                    <button
-                      type="button"
-                      className="od-btn-cancel-appt"
-                      onClick={() => {
-                        setCancelReason("");
-                        setCancelDialogOpen(true);
-                      }}
-                    >
-                      Cancel appointment
-                    </button>
-                  </div>
+              <>
+                <OrderDetailServiceMetaCard
+                  orderReferenceLabel={orderReferenceLabel}
+                  orderReferenceValue={orderReferenceValue}
+                  visitTypeLabel={detail.serviceVisitTypeLabel}
+                  categoryKey={detail.categoryKey}
+                  orderDateTimeDisplay={detail.orderDateTimeDisplay}
+                  vendorName={detail.vendorName}
+                  placeTag={detail.consultationPlaceTag}
+                  cancelAppointmentVisible={canCancelOrder && !showOrderActionFooter}
+                  onCancelAppointment={() => {
+                    setCancelReason("");
+                    setCancelDialogOpen(true);
+                  }}
+                />
+                {patientDetailsVisible ? (
+                  <OrderDetailPatientSection
+                    patientName={detail.patientName}
+                    consultationPatient={detail.consultationPatient}
+                  />
                 ) : null}
-              </section>
+                {detail.pharmacyOrderLocation ? (
+                  <section
+                    className="od-card od-card--visit od-card--pharmacy-loc"
+                    aria-label={detail.pharmacyOrderLocation.cardTitle}
+                  >
+                    <h3 className="od-card__title">{detail.pharmacyOrderLocation.cardTitle}</h3>
+                    {detail.pharmacyOrderLocation.headerName ? (
+                      <p className="od-visit__facility">{detail.pharmacyOrderLocation.headerName}</p>
+                    ) : null}
+                    {detail.pharmacyOrderLocation.addressText || detail.pharmacyOrderLocation.mapsUrl ? (
+                      <div className="od-pharmacy-loc__addr-line">
+                        {detail.pharmacyOrderLocation.addressText ? (
+                          <p className="od-visit__addr">{detail.pharmacyOrderLocation.addressText}</p>
+                        ) : (
+                          <span className="od-pharmacy-loc__addr-spacer" aria-hidden />
+                        )}
+                        {detail.pharmacyOrderLocation.mapsUrl ? (
+                          <a
+                            className="od-visit__map-btn od-visit__map-btn--pharmacy"
+                            href={detail.pharmacyOrderLocation.mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="Open directions in maps"
+                          >
+                            <NavMapIcon />
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {detail.pharmacyOrderLocation.phoneText ? (
+                      <p className="od-pharmacy__phone">Phone: {detail.pharmacyOrderLocation.phoneText}</p>
+                    ) : null}
+                  </section>
+                ) : null}
+              </>
             )}
 
             {showClinicalCard && cc ? (
@@ -1401,183 +1120,28 @@ export function OrderDetailsPage() {
                 reports={detail.consultationReports}
                 onPreview={openConsultationFilePreview}
               />
-            ) : cc != null && cc.attachments.length > 0 ? (
-              <section className="od-card od-card--attach" aria-label="Attachments">
-                <h3 className="od-card__title">Attachments</h3>
-                <ul className="od-attach-list">
-                  {cc.attachments.map((a, i) => (
-                    <li key={`${a.label}-${i}`} className="od-attach-item">
-                      {a.url ? (
-                        <button
-                          type="button"
-                          className="od-attach-item__link od-attach-item__link--btn"
-                          onClick={() => openConsultationFilePreview(cc.attachments, a.url, a.label)}
-                        >
-                          {a.label}
-                        </button>
-                      ) : (
-                        <span className="od-attach-item__text">{a.label}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+            ) : (
+              <ConsultationAttachReportsReadOnlyTabs
+                attachments={detail.consultationAttachments}
+                reports={detail.categoryKey === "pharmacy" ? [] : detail.consultationReports}
+                onPreview={openConsultationFilePreview}
+              />
+            )}
 
             {showInvoiceDetailsCard ? (
-              <section className={`od-card${isConsultationLayout ? " od-card--invoice-consult" : ""}`}>
-                <div className="od-card__head">
-                  <h3 className="od-card__title">
-                    {isConsultationLayout || cc != null ? "Invoice details" : "Service Details"}
-                  </h3>
-                  {lineItemsSlice.total > LINE_ITEMS_PREVIEW ? (
-                    <span className="od-card__count">{lineItemsSlice.total} items</span>
-                  ) : null}
-                </div>
-                {detail.lineItems.length > 0 ? (
-                  <>
-                    <div
-                      className={`od-table-wrap${lineItemsSlice.hasMore && linesExpanded ? " od-table-wrap--lines-scroll" : ""}`}
-                    >
-                      <table
-                        className={`od-table od-table--compact${isConsultationLayout ? " od-table--invoice5" : ""}`}
-                      >
-                        <thead>
-                          <tr>
-                            <th scope="col">{isConsultationLayout ? "Description" : "Product"}</th>
-                            {isConsultationLayout ? (
-                              <th scope="col" className="od-table__num">
-                                MRP
-                              </th>
-                            ) : null}
-                            <th scope="col" className="od-table__num">
-                              {isConsultationLayout ? "Price" : "Qty"}
-                            </th>
-                            <th scope="col" className="od-table__num">
-                              {isConsultationLayout ? "Qty" : "Price"}
-                            </th>
-                            <th scope="col" className="od-table__num">
-                              {isConsultationLayout ? "Amount" : "Amt"}
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {lineItemsSlice.visible.map((line, i) =>
-                            isConsultationLayout ? (
-                              <tr key={`${line.productName}-${i}`}>
-                                <td className="od-table__product">{line.productName}</td>
-                                <td className="od-table__num">{line.mrpFormatted ?? "—"}</td>
-                                <td className="od-table__num">{line.unitPriceFormatted}</td>
-                                <td className="od-table__num">{line.qty}</td>
-                                <td className="od-table__num od-table__strong">{line.lineTotalFormatted}</td>
-                              </tr>
-                            ) : (
-                              <tr key={`${line.productName}-${i}`}>
-                                <td className="od-table__product">{line.productName}</td>
-                                <td className="od-table__num">{line.qty}</td>
-                                <td className="od-table__num">{line.unitPriceFormatted}</td>
-                                <td className="od-table__num od-table__strong">{line.lineTotalFormatted}</td>
-                              </tr>
-                            ),
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    {lineItemsSlice.hasMore ? (
-                      <button
-                        type="button"
-                        className="od-lines-toggle"
-                        onClick={() => setLinesExpanded((x) => !x)}
-                      >
-                        {linesExpanded
-                          ? `Show less`
-                          : `Show all ${lineItemsSlice.total} items`}
-                      </button>
-                    ) : null}
-                    {isConsultationLayout ? (
-                      <div className="od-inv-foot">
-                        <div className="od-inv-summary">
-                          <div className="od-pay-row od-pay-row--invoice-total">
-                            <span className="od-pay-row__label">Total</span>
-                            <span className="od-pay-row__value">{detail.subTotalFormatted}</span>
-                          </div>
-                          {detail.collectionFeeFormatted ? (
-                            <div className="od-pay-row">
-                              <span className="od-pay-row__label">Convenience charges</span>
-                              <span className="od-pay-row__value od-pay-row__value--add">
-                                {detail.collectionFeeFormatted}
-                              </span>
-                            </div>
-                          ) : null}
-                          {detail.discountFormatted ? (
-                            <div className="od-pay-row">
-                              <span className="od-pay-row__label">Saved</span>
-                              <span className="od-pay-row__value od-pay-row__value--deduct">
-                                {detail.discountFormatted}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="od-pay-row">
-                              <span className="od-pay-row__label">Saved</span>
-                              <span className="od-pay-row__value">- ₹0</span>
-                            </div>
-                          )}
-                          {detail.walletDebitFormatted ? (
-                            <div className="od-pay-row">
-                              <span className="od-pay-row__label">From Wallet</span>
-                              <span className="od-pay-row__value od-pay-row__value--wallet">
-                                {detail.walletDebitFormatted}
-                              </span>
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="od-inv-net">
-                          <span className="od-inv-net__label">Net amount</span>
-                          <span className="od-inv-net__value">{detail.netPayFormatted}</span>
-                        </div>
-                      </div>
-                    ) : null}
-                  </>
-                ) : null}
-              </section>
-            ) : null}
-
-            {!isConsultationLayout ? (
-              <section className="od-card">
-                <h3 className="od-card__title">Payment Summary</h3>
-                <div className="od-pay-row">
-                  <span className="od-pay-row__label">Sub Total</span>
-                  <span className="od-pay-row__value">{detail.subTotalFormatted}</span>
-                </div>
-                {detail.discountFormatted ? (
-                  <div className="od-pay-row">
-                    <span className="od-pay-row__label">{discountRowLabel}</span>
-                    <span className="od-pay-row__value od-pay-row__value--deduct">
-                      {detail.discountFormatted}
-                    </span>
-                  </div>
-                ) : null}
-                {detail.collectionFeeFormatted ? (
-                  <div className="od-pay-row">
-                    <span className="od-pay-row__label">{collectionFeeRowLabel}</span>
-                    <span className="od-pay-row__value od-pay-row__value--add">
-                      {detail.collectionFeeFormatted}
-                    </span>
-                  </div>
-                ) : null}
-                {detail.walletDebitFormatted ? (
-                  <div className="od-pay-row">
-                    <span className="od-pay-row__label">From Wallet</span>
-                    <span className="od-pay-row__value od-pay-row__value--wallet">
-                      {detail.walletDebitFormatted}
-                    </span>
-                  </div>
-                ) : null}
-                <div className="od-pay-total">
-                  <span className="od-pay-total__label">Net Pay</span>
-                  <span className="od-pay-total__value">{detail.netPayFormatted}</span>
-                </div>
-              </section>
+              <OrderDetailInvoiceSection
+                detail={detail}
+                lineItemsSlice={lineItemsSlice}
+                linesExpanded={linesExpanded}
+                onToggleLinesExpanded={() => setLinesExpanded((x) => !x)}
+                consultationStyleInvoice
+              />
+            ) : !isConsultationLayout ? (
+              <OrderDetailPaymentSummaryFallback
+                detail={detail}
+                discountRowLabel={discountRowLabel}
+                collectionFeeRowLabel={collectionFeeRowLabel}
+              />
             ) : null}
 
             {detail.payments.length > 0 ? (
@@ -1600,6 +1164,15 @@ export function OrderDetailsPage() {
           model={offlinePaymentPreview}
           previewLoading={bookingPreviewLoading}
           busy={bookingProceedBusy}
+          serviceWalletNoteContext={
+            detail != null
+              ? {
+                  categoryKey: detail.categoryKey,
+                  serviceTypeLabel: detail.serviceTypeLabel,
+                  isConsultationOrder: detail.isConsultationOrder,
+                }
+              : null
+          }
           onClose={() => {
             if (!bookingProceedBusy) {
               setBookingSheetOpen(false);
@@ -1611,9 +1184,9 @@ export function OrderDetailsPage() {
         />
       ) : null}
 
-      {showConsultationFooter ? (
+      {showOrderActionFooter ? (
         <footer className="od-consult-footer">
-          {canCancelConsultation ? (
+          {canCancelOrder ? (
             <button
               type="button"
               className="od-consult-footer__btn od-consult-footer__btn--cancel"
@@ -1645,7 +1218,7 @@ export function OrderDetailsPage() {
         </footer>
       ) : null}
 
-      {canCancelConsultation ? (
+      {canCancelOrder ? (
         <dialog
           ref={cancelDialogRef}
           className="od-cancel-dialog"
@@ -1659,10 +1232,12 @@ export function OrderDetailsPage() {
         >
           <div className="od-cancel-dialog__panel">
             <h2 id={cancelDialogTitleId} className="od-cancel-dialog__title">
-              Cancel appointment?
+              {isConsultationLayout ? "Cancel appointment?" : "Cancel this order?"}
             </h2>
             <p id={`${cancelDialogTitleId}-desc`} className="od-cancel-dialog__desc">
-              Please tell us why you are cancelling. This helps us improve the service.
+              {isConsultationLayout
+                ? "Please tell us why you are cancelling. This helps us improve the service."
+                : "Please tell us why you want to cancel this order. Our team may contact you if needed."}
             </p>
             <label className="od-cancel-dialog__label" htmlFor={cancelReasonFieldId}>
               Reason for cancellation
@@ -1684,7 +1259,7 @@ export function OrderDetailsPage() {
                 disabled={cancelBusy}
                 onClick={() => setCancelDialogOpen(false)}
               >
-                Keep appointment
+                {isConsultationLayout ? "Keep appointment" : "Keep order"}
               </button>
               <button
                 type="button"

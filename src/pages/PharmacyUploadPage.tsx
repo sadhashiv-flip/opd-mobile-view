@@ -1,8 +1,8 @@
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { uploadPrescriptionFile, type PrescriptionUploadResult } from "@/api/patientUpload";
 import { postMedicineOrder } from "@/api/pharmacy";
-import { readSelectedAddress } from "@/constants/selectedAddressStorage";
-import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
+import { readPharmacyFlowState, resolvePharmacyOrderAddressId } from "@/constants/pharmacyFlowStorage";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -46,6 +46,10 @@ export function PharmacyUploadPage() {
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
   const filesRef = useRef(files);
   filesRef.current = files;
+
+  useEffect(() => {
+    void ensureDefaultSelectedAddressIfNeeded();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -122,8 +126,9 @@ export function PharmacyUploadPage() {
       void navigate(ROUTES.pharmacy, { state: passState, replace: true });
       return;
     }
-    const addr = readSelectedAddress();
-    if (!addr?.id) {
+    await ensureDefaultSelectedAddressIfNeeded();
+    const addressId = resolvePharmacyOrderAddressId(flow);
+    if (!addressId) {
       toast.error("Choose a delivery address.");
       return;
     }
@@ -140,7 +145,7 @@ export function PharmacyUploadPage() {
     setBusy(true);
     try {
       await postMedicineOrder({
-        address_id: addr.id,
+        address_id: addressId,
         prescriptions: ready.map((f) => ({
           type: "OTHER",
           prescription_id: f.uploadResult!.prescriptionId,

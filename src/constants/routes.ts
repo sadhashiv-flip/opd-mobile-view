@@ -103,8 +103,13 @@ export const ROUTES = {
   walletSubscription: "/wallet/:subscriptionId",
   /** Paginated transactions + filters. */
   walletTransactions: "/wallet/:subscriptionId/transactions",
-  /** Invoice / order detail — `GET /invoice/:invoiceId`. */
-  ordersDetail: "/orders/:invoiceId",
+  /**
+   * Invoice / order detail — `GET /invoice/:invoiceId`.
+   * Singular `order` path; `orderKind` is a segment (`consultation`, `gym`, `lab`, …); see {@link orderDetailKindInUrlFromCategoryKey}.
+   */
+  ordersDetail: "/order/:orderKind/:invoiceId",
+  /** Bookmarks and deep links without a kind segment; detail page replaces with canonical {@link ROUTES.ordersDetail}. */
+  ordersDetailLegacy: "/order/:invoiceId",
   /** Legacy path; AppRoutes redirects to `servicesHelpTab`. */
   help: "/help",
   gymMembership: "/services/gym-membership",

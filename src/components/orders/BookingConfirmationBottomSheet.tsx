@@ -1,6 +1,46 @@
 import type { OfflineBookingPaymentSheetModel } from "@/api/patientOfflineAppointmentPayment";
 import "./BookingConfirmationBottomSheet.css";
 
+/** Shapes the wallet disclaimer line for the active order / service type. */
+export type BookingWalletNoteServiceContext = Readonly<{
+  categoryKey: string;
+  serviceTypeLabel: string;
+  isConsultationOrder: boolean;
+}>;
+
+function walletDeductionWhenPhrase(ctx: BookingWalletNoteServiceContext | null | undefined): string {
+  if (ctx == null) return "you confirm this order";
+  if (ctx.isConsultationOrder || ctx.categoryKey === "consultation") {
+    return "you confirm your consultation appointment";
+  }
+  switch (ctx.categoryKey) {
+    case "pharmacy":
+      return "you confirm this pharmacy order";
+    case "lab":
+      return "you confirm this lab test order";
+    case "dental":
+      return "you confirm this dental service order";
+    case "vision":
+      return "you confirm this vision care order";
+    case "vaccine":
+      return "you confirm this vaccination booking";
+    case "gym":
+      return "you confirm this gym booking";
+    case "mental_wellness":
+      return "you confirm this mental wellness booking";
+    case "nutrition":
+      return "you confirm this nutrition service order";
+    default: {
+      const label = ctx.serviceTypeLabel.trim();
+      if (label.length > 0) {
+        const lower = label.charAt(0).toLowerCase() + label.slice(1);
+        return `you confirm this ${lower} order`;
+      }
+      return "you confirm this order";
+    }
+  }
+}
+
 export type BookingConfirmationBottomSheetProps = Readonly<{
   open: boolean;
   onClose: () => void;
@@ -8,6 +48,8 @@ export type BookingConfirmationBottomSheetProps = Readonly<{
   previewLoading: boolean;
   busy: boolean;
   onProceed: () => void;
+  /** When set, the wallet note reflects this service (consultation, pharmacy, lab, etc.). */
+  serviceWalletNoteContext?: BookingWalletNoteServiceContext | null;
 }>;
 
 export function BookingConfirmationBottomSheet({
@@ -17,6 +59,7 @@ export function BookingConfirmationBottomSheet({
   previewLoading,
   busy,
   onProceed,
+  serviceWalletNoteContext,
 }: BookingConfirmationBottomSheetProps) {
   if (!open) return null;
 
@@ -95,7 +138,8 @@ export function BookingConfirmationBottomSheet({
         <div className="od-bc-sep" aria-hidden />
 
         <p className="od-bc-note">
-          Note: Amount will be deducted from your Flip Health Wallet when booking for consultation.
+          Note: Amount will be deducted from your Flip Health Wallet when{" "}
+          {walletDeductionWhenPhrase(serviceWalletNoteContext ?? null)}.
         </p>
 
         <button

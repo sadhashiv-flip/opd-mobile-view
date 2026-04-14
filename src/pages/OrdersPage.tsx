@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import {
   fetchInvoicesPage,
   INVOICE_FILTER_TYPES,
@@ -8,8 +8,16 @@ import {
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ROUTES } from "@/constants";
-import { generatePath, Link, useNavigate } from "react-router-dom";
+import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
+import { generatePath, Link, useNavigate, useSearchParams } from "react-router-dom";
 import "./OrdersPage.css";
+
+const ORDERS_TAB_STORAGE_KEY = "opd-mobile-view.orders.filterTab";
+
+function parseInvoiceFilterTab(raw: string | null): InvoiceFilterId | null {
+  if (!raw) return null;
+  return raw in INVOICE_FILTER_TYPES ? (raw as InvoiceFilterId) : null;
+}
 
 const FILTER_TABS: readonly { id: InvoiceFilterId; label: string }[] = [
   { id: "all", label: "All" },
@@ -79,13 +87,62 @@ function OrderCard({ row }: Readonly<{ row: InvoiceOrderRow }>) {
 
 export function OrdersPage() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<InvoiceFilterId>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tabSynced, setTabSynced] = useState(false);
   const [items, setItems] = useState<readonly InvoiceOrderRow[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const rawTabParam = searchParams.get("tab");
+  const tabFromUrl = parseInvoiceFilterTab(rawTabParam);
+  const filter: InvoiceFilterId = tabFromUrl ?? "all";
+
+  useLayoutEffect(() => {
+    const raw = searchParams.get("tab");
+    if (raw) {
+      const v = parseInvoiceFilterTab(raw);
+      if (v == null) {
+        setSearchParams({}, { replace: true });
+      } else {
+        try {
+          sessionStorage.setItem(ORDERS_TAB_STORAGE_KEY, v);
+        } catch {
+          /* ignore */
+        }
+      }
+      setTabSynced(true);
+      return;
+    }
+    let stored: InvoiceFilterId | null = null;
+    try {
+      stored = parseInvoiceFilterTab(sessionStorage.getItem(ORDERS_TAB_STORAGE_KEY));
+    } catch {
+      /* ignore */
+    }
+    if (stored != null && stored !== "all") {
+      setSearchParams({ tab: stored }, { replace: true });
+    }
+    setTabSynced(true);
+  }, [searchParams, setSearchParams]);
+
+  const setFilterTab = useCallback(
+    (id: InvoiceFilterId) => {
+      try {
+        sessionStorage.setItem(ORDERS_TAB_STORAGE_KEY, id);
+      } catch {
+        /* ignore */
+      }
+      if (id === "all") {
+        setSearchParams({}, { replace: false });
+      } else {
+        setSearchParams({ tab: id }, { replace: false });
+      }
+    },
+    [setSearchParams],
+  );
 
   const loadFirst = useCallback(async (fid: InvoiceFilterId) => {
     setLoading(true);
@@ -110,8 +167,9 @@ export function OrdersPage() {
   }, []);
 
   useEffect(() => {
+    if (!tabSynced) return;
     void loadFirst(filter);
-  }, [filter, loadFirst]);
+  }, [filter, loadFirst, tabSynced]);
 
   const onLoadMore = async () => {
     if (loadingMore || !hasMore) return;
@@ -151,7 +209,7 @@ export function OrdersPage() {
                   role="tab"
                   aria-selected={active}
                   className={`orders-filter-pill${active ? " orders-filter-pill--active" : ""}`}
-                  onClick={() => setFilter(tab.id)}
+                  onClick={() => setFilterTab(tab.id)}
                 >
                   {tab.label}
                 </button>
@@ -186,10 +244,7 @@ export function OrdersPage() {
             {items.map((row) => (
               <li key={row.id} className="orders-list__item">
                 <div className="orders-list__row">
-                  <Link
-                    to={generatePath(ROUTES.ordersDetail, { invoiceId: row.id })}
-                    className="orders-card-link"
-                  >
+                  <Link to={pathToOrderDetail(row.categoryKey, row.id)} className="orders-card-link">
                     <OrderCard row={row} />
                   </Link>
                   {row.canJoinOnlineConsultation && row.videoAppointmentId ? (

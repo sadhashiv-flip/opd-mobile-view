@@ -17,6 +17,7 @@ import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import { HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { cssBackgroundUrl } from "@/lib/cssBackgroundUrl";
+import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useHomeDashboard } from "@/hooks/useHomeDashboard";
 import { useEffect, useState } from "react";
@@ -455,6 +456,7 @@ export function HomePage() {
                           onClick={() =>
                             navigate(
                               generatePath(ROUTES.ordersDetail, {
+                                orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
                                 invoiceId: item.invoiceId,
                               }),
                             )

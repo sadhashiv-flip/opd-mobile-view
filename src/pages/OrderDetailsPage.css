@@ -409,7 +409,7 @@
 }
 
 .od-row__value {
-  font-size: 0.875rem;
+  font-size: 0.775rem;
   font-weight: 700;
   text-align: right;
   word-break: break-word;
@@ -551,6 +551,27 @@
   font-size: 0.8125rem;
   line-height: 1.35;
   min-width: 120px;
+}
+
+.od-table__product-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.od-table__product-name {
+  display: block;
+}
+
+.od-table__payment-required-hint {
+  display: block;
+  font-size: 0.625rem;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #c9a00a;
 }
 
 .od-table__num {
@@ -1241,10 +1262,56 @@
   background: #ff6f00;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(255, 111, 0, 0.35);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .od-visit__map-btn:active {
   opacity: 0.92;
+}
+
+/* Pharmacy delivery / pickup: map sits with the address line, icon optically aligned to text */
+.od-card--pharmacy-loc .od-pharmacy-loc__addr-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.od-card--pharmacy-loc .od-visit__facility + .od-pharmacy-loc__addr-line {
+  margin-top: 2px;
+}
+
+.od-card--pharmacy-loc .od-pharmacy-loc__addr-line .od-visit__addr {
+  flex: 1;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.od-pharmacy-loc__addr-spacer {
+  flex: 1;
+  min-width: 0;
+  min-height: 1em;
+}
+
+.od-visit__map-btn--pharmacy {
+  width: 36px;
+  height: 36px;
+  margin-top: 0;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(255, 111, 0, 0.28);
+}
+
+.od-visit__map-btn--pharmacy svg {
+  width: 19px;
+  height: 19px;
+}
+
+.od-pharmacy__phone {
+  margin: 10px 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111111;
 }
 
 .od-card--invoice-consult .od-card__head {

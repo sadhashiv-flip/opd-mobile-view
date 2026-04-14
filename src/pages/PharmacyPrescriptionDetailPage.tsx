@@ -1,4 +1,5 @@
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { postMedicineOrder } from "@/api/pharmacy";
 import {
   findMockPrescription,
@@ -6,12 +7,11 @@ import {
   type PharmacyMockPrescription,
 } from "@/constants/pharmacyMockData";
 import { readCachedPharmacyPrescription } from "@/constants/pharmacyPrescriptionsCache";
-import { readSelectedAddress } from "@/constants/selectedAddressStorage";
-import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
+import { readPharmacyFlowState, resolvePharmacyOrderAddressId } from "@/constants/pharmacyFlowStorage";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./PharmacyPages.css";
 
 type NavState = Readonly<{ returnPath?: string; prescription?: PharmacyMockPrescription }>;
@@ -95,17 +95,22 @@ export function PharmacyPrescriptionDetailPage() {
   }, [flow, prescriptionId, location.state]);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    void ensureDefaultSelectedAddressIfNeeded();
+  }, []);
+
   const placeOrder = useCallback(async () => {
     if (!rx || !flow) return;
-    const addr = readSelectedAddress();
-    if (!addr?.id) {
+    await ensureDefaultSelectedAddressIfNeeded();
+    const addressId = resolvePharmacyOrderAddressId(flow);
+    if (!addressId) {
       toast.error("Choose a delivery address.");
       return;
     }
     setBusy(true);
     try {
       await postMedicineOrder({
-        address_id: addr.id,
+        address_id: addressId,
         prescriptions: [
           {
             type: "FLIPHEALTH",

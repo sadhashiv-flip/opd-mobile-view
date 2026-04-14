@@ -1,8 +1,8 @@
 import { patientJson } from "@/api/patientHttp";
 
 /**
- * PATCH `/service/request/cancel/:serviceId` — `serviceId` is consultation `info.id`
- * from the invoice payload.
+ * PATCH `appointment/cancel/:serviceId` — `serviceId` is typically invoice `info.id`
+ * (consultation appointment, pharmacy medicine order, …).
  */
 export async function patchCancelServiceRequest(
   serviceId: string,

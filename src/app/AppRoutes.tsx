@@ -72,6 +72,10 @@ import { WalletRedirectPage } from "@/pages/WalletRedirectPage";
 import { WalletPage } from "@/pages/WalletPage";
 import { WalletAllTransactionsPage } from "@/pages/WalletAllTransactionsPage";
 import { VideoCallPage } from "@/pages/VideoCallPage";
+import {
+  LegacyOrdersDetailOneSegmentRedirect,
+  LegacyOrdersDetailTwoSegmentRedirect,
+} from "@/app/LegacyOrdersDetailRedirects";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -166,6 +170,9 @@ export function AppRoutes() {
       <Route path={ROUTES.pharmacyPrescriptionDetail} element={<PharmacyPrescriptionDetailPage />} />
       <Route path={ROUTES.pharmacyOrderSuccess} element={<PharmacyOrderSuccessPage />} />
       <Route path={ROUTES.ordersDetail} element={<OrderDetailsPage />} />
+      <Route path={ROUTES.ordersDetailLegacy} element={<OrderDetailsPage />} />
+      <Route path="/orders/:orderKind/:invoiceId" element={<LegacyOrdersDetailTwoSegmentRedirect />} />
+      <Route path="/orders/:invoiceId" element={<LegacyOrdersDetailOneSegmentRedirect />} />
       <Route path={ROUTES.orders} element={<OrdersPage />} />
       <Route path={ROUTES.notifications} element={<NotificationsPage />} />
       <Route path={ROUTES.walletTransactions} element={<WalletAllTransactionsPage />} />

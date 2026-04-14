@@ -7,6 +7,10 @@ import {
   isHubTabId,
   type HubTabId,
 } from "@/constants/servicesHubContent";
+import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
+import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
+import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
+import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { ROUTES, VISION_ROUTE_TYPE, WELLNESS_SESSION_KIND } from "@/constants";
 import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
 import { SupportTicketFeedbackDialog, FEEDBACK_RATINGS } from "@/components/support/SupportTicketFeedbackDialog";
@@ -95,6 +99,8 @@ export function ServicesHubPage() {
     display: SupportTicketFeedbackDisplay;
   } | null>(null);
   const [visionSheetOpen, setVisionSheetOpen] = useState(false);
+  const [diagnosticsSheetOpen, setDiagnosticsSheetOpen] = useState(false);
+  const [consultationSheetOpen, setConsultationSheetOpen] = useState(false);
 
   const setTab = useCallback(
     (id: HubTabId) => {
@@ -180,6 +186,17 @@ export function ServicesHubPage() {
   useEffect(() => {
     setSupportPage(1);
   }, [supportFilter, supportTicketsFiltered.length]);
+
+  useEffect(() => {
+    const anySheet =
+      visionSheetOpen || diagnosticsSheetOpen || consultationSheetOpen;
+    if (!anySheet) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [visionSheetOpen, diagnosticsSheetOpen, consultationSheetOpen]);
 
   const handleLoadMore = useCallback(() => {
     setSupportPage((current) => current + 1);
@@ -342,6 +359,10 @@ export function ServicesHubPage() {
             let cardAction: (() => void) | undefined;
             if (isHelpSupportCard) {
               cardAction = () => supportSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+            } else if (tabId === "services" && item.id === "diag") {
+              cardAction = () => setDiagnosticsSheetOpen(true);
+            } else if (tabId === "services" && item.id === "consult") {
+              cardAction = () => setConsultationSheetOpen(true);
             } else if (tabId === "services" && item.id === "gym") {
               cardAction = () => {
                 void navigate(ROUTES.gymMembership);
@@ -372,7 +393,10 @@ export function ServicesHubPage() {
               };
             } else if (tabId === "services" && item.id === "vision") {
               cardAction = () => setVisionSheetOpen(true);
-            } else if (tabId === "services" && item.id === "pharm") {
+            } else if (
+              tabId === "services" &&
+              (item.id === "pharm" || item.id === "chronic")
+            ) {
               cardAction = () => {
                 void navigate(ROUTES.pharmacy, {
                   state: { returnPath: `${ROUTES.services}?tab=services` },
@@ -607,6 +631,154 @@ export function ServicesHubPage() {
           </section>
         ) : null}
       </main>
+
+      {diagnosticsSheetOpen ? (
+        <dialog
+          className="home-sheet-dialog"
+          open
+          aria-label="Diagnostics"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDiagnosticsSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setDiagnosticsSheetOpen(false);
+          }}
+        >
+          <section className="home-sheet">
+            <header className="home-sheet__header">
+              <h3 className="home-sheet__title">Diagnostics</h3>
+              <button
+                type="button"
+                className="home-sheet__close"
+                aria-label="Close"
+                onClick={() => setDiagnosticsSheetOpen(false)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </header>
+
+            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={healthCheckupSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="Health Checkups"
+                description="Avail Free Health Checkups"
+                onClick={() => {
+                  setDiagnosticsSheetOpen(false);
+                  void navigate(generatePath(ROUTES.diagnosticsType, { type: "health-checkups" }));
+                }}
+              />
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={labTestsSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="Lab Tests"
+                description="Fully sponsored"
+                onClick={() => {
+                  setDiagnosticsSheetOpen(false);
+                  void navigate(generatePath(ROUTES.diagnosticsType, { type: "lab-tests" }));
+                }}
+              />
+            </div>
+          </section>
+        </dialog>
+      ) : null}
+
+      {consultationSheetOpen ? (
+        <dialog
+          className="home-sheet-dialog"
+          open
+          aria-label="Consultation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConsultationSheetOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setConsultationSheetOpen(false);
+          }}
+        >
+          <section className="home-sheet">
+            <header className="home-sheet__header">
+              <h3 className="home-sheet__title">Consultation</h3>
+              <button
+                type="button"
+                className="home-sheet__close"
+                aria-label="Close"
+                onClick={() => setConsultationSheetOpen(false)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M18 6L6 18M6 6l12 12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </header>
+
+            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={atHospitalSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="At Hospital"
+                description="Book Your OPD Consultations Here"
+                onClick={() => {
+                  setConsultationSheetOpen(false);
+                  void navigate(generatePath(ROUTES.consultation, { type: "at_hospital" }));
+                }}
+              />
+              <ServiceHubCard
+                icon={
+                  <img
+                    src={virtualSvg}
+                    alt=""
+                    width={22}
+                    height={22}
+                    draggable={false}
+                    className="service-hub-card__img-icon"
+                  />
+                }
+                title="Virtual"
+                description="Connecting Care, Virtually Everywhere"
+                onClick={() => {
+                  setConsultationSheetOpen(false);
+                  void navigate(generatePath(ROUTES.consultation, { type: "virtual" }));
+                }}
+              />
+            </div>
+          </section>
+        </dialog>
+      ) : null}
 
       {visionSheetOpen ? (
         <dialog
