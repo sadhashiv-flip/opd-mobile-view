@@ -376,10 +376,14 @@
 }
 
 button.ds-lab-card {
-  border: none;
+  border: 1.5px solid #e4e4e4;
   font: inherit;
   font-family: inherit;
   color: inherit;
+}
+
+button.ds-lab-card.ds-lab-card--selected {
+  border-color: #ff541e;
 }
 
 .ds-lab-card--wrap {
@@ -557,5 +561,135 @@ button.ds-lab-card {
 
 .ds-lab-card__footer-seg svg {
   flex-shrink: 0;
+}
+
+/* Select Lab (lab-tests) — layout aligned with design */
+.ds-sellab-hint {
+  margin: 10px 0 0;
+  font-size: max(11px, calc(13 * 100cqw / 375));
+  font-weight: 600;
+  color: #9a9a9a;
+}
+
+.ds-lab-card--sel {
+  padding: 14px 14px 16px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.ds-lab-card__top--sel {
+  align-items: center;
+}
+
+.ds-lab-card__brand--sel {
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-sellab-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ds-sellab-logo-fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f0f0f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+  color: #666666;
+  flex-shrink: 0;
+}
+
+.ds-lab-card__logo--sel {
+  font-size: clamp(14px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
+}
+
+.ds-sellab-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid #e0e0e0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 900;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.ds-sellab-check--on {
+  border-color: #ff541e;
+  background: #ff541e;
+  color: #ffffff;
+}
+
+.ds-sellab-home {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: max(11px, calc(12 * 100cqw / 375));
+  font-weight: 700;
+  color: #555555;
+}
+
+.ds-sellab-home svg {
+  color: #555555;
+}
+
+.ds-sellab-pack {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3f3f3;
+}
+
+.ds-sellab-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e4e4e4;
+  font-size: max(12px, calc(13 * 100cqw / 375));
+  font-weight: 700;
+  color: #111111;
+}
+
+.ds-sellab-line:last-child {
+  border-bottom: none;
+  padding-bottom: 4px;
+}
+
+.ds-sellab-line__name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.ds-sellab-line__price {
+  flex-shrink: 0;
+  font-weight: 800;
+}
+
+.ds-sellab-total {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: clamp(14px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 900;
+  color: #111111;
 }
 

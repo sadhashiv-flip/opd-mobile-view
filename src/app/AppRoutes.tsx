@@ -71,6 +71,10 @@ import { PharmacyOrderSuccessPage } from "@/pages/PharmacyOrderSuccessPage";
 import { WalletRedirectPage } from "@/pages/WalletRedirectPage";
 import { WalletPage } from "@/pages/WalletPage";
 import { WalletAllTransactionsPage } from "@/pages/WalletAllTransactionsPage";
+import { ClaimsListPage } from "@/pages/ClaimsListPage";
+import { ClaimNewPage } from "@/pages/ClaimNewPage";
+import { ClaimBillChecklistPage } from "@/pages/ClaimBillChecklistPage";
+import { ClaimDetailPage } from "@/pages/ClaimDetailPage";
 import { VideoCallPage } from "@/pages/VideoCallPage";
 import {
   LegacyOrdersDetailOneSegmentRedirect,
@@ -178,6 +182,10 @@ export function AppRoutes() {
       <Route path={ROUTES.walletTransactions} element={<WalletAllTransactionsPage />} />
       <Route path={ROUTES.walletSubscription} element={<WalletPage />} />
       <Route path={ROUTES.wallet} element={<WalletRedirectPage />} />
+      <Route path={ROUTES.claimsNew} element={<ClaimNewPage />} />
+      <Route path={ROUTES.claimBillChecklist} element={<ClaimBillChecklistPage />} />
+      <Route path={ROUTES.claimsDetail} element={<ClaimDetailPage />} />
+      <Route path={ROUTES.claims} element={<ClaimsListPage />} />
       <Route path={ROUTES.help} element={<Navigate to={ROUTES.servicesHelpTab} replace />} />
       <Route
         path={ROUTES.gymMembership}

@@ -1,45 +1,86 @@
 import { ROUTES } from "@/constants";
+import {
+  clearLabCart,
+  fetchLabCart,
+  removeLabCartItem,
+  type LabCartItem,
+  type LabCartPricing,
+} from "@/api/patientLabCart";
 import { Link, generatePath, useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./CartOverviewPage.css";
 import { HeaderTexts } from "@/constants/HeaderTexts";
+import { useToast } from "@/hooks/useToast";
 
-type CartItem = Readonly<{
-  id: string;
-  title: string;
-  subtitle: string;
-}>;
-
-const CART_STORAGE_KEY = "opd-mobile-view.lab.cartIds";
+function formatInr(n: number): string {
+  return n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+}
 
 export function CartOverviewPage() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const [items, setItems] = useState<readonly LabCartItem[]>([]);
+  const [pricing, setPricing] = useState<LabCartPricing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [clearing, setClearing] = useState(false);
 
-  const items = useMemo((): readonly CartItem[] => {
-    let ids: readonly string[] = [];
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const raw = localStorage.getItem(CART_STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      ids = Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
-    } catch {
-      ids = [];
+      const snap = await fetchLabCart();
+      setItems(snap.items);
+      setPricing(snap.pricing);
+    } catch (e) {
+      setItems([]);
+      setPricing(null);
+      toast.error(e instanceof Error ? e.message : "Could not load cart");
+    } finally {
+      setLoading(false);
     }
+  }, [toast]);
 
-    if (ids.length === 0) return [];
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-    // Keep UI aligned with the screenshot: title + fixed subtitle.
-    return ids.map((id) => ({
-      id,
-      title: "Bilirubin (total, direct and indirect)",
-      subtitle: "Reports within 48 hours",
-    }));
-  }, []);
+  const countPhrase = useMemo(() => {
+    const n = items.length;
+    return `${n} ${n === 1 ? "test" : "tests"} in cart`;
+  }, [items.length]);
 
-  const countLabel = `${items.length} ${items.length === 1 ? "test" : "tests"}`;
+  const walletBalance = pricing?.walletAvailable ?? pricing?.walletTotal ?? null;
+  const walletCovered = pricing != null && !pricing.isPaymentRequired;
+
+  const onRemove = async (cartItemId: number) => {
+    if (removingId != null) return;
+    setRemovingId(cartItemId);
+    try {
+      await removeLabCartItem(cartItemId);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not remove item");
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const onClearAll = async () => {
+    if (items.length === 0 || clearing) return;
+    setClearing(true);
+    try {
+      await clearLabCart();
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not clear cart");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
-    <div className="co-page">
-      <header className="co-top">
+    <div className="co-page co-page--v2">
+      <header className="co-top co-top--v2">
         <Link to={generatePath(ROUTES.diagnosticsPlan, { type: "lab-tests" })} className="co-back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -51,109 +92,82 @@ export function CartOverviewPage() {
             />
           </svg>
         </Link>
-          <h1 className="co-title">{HeaderTexts.cartOverview.title}</h1>
+        <h1 className="co-title co-title--v2">{HeaderTexts.cartOverview.title}</h1>
+        <button
+          type="button"
+          className="co-clear"
+          disabled={items.length === 0 || loading || clearing}
+          onClick={() => void onClearAll()}
+        >
+          Clear all
+        </button>
       </header>
 
-      <main className="co-main">
-        <div className="co-info">
-          <span className="co-info__ic" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
-              <path d="M12 10v6" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
-              <path d="M12 7h.01" stroke="#FF541E" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-          </span>
-          <span>Order info</span>
-        </div>
+      <main className="co-main co-main--v2">
+        <p className="co-count">{countPhrase}</p>
 
-        <div className="co-list" aria-label="Cart items">
+        {loading ? <p className="co-muted">Loading cart…</p> : null}
+
+        <div className="co-list co-list--v2" aria-label="Cart items">
+          {!loading && items.length === 0 ? (
+            <p className="co-muted">Your cart is empty. Add tests from Lab Tests.</p>
+          ) : null}
           {items.map((it) => (
-            <article key={it.id} className="co-item">
-              <div className="co-item__text">
-                <div className="co-item__title">{it.title}</div>
-                <div className="co-item__sub">{it.subtitle}</div>
+            <article key={it.id} className="co-card">
+              <div className="co-card__text">
+                <div className="co-card__title">{it.product?.name ?? "Lab test"}</div>
+                {it.product?.category ? (
+                  <span className="co-card__tag">{it.product.category}</span>
+                ) : null}
               </div>
-              <div className="co-item__actions">
-                <button type="button" className="co-icon-btn" aria-label="Remove item">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M4 7h16"
-                      stroke="#9A9A9A"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M10 11v7"
-                      stroke="#9A9A9A"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M14 11v7"
-                      stroke="#9A9A9A"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M6 7l1 14h10l1-14"
-                      stroke="#9A9A9A"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M9 7V4h6v3"
-                      stroke="#9A9A9A"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-                <button type="button" className="co-icon-btn co-icon-btn--edit" aria-label="Edit item">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M4 20h4l10.5-10.5a1.5 1.5 0 0 0 0-2.1l-1.9-1.9a1.5 1.5 0 0 0-2.1 0L4 16v4z"
-                      stroke="#1A73E8"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M13.5 6.5 17.5 10.5"
-                      stroke="#1A73E8"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-              </div>
+              <button
+                type="button"
+                className="co-card__x"
+                aria-label="Remove item"
+                disabled={removingId === it.id}
+                onClick={() => void onRemove(it.id)}
+              >
+                ×
+              </button>
             </article>
           ))}
         </div>
+
+        {!loading && items.length > 0 ? (
+          <section className="co-summary" aria-label="Price summary">
+            <h2 className="co-summary__title">Price Summary</h2>
+            <div className="co-summary__row">
+              <span className="co-summary__k">Wallet Balance</span>
+              <span className="co-summary__v co-summary__v--green">
+                {walletBalance != null ? `₹ ${formatInr(walletBalance)}` : "—"}
+              </span>
+            </div>
+            {walletCovered ? (
+              <div className="co-summary__banner" role="status">
+                <span className="co-summary__banner-ic" aria-hidden="true">
+                  ✓
+                </span>
+                <span>Covered by wallet — No payment needed</span>
+              </div>
+            ) : pricing?.isPaymentRequired ? (
+              <div className="co-summary__banner co-summary__banner--due" role="status">
+                Payment required at checkout
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </main>
 
-      <footer className="co-footer" aria-label="Cart footer">
-        <div className="co-footer__inner">
-          <div className="co-footer__left">{countLabel}</div>
-          <button
-            type="button"
-            className="co-footer__btn"
-            onClick={() => navigate(generatePath(ROUTES.diagnosticsVendors, { type: "lab-tests" }))}
-          >
-            <span>Continue</span>
-            <span className="co-footer__go" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M10 7l5 5-5 5"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-          </button>
-        </div>
+      <footer className="co-footer co-footer--v2">
+        <button
+          type="button"
+          className="co-cta"
+          disabled={items.length === 0 || loading}
+          onClick={() => navigate(generatePath(ROUTES.diagnosticsVendors, { type: "lab-tests" }))}
+        >
+          Continue
+        </button>
       </footer>
     </div>
   );
 }
-

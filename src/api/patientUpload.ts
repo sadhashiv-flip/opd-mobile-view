@@ -1,4 +1,5 @@
 import { patientFetchChecked, patientFetchUploadChecked } from "@/api/patientHttp";
+import type { ChecklistUploadKind, ReimbursementUploadFileRecord } from "@/api/patientReimbursement";
 import { getAccessToken } from "@/lib/authStorage";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -238,4 +239,167 @@ export async function uploadSupportDocumentFile(file: File): Promise<unknown> {
     throw new Error("Upload response must be a JSON object or array");
   }
   return parsed;
+}
+
+function str(v: unknown): string {
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return "";
+}
+
+/** Parses reimbursement `/upload` JSON into the shape expected on `POST /patient/reimbursement` file rows. */
+export function parseReimbursementUploadResponse(
+  parsed: unknown,
+  fallback: Readonly<{ document_type: string; ref_type: string }>,
+): ReimbursementUploadFileRecord {
+  const root = asRecord(parsed) ?? {};
+  const data = asRecord(root.data) ?? root;
+  const idRaw = data.id ?? root.id;
+  const id =
+    typeof idRaw === "string"
+      ? idRaw.trim()
+      : typeof idRaw === "number" && Number.isFinite(idRaw)
+        ? String(idRaw)
+        : "";
+  if (!id) throw new Error("Upload response missing data.id");
+
+  const path = str(data.path);
+  const file_type =
+    str(data.file_type) ||
+    str((data as Record<string, unknown>).fileType) ||
+    str(data.type) ||
+    "IMG";
+  const document_type = str(data.document_type) || str((data as Record<string, unknown>).documentType) || fallback.document_type;
+  const ref_type =
+    str(data.ref_type) || str((data as Record<string, unknown>).refType) || str(data.ref) || fallback.ref_type;
+
+  return { id, path, file_type, document_type, ref_type };
+}
+
+/**
+ * POST `{upload base}/upload` — multipart reimbursement bill:
+ * `type=reimbursement`, `file`, `ref_type=BILL`, `document_type` / `document_name` (bill number), `token`.
+ * Returns file row fields for `reimbursement_bill_files[]` on `POST /patient/reimbursement`.
+ */
+export async function uploadReimbursementBillDocumentId(file: File, billNumber: string): Promise<ReimbursementUploadFileRecord> {
+  const docKey = billNumber.trim();
+  if (!docKey) throw new Error("Bill number is required before upload");
+
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+
+  const fd = new FormData();
+  fd.append("type", "reimbursement");
+  fd.append("file", file, file.name);
+  fd.append("ref_type", "BILL");
+  fd.append("document_type", docKey);
+  fd.append("document_name", docKey);
+  fd.append("token", token);
+
+  const appName =
+    typeof import.meta.env.VITE_UPLOAD_APP_NAME === "string" && import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      ? import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      : "co-flip-health";
+
+  const res = await patientFetchUploadChecked("upload", {
+    method: "POST",
+    body: fd,
+    headers: { app_name: appName },
+  });
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty upload response");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid upload response");
+  }
+
+  return parseReimbursementUploadResponse(parsed, { document_type: docKey, ref_type: "BILL" });
+}
+
+/**
+ * Reimbursement checklist `/upload` — `ref_type` / `document_type` / `document_name` depend on slot kind
+ * (payment / prescription / report / support vs legacy BILL slot).
+ */
+export async function uploadReimbursementChecklistDocumentId(
+  file: File,
+  billNumber: string,
+  uploadKind: ChecklistUploadKind,
+  particularsKey: string,
+): Promise<ReimbursementUploadFileRecord> {
+  const bill = billNumber.trim();
+  const key = particularsKey.trim();
+  if (!bill) throw new Error("Bill number is required before upload");
+  if (!key && uploadKind === "legacy") throw new Error("Document slot is required before upload");
+
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+
+  const fd = new FormData();
+  fd.append("type", "reimbursement");
+  fd.append("file", file, file.name);
+
+  switch (uploadKind) {
+    case "payment":
+      fd.append("ref_type", "PAYMENT");
+      fd.append("document_type", "payments");
+      fd.append("document_name", "PAYMENTS");
+      break;
+    case "prescription":
+      fd.append("ref_type", "REPORT");
+      fd.append("document_type", "prescription");
+      fd.append("document_name", "PRESCRIPTION");
+      break;
+    case "report":
+      fd.append("ref_type", "REPORT");
+      fd.append("document_type", "report");
+      fd.append("document_name", "REPORT");
+      break;
+    case "support":
+      fd.append("ref_type", "OTHER");
+      fd.append("document_type", "OTHER");
+      fd.append("document_name", "OTHER");
+      break;
+    default:
+      fd.append("ref_type", "BILL");
+      fd.append("document_type", key);
+      fd.append("document_name", `${bill}|${key}`);
+  }
+
+  fd.append("token", token);
+
+  const appName =
+    typeof import.meta.env.VITE_UPLOAD_APP_NAME === "string" && import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      ? import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      : "co-flip-health";
+
+  const res = await patientFetchUploadChecked("upload", {
+    method: "POST",
+    body: fd,
+    headers: { app_name: appName },
+  });
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty upload response");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid upload response");
+  }
+
+  const fb =
+    uploadKind === "payment"
+      ? { document_type: "payments", ref_type: "PAYMENT" }
+      : uploadKind === "prescription"
+        ? { document_type: "prescription", ref_type: "REPORT" }
+        : uploadKind === "report"
+          ? { document_type: "report", ref_type: "REPORT" }
+          : uploadKind === "support"
+            ? { document_type: "OTHER", ref_type: "OTHER" }
+            : { document_type: key || bill, ref_type: "BILL" };
+
+  return parseReimbursementUploadResponse(parsed, fb);
 }

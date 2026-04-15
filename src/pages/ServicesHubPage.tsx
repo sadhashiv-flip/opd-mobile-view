@@ -419,6 +419,12 @@ export function ServicesHubPage() {
                   state: { returnPath: `${ROUTES.services}?tab=opd-claims` },
                 });
               };
+            } else if (tabId === "opd-claims" && item.id === "claims") {
+              cardAction = () => {
+                void navigate(ROUTES.claims, {
+                  state: { returnPath: `${ROUTES.services}?tab=opd-claims` },
+                });
+              };
             } else if (isMedical) {
               cardAction = () => setMedicalSelectedId(item.id);
             }

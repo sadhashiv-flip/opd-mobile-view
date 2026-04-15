@@ -4,7 +4,7 @@ export const HeaderTexts = {
         subtitle: "Welcome to the home page",
     },
     cartOverview: {
-        title: "Cart Overview",
+        title: "Your Cart",
         subtitle: "View your cart items",
     },
     diagnostics: {

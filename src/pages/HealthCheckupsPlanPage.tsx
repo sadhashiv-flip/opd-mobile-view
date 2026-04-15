@@ -1,11 +1,30 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import {
+  DEFAULT_LOCATION_ADDRESS_LINE,
+  readSelectedAddress,
+  subscribeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { useToast } from "@/hooks/useToast";
+import { addLabProductToCart, fetchLabCart, removeLabCartItem } from "@/api/patientLabCart";
+import { fetchDiagnosticPackages, type DiagnosticCatalogRow } from "@/api/patientDiagnosticsLab";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import "./HealthCheckupsPlanPage.css";
+
+function labFastingLabel(hours: number | null): string {
+  if (hours != null && hours > 0) return `${hours} hrs Fasting Required`;
+  return "Fasting not required";
+}
+
+function labReportsLabel(tat: number | null): string {
+  if (tat == null) return "Reports time on confirm";
+  const days = Math.max(1, Math.round(tat / 24));
+  if (days === 1) return "Reports in 1 day";
+  return `Reports in ${days} days`;
+}
 
 type Plan = Readonly<{
   id: string;
@@ -16,60 +35,99 @@ type Plan = Readonly<{
   footerTag: string;
 }>;
 
-type LabTest = Readonly<{
-  id: string;
-  title: string;
-  price: number;
-  footerTag: "Home Collection" | "At Center";
-}>;
-
-const LAB_CART_STORAGE_KEY = "opd-mobile-view.lab.cartIds";
-
 export function HealthCheckupsPlanPage() {
   const navigate = useNavigate();
   const params = useParams();
+  const toast = useToast();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const pageTitle = type === "lab-tests" ? "Lab Tests" : "Health Checkups";
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const hcpLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-
-  const labTests: readonly LabTest[] = useMemo(
-    () => [
-      { id: "lt1", title: "Basic Diagnostic Package - Home Collection", price: 6000, footerTag: "Home Collection" },
-      { id: "lt2", title: "Full Body Checkup - Home Collection", price: 7999, footerTag: "Home Collection" },
-      { id: "lt3", title: "Diabetes Screening - Home Collection", price: 2999, footerTag: "Home Collection" },
-    ],
-    [],
+  const hcpLocTag = useSelectedAddressTag("HOME");
+  const selectedAddressId = useSyncExternalStore(
+    subscribeSelectedAddress,
+    () => readSelectedAddress()?.id?.trim() ?? "",
+    () => "",
   );
 
   const [labQuery, setLabQuery] = useState("");
-  const [labActiveIdx, setLabActiveIdx] = useState(0);
-  const labCarouselRef = useRef<HTMLDivElement | null>(null);
-  const [labCartIds, setLabCartIds] = useState<readonly string[]>([]);
+  const [labPackages, setLabPackages] = useState<readonly DiagnosticCatalogRow[]>([]);
+  const [labListLoading, setLabListLoading] = useState(false);
+  const [labListError, setLabListError] = useState<string | null>(null);
+  const [labCartCount, setLabCartCount] = useState(0);
+  const [addingProductId, setAddingProductId] = useState<number | null>(null);
+  const [inCartProductIds, setInCartProductIds] = useState<ReadonlySet<number>>(() => new Set());
+  const [labCartByProductId, setLabCartByProductId] = useState(() => new Map<number, number>());
+
+  const refreshLabCart = useCallback(async () => {
+    try {
+      const snap = await fetchLabCart();
+      setLabCartCount(snap.items.length);
+      setInCartProductIds(new Set(snap.items.map((i) => i.productId)));
+      const map = new Map<number, number>();
+      for (const it of snap.items) map.set(it.productId, it.id);
+      setLabCartByProductId(map);
+    } catch {
+      setLabCartCount(0);
+      setInCartProductIds(new Set());
+      setLabCartByProductId(new Map());
+    }
+  }, []);
 
   useEffect(() => {
     // Reset selection when switching between Health Checkups and Lab Tests
     setSelectedPlanId(null);
-    setLabCartIds([]);
+    setLabPackages([]);
+    setLabQuery("");
+    setLabCartCount(0);
+    setInCartProductIds(new Set());
   }, [type]);
 
   useEffect(() => {
     if (type !== "lab-tests") return;
-    try {
-      localStorage.setItem(LAB_CART_STORAGE_KEY, JSON.stringify(labCartIds));
-    } catch {
-      // ignore
+    void refreshLabCart();
+  }, [type, refreshLabCart, selectedAddressId]);
+
+  useEffect(() => {
+    if (type !== "lab-tests") return;
+    const addr = readSelectedAddress();
+    if (!addr?.id.trim()) {
+      setLabPackages([]);
+      setLabListError("Choose a saved address to search lab tests.");
+      return;
     }
-  }, [labCartIds, type]);
-
-  useEffect(() => {
-    if (type !== "lab-tests") return;
-    // Keep dots in sync on resize
-    const onResize = () => setLabActiveIdx(0);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [type]);
+    let cancelled = false;
+    const q = labQuery.trim();
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        setLabListLoading(true);
+        setLabListError(null);
+        try {
+          const rows = await fetchDiagnosticPackages({
+            loc: addr.id.trim(),
+            name: q || undefined,
+            page: 1,
+            limit: 20,
+          });
+          if (!cancelled) setLabPackages(rows);
+        } catch (e) {
+          if (!cancelled) {
+            const msg = e instanceof Error ? e.message : "Could not load tests";
+            setLabListError(msg);
+            setLabPackages([]);
+            toast.error(msg);
+          }
+        } finally {
+          if (!cancelled) setLabListLoading(false);
+        }
+      })();
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [type, labQuery, selectedAddressId, toast]);
 
   const plans: readonly Plan[] = [
     {
@@ -155,19 +213,27 @@ export function HealthCheckupsPlanPage() {
     );
   };
 
-  const formatInr = (value: number) =>
-    value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
-
-  const scrollToLabSlide = (idx: number) => {
-    const el = labCarouselRef.current;
-    if (!el) return;
-    const child = el.children.item(idx) as HTMLElement | null;
-    if (!child) return;
-    child.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-  };
-
-  const addToCart = (id: string) => {
-    setLabCartIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  const toggleLabCartRow = async (productId: number, checked: boolean) => {
+    if (addingProductId != null) return;
+    const addr = readSelectedAddress();
+    if (!addr?.id.trim()) {
+      toast.error("Choose a saved address first");
+      return;
+    }
+    setAddingProductId(productId);
+    try {
+      if (checked) {
+        await addLabProductToCart(productId);
+      } else {
+        const cartItemId = labCartByProductId.get(productId);
+        if (cartItemId != null) await removeLabCartItem(cartItemId);
+      }
+      await refreshLabCart();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update cart");
+    } finally {
+      setAddingProductId(null);
+    }
   };
 
   return (
@@ -213,7 +279,7 @@ export function HealthCheckupsPlanPage() {
               <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
             </svg>
           </span>
-          <span className="hcp-loc__title">Home</span>
+          <span className="hcp-loc__title">{hcpLocTag}</span>
           <span className="hcp-loc__sep" aria-hidden="true">
             |
           </span>
@@ -235,7 +301,7 @@ export function HealthCheckupsPlanPage() {
 
         {type === "lab-tests" ? (
           <div className="lt-wrap">
-            <div className="lt-search" role="search">
+            <div className="lt-search lt-search--simple" role="search">
               <span className="lt-search__ic" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                   <path
@@ -253,135 +319,63 @@ export function HealthCheckupsPlanPage() {
               </span>
               <input
                 className="lt-search__input"
-                placeholder="Search and book lab tests"
+                placeholder="Search lab tests…"
                 value={labQuery}
                 onChange={(e) => setLabQuery(e.target.value)}
-                aria-label="Search and book lab tests"
+                aria-label="Search lab tests"
               />
-              <span className="lt-search__divider" aria-hidden="true" />
-              <button type="button" className="lt-search__mic" aria-label="Voice search">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  />
-                  <path
-                    d="M19 11a7 7 0 0 1-14 0"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <path d="M12 18v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </button>
             </div>
 
-            <section className="lt-section" aria-label="Popular Lab Tests">
-              <header className="lt-section__head">
-                <h2 className="lt-section__title">Popular Lab Tests</h2>
-                <p className="lt-section__sub">Best in class service rating</p>
-              </header>
+            <section className="lt-section lt-section--list" aria-label="Lab tests">
+              {labListError && !labListLoading ? (
+                <p className="lt-section__sub" role="alert">
+                  {labListError}
+                </p>
+              ) : null}
+              {labListLoading ? <p className="lt-section__sub">Loading tests…</p> : null}
 
-              <div
-                ref={labCarouselRef}
-                className="lt-carousel"
-                onScroll={() => {
-                  const el = labCarouselRef.current;
-                  if (!el) return;
-                  const first = el.children.item(0) as HTMLElement | null;
-                  if (!first) return;
-                  const slideW = first.getBoundingClientRect().width + 12;
-                  const nextIdx = Math.round(el.scrollLeft / Math.max(1, slideW));
-                  setLabActiveIdx(Math.max(0, Math.min(labTests.length - 1, nextIdx)));
-                }}
-              >
-                {labTests.map((t) => (
-                  <article key={t.id} className="lt-card">
-                    <h3 className="lt-card__title">{t.title}</h3>
-                    <button type="button" className="lt-card__link">
-                      See what&apos;s included &gt;
-                    </button>
-                    <div className="lt-card__row">
-                      <div className="lt-card__price">₹ {formatInr(t.price)}</div>
-                      <button
-                        type="button"
-                        className="lt-card__cta"
-                        onClick={() => addToCart(t.id)}
-                      >
-                        {labCartIds.includes(t.id) ? "Added" : "Add to cart"}
-                      </button>
-                    </div>
-                    <div className="lt-card__footer">
-                      <span className="lt-home-ic" aria-hidden="true">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <ul className="lt-list" aria-busy={labListLoading}>
+                {labPackages.map((t) => {
+                  const inCart = inCartProductIds.has(t.id);
+                  const busy = addingProductId === t.id;
+                  return (
+                    <li key={t.id} className="lt-row">
+                      <span className="lt-row__ic" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                           <path
-                            d="M3 10.5L12 3l9 7.5V21H3V10.5z"
-                            fill="#ffffff"
-                            opacity="0.95"
+                            d="M10 3h4v2h-1v5l2 8H9l2-8V5H10V3z"
+                            fill="#c5c5c5"
                           />
                         </svg>
                       </span>
-                  <span>{t.footerTag}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-
-              <div className="lt-dots" role="tablist" aria-label="Lab tests slides">
-                {labTests.map((t, idx) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={`lt-dot${idx === labActiveIdx ? " lt-dot--active" : ""}`}
-                    role="tab"
-                    aria-selected={idx === labActiveIdx}
-                    aria-label={`Slide ${idx + 1} of ${labTests.length}`}
-                    onClick={() => scrollToLabSlide(idx)}
-                  />
-                ))}
-              </div>
+                      <div className="lt-row__body">
+                        <div className="lt-row__title">{t.name}</div>
+                        <div className="lt-row__meta">
+                          {labFastingLabel(t.fastingTime)} · {labReportsLabel(t.tat)}
+                        </div>
+                      </div>
+                      <label className="lt-row__cb-wrap">
+                        <input
+                          type="checkbox"
+                          className="lt-row__cb"
+                          checked={inCart}
+                          disabled={busy}
+                          onChange={(e) => void toggleLabCartRow(t.id, e.target.checked)}
+                          aria-label={inCart ? `Remove ${t.name} from cart` : `Add ${t.name} to cart`}
+                        />
+                        <span className="lt-row__cb-ui" aria-hidden="true" />
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
 
-            <section className="lt-section lt-trust" aria-label="Top Labs, Trusted Care">
-              <h2 className="lt-section__title">Top Labs, Trusted Care</h2>
-              <div className="lt-trust__card">
-                <div className="lt-trust__rating">
-                  <span className="lt-trust__star" aria-hidden="true">
-                    ★
-                  </span>
-                  <span className="lt-trust__rating-text">
-                    <strong>4.5</strong> <span>Avg. user rating</span>
-                  </span>
-                </div>
-                <ul className="lt-trust__list">
-                  <li className="lt-trust__li">
-                    <span className="lt-trust__ic" aria-hidden="true">
-                      ⏱
-                    </span>
-                    <span>Reports within 48 hours</span>
-                  </li>
-                  <li className="lt-trust__li">
-                    <span className="lt-trust__ic" aria-hidden="true">
-                      ⚡
-                    </span>
-                    <span>Instant confirmation</span>
-                  </li>
-                  <li className="lt-trust__li">
-                    <span className="lt-trust__ic lt-trust__ic--ok" aria-hidden="true">
-                      ✓
-                    </span>
-                    <span>From the comfort of your home</span>
-                  </li>
-                </ul>
-              </div>
-            </section>
-
-            {labCartIds.length > 0 ? (
+            {labCartCount > 0 ? (
               <footer className="lt-cart-footer" aria-label="Cart">
                 <div className="lt-cart-footer__inner">
                   <div className="lt-cart-footer__left">
-                    {labCartIds.length} {labCartIds.length === 1 ? "test" : "tests"}
+                    {labCartCount} {labCartCount === 1 ? "test" : "tests"}
                   </div>
                   <button
                     type="button"

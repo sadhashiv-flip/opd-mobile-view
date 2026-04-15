@@ -1,10 +1,24 @@
 import { ROUTES } from "@/constants";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import {
+  DIAG_LAB_VENDOR_CODE_KEY,
+  DIAG_LAB_VENDOR_NAME_KEY,
+} from "@/constants/diagnosticsLabFlowStorage";
+import {
+  DEFAULT_LOCATION_ADDRESS_LINE,
+  readSelectedAddress,
+  subscribeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
+import { getPatientApiRootBase } from "@/api/patientClient";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { useToast } from "@/hooks/useToast";
+import {
+  fetchDiagnosticVendorsPricing,
+  type DiagnosticVendorPricingRow,
+} from "@/api/patientDiagnosticsLab";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import "./DiagnosticsScreenPage.css";
 
 type VendorMode = "home" | "center";
@@ -22,15 +36,32 @@ type Vendor = Readonly<{
   modes: readonly VendorMode[];
 }>;
 
-type LabFilter = "home" | "center" | "radiology";
+function labVendorImageBase(): string {
+  const fromEnv = import.meta.env.VITE_IMAGE_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  return getPatientApiRootBase().replace(/\/$/, "");
+}
 
-const LAB_CART_KEY = "opd-mobile-view.lab.cartIds";
+function vendorLogoUrl(logo: string | null): string | null {
+  if (!logo?.trim()) return null;
+  const path = logo.trim();
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const base = labVendorImageBase();
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
+}
 
 export function DiagnosticsScreenPage() {
   const navigate = useNavigate();
   const params = useParams();
+  const toast = useToast();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const isLabTests = type === "lab-tests";
+  const selectedAddressId = useSyncExternalStore(
+    subscribeSelectedAddress,
+    () => readSelectedAddress()?.id?.trim() ?? "",
+    () => "",
+  );
 
   const vendors = useMemo(
     (): readonly Vendor[] => [
@@ -71,46 +102,50 @@ export function DiagnosticsScreenPage() {
     [vendors, mode],
   );
 
-  const cartIdsForLines = useMemo((): readonly string[] => {
-    if (!isLabTests) return ["lt1", "lt2"];
-    try {
-      const raw = localStorage.getItem(LAB_CART_KEY);
-      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      const ids = Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
-      return ids.length > 0 ? ids : ["lt1", "lt2"];
-    } catch {
-      return ["lt1", "lt2"];
+  const [labApiVendors, setLabApiVendors] = useState<readonly DiagnosticVendorPricingRow[]>([]);
+  const [labApiLoading, setLabApiLoading] = useState(false);
+  const [labApiError, setLabApiError] = useState<string | null>(null);
+  const [labSelectedCode, setLabSelectedCode] = useState("");
+
+  useEffect(() => {
+    if (!isLabTests) return;
+    const addr = readSelectedAddress();
+    if (!addr?.id.trim()) {
+      setLabApiVendors([]);
+      setLabApiError("Choose a saved address to see labs.");
+      return;
     }
-  }, [isLabTests]);
+    let cancelled = false;
+    void (async () => {
+      setLabApiLoading(true);
+      setLabApiError(null);
+      try {
+        const pricingRows = await fetchDiagnosticVendorsPricing(addr.id.trim());
+        if (cancelled) return;
+        setLabApiVendors(pricingRows);
+      } catch (e) {
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : "Could not load labs";
+          setLabApiError(msg);
+          setLabApiVendors([]);
+          toast.error(msg);
+        }
+      } finally {
+        if (!cancelled) setLabApiLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLabTests, selectedAddressId, toast]);
 
-  const cartLineCount = cartIdsForLines.length;
-
-  const [labFilter, setLabFilter] = useState<LabFilter>("home");
-  const [labSelectedId, setLabSelectedId] = useState<string>("neuberg");
-
-  const labPricesNeuberg = useMemo(() => {
-    const prices: number[] = [];
-    for (let i = 0; i < cartLineCount; i++) {
-      prices.push(i === 0 ? 300 : 210);
-    }
-    return prices;
-  }, [cartLineCount]);
-
-  const labPricesOrange = useMemo(() => {
-    const prices: number[] = [];
-    for (let i = 0; i < cartLineCount; i++) {
-      prices.push(210);
-    }
-    return prices;
-  }, [cartLineCount]);
-
-  const collectionCharge = 80;
-  const totalNeuberg = labPricesNeuberg.reduce((a, b) => a + b, 0) + collectionCharge;
-  const totalOrange = labPricesOrange.reduce((a, b) => a + b, 0) + collectionCharge;
-
-  const testTitle = "Bilirubin (total, direct and indirect)";
+  useEffect(() => {
+    if (!isLabTests) return;
+    setLabSelectedCode("");
+  }, [isLabTests, selectedAddressId]);
 
   const dsLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const dsLocTag = useSelectedAddressTag("HOME");
 
   if (isLabTests) {
     return (
@@ -132,7 +167,7 @@ export function DiagnosticsScreenPage() {
               />
             </svg>
           </Link>
-          <h1 className="ds-title">Lab Tests</h1>
+          <h1 className="ds-title">Select Lab</h1>
           <Link to={ROUTES.orders} className="ds-orders">
             <span className="ds-orders__ic" aria-hidden="true">
               <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
@@ -157,7 +192,7 @@ export function DiagnosticsScreenPage() {
                 <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
               </svg>
             </span>
-            <span className="ds-location__title">Home</span>
+            <span className="ds-location__title">{dsLocTag}</span>
             <span className="ds-location__sep" aria-hidden="true">
               |
             </span>
@@ -175,208 +210,80 @@ export function DiagnosticsScreenPage() {
             </span>
           </button>
 
-          <div className="ds-mode ds-mode--scroll" role="tablist" aria-label="Service type">
-            <button
-              type="button"
-              className={`ds-mode__pill ds-mode__pill--icon${labFilter === "home" ? " ds-mode__pill--active" : ""}`}
-              role="tab"
-              aria-selected={labFilter === "home"}
-              onClick={() => setLabFilter("home")}
-            >
-              <span className="ds-mode__pill-ic" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M3 10.5L12 3l9 7.5V21H3V10.5z"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              <span>Home Collection</span>
-            </button>
-            <button
-              type="button"
-              className={`ds-mode__pill ds-mode__pill--icon${labFilter === "center" ? " ds-mode__pill--active" : ""}`}
-              role="tab"
-              aria-selected={labFilter === "center"}
-              onClick={() => setLabFilter("center")}
-            >
-              <span className="ds-mode__pill-ic" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M4 21V10l8-3 8 3v11"
-                    stroke="currentColor"
-                    strokeWidth="1.75"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path d="M9 21v-6h6v6" stroke="currentColor" strokeWidth="1.75" />
-                </svg>
-              </span>
-              <span>At Center</span>
-            </button>
-            <button
-              type="button"
-              className={`ds-mode__pill ds-mode__pill--icon${labFilter === "radiology" ? " ds-mode__pill--active" : ""}`}
-              role="tab"
-              aria-selected={labFilter === "radiology"}
-              onClick={() => setLabFilter("radiology")}
-            >
-              <span className="ds-mode__pill-ic" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
-                  <path d="M9 12h6M12 9v6" stroke="currentColor" strokeWidth="1.75" />
-                </svg>
-              </span>
-              <span>Radiology</span>
-            </button>
-          </div>
+          <p className="ds-sellab-hint">Choose a lab for your tests</p>
 
           <div className="ds-vendors ds-vendors--lab" aria-label="Vendors">
-            <button
-              type="button"
-              className={`ds-lab-card${labSelectedId === "neuberg" ? " ds-lab-card--selected" : ""}`}
-              onClick={() => setLabSelectedId("neuberg")}
-            >
-              <div className="ds-lab-card__top">
-                <div className="ds-lab-card__brand">
-                  <span className="ds-lab-card__logo">Neuberg</span>
-                  <span className="ds-vendor-card__rating" aria-label="Rating 4.5">
-                    ★ 4.5
-                  </span>
-                </div>
-                <span
-                  className={`ds-vendor-card__check${labSelectedId === "neuberg" ? " ds-vendor-card__check--on" : ""}`}
-                  aria-hidden="true"
+            {labApiLoading ? <p className="ds-location__addr">Loading labs…</p> : null}
+            {labApiError && !labApiLoading ? (
+              <p className="ds-location__addr" role="alert">
+                {labApiError}
+              </p>
+            ) : null}
+            {!labApiLoading && !labApiError && labApiVendors.length === 0 ? (
+              <p className="ds-location__addr">
+                No lab is available for your cart at this address. Add tests or try another address.
+              </p>
+            ) : null}
+            {labApiVendors.map((v) => {
+              const sel = v.code === labSelectedCode;
+              const subtotal = v.packages.reduce((a, p) => a + (p.b2cPrice ?? 0), 0);
+              const formatInr = (n: number) =>
+                n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+              const logoSrc = vendorLogoUrl(v.logo);
+              return (
+                <button
+                  key={v.code || String(v.id)}
+                  type="button"
+                  className={`ds-lab-card ds-lab-card--sel${sel ? " ds-lab-card--selected" : ""}`}
+                  onClick={() => setLabSelectedCode(v.code)}
                 >
-                  {labSelectedId === "neuberg" ? "✓" : ""}
-                </span>
-              </div>
-
-              <div className="ds-lab-card__lines">
-                {labPricesNeuberg.map((p, i) => (
-                  <div key={cartIdsForLines[i] ?? `neuberg-${String(p)}`} className="ds-lab-line">
-                    <span className="ds-lab-line__name">{testTitle}</span>
-                    <span className="ds-lab-line__price">₹ {p}</span>
-                  </div>
-                ))}
-                <div className="ds-lab-line ds-lab-line--charge">
-                  <span>Home Collection Charges</span>
-                  <span className="ds-lab-line__price">₹ {collectionCharge}</span>
-                </div>
-                <div className="ds-lab-line ds-lab-line--total">
-                  <span>To Pay</span>
-                  <span className="ds-lab-line__total">₹ {totalNeuberg}</span>
-                </div>
-              </div>
-
-              <div className="ds-lab-card__footer ds-lab-card__footer--orange">
-                <span className="ds-lab-card__footer-ic" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M3 10.5L12 3l9 7.5V21H3V10.5z"
-                      fill="#ffffff"
-                      opacity="0.95"
-                    />
-                  </svg>
-                </span>
-                <span>Home Collection</span>
-              </div>
-            </button>
-
-            <div
-              className={`ds-lab-card ds-lab-card--wrap${labSelectedId === "orange-health" ? " ds-lab-card--selected" : ""}`}
-            >
-              <button
-                type="button"
-                className="ds-lab-card__body-btn"
-                onClick={() => setLabSelectedId("orange-health")}
-              >
-                <div className="ds-lab-card__top">
-                  <div className="ds-lab-card__brand">
-                    <span className="ds-lab-card__logo ds-lab-card__logo--orange">Orange Health Labs</span>
-                    <span className="ds-vendor-card__rating" aria-label="Rating 4.5">
-                      ★ 4.5
+                  <div className="ds-lab-card__top ds-lab-card__top--sel">
+                    <div className="ds-lab-card__brand ds-lab-card__brand--sel">
+                      {logoSrc ? (
+                        <img className="ds-sellab-logo" src={logoSrc} alt="" width={40} height={40} />
+                      ) : (
+                        <span className="ds-sellab-logo-fallback" aria-hidden="true">
+                          {v.name.slice(0, 1)}
+                        </span>
+                      )}
+                      <span className="ds-lab-card__logo ds-lab-card__logo--sel">{v.name}</span>
+                    </div>
+                    <span
+                      className={`ds-sellab-check${sel ? " ds-sellab-check--on" : ""}`}
+                      aria-hidden="true"
+                    >
+                      {sel ? "✓" : ""}
                     </span>
                   </div>
-                  <span
-                    className={`ds-vendor-card__check${labSelectedId === "orange-health" ? " ds-vendor-card__check--on" : ""}`}
-                    aria-hidden="true"
-                  >
-                    {labSelectedId === "orange-health" ? "✓" : ""}
-                  </span>
-                </div>
 
-                <div className="ds-lab-card__addr-row">
-                  <p className="ds-lab-card__addr-text">
-                    3rd & 4th floor, Bright Square, Dharam Karan Rd, ShivBagh, Ameerpet, Hyderabad, Telangana 500016
-                  </p>
-                </div>
-
-                <div className="ds-lab-card__lines">
-                {labPricesOrange.map((p, i) => (
-                  <div key={cartIdsForLines[i] ?? `orange-${String(p)}`} className="ds-lab-line">
-                    <span className="ds-lab-line__name">{testTitle}</span>
-                    <span className="ds-lab-line__price">₹ {p}</span>
+                  <div className="ds-sellab-home">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M3 10.5L12 3l9 7.5V21H3V10.5z"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>Home Collection</span>
                   </div>
-                ))}
-                <div className="ds-lab-line ds-lab-line--charge">
-                  <span>Home Collection Charges</span>
-                  <span className="ds-lab-line__price">₹ {collectionCharge}</span>
-                </div>
-                <div className="ds-lab-line ds-lab-line--total">
-                  <span>To Pay</span>
-                  <span className="ds-lab-line__total">₹ {totalOrange}</span>
-                </div>
-              </div>
-              </button>
 
-              <a
-                href="https://www.google.com/maps/search/?api=1&query=Orange+Health+Labs+Ameerpet+Hyderabad"
-                target="_blank"
-                rel="noreferrer"
-                className="ds-lab-card__directions"
-              >
-                <span className="ds-lab-card__directions-ic" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M12 21s7-7 7-12a7 7 0 10-14 0c0 5 7 12 7 12z"
-                      stroke="#1A73E8"
-                      strokeWidth="1.6"
-                    />
-                    <circle cx="12" cy="9" r="2" fill="#1A73E8" />
-                  </svg>
-                </span>
-                <span>Directions</span>
-              </a>
+                  <div className="ds-sellab-pack">
+                    {v.packages.map((p) => (
+                      <div key={p.id} className="ds-sellab-line">
+                        <span className="ds-sellab-line__name">{p.name}</span>
+                        <span className="ds-sellab-line__price">₹{formatInr(p.b2cPrice ?? 0)}</span>
+                      </div>
+                    ))}
+                  </div>
 
-              <div className="ds-lab-card__footer ds-lab-card__footer--split">
-                <span className="ds-lab-card__footer-seg">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M3 10.5L12 3l9 7.5V21H3V10.5z"
-                      fill="#ffffff"
-                      opacity="0.95"
-                    />
-                  </svg>
-                  <span>Home Collection</span>
-                </span>
-                <span className="ds-lab-card__footer-seg">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M4 21V10l8-3 8 3v11"
-                      stroke="#ffffff"
-                      strokeWidth="1.75"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path d="M9 21v-6h6v6" stroke="#ffffff" strokeWidth="1.75" />
-                  </svg>
-                  <span>At Center</span>
-                </span>
-              </div>
-            </div>
+                  <div className="ds-sellab-total">
+                    <span>Total</span>
+                    <span>₹{formatInr(subtotal)}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </main>
 
@@ -384,17 +291,21 @@ export function DiagnosticsScreenPage() {
           <button
             type="button"
             className="ds-continue"
+            disabled={!labSelectedCode || labApiVendors.length === 0}
             onClick={() => {
+              const v = labApiVendors.find((x) => x.code === labSelectedCode);
               try {
-                localStorage.setItem("opd-mobile-view.diagnostics.vendorId", labSelectedId);
+                localStorage.setItem("opd-mobile-view.diagnostics.vendorId", labSelectedCode);
                 localStorage.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
+                localStorage.setItem(DIAG_LAB_VENDOR_CODE_KEY, labSelectedCode);
+                localStorage.setItem(DIAG_LAB_VENDOR_NAME_KEY, v?.name ?? "");
               } catch {
                 // ignore
               }
               navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
             }}
           >
-            Confirm
+            Continue
           </button>
         </footer>
       </div>

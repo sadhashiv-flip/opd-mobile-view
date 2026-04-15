@@ -132,6 +132,14 @@ export const ROUTES = {
   cartOverview: "/cart-overview",
   /** In-app notification list; loads `GET /notification`. */
   notifications: "/notifications",
+  /** OPD reimbursement claims list (`GET /patient/reimbursement`). */
+  claims: "/claims",
+  /** Multi-step new claim flow (`POST /patient/reimbursement`). */
+  claimsNew: "/claims/new",
+  /** Bill-level document checklist + uploads (returns to new claim with `checklistDone` state). */
+  claimBillChecklist: "/claims/new/bill-checklist",
+  /** Single claim detail (`GET /patient/reimbursement/:id`). */
+  claimsDetail: "/claims/:claimId",
 } as const;
 
 /** Path param for {@link ROUTES.servicesWellness}. */
