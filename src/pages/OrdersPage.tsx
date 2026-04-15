@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   fetchInvoicesPage,
   INVOICE_FILTER_TYPES,
@@ -73,11 +73,9 @@ function OrderCard({ row }: Readonly<{ row: InvoiceOrderRow }>) {
           {row.statusLabel}
         </span>
         <div className="orders-card__right-bottom">
-          <span
-            className={row.isFree ? "orders-card__price orders-card__price--free" : "orders-card__price"}
-          >
-            {row.isFree ? "FREE" : row.amountFormatted ?? "—"}
-          </span>
+          {row.amountFormatted ? (
+            <span className="orders-card__price">{row.amountFormatted}</span>
+          ) : null}
           <ChevronRight />
         </div>
       </div>
@@ -95,6 +93,7 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activeFilterTabRef = useRef<HTMLButtonElement | null>(null);
 
   const rawTabParam = searchParams.get("tab");
   const tabFromUrl = parseInvoiceFilterTab(rawTabParam);
@@ -127,6 +126,13 @@ export function OrdersPage() {
     }
     setTabSynced(true);
   }, [searchParams, setSearchParams]);
+
+  useLayoutEffect(() => {
+    if (!tabSynced) return;
+    const el = activeFilterTabRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+  }, [filter, tabSynced]);
 
   const setFilterTab = useCallback(
     (id: InvoiceFilterId) => {
@@ -205,6 +211,7 @@ export function OrdersPage() {
               return (
                 <button
                   key={tab.id}
+                  ref={active ? activeFilterTabRef : undefined}
                   type="button"
                   role="tab"
                   aria-selected={active}

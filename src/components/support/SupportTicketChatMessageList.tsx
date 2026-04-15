@@ -1,10 +1,11 @@
 import type { SupportTicketThreadMessage } from "@/api/supportTicket";
+import { AttachmentFilePreview } from "@/components/attachments/AttachmentFilePreview";
 import {
-  AttachmentFilePreview,
-  type AttachmentFilePreviewViewer,
-} from "@/components/attachments/AttachmentFilePreview";
+  AttachmentKindIcon,
+  attachmentIconKindFromUrlAndName,
+} from "@/components/attachments/attachmentTypeIcons";
+import { useAttachmentFilePreviewGallery } from "@/hooks/useAttachmentFilePreviewGallery";
 import type { CSSProperties, RefObject } from "react";
-import { useState } from "react";
 
 function isImageAttachment(url: string, mime: string | null, messageType: string | null): boolean {
   if ((messageType ?? "").toUpperCase() === "IMG") return true;
@@ -16,42 +17,6 @@ function isPdfAttachment(url: string, mime: string | null, messageType: string |
   if ((messageType ?? "").toUpperCase() === "PDF") return true;
   if (mime?.toLowerCase().includes("pdf")) return true;
   return /\.pdf(\?|$)/i.test(url);
-}
-
-type AttachmentViewer = AttachmentFilePreviewViewer;
-
-function SupportChatPdfListIcon() {
-  return (
-    <svg
-      className="support-chat__att-pdf-svg"
-      width={44}
-      height={52}
-      viewBox="0 0 44 52"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <path
-        d="M6 4a2 2 0 012-2h16.5L38 15.5V48a2 2 0 01-2 2H8a2 2 0 01-2-2V4z"
-        fill="#F5F5F5"
-        stroke="rgba(0,0,0,0.12)"
-        strokeWidth={1.25}
-      />
-      <path d="M24 2v12h12" fill="#E0E0E0" stroke="rgba(0,0,0,0.08)" strokeWidth={1} />
-      <rect x={6} y={34} width={32} height={14} rx={2.5} fill="#E53935" />
-      <text
-        x={22}
-        y={44.5}
-        textAnchor="middle"
-        fill="#fff"
-        fontSize={10}
-        fontWeight={700}
-        fontFamily="system-ui, -apple-system, Segoe UI, sans-serif"
-      >
-        PDF
-      </text>
-    </svg>
-  );
 }
 
 function formatWhen(iso: string | null): string {
@@ -73,7 +38,7 @@ export type SupportTicketChatMessageListProps = Readonly<{
 }>;
 
 export function SupportTicketChatMessageList({ messages, listEndRef }: SupportTicketChatMessageListProps) {
-  const [viewer, setViewer] = useState<AttachmentViewer>(null);
+  const { viewer, openPreview, closePreview, onGalleryNavigate } = useAttachmentFilePreviewGallery();
 
   return (
     <div className="support-chat__thread-wrap">
@@ -94,13 +59,17 @@ export function SupportTicketChatMessageList({ messages, listEndRef }: SupportTi
                     <ul className="support-chat__attachments">
                       {msg.attachments.map((a, attIndex) => {
                         const key = `${msg.id}-${attIndex}-${a.url}`;
+                        const galleryItems = msg.attachments
+                          .map((att) => ({ url: att.url?.trim() ?? "", name: att.name ?? null }))
+                          .filter((x) => x.url.length > 0);
+                        const openInGallery = () => openPreview(galleryItems, a.url.trim());
                         if (isImageAttachment(a.url, a.mimeType, msg.messageType)) {
                           return (
                             <li key={key}>
                               <button
                                 type="button"
                                 className="support-chat__att-img-btn"
-                                onClick={() => setViewer({ kind: "image", url: a.url, name: a.name })}
+                                onClick={openInGallery}
                                 aria-label={`View image: ${a.name ?? "attachment"}`}
                               >
                                 <img
@@ -121,25 +90,31 @@ export function SupportTicketChatMessageList({ messages, listEndRef }: SupportTi
                               <button
                                 type="button"
                                 className="support-chat__att-pdf-btn"
-                                onClick={() => setViewer({ kind: "pdf", url: a.url, name: a.name })}
+                                onClick={openInGallery}
                                 aria-label={`View PDF: ${pdfLabel}`}
                               >
-                                <span className="support-chat__att-pdf-icon-wrap">
-                                  <SupportChatPdfListIcon />
+                                <span className="support-chat__att-pdf-icon-wrap" data-attach-kind="pdf">
+                                  <AttachmentKindIcon kind="pdf" />
                                 </span>
-                                <span className="support-chat__att-pdf-name">{pdfLabel}</span>
+                                <span className="support-chat__att-pdf-action">View</span>
                               </button>
                             </li>
                           );
                         }
+                        const fileLabel = a.name?.trim() || "Attachment";
+                        const fk = attachmentIconKindFromUrlAndName(a.url, fileLabel);
                         return (
                           <li key={key}>
                             <button
                               type="button"
-                              className="support-chat__att-file"
-                              onClick={() => setViewer({ kind: "file", url: a.url, name: a.name })}
+                              className="support-chat__att-file support-chat__att-file--typed"
+                              onClick={openInGallery}
+                              aria-label={`Open ${fileLabel}`}
                             >
-                              {a.name ?? "Open attachment"}
+                              <span className="support-chat__att-file-icon" data-attach-kind={fk}>
+                                <AttachmentKindIcon kind={fk} />
+                              </span>
+                              <span className="support-chat__att-file-action">Open</span>
                             </button>
                           </li>
                         );
@@ -156,7 +131,9 @@ export function SupportTicketChatMessageList({ messages, listEndRef }: SupportTi
         })}
         <div ref={listEndRef} />
       </div>
-      {viewer ? <AttachmentFilePreview viewer={viewer} onClose={() => setViewer(null)} /> : null}
+      {viewer ? (
+        <AttachmentFilePreview viewer={viewer} onClose={closePreview} onGalleryNavigate={onGalleryNavigate} />
+      ) : null}
     </div>
   );
 }

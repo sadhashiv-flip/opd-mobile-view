@@ -1,3 +1,4 @@
+import type { PharmacyOrderPaymentVerifyBody } from "@/api/patientPharmacyOrderPayment";
 import { verifyPharmacyOrderPayment } from "@/api/patientPharmacyOrderPayment";
 import { PHARMACY_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import type { RazorpayPaymentSuccess } from "@/types/razorpay-window";
@@ -19,11 +20,16 @@ type Refs = Readonly<{
   onSuccessRef: MutableRefObject<() => void>;
   onErrorRef: MutableRefObject<(message: string) => void>;
   setBusyRef: MutableRefObject<(busy: boolean) => void>;
+  /**
+   * When set, used instead of `verifyPharmacyOrderPayment` (e.g. `service/request/paymentverify`
+   * for vision / dental / vaccine).
+   */
+  verifyPaymentRef?: MutableRefObject<(body: PharmacyOrderPaymentVerifyBody) => Promise<void>>;
 }>;
 
 /**
- * After Razorpay success on {@link PHARMACY_PAYMENT_DONE_EVENT}, PATCHes `medicine/order/paymentverify`
- * with `order_id` (from confirm response when set, else Razorpay order id) and `payment_id`.
+ * After Razorpay success on `PHARMACY_PAYMENT_DONE_EVENT`, PATCHes payment verify
+ * (`medicine/order/paymentverify` or `verifyPaymentRef`) with `order_id` and `payment_id`.
  */
 export function usePharmacyOrderPaymentVerify(refs: Refs): void {
   const refsStable = useRef(refs);
@@ -49,7 +55,9 @@ export function usePharmacyOrderPaymentVerify(refs: Refs): void {
       const orderId = verifyOrderIdRef.current?.trim() || detail.razorpay_order_id;
 
       try {
-        await verifyPharmacyOrderPayment({
+        const verify =
+          refsStable.current.verifyPaymentRef?.current ?? verifyPharmacyOrderPayment;
+        await verify({
           order_id: orderId,
           payment_id: detail.razorpay_payment_id,
         });

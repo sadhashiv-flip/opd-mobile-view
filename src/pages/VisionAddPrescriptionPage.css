@@ -1,4 +1,4 @@
-/* Vision — add prescription: pharmacy-aligned grid + sheet + full preview */
+/* Vision — add prescription: pharmacy-aligned grid + full preview */
 
 /* Tap target over thumb opens modal preview (sits under corner remove + ok badges). */
 .ph-file-thumb__open {
@@ -127,87 +127,4 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: #1565c0;
-}
-
-/* Bottom sheet — choose gallery / camera / files */
-.vap-sheet-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 55;
-  background: rgb(0 0 0 / 0.45);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.vap-sheet {
-  width: 100%;
-  max-width: 480px;
-  background: #fff;
-  border-radius: 16px 16px 0 0;
-  padding: 16px 16px calc(20px + env(safe-area-inset-bottom, 0px));
-  animation: vap-sheet-up 0.22s ease-out;
-}
-
-@keyframes vap-sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.vap-sheet__title {
-  margin: 0 0 14px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  text-align: center;
-  color: #111;
-}
-
-.vap-sheet__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.vap-sheet__opt {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 14px;
-  border: 1px solid #e8e8e8;
-  border-radius: 12px;
-  background: #fafafa;
-  font: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.vap-sheet__opt-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #ffe8df;
-}
-
-.vap-sheet__opt-label {
-  flex: 1;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111;
-}
-
-.vap-sheet__chev {
-  font-size: 1.25rem;
-  font-weight: 300;
-  color: #999;
 }

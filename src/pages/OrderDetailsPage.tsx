@@ -2,7 +2,11 @@ import {
   uploadConsultationRefDocumentFile,
   type ConsultationUploadRefType,
 } from "@/api/patientUpload";
-import { patchCancelServiceRequest } from "@/api/serviceRequest";
+import {
+  patchCancelServiceRequest,
+  patchServiceRequestOrderCancel,
+  patchServiceRequestOrderConfirm,
+} from "@/api/serviceRequest";
 import {
   useCallback,
   useEffect,
@@ -15,14 +19,24 @@ import {
 import {
   downloadConsultationPrescriptionPdf,
   fetchInvoiceOrderPageData,
+  isPartnerOrderPayFlowCategory,
   type ConsultationAttachmentRow,
   type InvoiceConsultationCompletedView,
   type InvoiceDetailModel,
+  type PharmacyOrderLocationCardUi,
 } from "@/api/patientInvoices";
+import { patchMedicineOrderConfirm } from "@/api/patientMedicineOrderConfirm";
 import {
   patchPharmacyOrderPaymentConfirm,
   patchPharmacyOrderPaymentPreview,
+  verifyPharmacyOrderPayment,
+  type PharmacyOrderPaymentVerifyBody,
 } from "@/api/patientPharmacyOrderPayment";
+import {
+  patchServiceRequestOrderPaymentConfirm,
+  patchServiceRequestOrderPaymentPreview,
+  verifyServiceRequestOrderPayment,
+} from "@/api/patientServiceRequestOrderPayment";
 import {
   mapOfflinePaymentPreviewToSheetModel,
   patchOfflineAppointmentPaymentConfirm,
@@ -38,11 +52,7 @@ import {
   loadRazorpayScript,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
-import {
-  AttachmentFilePreview,
-  attachmentPreviewKindFromUrl,
-  type AttachmentFilePreviewViewer,
-} from "@/components/attachments/AttachmentFilePreview";
+import { AttachmentFilePreview } from "@/components/attachments/AttachmentFilePreview";
 import {
   ConsultationAttachReportsReadOnlyTabs,
   ConsultationManagedFilesTabs,
@@ -54,7 +64,7 @@ import {
   OrderDetailPaymentSummaryFallback,
   OrderDetailServiceMetaCard,
 } from "@/components/orders/OrderDetailSharedSections";
-import { ROUTES } from "@/constants";
+import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import {
   VIRTUAL_CONSULT_LANGUAGE_KEY,
   VIRTUAL_CONSULT_PURPOSE_KEY,
@@ -64,10 +74,55 @@ import {
   writeConsultSelectedMembersSnapshots,
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
+import { useAttachmentFilePreviewGallery } from "@/hooks/useAttachmentFilePreviewGallery";
 import { useToast } from "@/hooks/useToast";
 import { orderDetailKindInUrlFromCategoryKey } from "@/lib/orderDetailRoutes";
-import { generatePath, useNavigate, useParams } from "react-router-dom";
+import { generatePath, useNavigate, useParams, type NavigateFunction } from "react-router-dom";
 import "./OrderDetailsPage.css";
+
+function inferVisionBookingSuccessType(
+  detail: Pick<InvoiceDetailModel, "serviceTypeLabel" | "lineItems">,
+): string {
+  const label = detail.serviceTypeLabel?.toLowerCase() ?? "";
+  if (label.includes("glass") || label.includes("lens")) return VISION_ROUTE_TYPE.glassesLens;
+  for (const line of detail.lineItems) {
+    const n = line.productName.toLowerCase();
+    if (n.includes("glass") || n.includes("lens")) return VISION_ROUTE_TYPE.glassesLens;
+  }
+  return VISION_ROUTE_TYPE.eyeCheckup;
+}
+
+/** After partner pay (no Razorpay or post-verify): pharmacy card vs consult-style success for vision/dental/vaccine. */
+function navigatePartnerOrderPaymentSuccess(
+  navigate: NavigateFunction,
+  detail: Pick<InvoiceDetailModel, "categoryKey" | "serviceTypeLabel" | "lineItems">,
+  pharmacyPayReturnPath: string,
+): void {
+  switch (detail.categoryKey) {
+    case "pharmacy":
+      navigate(ROUTES.pharmacyOrderSuccess, {
+        replace: true,
+        state: { returnPath: pharmacyPayReturnPath },
+      });
+      return;
+    case "dental":
+      navigate(ROUTES.dentalBookingSuccess, { replace: true });
+      return;
+    case "vision": {
+      const visionType = inferVisionBookingSuccessType(detail);
+      navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), { replace: true });
+      return;
+    }
+    default:
+      navigate(ROUTES.bookingSuccess, {
+        replace: true,
+        state: {
+          layout: "consult" as const,
+          description: "Your booking has been confirmed.",
+        },
+      });
+  }
+}
 
 function BannerIcon({
   tone,
@@ -225,6 +280,39 @@ function doctorInitial(name: string): string {
   return t.length ? t.charAt(0).toUpperCase() : "?";
 }
 
+function PharmacyLocationAddressSection({
+  loc,
+  heading,
+}: Readonly<{ loc: PharmacyOrderLocationCardUi; heading: string }>) {
+  return (
+    <section className="od-card od-card--visit od-card--pharmacy-loc" aria-label={heading}>
+      <h3 className="od-card__title">{heading}</h3>
+      {loc.headerName ? <p className="od-visit__facility">{loc.headerName}</p> : null}
+      {loc.addressText || loc.mapsUrl ? (
+        <div className="od-pharmacy-loc__addr-line">
+          {loc.addressText ? (
+            <p className="od-visit__addr">{loc.addressText}</p>
+          ) : (
+            <span className="od-pharmacy-loc__addr-spacer" aria-hidden />
+          )}
+          {loc.mapsUrl ? (
+            <a
+              className="od-visit__map-btn od-visit__map-btn--pharmacy"
+              href={loc.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open directions in maps"
+            >
+              <NavMapIcon />
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {loc.phoneText ? <p className="od-pharmacy__phone">Phone: {loc.phoneText}</p> : null}
+    </section>
+  );
+}
+
 export function OrderDetailsPage() {
   const { orderKind: orderKindFromUrl, invoiceId } = useParams<{
     orderKind?: string;
@@ -251,14 +339,38 @@ export function OrderDetailsPage() {
   const [bookingProceedBusy, setBookingProceedBusy] = useState(false);
   const [attachmentAddBusy, setAttachmentAddBusy] = useState(false);
   const [reportUploadBusy, setReportUploadBusy] = useState(false);
-  const [consultationFilePreview, setConsultationFilePreview] = useState<AttachmentFilePreviewViewer>(null);
+  const {
+    viewer: consultationFilePreview,
+    openPreview: openAttachmentGalleryPreview,
+    closePreview: closeConsultationFilePreview,
+    onGalleryNavigate: onConsultationGalleryNavigate,
+  } = useAttachmentFilePreviewGallery();
   const cancelDialogRef = useRef<HTMLDialogElement>(null);
+  const confirmMedicineOrderDialogRef = useRef<HTMLDialogElement>(null);
   const attachmentFileInputRef = useRef<HTMLInputElement>(null);
   const reportFileInputRef = useRef<HTMLInputElement>(null);
   const cancelDialogTitleId = useId();
   const cancelReasonFieldId = useId();
-  /** `order_id` for `medicine/order/paymentverify` when returned on confirm; else Razorpay order id. */
+  const confirmMedicineOrderTitleId = useId();
+  const [confirmMedicineOrderDialogOpen, setConfirmMedicineOrderDialogOpen] = useState(false);
+  const [confirmMedicineOrderBusy, setConfirmMedicineOrderBusy] = useState(false);
+  /** `order_id` for payment verify when returned on confirm; else Razorpay order id. */
   const pharmacyVerifyOrderIdRef = useRef<string | null>(null);
+  const partnerPaymentVerifyRef = useRef<(body: PharmacyOrderPaymentVerifyBody) => Promise<void>>(
+    verifyPharmacyOrderPayment,
+  );
+
+  useEffect(() => {
+    if (
+      detail != null &&
+      isPartnerOrderPayFlowCategory(detail.categoryKey) &&
+      detail.categoryKey !== "pharmacy"
+    ) {
+      partnerPaymentVerifyRef.current = verifyServiceRequestOrderPayment;
+    } else {
+      partnerPaymentVerifyRef.current = verifyPharmacyOrderPayment;
+    }
+  }, [detail?.categoryKey]);
   const load = useCallback(async () => {
     if (!invoiceId) {
       setError("Missing order id");
@@ -378,6 +490,23 @@ export function OrderDetailsPage() {
     }
   }, [cancelDialogOpen]);
 
+  useEffect(() => {
+    const d = confirmMedicineOrderDialogRef.current;
+    if (!d) return;
+    if (confirmMedicineOrderDialogOpen) {
+      if (!d.open) d.showModal();
+    } else if (d.open) {
+      d.close();
+    }
+  }, [confirmMedicineOrderDialogOpen]);
+
+  useEffect(() => {
+    if (!detail?.pharmacyAwaitingDetailConfirmation) {
+      setConfirmMedicineOrderDialogOpen(false);
+      setConfirmMedicineOrderBusy(false);
+    }
+  }, [detail?.pharmacyAwaitingDetailConfirmation]);
+
   const onPickConsultationAttachments = useCallback(() => {
     attachmentFileInputRef.current?.click();
   }, []);
@@ -424,44 +553,16 @@ export function OrderDetailsPage() {
   );
 
   const openConsultationFilePreview = useCallback(
-    (rows: readonly ConsultationAttachmentRow[], url: string | null, name: string) => {
+    (rows: readonly ConsultationAttachmentRow[], url: string | null, _name: string) => {
       const u = url?.trim();
       if (!u) return;
       const items = rows
-        .map((a) => ({ url: a.url?.trim() ?? "", name: a.label }))
+        .map((a) => ({ url: a.url?.trim() ?? "", name: a.label ?? null }))
         .filter((x) => x.url.length > 0);
-      const idx = items.findIndex((x) => x.url === u);
-      const kind = attachmentPreviewKindFromUrl(u);
-      const label = name.trim() || null;
-      if (items.length > 1 && idx >= 0) {
-        setConsultationFilePreview({
-          kind,
-          url: u,
-          name: label,
-          gallery: { items, index: idx },
-        });
-      } else {
-        setConsultationFilePreview({ kind, url: u, name: label });
-      }
+      openAttachmentGalleryPreview(items, u);
     },
-    [],
+    [openAttachmentGalleryPreview],
   );
-
-  const onConsultationGalleryNavigate = useCallback((delta: -1 | 1) => {
-    setConsultationFilePreview((v) => {
-      if (!v?.gallery) return v;
-      const { items, index } = v.gallery;
-      const ni = index + delta;
-      if (ni < 0 || ni >= items.length) return v;
-      const item = items[ni];
-      return {
-        kind: attachmentPreviewKindFromUrl(item.url),
-        url: item.url,
-        name: item.name?.trim() ? item.name.trim() : null,
-        gallery: { items, index: ni },
-      };
-    });
-  }, []);
 
   const onConfirmCancelConsultation = useCallback(async () => {
     const serviceId = detail?.consultationInfoId?.trim();
@@ -472,7 +573,15 @@ export function OrderDetailsPage() {
     }
     setCancelBusy(true);
     try {
-      await patchCancelServiceRequest(serviceId, cancelReason.trim());
+      const useServiceRequestCancel =
+        detail?.categoryKey === "vision" ||
+        detail?.categoryKey === "dental" ||
+        detail?.categoryKey === "vaccine";
+      if (useServiceRequestCancel) {
+        await patchServiceRequestOrderCancel(serviceId, cancelReason.trim());
+      } else {
+        await patchCancelServiceRequest(serviceId, cancelReason.trim());
+      }
       toast.success(detail?.isConsultationOrder ? "Appointment cancelled" : "Order cancelled");
       setCancelDialogOpen(false);
       await load();
@@ -481,7 +590,7 @@ export function OrderDetailsPage() {
     } finally {
       setCancelBusy(false);
     }
-  }, [cancelReason, detail?.consultationInfoId, detail?.isConsultationOrder, load, toast]);
+  }, [cancelReason, detail?.categoryKey, detail?.consultationInfoId, detail?.isConsultationOrder, load, toast]);
 
   const useWalletForOfflinePayment = false;
 
@@ -495,8 +604,18 @@ export function OrderDetailsPage() {
     void (async () => {
       try {
         const raw =
-          detail?.categoryKey === "pharmacy" && detail.consultationInfoId?.trim()
-            ? await patchPharmacyOrderPaymentPreview(detail.consultationInfoId.trim(), useWalletForOfflinePayment)
+          detail != null &&
+          isPartnerOrderPayFlowCategory(detail.categoryKey) &&
+          detail.consultationInfoId?.trim()
+            ? detail.categoryKey === "pharmacy"
+              ? await patchPharmacyOrderPaymentPreview(
+                  detail.consultationInfoId.trim(),
+                  useWalletForOfflinePayment,
+                )
+              : await patchServiceRequestOrderPaymentPreview(
+                  detail.consultationInfoId.trim(),
+                  useWalletForOfflinePayment,
+                )
             : await patchOfflineAppointmentPaymentPreview(id, useWalletForOfflinePayment);
         setOfflinePaymentPreview(mapOfflinePaymentPreviewToSheetModel(raw));
       } catch (e) {
@@ -532,11 +651,8 @@ export function OrderDetailsPage() {
             : ROUTES.consultationHospitalBookingSuccess,
           { replace: true },
         );
-      } else if (detail?.categoryKey === "pharmacy") {
-        navigate(ROUTES.pharmacyOrderSuccess, {
-          replace: true,
-          state: { returnPath: pharmacyPayReturnPath },
-        });
+      } else if (detail && isPartnerOrderPayFlowCategory(detail.categoryKey)) {
+        navigatePartnerOrderPaymentSuccess(navigate, detail, pharmacyPayReturnPath);
       } else {
         toast.success("Payment successful");
         void load();
@@ -547,9 +663,7 @@ export function OrderDetailsPage() {
       setBookingProceedBusy(false);
     };
   }, [
-    detail?.categoryKey,
-    detail?.consultationPlaceTag,
-    detail?.isConsultationOrder,
+    detail,
     load,
     navigate,
     pharmacyPayReturnPath,
@@ -567,6 +681,7 @@ export function OrderDetailsPage() {
     onSuccessRef: onPaymentVerifiedRef,
     onErrorRef: onPaymentVerifyErrorRef,
     setBusyRef: setBookingProceedBusyRef,
+    verifyPaymentRef: partnerPaymentVerifyRef,
   });
 
   const onBookingSheetProceed = useCallback(async () => {
@@ -574,10 +689,17 @@ export function OrderDetailsPage() {
     if (!id) return;
     setBookingProceedBusy(true);
     try {
-      if (detail?.categoryKey === "pharmacy" && detail.consultationInfoId?.trim()) {
-        const medicineOrderId = detail.consultationInfoId.trim();
-        const res = await patchPharmacyOrderPaymentConfirm(medicineOrderId, useWalletForOfflinePayment);
-        pharmacyVerifyOrderIdRef.current = res.verifyOrderId ?? medicineOrderId;
+      if (
+        detail != null &&
+        isPartnerOrderPayFlowCategory(detail.categoryKey) &&
+        detail.consultationInfoId?.trim()
+      ) {
+        const partnerOrderId = detail.consultationInfoId.trim();
+        const res =
+          detail.categoryKey === "pharmacy"
+            ? await patchPharmacyOrderPaymentConfirm(partnerOrderId, useWalletForOfflinePayment)
+            : await patchServiceRequestOrderPaymentConfirm(partnerOrderId, useWalletForOfflinePayment);
+        pharmacyVerifyOrderIdRef.current = res.verifyOrderId ?? partnerOrderId;
         const rzp = res.razorpayPayload;
         if (rzp != null && Object.keys(rzp).length > 0) {
           await loadRazorpayScript();
@@ -599,10 +721,7 @@ export function OrderDetailsPage() {
           setOfflinePaymentPreview(null);
           setBookingProceedBusy(false);
           pharmacyVerifyOrderIdRef.current = null;
-          navigate(ROUTES.pharmacyOrderSuccess, {
-            replace: true,
-            state: { returnPath: pharmacyPayReturnPath },
-          });
+          navigatePartnerOrderPaymentSuccess(navigate, detail, pharmacyPayReturnPath);
           return;
         }
         toast.error(res.message ?? "Payment could not be started");
@@ -651,10 +770,7 @@ export function OrderDetailsPage() {
       setBookingProceedBusy(false);
     }
   }, [
-    detail?.categoryKey,
-    detail?.consultationInfoId,
-    detail?.consultationPlaceTag,
-    detail?.isConsultationOrder,
+    detail,
     invoiceId,
     load,
     navigate,
@@ -712,7 +828,11 @@ export function OrderDetailsPage() {
 
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
 
-  /** Razorpay / offline preview flow — consultation keeps legacy flags; other services use `info` status + unpaid. */
+  /**
+   * Pay / confirm footer: consultation uses `consultationInfoStatus` + `consultationPaymentRequired`.
+   * Pharmacy, vision, dental, and vaccine share the same rule: `info.status === 4`, `netPayAmount > 0`, and
+   * payment required from merged envelope / `info.additional_info` (see {@link isPartnerOrderPayFlowCategory}).
+   */
   const showPayConfirmBooking = useMemo(() => {
     if (!detail) return false;
     if (detail.netPayAmount <= 0) return false;
@@ -755,11 +875,48 @@ export function OrderDetailsPage() {
   const patientDetailsVisible = useMemo(() => {
     if (!detail) return false;
     if (detail.patientName.trim().length > 0) return true;
+    if (detail.infoDetailsAlternatePhone?.trim()) return true;
     const p = detail.consultationPatient;
     return Boolean(p?.phone || p?.email || p?.ageGenderLine);
   }, [detail]);
 
-  const showOrderActionFooter = showPayConfirmBooking || canCancelOrder;
+  const showPharmacyAwaitingDetailConfirmation = Boolean(detail?.pharmacyAwaitingDetailConfirmation);
+
+  /** Pharmacy + vision/dental/vaccine: requested items, address, and center for every `info.status`; “Confirm details” only when `pharmacyAwaitingDetailConfirmation`. */
+  const showPartnerOrderDetailSections = useMemo(() => {
+    if (!detail) return false;
+    if (detail.isConsultationOrder) return false;
+    const id = detail.consultationInfoId?.trim() ?? "";
+    return isPartnerOrderPayFlowCategory(detail.categoryKey) && id.length > 0;
+  }, [detail]);
+
+  const pharmacyCenterForConfirmUi = useMemo(() => {
+    if (!detail || !isPartnerOrderPayFlowCategory(detail.categoryKey)) return null;
+    return detail.pharmacyConfirmCenter;
+  }, [detail]);
+
+  const onConfirmMedicineOrderDetails = useCallback(async () => {
+    if (!detail) return;
+    const serviceOrOrderId = detail.consultationInfoId?.trim();
+    if (!serviceOrOrderId) return;
+    setConfirmMedicineOrderBusy(true);
+    try {
+      if (detail.categoryKey === "pharmacy") {
+        await patchMedicineOrderConfirm(serviceOrOrderId);
+      } else if (isPartnerOrderPayFlowCategory(detail.categoryKey)) {
+        await patchServiceRequestOrderConfirm(serviceOrOrderId);
+      } else {
+        return;
+      }
+      setConfirmMedicineOrderDialogOpen(false);
+      toast.success("Order details confirmed");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not confirm order");
+    } finally {
+      setConfirmMedicineOrderBusy(false);
+    }
+  }, [detail, load, toast]);
 
   return (
     <div className="od-detail-page">
@@ -782,7 +939,7 @@ export function OrderDetailsPage() {
       </header>
 
       <main
-        className={`od-main${showFollowUpFooter ? " od-main--follow" : ""}${showOrderActionFooter ? " od-main--consult-footer" : ""}`}
+        className={`od-main${showFollowUpFooter ? " od-main--follow" : ""}${showPayConfirmBooking ? " od-main--consult-footer" : ""}`}
       >
         {loading ? (
           <>
@@ -813,9 +970,7 @@ export function OrderDetailsPage() {
                 >
                   <BannerIcon tone={detail.bannerTone} paymentPending={isPaymentPendingBanner} />
                 </div>
-                <h2 className="od-banner__title">
-                  {isPaymentPendingBanner ? "Status: Payment pending" : detail.bannerTitle}
-                </h2>
+                <h2 className="od-banner__title">{detail.bannerTitle}</h2>
               </div>
               <p className="od-banner__sub">{detail.bannerSubtitle}</p>
             </section>
@@ -880,6 +1035,7 @@ export function OrderDetailsPage() {
                   <OrderDetailPatientSection
                     patientName={detail.patientName}
                     consultationPatient={detail.consultationPatient}
+                    alternatePhone={detail.infoDetailsAlternatePhone}
                   />
                 ) : null}
 
@@ -961,51 +1117,126 @@ export function OrderDetailsPage() {
                   orderDateTimeDisplay={detail.orderDateTimeDisplay}
                   vendorName={detail.vendorName}
                   placeTag={detail.consultationPlaceTag}
-                  cancelAppointmentVisible={canCancelOrder && !showOrderActionFooter}
-                  onCancelAppointment={() => {
-                    setCancelReason("");
-                    setCancelDialogOpen(true);
-                  }}
+                  cancelAppointmentVisible={false}
                 />
                 {patientDetailsVisible ? (
                   <OrderDetailPatientSection
                     patientName={detail.patientName}
                     consultationPatient={detail.consultationPatient}
+                    alternatePhone={detail.infoDetailsAlternatePhone}
                   />
                 ) : null}
-                {detail.pharmacyOrderLocation ? (
-                  <section
-                    className="od-card od-card--visit od-card--pharmacy-loc"
-                    aria-label={detail.pharmacyOrderLocation.cardTitle}
-                  >
-                    <h3 className="od-card__title">{detail.pharmacyOrderLocation.cardTitle}</h3>
-                    {detail.pharmacyOrderLocation.headerName ? (
-                      <p className="od-visit__facility">{detail.pharmacyOrderLocation.headerName}</p>
+
+                {showPartnerOrderDetailSections ? (
+                  <>
+                    <section className="od-card od-card--pharmacy-requested" aria-label="Requested details">
+                      <h3 className="od-card__title">Requested details</h3>
+                      {detail.lineItems.length > 0 ? (
+                        <ul className="od-pharm-req__list">
+                          {detail.lineItems.map((line, i) => (
+                            <li key={`${line.productName}-${i}`}>{line.productName}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="od-pharm-req__empty">No items listed.</p>
+                      )}
+                      {detail.pharmacyPreferredSlotDisplay ? (
+                        <div className="od-row od-row--pharm-req">
+                          <span className="od-row__label">Preferred slot</span>
+                          <span className="od-row__value od-row__value--other">
+                            {detail.pharmacyPreferredSlotDisplay}
+                          </span>
+                        </div>
+                      ) : null}
+                      {detail.categoryKey === "vaccine" && detail.infoDetailsConditions ? (
+                        <div className="od-row od-row--pharm-req od-row--pharm-req-text">
+                          <span className="od-row__label">Conditions</span>
+                          <span className="od-row__value od-row__value--other">{detail.infoDetailsConditions}</span>
+                        </div>
+                      ) : null}
+                      {detail.categoryKey === "vaccine" && detail.infoDetailsNote ? (
+                        <div className="od-row od-row--pharm-req od-row--pharm-req-text">
+                          <span className="od-row__label">Note</span>
+                          <span className="od-row__value od-row__value--other">{detail.infoDetailsNote}</span>
+                        </div>
+                      ) : null}
+                    </section>
+
+                    {detail.pharmacyOrderLocation ? (
+                      <PharmacyLocationAddressSection
+                        loc={detail.pharmacyOrderLocation}
+                        heading={
+                          detail.pharmacyOrderLocation.cardTitle === "Delivery address"
+                            ? "Address"
+                            : detail.pharmacyOrderLocation.cardTitle
+                        }
+                      />
                     ) : null}
-                    {detail.pharmacyOrderLocation.addressText || detail.pharmacyOrderLocation.mapsUrl ? (
-                      <div className="od-pharmacy-loc__addr-line">
-                        {detail.pharmacyOrderLocation.addressText ? (
-                          <p className="od-visit__addr">{detail.pharmacyOrderLocation.addressText}</p>
+
+                    {pharmacyCenterForConfirmUi != null ? (
+                      <section className="od-card od-card--pharmacy-center-confirm" aria-label="Center details">
+                        <h3 className="od-card__title">Center details</h3>
+                        <p className="od-pharm-center__name">
+                          {pharmacyCenterForConfirmUi.centerName?.trim() || "—"}
+                        </p>
+                        {pharmacyCenterForConfirmUi.centerAddress ? (
+                          <p className="od-visit__addr od-pharm-center__addr-text">
+                            {pharmacyCenterForConfirmUi.centerAddress}
+                          </p>
                         ) : (
-                          <span className="od-pharmacy-loc__addr-spacer" aria-hidden />
+                          <p className="od-pharm-center__muted">Address not available yet.</p>
                         )}
-                        {detail.pharmacyOrderLocation.mapsUrl ? (
-                          <a
-                            className="od-visit__map-btn od-visit__map-btn--pharmacy"
-                            href={detail.pharmacyOrderLocation.mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Open directions in maps"
-                          >
-                            <NavMapIcon />
-                          </a>
+                        {pharmacyCenterForConfirmUi.centerPhone ? (
+                          <p className="od-pharmacy__phone">
+                            Phone: {pharmacyCenterForConfirmUi.centerPhone}
+                          </p>
                         ) : null}
-                      </div>
+                        <div className="od-pharm-center__actions">
+                          {pharmacyCenterForConfirmUi.mapsUrl ? (
+                            <a
+                              className="od-pharm-center__btn od-pharm-center__btn--outline"
+                              href={pharmacyCenterForConfirmUi.mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <NavMapIcon />
+                              <span>Directions</span>
+                            </a>
+                          ) : (
+                            <span className="od-pharm-center__btn od-pharm-center__btn--outline od-pharm-center__btn--disabled">
+                              <span>Directions</span>
+                            </span>
+                          )}
+                          {showPharmacyAwaitingDetailConfirmation ? (
+                            <button
+                              type="button"
+                              className="od-pharm-center__btn od-pharm-center__btn--primary"
+                              onClick={() => setConfirmMedicineOrderDialogOpen(true)}
+                            >
+                              Confirm details
+                            </button>
+                          ) : null}
+                        </div>
+                      </section>
+                    ) : showPharmacyAwaitingDetailConfirmation ? (
+                      <section className="od-card od-card--pharmacy-center-confirm" aria-label="Confirm order details">
+                        <div className="od-pharm-center__actions od-pharm-center__actions--solo">
+                          <button
+                            type="button"
+                            className="od-pharm-center__btn od-pharm-center__btn--primary"
+                            onClick={() => setConfirmMedicineOrderDialogOpen(true)}
+                          >
+                            Confirm details
+                          </button>
+                        </div>
+                      </section>
                     ) : null}
-                    {detail.pharmacyOrderLocation.phoneText ? (
-                      <p className="od-pharmacy__phone">Phone: {detail.pharmacyOrderLocation.phoneText}</p>
-                    ) : null}
-                  </section>
+                  </>
+                ) : detail.pharmacyOrderLocation ? (
+                  <PharmacyLocationAddressSection
+                    loc={detail.pharmacyOrderLocation}
+                    heading={detail.pharmacyOrderLocation.cardTitle}
+                  />
                 ) : null}
               </>
             )}
@@ -1123,7 +1354,7 @@ export function OrderDetailsPage() {
             ) : (
               <ConsultationAttachReportsReadOnlyTabs
                 attachments={detail.consultationAttachments}
-                reports={detail.categoryKey === "pharmacy" ? [] : detail.consultationReports}
+                reports={isPartnerOrderPayFlowCategory(detail.categoryKey) ? [] : detail.consultationReports}
                 onPreview={openConsultationFilePreview}
               />
             )}
@@ -1152,6 +1383,26 @@ export function OrderDetailsPage() {
                     <PaymentRow key={p.paymentId ?? `${p.title}-${i}`} p={p} />
                   ))}
                 </ul>
+              </section>
+            ) : null}
+
+            {canCancelOrder ? (
+              <section
+                className="od-order-cancel-end"
+                aria-label={isConsultationLayout ? "Cancel appointment" : "Cancel order"}
+              >
+                <div className="od-order-cancel-wrap">
+                  <button
+                    type="button"
+                    className="od-btn-cancel-appt"
+                    onClick={() => {
+                      setCancelReason("");
+                      setCancelDialogOpen(true);
+                    }}
+                  >
+                    {isConsultationLayout ? "Cancel appointment" : "Cancel order"}
+                  </button>
+                </div>
               </section>
             ) : null}
           </>
@@ -1184,29 +1435,15 @@ export function OrderDetailsPage() {
         />
       ) : null}
 
-      {showOrderActionFooter ? (
+      {showPayConfirmBooking ? (
         <footer className="od-consult-footer">
-          {canCancelOrder ? (
-            <button
-              type="button"
-              className="od-consult-footer__btn od-consult-footer__btn--cancel"
-              onClick={() => {
-                setCancelReason("");
-                setCancelDialogOpen(true);
-              }}
-            >
-              Cancel
-            </button>
-          ) : null}
-          {showPayConfirmBooking ? (
-            <button
-              type="button"
-              className="od-consult-footer__btn od-consult-footer__btn--pay"
-              onClick={onPayConfirmBooking}
-            >
-              Pay / confirm
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="od-consult-footer__btn od-consult-footer__btn--pay"
+            onClick={onPayConfirmBooking}
+          >
+            Pay / confirm
+          </button>
         </footer>
       ) : null}
 
@@ -1216,6 +1453,50 @@ export function OrderDetailsPage() {
             Book a follow-up
           </button>
         </footer>
+      ) : null}
+
+      {detail?.pharmacyAwaitingDetailConfirmation ? (
+        <dialog
+          ref={confirmMedicineOrderDialogRef}
+          className="od-cancel-dialog od-confirm-medicine-dialog"
+          aria-labelledby={confirmMedicineOrderTitleId}
+          aria-describedby={`${confirmMedicineOrderTitleId}-desc`}
+          onClose={() => {
+            if (!confirmMedicineOrderBusy) setConfirmMedicineOrderDialogOpen(false);
+          }}
+          onCancel={(e) => {
+            e.preventDefault();
+            if (!confirmMedicineOrderBusy) setConfirmMedicineOrderDialogOpen(false);
+          }}
+        >
+          <div className="od-cancel-dialog__panel">
+            <h2 id={confirmMedicineOrderTitleId} className="od-cancel-dialog__title">
+              Confirm these details?
+            </h2>
+            <p id={`${confirmMedicineOrderTitleId}-desc`} className="od-cancel-dialog__desc">
+              Please confirm the address and center shown above are correct. After this, the order will move
+              forward (for example to payment when required).
+            </p>
+            <footer className="od-cancel-dialog__footer">
+              <button
+                type="button"
+                className="od-cancel-dialog__btn od-cancel-dialog__btn--secondary"
+                disabled={confirmMedicineOrderBusy}
+                onClick={() => setConfirmMedicineOrderDialogOpen(false)}
+              >
+                No, go back
+              </button>
+              <button
+                type="button"
+                className="od-cancel-dialog__btn od-cancel-dialog__btn--primary"
+                disabled={confirmMedicineOrderBusy}
+                onClick={() => void onConfirmMedicineOrderDetails()}
+              >
+                {confirmMedicineOrderBusy ? "Confirming…" : "Yes, confirm"}
+              </button>
+            </footer>
+          </div>
+        </dialog>
       ) : null}
 
       {canCancelOrder ? (
@@ -1276,7 +1557,7 @@ export function OrderDetailsPage() {
 
       <AttachmentFilePreview
         viewer={consultationFilePreview}
-        onClose={() => setConsultationFilePreview(null)}
+        onClose={closeConsultationFilePreview}
         onGalleryNavigate={onConsultationGalleryNavigate}
       />
     </div>

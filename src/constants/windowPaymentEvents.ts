@@ -7,5 +7,5 @@ export const PAYMENT_SUCCESS_EVENT = "payment.success" as const;
 /** Gym opt-in verify listener. */
 export const GYM_PAYMENT_DONE_EVENT = "gym.payment.done" as const;
 
-/** Pharmacy medicine order Checkout.js success → `medicine/order/paymentverify`. */
+/** Checkout.js success for medicine-order and service-request (vision/dental/vaccine) pay flows. */
 export const PHARMACY_PAYMENT_DONE_EVENT = "pharmacy.payment.done" as const;

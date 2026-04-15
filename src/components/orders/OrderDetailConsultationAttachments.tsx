@@ -1,6 +1,11 @@
 import type { ConsultationUploadRefType } from "@/api/patientUpload";
 import type { ConsultationAttachmentRow } from "@/api/patientInvoices";
 import {
+  AttachmentKindIcon,
+  attachmentIconKindFromUrlAndName,
+  type AttachmentIconKind,
+} from "@/components/attachments/attachmentTypeIcons";
+import {
   useEffect,
   useId,
   useRef,
@@ -9,54 +14,12 @@ import {
   type RefObject,
 } from "react";
 
-type ConsultationAttachIconKind = "image" | "pdf" | "file";
-
-export function consultationAttachmentIconKind(url: string | null, label: string): ConsultationAttachIconKind {
-  const raw = `${url ?? ""} ${label}`.toLowerCase();
-  if (/\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(raw)) return "image";
-  if (/\.pdf(\?|#|$)/i.test(raw)) return "pdf";
-  return "file";
+/** @deprecated Use {@link attachmentIconKindFromUrlAndName} from `@/components/attachments/attachmentTypeIcons`. */
+export function consultationAttachmentIconKind(url: string | null, label: string): AttachmentIconKind {
+  return attachmentIconKindFromUrlAndName(url, label);
 }
 
-export function AttachmentKindIcon({ kind }: Readonly<{ kind: ConsultationAttachIconKind }>) {
-  if (kind === "image") {
-    return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
-        <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
-        <path
-          d="M21 15l-5-5-4 4-3-3-6 6"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  if (kind === "pdf") {
-    return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path
-          d="M7 3h7l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <path d="M14 3v5h5M9 12h6M9 16h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M7 3h7l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
+export { AttachmentKindIcon };
 
 export type ConsultationManagedFilesTabsProps = Readonly<{
   attachments: readonly ConsultationAttachmentRow[];
@@ -72,6 +35,52 @@ export type ConsultationManagedFilesTabsProps = Readonly<{
   onAttachmentFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onReportFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }>;
+
+function AttachmentListRow({
+  rows,
+  item,
+  index,
+  keyPrefix,
+  onPreview,
+  onAfterPreview,
+}: Readonly<{
+  rows: readonly ConsultationAttachmentRow[];
+  item: ConsultationAttachmentRow;
+  index: number;
+  keyPrefix: string;
+  onPreview: (rows: readonly ConsultationAttachmentRow[], url: string | null, name: string) => void;
+  onAfterPreview?: () => void;
+}>) {
+  const k = attachmentIconKindFromUrlAndName(item.url, item.label);
+  const name = item.label?.trim() || "Attachment";
+  const hasUrl = Boolean(item.url?.trim());
+  return (
+    <li key={`${keyPrefix}-${item.label}-${index}`} className="od-attach-item-wrap">
+      {hasUrl ? (
+        <button
+          type="button"
+          className="od-attach-item od-attach-item--icon-row od-attach-item__tile"
+          onClick={() => {
+            onPreview(rows, item.url, item.label);
+            onAfterPreview?.();
+          }}
+          aria-label={`Open ${name}`}
+        >
+          <span className="od-attach-item__kind" data-attach-kind={k} aria-hidden>
+            <AttachmentKindIcon kind={k} />
+          </span>
+        </button>
+      ) : (
+        <div className="od-attach-item od-attach-item--icon-row od-attach-item--no-url" aria-label={`${name} (no link)`}>
+          <span className="od-attach-item__kind" data-attach-kind={k} aria-hidden>
+            <AttachmentKindIcon kind={k} />
+          </span>
+          <span className="od-attach-item__no-link">No link</span>
+        </div>
+      )}
+    </li>
+  );
+}
 
 export function ConsultationManagedFilesTabs({
   attachments,
@@ -171,17 +180,19 @@ export function ConsultationManagedFilesTabs({
                 <span className="od-attach-strip__empty">No files yet — use Add or open the list</span>
               ) : (
                 items.slice(0, 8).map((a, i) => {
-                  const k = consultationAttachmentIconKind(a.url, a.label);
+                  const k = attachmentIconKindFromUrlAndName(a.url, a.label);
                   const hasUrl = Boolean(a.url?.trim());
                   const rows = tab === "ATTACHMENT" ? attachments : reports;
+                  const name = a.label?.trim() || "Attachment";
                   return (
                     <button
                       key={`${rowKeyPrefix}-${a.label}-${i}`}
                       type="button"
                       className="od-attach-strip__chip"
                       data-attach-kind={k}
-                      title={a.label}
+                      title={name}
                       disabled={!hasUrl}
+                      aria-label={hasUrl ? `Open ${name}` : `${name} (no link)`}
                       onClick={() => onPreview(rows, a.url, a.label)}
                     >
                       <AttachmentKindIcon kind={k} />
@@ -215,30 +226,34 @@ export function ConsultationManagedFilesTabs({
           ) : (
             <ul className="od-attach-dialog__list">
               {listItems.map((a, i) => {
-                const k = consultationAttachmentIconKind(a.url, a.label);
+                const k = attachmentIconKindFromUrlAndName(a.url, a.label);
                 const dlgPrefix = listKind === "REPORT" ? "rep" : "att";
+                const name = a.label?.trim() || "Attachment";
+                const hasUrl = Boolean(a.url?.trim());
                 return (
                   <li key={`${dlgPrefix}-dlg-${a.label}-${i}`} className="od-attach-dialog__item">
-                    <span className="od-attach-dialog__item-kind" data-attach-kind={k}>
-                      <AttachmentKindIcon kind={k} />
-                    </span>
-                    <div className="od-attach-dialog__item-main">
-                      <span className="od-attach-dialog__item-label">{a.label}</span>
-                      {a.url ? (
-                        <button
-                          type="button"
-                          className="od-attach-dialog__link od-attach-dialog__link--btn"
-                          onClick={() => {
-                            onPreview(listItems, a.url, a.label);
-                            setListKind(null);
-                          }}
-                        >
-                          View
-                        </button>
-                      ) : (
+                    {hasUrl ? (
+                      <button
+                        type="button"
+                        className="od-attach-dialog__row-tile"
+                        aria-label={`Open ${name}`}
+                        onClick={() => {
+                          onPreview(listItems, a.url, a.label);
+                          setListKind(null);
+                        }}
+                      >
+                        <span className="od-attach-dialog__item-kind" data-attach-kind={k}>
+                          <AttachmentKindIcon kind={k} />
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="od-attach-dialog__row-tile od-attach-dialog__row-tile--disabled">
+                        <span className="od-attach-dialog__item-kind" data-attach-kind={k}>
+                          <AttachmentKindIcon kind={k} />
+                        </span>
                         <span className="od-attach-dialog__muted">No link</span>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -284,21 +299,16 @@ export function ConsultationAttachReportsReadOnlyTabs({
     return (
       <section className="od-card od-card--attach" aria-label="Attachments">
         <h3 className="od-card__title">Attachments</h3>
-        <ul className="od-attach-list">
+        <ul className="od-attach-list od-attach-list--icon-rows">
           {attachments.map((a, i) => (
-            <li key={`${a.label}-${i}`} className="od-attach-item">
-              {a.url ? (
-                <button
-                  type="button"
-                  className="od-attach-item__link od-attach-item__link--btn"
-                  onClick={() => onPreview(attachments, a.url, a.label)}
-                >
-                  {a.label}
-                </button>
-              ) : (
-                <span className="od-attach-item__text">{a.label}</span>
-              )}
-            </li>
+            <AttachmentListRow
+              key={`att-ro-${a.label}-${i}`}
+              rows={attachments}
+              item={a}
+              index={i}
+              keyPrefix="att-ro"
+              onPreview={onPreview}
+            />
           ))}
         </ul>
       </section>
@@ -309,21 +319,16 @@ export function ConsultationAttachReportsReadOnlyTabs({
     return (
       <section className="od-card od-card--attach" aria-label="Reports">
         <h3 className="od-card__title">Reports</h3>
-        <ul className="od-attach-list">
+        <ul className="od-attach-list od-attach-list--icon-rows">
           {reports.map((a, i) => (
-            <li key={`rep-${a.label}-${i}`} className="od-attach-item">
-              {a.url ? (
-                <button
-                  type="button"
-                  className="od-attach-item__link od-attach-item__link--btn"
-                  onClick={() => onPreview(reports, a.url, a.label)}
-                >
-                  {a.label}
-                </button>
-              ) : (
-                <span className="od-attach-item__text">{a.label}</span>
-              )}
-            </li>
+            <AttachmentListRow
+              key={`rep-ro-${a.label}-${i}`}
+              rows={reports}
+              item={a}
+              index={i}
+              keyPrefix="rep-ro"
+              onPreview={onPreview}
+            />
           ))}
         </ul>
       </section>
@@ -361,21 +366,16 @@ export function ConsultationAttachReportsReadOnlyTabs({
         {items.length === 0 ? (
           <p className="od-attach-empty od-attach-empty--tab">{emptyMsg}</p>
         ) : (
-          <ul className="od-attach-list od-attach-list--tab">
+          <ul className="od-attach-list od-attach-list--tab od-attach-list--icon-rows">
             {items.map((a, i) => (
-              <li key={`${tab}-${a.label}-${i}`} className="od-attach-item">
-                {a.url ? (
-                  <button
-                    type="button"
-                    className="od-attach-item__link od-attach-item__link--btn"
-                    onClick={() => onPreview(items, a.url, a.label)}
-                  >
-                    {a.label}
-                  </button>
-                ) : (
-                  <span className="od-attach-item__text">{a.label}</span>
-                )}
-              </li>
+              <AttachmentListRow
+                key={`${tab}-ro-${a.label}-${i}`}
+                rows={items}
+                item={a}
+                index={i}
+                keyPrefix={`${tab}-ro`}
+                onPreview={onPreview}
+              />
             ))}
           </ul>
         )}

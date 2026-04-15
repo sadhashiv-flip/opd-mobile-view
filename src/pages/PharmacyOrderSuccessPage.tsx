@@ -1,14 +1,9 @@
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { ROUTES } from "@/constants";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "./PharmacyPages.css";
 
-type NavState = Readonly<{ returnPath?: string }>;
-
 export function PharmacyOrderSuccessPage() {
-  const location = useLocation();
-  const hubReturn = (location.state as NavState | null)?.returnPath ?? ROUTES.dashboard;
-
   return (
     <div className="ph-page">
       <main className="ph-success">
@@ -21,7 +16,7 @@ export function PharmacyOrderSuccessPage() {
         </div>
       </main>
       <div className="ph-footer-btn">
-        <Link to={hubReturn} className="ph-footer-btn__inner">
+        <Link to={ROUTES.orders} className="ph-footer-btn__inner">
           Done
         </Link>
       </div>

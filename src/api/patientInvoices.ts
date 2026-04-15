@@ -21,6 +21,17 @@ export const INVOICE_FILTER_TYPES = {
 
 export type InvoiceFilterId = keyof typeof INVOICE_FILTER_TYPES;
 
+/** List + detail row badge tone; `info.status` 3 / 4 / 5 map to the last three. */
+export type InvoiceOrderListStatusTone =
+  | "completed"
+  | "cancelled"
+  | "expired"
+  | "processing"
+  | "other"
+  | "confirmPending"
+  | "paymentPending"
+  | "upcoming";
+
 export type InvoiceOrderRow = Readonly<{
   id: string;
   categoryLabel: string;
@@ -28,7 +39,7 @@ export type InvoiceOrderRow = Readonly<{
   /** `#` + `data.info.id` when present; otherwise empty (no label). */
   orderIdLine: string;
   metaLine: string;
-  statusTone: "completed" | "processing" | "cancelled" | "other" | "expired";
+  statusTone: InvoiceOrderListStatusTone;
   statusLabel: string;
   isFree: boolean;
   amountFormatted: string | null;
@@ -168,7 +179,7 @@ function titleCaseStatus(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function statusToneFrom(raw: string | null): InvoiceOrderRow["statusTone"] {
+function statusToneFrom(raw: string | null): InvoiceOrderListStatusTone {
   const s = (raw ?? "").toLowerCase();
   if (s.includes("complet")) return "completed";
   if (s.includes("process") || s.includes("pending") || s.includes("progress")) {
@@ -276,6 +287,17 @@ export function categoryKeyFromLabel(label: string): string {
   return "other";
 }
 
+/**
+ * Vision, dental, vaccine: same partner-detail UI (`info.details` + status 3) and
+ * `PATCH service/request/confirm/:serviceId` with `{ status: 4 }` (not pharmacy).
+ */
+const SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES = new Set(["vision", "dental", "vaccine"]);
+
+/** Pharmacy + vision/dental/vaccine: same pay preview/confirm APIs and payment `payment_required` resolution. */
+export function isPartnerOrderPayFlowCategory(categoryKey: string): boolean {
+  return categoryKey === "pharmacy" || SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey);
+}
+
 /** Maps API `transaction_type` (any casing / underscores) to UI label. */
 function displayCategoryLabel(raw: string | null): string {
   if (!raw) return "Order";
@@ -299,7 +321,7 @@ function displayCategoryLabel(raw: string | null): string {
 
 function deriveInvoiceStatus(o: Record<string, unknown>): {
   label: string;
-  tone: InvoiceOrderRow["statusTone"];
+  tone: InvoiceOrderListStatusTone;
 } {
   const payment = (str(o.status) ?? "").toLowerCase();
   const order = (str(o.order_status) ?? str(o.orderStatus) ?? "").toLowerCase();
@@ -334,14 +356,15 @@ function deriveInvoiceStatus(o: Record<string, unknown>): {
   };
 }
 
-/** Badge tone for list rows from `data.info.status` (consultation). */
-export function consultationInfoStatusOrderRowTone(
-  status: unknown,
-): InvoiceOrderRow["statusTone"] {
+/** Badge tone for list rows from `data.info.status` (consultation, pharmacy, vaccine, … when `info` is present). */
+export function consultationInfoStatusOrderRowTone(status: unknown): InvoiceOrderListStatusTone {
   const raw = num(status);
   const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
   if (n === 1) return "completed";
   if (n === 2) return "cancelled";
+  if (n === 3) return "confirmPending";
+  if (n === 4) return "paymentPending";
+  if (n === 5) return "upcoming";
   return "processing";
 }
 
@@ -470,6 +493,12 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
   const dataObj = readInvoiceDataObject(o);
   const typeNorm = normalizedTransactionKind(typeRaw);
   const isConsultation = typeNorm === "CONSULTATION";
+  const infoTypeNorm =
+    infoObj != null
+      ? normalizedTransactionKind(str(infoObj.type) ?? str(infoObj.service_type) ?? "")
+      : "";
+  /** Vision bookings may use `transaction_type: CONSULTATION` while `data.info.type` is `VISION`. */
+  const isVisionInvoice = categoryKey === "vision" || infoTypeNorm === "VISION";
 
   let categoryLabel = baseCategoryLabel;
   if (isConsultation && infoObj != null) {
@@ -485,27 +514,34 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
   const consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"] =
     isConsultation && infoObj != null ? (isOnline ? "virtual" : "inPerson") : null;
 
-  const consultationInfoStatusNum =
-    isConsultation && infoObj != null ? num(infoObj.status) : null;
+  /** Numeric `data.info.status` when present — drives list badge for all services (same codes as consultation). */
+  const infoStatusNum = infoObj != null ? num(infoObj.status) : null;
+  const infoStatusTrunc =
+    infoStatusNum != null && !Number.isNaN(infoStatusNum) ? Math.trunc(infoStatusNum) : null;
+
   const slotStartMs =
-    isConsultation && infoObj != null ? consultationSlotStartMsFromInfo(infoObj) : null;
+    isConsultation && infoObj != null && !isVisionInvoice
+      ? consultationSlotStartMsFromInfo(infoObj)
+      : null;
   const isExpiredVirtual =
     isConsultation &&
+    !isVisionInvoice &&
     isOnline &&
-    consultationInfoStatusNum === 5 &&
+    infoStatusTrunc === 5 &&
     slotStartMs != null &&
     Date.now() > slotStartMs + 10 * 60 * 1000;
 
   let statusLabel: string;
   let statusTone: InvoiceOrderRow["statusTone"];
-  if (isConsultation && infoObj != null && consultationInfoStatusNum !== null) {
-    if (isExpiredVirtual) {
-      statusLabel = "Expired";
-      statusTone = "expired";
-    } else {
-      statusLabel = consultationInfoStatusLabelOffline(infoObj.status);
-      statusTone = consultationInfoStatusOrderRowTone(infoObj.status);
-    }
+  if (isExpiredVirtual) {
+    statusLabel = "Expired";
+    statusTone = "expired";
+  } else if (infoObj != null && infoStatusTrunc !== null) {
+    statusLabel = invoiceListStatusLabelFromInfoStatus(
+      infoObj.status,
+      isConsultation && !isVisionInvoice,
+    );
+    statusTone = consultationInfoStatusOrderRowTone(infoObj.status);
   } else {
     const d = deriveInvoiceStatus(o);
     statusLabel = d.label;
@@ -517,6 +553,7 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
   const videoAppointmentId = videoAppointmentIdFromRow(o, infoObj, dataObj);
   const canJoinOnlineConsultation =
     isConsultation &&
+    !isVisionInvoice &&
     isOnline &&
     !isExpiredVirtual &&
     videoAppointmentId != null &&
@@ -546,9 +583,6 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
     } else if (dateFmt != null) {
       metaLines.push(dateFmt);
     }
-  }
-  if (amountFormatted != null) {
-    metaLines.push(amountFormatted);
   }
   const metaLine = metaLines.length > 0 ? metaLines.join("\n") : "—";
 
@@ -681,6 +715,22 @@ export type PharmacyOrderLocationCardUi = Readonly<{
   mapsUrl: string | null;
 }>;
 
+/** Partner center on order detail (from `info` / `info.details.center`; shown for all partner `info.status` values). */
+export type PharmacyOrderConfirmCenterUi = Readonly<{
+  centerName: string | null;
+  centerAddress: string | null;
+  centerPhone: string | null;
+  mapsUrl: string | null;
+}>;
+
+function pharmacyOrderConfirmCenterUiHasContent(c: PharmacyOrderConfirmCenterUi): boolean {
+  const name = c.centerName?.trim() ?? "";
+  const addr = c.centerAddress?.trim() ?? "";
+  const phone = c.centerPhone?.trim() ?? "";
+  const maps = c.mapsUrl?.trim() ?? "";
+  return name.length > 0 || addr.length > 0 || phone.length > 0 || maps.length > 0;
+}
+
 export type InvoiceDetailModel = Readonly<{
   id: string;
   bannerTone: InvoiceDetailBannerTone;
@@ -709,9 +759,9 @@ export type InvoiceDetailModel = Readonly<{
   /** `info.additional_info.payment_required === true` for any invoice type when `info` is present. */
   infoPaymentRequired: boolean;
   /**
-   * Non-pharmacy: merged root `additional_info.payment_required` exists.
-   * Pharmacy: `data.additional_info` (and nested `.info`) first; if `payment_required` is missing there,
-   * `data.info.additional_info` (same coercion). Other services unchanged.
+   * Pharmacy + vision/dental/vaccine: envelope / `info.additional_info` via {@link pharmacyPaymentRequiredFromPayload},
+   * merged with `info.additional_info` and any `details[].payment_required` (vision-style payloads).
+   * Other categories: merged root `additional_info.payment_required` only.
    */
   dataAdditionalInfoPaymentRequiredKeyPresent: boolean;
   /** When {@link dataAdditionalInfoPaymentRequiredKeyPresent}, whether payment is required (true). */
@@ -736,13 +786,31 @@ export type InvoiceDetailModel = Readonly<{
   statusValueTone: InvoiceOrderRow["statusTone"];
   patientName: string;
   vendorName: string;
-  /** Pharmacy-only: pickup center or delivery address, delivery charges line when applicable. */
+  /** Pharmacy pickup/delivery; vision/dental/vaccine **HOME_VISIT** user address from `info.details.address`. */
   pharmacyOrderLocation: PharmacyOrderLocationCardUi | null;
+  /**
+   * True when partner/pharmacy order `info.status === 3` (user must confirm details).
+   * Requested items, address, and center blocks render for all statuses — only the confirm CTA uses this flag.
+   * Confirm: `PATCH medicine/order/confirm/:id` (pharmacy) or `PATCH service/request/confirm/:info.id` (vision/dental/vaccine).
+   */
+  pharmacyAwaitingDetailConfirmation: boolean;
+  /** Pharmacy: `additional_info.time_slot`; vision/dental/vaccine: `info.details.slot` / `booking_time`. */
+  pharmacyPreferredSlotDisplay: string | null;
+  /** Pharmacy: `info.additional_info.center`; vision/dental/vaccine: `info.details.center`. */
+  pharmacyConfirmCenter: PharmacyOrderConfirmCenterUi | null;
+  /** `info.details.alternate_phone` / `alternatePhone` when present (any order type with an `info` block). */
+  infoDetailsAlternatePhone: string | null;
+  /** Vaccine: `info.details.conditions` when set. */
+  infoDetailsConditions: string | null;
+  /** Vaccine: `info.details.note` when set. */
+  infoDetailsNote: string | null;
   lineItems: readonly InvoiceDetailLineItem[];
   /** Sum of line totals (qty × unit) before discount, fees (+), and wallet. */
   subTotalFormatted: string;
   discountFormatted: string | null;
   collectionFeeFormatted: string | null;
+  /** From `data.additional_info.processing_fee` / `processingFee` when present (shown separately from collection/convenience). */
+  processingFeeFormatted: string | null;
   /** From `additional_info.delivery_charges` when present (e.g. pharmacy home delivery). */
   deliveryChargesFormatted: string | null;
   walletDebitFormatted: string | null;
@@ -877,9 +945,8 @@ function pharmacyDataPaymentRequiredFlags(dataLevelAdditional: Record<string, un
 }
 
 /**
- * Pharmacy only: order envelope `data.additional_info` first; if `payment_required` is absent there,
+ * Pharmacy and Vision: order envelope `data.additional_info` first; if `payment_required` is absent there,
  * fall back to `data.info.additional_info` (flat `GET /invoice/:id` where the invoice row has `info`).
- * Does not run for other service types.
  */
 function pharmacyPaymentRequiredFromPayload(
   o: Record<string, unknown>,
@@ -997,6 +1064,17 @@ function lineRecordPaymentRequired(o: Record<string, unknown>): boolean {
   return add != null && truthyLinePaymentRequired(add.payment_required ?? add.paymentRequired);
 }
 
+/** Partner invoices may omit `additional_info.payment_required` but set `details[].payment_required`. */
+function invoiceDetailsAnyLinePaymentRequired(o: Record<string, unknown>): boolean {
+  const raw = o.details;
+  if (!Array.isArray(raw)) return false;
+  for (const item of raw) {
+    const rec = asRecord(item);
+    if (rec != null && lineRecordPaymentRequired(rec)) return true;
+  }
+  return false;
+}
+
 function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
   const o = asRecord(v);
   if (!o) return null;
@@ -1075,10 +1153,20 @@ function bannerCopy(tone: InvoiceDetailBannerTone): { title: string; subtitle: s
 /**
  * Order-detail banner title = {@link consultationInfoStatusLabelOffline} (`info.status` codes 1–5 + default).
  * Subtitle is a short line matched to that status.
+ * Vision + status `5` uses the same “Confirmed” treatment as other non-consultation services.
  */
-export function consultationInfoStatusBannerCopy(status: unknown): { title: string; subtitle: string } {
+export function consultationInfoStatusBannerCopy(
+  status: unknown,
+  opts?: Readonly<{ isVisionOrder?: boolean }>,
+): { title: string; subtitle: string } {
   const raw = num(status);
   const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
+  if (opts?.isVisionOrder === true && n === 5) {
+    return {
+      title: "Confirmed",
+      subtitle: "Your vision booking is confirmed",
+    };
+  }
   const title = consultationInfoStatusLabelOffline(status);
   switch (n) {
     case 1:
@@ -1096,14 +1184,16 @@ export function consultationInfoStatusBannerCopy(status: unknown): { title: stri
   }
 }
 
-function mapStatusToneToBanner(tone: InvoiceOrderRow["statusTone"]): InvoiceDetailBannerTone {
+function mapStatusToneToBanner(tone: InvoiceOrderListStatusTone): InvoiceDetailBannerTone {
   if (tone === "completed") return "completed";
   if (tone === "cancelled" || tone === "expired") return "cancelled";
   return "processing";
 }
 
 /**
- * Appointment `data.info.status` labels (consultation) — same codes for online/offline; drives order-detail banner when set.
+ * `data.info.status` labels (codes 1–5 + default) — used for consultation order-detail banner and list rows.
+ * On the orders list, status `5` is "Confirmed" except for **doctor consultation** (not Vision). Vision may use
+ * {@link invoiceListStatusLabelFromInfoStatus} with `showConsultationStyleStatus5Label` = false when `info.type` is VISION.
  */
 export function consultationInfoStatusLabelOffline(status: unknown): string {
   const raw = num(status);
@@ -1124,7 +1214,21 @@ export function consultationInfoStatusLabelOffline(status: unknown): string {
   }
 }
 
-function toneFromConsultationInfoStatus(status: unknown): InvoiceOrderRow["statusTone"] {
+/**
+ * Orders list: `info.status === 5` → "Confirmed" unless this is doctor consultation (`showConsultationStyleStatus5Label`).
+ * Vision uses `showConsultationStyleStatus5Label === false` even when `transaction_type` is CONSULTATION.
+ */
+function invoiceListStatusLabelFromInfoStatus(
+  infoStatus: unknown,
+  showConsultationStyleStatus5Label: boolean,
+): string {
+  const raw = num(infoStatus);
+  const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
+  if (n === 5 && !showConsultationStyleStatus5Label) return "Confirmed";
+  return consultationInfoStatusLabelOffline(infoStatus);
+}
+
+function toneFromConsultationInfoStatus(status: unknown): InvoiceOrderListStatusTone {
   return consultationInfoStatusOrderRowTone(status);
 }
 
@@ -1207,12 +1311,22 @@ function invoiceCollectionFeeAmount(o: Record<string, unknown>): number {
   const fromAdd = add
     ? num(add.collection_fee) ??
       num(add.collectionFee) ??
-      num(add.processing_fee) ??
-      num(add.processingFee) ??
       num(add.convenience_fee) ??
       num(add.convenienceFee)
     : null;
   return fromAdd ?? num(o.collection_fee) ?? num(o.collectionFee) ?? 0;
+}
+
+/** `data.additional_info.processing_fee` (merged root or envelope `data.additional_info`). */
+function invoiceProcessingFeeAmount(o: Record<string, unknown>): number {
+  const read = (layer: Record<string, unknown> | null): number => {
+    if (layer == null) return 0;
+    const n = num(layer.processing_fee) ?? num(layer.processingFee);
+    return n != null && !Number.isNaN(n) && n > 0 ? n : 0;
+  };
+  const merged = read(asRecord(o.additional_info));
+  if (merged > 0) return merged;
+  return read(envelopeDataAdditionalInfoForPaymentGate(o));
 }
 
 function invoiceDeliveryChargesAmount(o: Record<string, unknown>): number {
@@ -1453,11 +1567,35 @@ function formatStructuredAddressLine(rec: Record<string, unknown> | null): strin
   const state = str(rec.state);
   const pin = str(rec.pincode) ?? str(rec.pin_code) ?? str(rec.pin);
   const cityState = [city, state].filter((x) => (x ?? "").trim().length > 0).join(", ");
-  const parts = [line1, line2, landmark, area, cityState, pin]
+  const country = str(rec.country);
+  const parts = [line1, line2, landmark, area, cityState, country, pin]
     .map((x) => (typeof x === "string" ? x.trim() : ""))
     .filter((x) => x.length > 0);
   const single = parts.join(", ");
   return single.length > 0 ? single : null;
+}
+
+/**
+ * Pharmacy `info.additional_info.center` often nests lines under `center.address`
+ * (with `coordinates` instead of `location` on the parent).
+ */
+function formatStructuredAddressFromCenter(center: Record<string, unknown> | null): string | null {
+  if (!center) return null;
+  const nested = asRecord(center.address);
+  const fromNested = nested != null ? formatStructuredAddressLine(nested) : null;
+  if (fromNested) return fromNested;
+  return formatStructuredAddressLine(center);
+}
+
+function mapsUrlFromCenterOrNested(center: Record<string, unknown> | null): string | null {
+  if (!center) return null;
+  const top = mapsUrlFromCoordinates(str(center.location));
+  if (top) return top;
+  const addr = asRecord(center.address);
+  if (addr) {
+    return mapsUrlFromCoordinates(str(addr.coordinates) ?? str(addr.location));
+  }
+  return null;
 }
 
 function parsePharmacyOrderLocationCardUi(
@@ -1473,15 +1611,9 @@ function parsePharmacyOrderLocationCardUi(
 
   const vendorRec = asRecord(o.vendor_details);
   const vendorName = str(vendorRec?.name)?.trim() || null;
-  const infoAdd = asRecord(info.additional_info);
-  const center = infoAdd ? asRecord(infoAdd.center) : null;
-  const assigned = asRecord(info.assigned_user);
 
   const phoneFrom = (addr: Record<string, unknown> | null): string | null => {
-    const p =
-      (addr ? str(addr.phone) ?? str(addr.mobile) : null)?.trim() ||
-      str(assigned?.phone)?.trim() ||
-      null;
+    const p = (addr ? str(addr.phone) ?? str(addr.mobile) : null)?.trim() || null;
     return p && p.length > 0 ? p : null;
   };
 
@@ -1498,27 +1630,139 @@ function parsePharmacyOrderLocationCardUi(
     return { cardTitle, headerName, addressText, phoneText, mapsUrl };
   }
 
+  return null;
+}
+
+function parsePharmacyOrderConfirmCenterUi(info: Record<string, unknown>): PharmacyOrderConfirmCenterUi {
+  const infoAdd = asRecord(info.additional_info);
+  const center = infoAdd ? asRecord(infoAdd.center) : null;
+  if (!center || Object.keys(center).length === 0) {
+    return { centerName: null, centerAddress: null, centerPhone: null, mapsUrl: null };
+  }
   const centerName =
-    str(center?.pharmacy_name)?.trim() ||
-    str(center?.name)?.trim() ||
-    str(center?.store_name)?.trim() ||
-    vendorName;
-  const addressText = formatStructuredAddressLine(center);
-  const phoneText =
-    str(center?.phone)?.trim() ||
-    str(center?.mobile)?.trim() ||
-    str(assigned?.phone)?.trim() ||
+    str(center.pharmacy_name)?.trim() ||
+    str(center.name)?.trim() ||
+    str(center.store_name)?.trim() ||
     null;
-  const mapsUrl = mapsUrlFromCoordinates(str(center?.location));
-  const headerName = centerName;
-  const cardTitle = "Pickup center";
+  const centerAddress = formatStructuredAddressFromCenter(center);
+  const centerPhone = str(center.phone)?.trim() || str(center.mobile)?.trim() || null;
+  const mapsUrl = mapsUrlFromCenterOrNested(center);
+  return { centerName, centerAddress, centerPhone, mapsUrl };
+}
+
+/** Vision / dental / vaccine: `data.info.details.center` (service request detail envelope). */
+function parseVisionOrderConfirmCenterUi(info: Record<string, unknown>): PharmacyOrderConfirmCenterUi {
+  const det = asRecord(info.details);
+  const center = det != null ? asRecord(det.center) : null;
+  if (!center || Object.keys(center).length === 0) {
+    return { centerName: null, centerAddress: null, centerPhone: null, mapsUrl: null };
+  }
+  const displayAddr = str(center.display_address)?.trim();
+  const centerName = str(center.name)?.trim() || null;
+  const structured = formatStructuredAddressFromCenter(center);
+  const centerAddress =
+    displayAddr != null && displayAddr.length > 0 ? displayAddr : structured;
+  const centerPhone = str(center.phone) ?? str(center.mobile);
+  const mapsUrl = mapsUrlFromCenterOrNested(center);
+  return { centerName, centerAddress, centerPhone, mapsUrl };
+}
+
+function formatVisionBookingSlotDisplay(info: Record<string, unknown>): string | null {
+  const det = asRecord(info.details);
+  if (!det) return null;
+  const slot = asRecord(det.slot);
+  const preferred = str(det.preferred_date_time) ?? str(det.booking_time) ?? null;
+  if (slot != null) {
+    const sd = str(slot.slot_date);
+    const st = str(slot.start_time);
+    const et = str(slot.end_time);
+    const parts: string[] = [];
+    if (sd) parts.push(sd);
+    const timePart = [st, et].filter(Boolean).join(" – ");
+    if (timePart) parts.push(timePart);
+    if (parts.length > 0) return parts.join(", ");
+  }
+  if (preferred != null) {
+    const t = preferred.trim();
+    const isoGuess = t.includes("T") ? t : t.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
+    const p = Date.parse(isoGuess);
+    if (!Number.isNaN(p)) {
+      const d = new Date(p);
+      const datePart = d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+      const timePart = d.toLocaleTimeString("en-IN", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return `${datePart}, ${timePart}`;
+    }
+    return t;
+  }
+  return null;
+}
+
+/**
+ * Vision / dental / vaccine: `SELF_VISIT` → no address card (center is in {@link parseVisionOrderConfirmCenterUi}).
+ * `HOME_VISIT` → user address from `info.details.address`.
+ */
+/** `data.info.details.alternate_phone` (snake or camel) when `info.details` exists. */
+function parseInfoDetailsAlternatePhone(info: Record<string, unknown> | null): string | null {
+  if (info == null) return null;
+  const det = asRecord(info.details);
+  if (det == null) return null;
+  const raw =
+    str(det.alternate_phone)?.trim() ||
+    str(det.alternatePhone)?.trim() ||
+    null;
+  return raw && raw.length > 0 ? raw : null;
+}
+
+/** Vaccine: `data.info.details.conditions` / `note` when present. */
+function parseInfoDetailsConditionsAndNote(
+  info: Record<string, unknown> | null,
+  categoryKey: string,
+): Readonly<{ conditions: string | null; note: string | null }> {
+  if (categoryKey !== "vaccine" || info == null) {
+    return { conditions: null, note: null };
+  }
+  const det = asRecord(info.details);
+  if (det == null) return { conditions: null, note: null };
+  const conditions = str(det.conditions)?.trim() || null;
+  const note = str(det.note)?.trim() || null;
+  return {
+    conditions: conditions && conditions.length > 0 ? conditions : null,
+    note: note && note.length > 0 ? note : null,
+  };
+}
+
+function parseVisionOrderLocationCardUi(
+  o: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+  categoryKey: string,
+): PharmacyOrderLocationCardUi | null {
+  if (!SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) || info == null) return null;
+  const visitRaw = (str(info.visit_type) ?? str(o.visit_type) ?? "").trim().toUpperCase();
+  if (visitRaw !== "HOME_VISIT") return null;
+
+  const det = asRecord(info.details);
+  const addr = det != null ? asRecord(det.address) : null;
+  const addressText = formatStructuredAddressLine(addr);
+  const phoneText = str(addr?.phone) ?? str(addr?.mobile);
+  const mapsUrl = addr != null ? mapsUrlFromCoordinates(str(addr.location)) : null;
   const hasAny =
-    Boolean(headerName) ||
-    Boolean(addressText) ||
-    Boolean(phoneText) ||
-    Boolean(mapsUrl);
+    Boolean(addressText?.trim()) || Boolean(phoneText?.trim()) || Boolean(mapsUrl?.trim());
   if (!hasAny) return null;
-  return { cardTitle, headerName, addressText, phoneText, mapsUrl };
+  return {
+    cardTitle: "Home visit address",
+    headerName: null,
+    addressText,
+    phoneText,
+    mapsUrl,
+  };
 }
 
 function formatConsultationScheduleDisplay(info: Record<string, unknown>): string | null {
@@ -1719,14 +1963,19 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const typeNorm = normalizedTransactionKind(typeRaw);
   const isConsultationInvoice = typeNorm === "CONSULTATION";
   const infoForStatus = readInvoiceInfoObject(o);
-  const consultationInfoStatusNum =
-    isConsultationInvoice && infoForStatus != null ? num(infoForStatus.status) : null;
+  const infoStatusRaw = infoForStatus != null ? num(infoForStatus.status) : null;
+  const infoStatusTrunc =
+    infoStatusRaw != null && !Number.isNaN(infoStatusRaw) ? Math.trunc(infoStatusRaw) : null;
+  /** Same numeric `info.status` as list rows; null when absent (non-consultation partner orders still set this). */
+  const serviceInfoStatus = infoStatusTrunc;
   const consultationInfoStatus =
-    consultationInfoStatusNum != null && !Number.isNaN(consultationInfoStatusNum)
-      ? Math.trunc(consultationInfoStatusNum)
-      : null;
-  const useConsultationInfoStatusForBanner =
-    isConsultationInvoice && infoForStatus != null && consultationInfoStatusNum !== null;
+    isConsultationInvoice && infoStatusTrunc !== null ? infoStatusTrunc : null;
+
+  const infoTypeNormDetail =
+    infoForStatus != null
+      ? normalizedTransactionKind(str(infoForStatus.type) ?? str(infoForStatus.service_type) ?? "")
+      : "";
+  const isVisionInvoiceDetail = categoryKey === "vision" || infoTypeNormDetail === "VISION";
 
   const comm = communicationFromInvoiceRow(o, infoForStatus);
   const commNorm = comm != null ? comm.trim().toUpperCase() : "";
@@ -1758,26 +2007,29 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
       : consultationInfoId;
 
   const slotStartMs =
-    isConsultationInvoice && infoForStatus != null
+    isConsultationInvoice && infoForStatus != null && !isVisionInvoiceDetail
       ? consultationSlotStartMsFromInfo(infoForStatus)
       : null;
   const isExpiredVirtual =
     isConsultationInvoice &&
+    !isVisionInvoiceDetail &&
     isOnline &&
-    consultationInfoStatusNum === 5 &&
+    infoStatusTrunc === 5 &&
     slotStartMs != null &&
     Date.now() > slotStartMs + 10 * 60 * 1000;
 
+  /** Matches {@link normalizeOne} / orders list badge ({@link invoiceListStatusLabelFromInfoStatus}). */
   let statusLabel: string;
   let statusValueTone: InvoiceOrderRow["statusTone"];
-  if (useConsultationInfoStatusForBanner) {
-    if (isExpiredVirtual) {
-      statusLabel = "Expired";
-      statusValueTone = "expired";
-    } else {
-      statusLabel = consultationInfoStatusLabelOffline(infoForStatus.status);
-      statusValueTone = toneFromConsultationInfoStatus(infoForStatus.status);
-    }
+  if (isExpiredVirtual) {
+    statusLabel = "Expired";
+    statusValueTone = "expired";
+  } else if (infoForStatus != null && infoStatusTrunc !== null) {
+    statusLabel = invoiceListStatusLabelFromInfoStatus(
+      infoForStatus.status,
+      isConsultationInvoice && !isVisionInvoiceDetail,
+    );
+    statusValueTone = toneFromConsultationInfoStatus(infoForStatus.status);
   } else {
     const d = deriveInvoiceStatus(o);
     statusLabel = d.label;
@@ -1785,14 +2037,14 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   }
 
   const bannerTone = mapStatusToneToBanner(statusValueTone);
-  const { title: bannerTitle, subtitle: bannerSubtitle } = isExpiredVirtual
-    ? {
-        title: "Expired",
-        subtitle: "This virtual consultation time slot has ended",
-      }
-    : useConsultationInfoStatusForBanner && infoForStatus != null
-      ? consultationInfoStatusBannerCopy(infoForStatus.status)
-      : bannerCopy(bannerTone);
+  const bannerTitle = statusLabel;
+  const bannerSubtitle = isExpiredVirtual
+    ? "This virtual consultation time slot has ended"
+    : infoForStatus != null && infoStatusTrunc !== null
+      ? consultationInfoStatusBannerCopy(infoForStatus.status, {
+          isVisionOrder: isVisionInvoiceDetail,
+        }).subtitle
+      : bannerCopy(bannerTone).subtitle;
 
   const patientName = detailPatientName(o);
   const vendorName = detailVendorName(o);
@@ -1800,13 +2052,14 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const itemsGrossTotal = resolveDetailSubtotal(o, lineSum);
   const discountNum = invoiceDiscountAmount(o);
   const collectionFeeNum = invoiceCollectionFeeAmount(o);
+  const processingFeeNum = invoiceProcessingFeeAmount(o);
   const deliveryChargesNum = invoiceDeliveryChargesAmount(o);
   const walletNum = resolveDetailWallet(o);
   const netPayNum = resolveDetailNetPay(
     o,
     itemsGrossTotal,
     discountNum,
-    collectionFeeNum,
+    collectionFeeNum + processingFeeNum,
     deliveryChargesNum,
     walletNum,
   );
@@ -1818,6 +2071,8 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     discountNum > 0 ? `- ${formatInr(discountNum)}` : null;
   const collectionFeeFormatted =
     collectionFeeNum > 0 ? `+ ${formatInr(collectionFeeNum)}` : null;
+  const processingFeeFormatted =
+    processingFeeNum > 0 ? `+ ${formatInr(processingFeeNum)}` : null;
   const deliveryChargesFormatted =
     deliveryChargesNum > 0 ? `+ ${formatInr(deliveryChargesNum)}` : null;
 
@@ -1838,17 +2093,18 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     dataAdditionalInfoPaymentRequiredKeyPresent &&
     rootAdd != null &&
     rootAdd.payment_required === true;
-  if (categoryKey === "pharmacy") {
+  if (isPartnerOrderPayFlowCategory(categoryKey)) {
     const phFlags = pharmacyPaymentRequiredFromPayload(o, infoForStatus);
-    dataAdditionalInfoPaymentRequiredKeyPresent = phFlags.keyPresent;
-    dataAdditionalInfoPaymentRequired = phFlags.requiredTrue;
+    const anyLinePaymentRequired = invoiceDetailsAnyLinePaymentRequired(o);
+    const mergedRequired =
+      phFlags.requiredTrue || infoPaymentRequired || anyLinePaymentRequired;
+    dataAdditionalInfoPaymentRequired = mergedRequired;
+    dataAdditionalInfoPaymentRequiredKeyPresent =
+      phFlags.keyPresent ||
+      infoPaymentRequired ||
+      anyLinePaymentRequired ||
+      mergedRequired;
   }
-  const serviceInfoStatusRaw = infoForStatus != null ? num(infoForStatus.status) : null;
-  const serviceInfoStatus =
-    serviceInfoStatusRaw != null && !Number.isNaN(serviceInfoStatusRaw)
-      ? Math.trunc(serviceInfoStatusRaw)
-      : null;
-
   /** Parsed from `o.user` when present — used on consultation and other service order detail UIs. */
   const consultationPatient = parseConsultationOrderPatientUi(o);
   const consultationBooking =
@@ -1862,7 +2118,38 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus != null ? parseConsultationAttachments(infoForStatus) : [];
   const consultationReports =
     isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
-  const pharmacyOrderLocation = parsePharmacyOrderLocationCardUi(o, infoForStatus, categoryKey);
+  const pharmacyOrderLocation =
+    parsePharmacyOrderLocationCardUi(o, infoForStatus, categoryKey) ??
+    parseVisionOrderLocationCardUi(o, infoForStatus, categoryKey);
+
+  const pharmacyPreferredSlotDisplay =
+    categoryKey === "pharmacy" && infoForStatus != null
+      ? formatConsultationScheduleDisplay(infoForStatus)
+      : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+        ? formatVisionBookingSlotDisplay(infoForStatus)
+        : null;
+  const pharmacyConfirmCenterParsed =
+    categoryKey === "pharmacy" && infoForStatus != null
+      ? parsePharmacyOrderConfirmCenterUi(infoForStatus)
+      : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+        ? parseVisionOrderConfirmCenterUi(infoForStatus)
+        : null;
+  const pharmacyConfirmCenter =
+    pharmacyConfirmCenterParsed != null &&
+    pharmacyOrderConfirmCenterUiHasContent(pharmacyConfirmCenterParsed)
+      ? pharmacyConfirmCenterParsed
+      : null;
+  const pharmacyAwaitingDetailConfirmation =
+    isPartnerOrderPayFlowCategory(categoryKey) &&
+    serviceInfoStatus === 3 &&
+    consultationInfoId != null &&
+    consultationInfoId.trim().length > 0;
+
+  const infoDetailsAlternatePhone = parseInfoDetailsAlternatePhone(infoForStatus);
+  const { conditions: infoDetailsConditions, note: infoDetailsNote } = parseInfoDetailsConditionsAndNote(
+    infoForStatus,
+    categoryKey,
+  );
 
   return {
     id,
@@ -1896,10 +2183,17 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     patientName,
     vendorName,
     pharmacyOrderLocation,
+    pharmacyAwaitingDetailConfirmation,
+    pharmacyPreferredSlotDisplay,
+    pharmacyConfirmCenter,
+    infoDetailsAlternatePhone,
+    infoDetailsConditions,
+    infoDetailsNote,
     lineItems,
     subTotalFormatted: formatInr(itemsGrossTotal),
     discountFormatted,
     collectionFeeFormatted,
+    processingFeeFormatted,
     deliveryChargesFormatted,
     walletDebitFormatted,
     netPayFormatted: formatInr(netPayNum),

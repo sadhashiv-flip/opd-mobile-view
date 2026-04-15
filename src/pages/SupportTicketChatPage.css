@@ -465,41 +465,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #ffebee;
+  color: #c62828;
 }
 
-.support-chat__att-pdf-svg {
-  display: block;
-}
-
-.support-chat__att-pdf-name {
+.support-chat__att-pdf-action {
   flex: 1;
   min-width: 0;
   font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 600;
   line-height: 1.35;
-  color: #1a1a1a;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  color: #1565c0;
   text-align: start;
 }
 
-.support-chat__bubble--out .support-chat__att-pdf-name {
+.support-chat__bubble--out .support-chat__att-pdf-action {
   color: #fff;
 }
 
-.support-chat__bubble--out .support-chat__att-pdf-svg path[fill="#F5F5F5"] {
-  fill: rgba(255, 255, 255, 0.92);
+.support-chat__att-file--typed {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.04);
+  text-decoration: none;
 }
 
-.support-chat__bubble--out .support-chat__att-pdf-svg path[stroke] {
-  stroke: rgba(255, 255, 255, 0.45);
+.support-chat__att-file-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #eceff1;
+  color: #455a64;
 }
 
-.support-chat__bubble--out .support-chat__att-pdf-svg path[fill="#E0E0E0"] {
-  fill: rgba(255, 255, 255, 0.65);
+.support-chat__att-file-action {
+  font-weight: 600;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
 }
 
 /* Full-screen attachment preview (images, PDF iframe, generic file) */
@@ -751,6 +763,23 @@
   background: #e3f2fd;
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   max-width: 100%;
+}
+
+.support-chat__draft-file-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1565c0;
+}
+
+.support-chat__draft-file-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .support-chat__draft-file--uploading {

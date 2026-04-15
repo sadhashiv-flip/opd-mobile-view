@@ -13,6 +13,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./PharmacyPages.css";
 import "./VisionAddPrescriptionPage.css";
 
+const VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID = "vision-glasses-prescription-file-input";
+
 type UploadedRxItem = Readonly<{
   clientId: string;
   fileName: string;
@@ -168,15 +170,10 @@ export function VisionAddPrescriptionPage() {
     if (vt !== VISION_ROUTE_TYPE.glassesLens) return [];
     return readVisionGlassesPrescriptions().map(hydrateUploadedItem);
   });
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [previewClientId, setPreviewClientId] = useState<string | null>(null);
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
-
-  const galleryRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const filesRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -266,7 +263,7 @@ export function VisionAddPrescriptionPage() {
       const input = e.target;
       const chosen = input.files?.length ? Array.from(input.files) : [];
       input.value = "";
-      setSheetOpen(false);
+      if (chosen.length === 0) return;
       for (const file of chosen) {
         runUpload(file);
       }
@@ -295,8 +292,6 @@ export function VisionAddPrescriptionPage() {
     if (!allUploaded) return;
     void navigate(generatePath(ROUTES.visionOverview, { visionType }), { replace: true });
   }, [allUploaded, navigate, visionType]);
-
-  const openSheet = useCallback(() => setSheetOpen(true), []);
 
   if (visionType !== VISION_ROUTE_TYPE.glassesLens) {
     return <Navigate to={ROUTES.dashboard} replace />;
@@ -336,58 +331,31 @@ export function VisionAddPrescriptionPage() {
 
       <main className="ph-page__main">
         <input
-          ref={galleryRef}
+          id={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}
           type="file"
-          className="ph-prescription-file-input"
-          accept="image/*"
-          aria-label="Choose from gallery"
-          onChange={onFileInputChange}
-        />
-        <input
-          ref={cameraRef}
-          type="file"
-          className="ph-prescription-file-input"
-          accept="image/*"
-          capture="environment"
-          aria-label="Take a photo"
-          onChange={onFileInputChange}
-        />
-        <input
-          ref={filesRef}
-          type="file"
-          className="ph-prescription-file-input"
           accept="image/*,.pdf,application/pdf"
-          aria-label="Choose a file"
+          className="ph-prescription-file-input"
+          multiple
+          aria-label="Choose prescription image or PDF"
           onChange={onFileInputChange}
         />
 
-        <div
-          role="button"
-          tabIndex={0}
-          className="ph-upload-zone"
-          onClick={openSheet}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              openSheet();
-            }
-          }}
-        >
+        <label className="ph-upload-zone" htmlFor={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}>
           <div className="ph-upload-zone__illu" aria-hidden>
             <img src={PHARMACY_IMAGES.uploadPrescription} alt="" />
           </div>
           <p className="ph-upload-zone__title">Tap to upload prescription</p>
           <p className="ph-upload-zone__sub">Your prescription is safe with us</p>
-        </div>
+        </label>
 
-        <button type="button" className="ph-btn-outline" onClick={openSheet}>
+        <label className="ph-btn-outline" htmlFor={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}>
           <span className="ph-btn-outline__icon" aria-hidden>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             </svg>
           </span>{" "}
           Add Prescription
-        </button>
+        </label>
 
         <h2 className="ph-files-title">Selected Files</h2>
         {items.length === 0 ? (
@@ -530,112 +498,6 @@ export function VisionAddPrescriptionPage() {
                 Remove
               </button>
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {sheetOpen ? (
-        <div
-          className="vap-sheet-overlay"
-          role="presentation"
-          onClick={() => setSheetOpen(false)}
-        >
-          <div
-            className="vap-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="vap-sheet-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="vap-sheet-title" className="vap-sheet__title">
-              Choose Source
-            </h3>
-            <ul className="vap-sheet__list">
-              <li>
-                <button
-                  type="button"
-                  className="vap-sheet__opt"
-                  onClick={() => galleryRef.current?.click()}
-                >
-                  <span className="vap-sheet__opt-icon vap-sheet__opt-icon--gallery" aria-hidden>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                      <rect
-                        x="3"
-                        y="5"
-                        width="18"
-                        height="14"
-                        rx="2"
-                        stroke="#E85D04"
-                        strokeWidth="1.75"
-                      />
-                      <circle cx="8.5" cy="10" r="1.5" fill="#E85D04" />
-                      <path
-                        d="M21 15l-5-5-4 4-2-2-4 4"
-                        stroke="#E85D04"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="vap-sheet__opt-label">Gallery</span>
-                  <span className="vap-sheet__chev" aria-hidden>
-                    ›
-                  </span>
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className="vap-sheet__opt"
-                  onClick={() => cameraRef.current?.click()}
-                >
-                  <span className="vap-sheet__opt-icon vap-sheet__opt-icon--camera" aria-hidden>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M4 9h2l1.5-2h9L18 9h2a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2v-8a2 2 0 012-2z"
-                        stroke="#E85D04"
-                        strokeWidth="1.75"
-                        strokeLinejoin="round"
-                      />
-                      <circle cx="12" cy="15" r="3" stroke="#E85D04" strokeWidth="1.75" />
-                    </svg>
-                  </span>
-                  <span className="vap-sheet__opt-label">Camera</span>
-                  <span className="vap-sheet__chev" aria-hidden>
-                    ›
-                  </span>
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className="vap-sheet__opt"
-                  onClick={() => filesRef.current?.click()}
-                >
-                  <span className="vap-sheet__opt-icon vap-sheet__opt-icon--file" aria-hidden>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M14 3v4a1 1 0 001 1h4"
-                        stroke="#E85D04"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M6 21h9a2 2 0 002-2V9l-5-5H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        stroke="#E85D04"
-                        strokeWidth="1.75"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="vap-sheet__opt-label">Files</span>
-                  <span className="vap-sheet__chev" aria-hidden>
-                    ›
-                  </span>
-                </button>
-              </li>
-            </ul>
           </div>
         </div>
       ) : null}

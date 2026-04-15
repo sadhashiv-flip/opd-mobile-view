@@ -1,3 +1,7 @@
+import {
+  AttachmentKindIcon,
+  attachmentIconKindFromUrlAndName,
+} from "@/components/attachments/attachmentTypeIcons";
 import type { ChangeEvent, RefObject } from "react";
 
 /** In-flight or failed attach+send row (successful sends are removed after POST). */
@@ -44,11 +48,16 @@ export function SupportTicketChatComposer({
     <footer className="support-chat__composer">
       {attachments.length > 0 ? (
         <ul className="support-chat__draft-files">
-          {attachments.map((a) => (
+          {attachments.map((a) => {
+            const draftKind = attachmentIconKindFromUrlAndName(null, a.fileName);
+            return (
             <li
               key={a.id}
               className={`support-chat__draft-file${a.uploading ? " support-chat__draft-file--uploading" : ""}${a.error ? " support-chat__draft-file--error" : ""}`}
             >
+              <span className="support-chat__draft-file-icon" data-attach-kind={draftKind} aria-hidden>
+                <AttachmentKindIcon kind={draftKind} />
+              </span>
               <span className="support-chat__draft-name" title={a.error ?? a.fileName}>
                 {a.uploading ? "Sending… " : null}
                 {a.error ? "Failed: " : null}
@@ -64,7 +73,8 @@ export function SupportTicketChatComposer({
                 ×
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : null}
       <div className="support-chat__composer-inner">

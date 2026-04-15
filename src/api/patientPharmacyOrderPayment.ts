@@ -151,19 +151,35 @@ function pharmacyConfirmPaymentRequired(
 
 function readVerifyOrderId(
   raw: unknown,
-  medicineOrderId: string,
+  fallbackServiceOrMedicineOrderId: string,
   razorpayPayload: Record<string, unknown> | null,
 ): string | null {
   const layer = readAppointmentPaymentLayer(raw);
-  const mid = medicineOrderId.trim();
+  const mid = fallbackServiceOrMedicineOrderId.trim();
   const fromRzp = razorpayPayload != null ? str(razorpayPayload.order_id) : null;
   return (
     str(layer.order_id) ??
     str(layer.orderId) ??
     str(layer.medicine_order_id) ??
+    str(layer.service_request_id) ??
+    str(layer.serviceRequestId) ??
     fromRzp ??
     (mid.length > 0 ? mid : null)
   );
+}
+
+/** Shared parser for `PATCH …/payment/:id?status=confirm` (medicine order + service request). */
+export function parsePartnerOrderPaymentConfirmResponse(
+  raw: unknown,
+  fallbackVerifyOrderId: string,
+): PharmacyOrderPaymentConfirmResult {
+  const razorpayPayload = readRazorpayPayloadFromPharmacyConfirm(raw);
+  return {
+    paymentRequired: pharmacyConfirmPaymentRequired(raw, razorpayPayload),
+    razorpayPayload,
+    message: readAppointmentResponseMessage(raw),
+    verifyOrderId: readVerifyOrderId(raw, fallbackVerifyOrderId, razorpayPayload),
+  };
 }
 
 /** `PATCH medicine/order/payment/:medicine_order_id?status=confirm&useWallet=` */
@@ -173,13 +189,7 @@ export async function patchPharmacyOrderPaymentConfirm(
 ): Promise<PharmacyOrderPaymentConfirmResult> {
   const path = pharmacyOrderPaymentPath(medicineOrderId, { useWallet, status: "confirm" });
   const raw = await patientJson<unknown>(path, { method: "PATCH", skipGlobalLoading: true });
-  const razorpayPayload = readRazorpayPayloadFromPharmacyConfirm(raw);
-  return {
-    paymentRequired: pharmacyConfirmPaymentRequired(raw, razorpayPayload),
-    razorpayPayload,
-    message: readAppointmentResponseMessage(raw),
-    verifyOrderId: readVerifyOrderId(raw, medicineOrderId, razorpayPayload),
-  };
+  return parsePartnerOrderPaymentConfirmResponse(raw, medicineOrderId);
 }
 
 export type PharmacyOrderPaymentVerifyBody = Readonly<{

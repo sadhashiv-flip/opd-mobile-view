@@ -183,36 +183,63 @@
 
 .orders-card__badge {
   flex-shrink: 0;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 .orders-card__badge--completed {
-  color: #1b7a3c;
-  background: #e6f6ec;
+  color: #1b5e20;
+  background: #e8f5e9;
+  border: 1px solid rgba(46, 125, 50, 0.22);
 }
 
 .orders-card__badge--processing {
-  color: #1565c0;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+}
+
+/* `info.status` === 3 — confirm / review partner details */
+.orders-card__badge--confirmPending {
+  color: #6a1b9a;
+  background: #f3e5f5;
+  border: 1px solid rgba(106, 27, 154, 0.28);
+}
+
+/* `info.status` === 4 — payment required */
+.orders-card__badge--paymentPending {
+  color: #c2410c;
+  background: #fff7ed;
+  border: 1px solid rgba(194, 65, 12, 0.3);
+}
+
+/* `info.status` === 5 — scheduled / upcoming slot */
+.orders-card__badge--upcoming {
+  color: #0d47a1;
   background: #e3f2fd;
+  border: 1px solid rgba(13, 71, 161, 0.28);
 }
 
 .orders-card__badge--cancelled {
-  color: #c62828;
+  color: #b71c1c;
   background: #ffebee;
+  border: 1px solid rgba(198, 40, 40, 0.25);
 }
 
 .orders-card__badge--other {
-  color: #616161;
-  background: #f0f0f0;
+  color: #37474f;
+  background: #eceff1;
+  border: 1px solid rgba(84, 110, 122, 0.22);
 }
 
 .orders-card__badge--expired {
-  color: #6d4c41;
+  color: #4e342e;
   background: #efebe9;
+  border: 1px solid rgba(109, 76, 65, 0.28);
 }
 
 .orders-card__id-row {

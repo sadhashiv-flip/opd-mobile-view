@@ -23,9 +23,16 @@ function InvoiceLineProductCell({ line }: Readonly<{ line: InvoiceDetailLineItem
 export type OrderDetailPatientSectionProps = Readonly<{
   patientName: string;
   consultationPatient: ConsultationOrderPatientUi | null;
+  /** From invoice `info.details.alternate_phone` when set. */
+  alternatePhone?: string | null;
 }>;
 
-export function OrderDetailPatientSection({ patientName, consultationPatient }: OrderDetailPatientSectionProps) {
+export function OrderDetailPatientSection({
+  patientName,
+  consultationPatient,
+  alternatePhone,
+}: OrderDetailPatientSectionProps) {
+  const alt = alternatePhone?.trim() ?? "";
   return (
     <section className="od-card od-card--patient" aria-label="Patient details">
       <h3 className="od-card__title">Patient Details</h3>
@@ -39,6 +46,12 @@ export function OrderDetailPatientSection({ patientName, consultationPatient }: 
         <div className="od-row">
           <span className="od-row__label">Phone</span>
           <span className="od-row__value od-row__value--other">{consultationPatient.phone}</span>
+        </div>
+      ) : null}
+      {alt ? (
+        <div className="od-row">
+          <span className="od-row__label">Alternate phone</span>
+          <span className="od-row__value od-row__value--other">{alt}</span>
         </div>
       ) : null}
       {consultationPatient?.email ? (
@@ -221,6 +234,12 @@ export function OrderDetailInvoiceSection({
                     <span className="od-pay-row__value od-pay-row__value--add">{detail.collectionFeeFormatted}</span>
                   </div>
                 ) : null}
+                {detail.processingFeeFormatted ? (
+                  <div className="od-pay-row">
+                    <span className="od-pay-row__label">Processing fee</span>
+                    <span className="od-pay-row__value od-pay-row__value--add">{detail.processingFeeFormatted}</span>
+                  </div>
+                ) : null}
                 {detail.deliveryChargesFormatted ? (
                   <div className="od-pay-row">
                     <span className="od-pay-row__label">Delivery charges</span>
@@ -288,6 +307,12 @@ export function OrderDetailPaymentSummaryFallback({
         <div className="od-pay-row">
           <span className="od-pay-row__label">{collectionFeeRowLabel}</span>
           <span className="od-pay-row__value od-pay-row__value--add">{detail.collectionFeeFormatted}</span>
+        </div>
+      ) : null}
+      {detail.processingFeeFormatted ? (
+        <div className="od-pay-row">
+          <span className="od-pay-row__label">Processing fee</span>
+          <span className="od-pay-row__value od-pay-row__value--add">{detail.processingFeeFormatted}</span>
         </div>
       ) : null}
       {detail.deliveryChargesFormatted ? (

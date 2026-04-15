@@ -89,7 +89,7 @@ export function BookingSuccessPage() {
   useEffect(() => {
     if (consultLayout) return;
     const id = globalThis.setTimeout(() => {
-      navigate(ROUTES.dashboard, { replace: true });
+      navigate(ROUTES.orders, { replace: true });
     }, BOOKING_SUCCESS_REDIRECT_MS);
     return () => globalThis.clearTimeout(id);
   }, [consultLayout, navigate]);
@@ -108,7 +108,7 @@ export function BookingSuccessPage() {
           <button
             type="button"
             className="bs-alright"
-            onClick={() => navigate(ROUTES.dashboard, { replace: true })}
+            onClick={() => navigate(ROUTES.orders, { replace: true })}
           >
             Alright
           </button>
