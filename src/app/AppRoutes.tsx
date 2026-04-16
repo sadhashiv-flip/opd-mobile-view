@@ -74,6 +74,7 @@ import { WalletAllTransactionsPage } from "@/pages/WalletAllTransactionsPage";
 import { ClaimsListPage } from "@/pages/ClaimsListPage";
 import { ClaimNewPage } from "@/pages/ClaimNewPage";
 import { ClaimBillChecklistPage } from "@/pages/ClaimBillChecklistPage";
+import { ClaimBillEditPage } from "@/pages/ClaimBillEditPage";
 import { ClaimDetailPage } from "@/pages/ClaimDetailPage";
 import { VideoCallPage } from "@/pages/VideoCallPage";
 import {
@@ -166,7 +167,7 @@ export function AppRoutes() {
       <Route path={ROUTES.dentalOverview} element={<DentalOverviewPage />} />
       <Route path={ROUTES.dentalBookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.bookingSuccess} element={<BookingSuccessPage />} />
-      <Route path={ROUTES.dental} element={<PlaceholderPage title="Dental" />} />
+      <Route path={ROUTES.dental} element={<Navigate to={ROUTES.dentalSelectPeople} replace />} />
       <Route path={ROUTES.vision} element={<PlaceholderPage title="Vision" />} />
       <Route path={ROUTES.pharmacy} element={<PharmacyDeliveryPage />} />
       <Route path={ROUTES.pharmacyUpload} element={<PharmacyUploadPage />} />
@@ -185,6 +186,7 @@ export function AppRoutes() {
       <Route path={ROUTES.claimsNew} element={<ClaimNewPage />} />
       <Route path={ROUTES.claimBillChecklist} element={<ClaimBillChecklistPage />} />
       <Route path={ROUTES.claimsDetail} element={<ClaimDetailPage />} />
+      <Route path={ROUTES.claimsBillEdit} element={<ClaimBillEditPage />} />
       <Route path={ROUTES.claims} element={<ClaimsListPage />} />
       <Route path={ROUTES.help} element={<Navigate to={ROUTES.servicesHelpTab} replace />} />
       <Route

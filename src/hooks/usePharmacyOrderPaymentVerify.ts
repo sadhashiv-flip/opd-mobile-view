@@ -25,6 +25,11 @@ type Refs = Readonly<{
    * for vision / dental / vaccine).
    */
   verifyPaymentRef?: MutableRefObject<(body: PharmacyOrderPaymentVerifyBody) => Promise<void>>;
+  /**
+   * When non-empty, merged into the verify body (lab `POST diagnostics/order/confirm` `invoice_id`;
+   * medicine / service verify implementations ignore extra fields).
+   */
+  paymentVerifyInvoiceIdRef?: MutableRefObject<string | null>;
 }>;
 
 /**
@@ -57,10 +62,13 @@ export function usePharmacyOrderPaymentVerify(refs: Refs): void {
       try {
         const verify =
           refsStable.current.verifyPaymentRef?.current ?? verifyPharmacyOrderPayment;
-        await verify({
+        const inv = refsStable.current.paymentVerifyInvoiceIdRef?.current?.trim();
+        const body: PharmacyOrderPaymentVerifyBody = {
           order_id: orderId,
           payment_id: detail.razorpay_payment_id,
-        });
+          ...(inv ? { invoice_id: inv } : {}),
+        };
+        await verify(body);
         onSuccessRef.current();
       } catch (err) {
         verifiedPaymentIds.delete(pid);

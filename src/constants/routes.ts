@@ -140,6 +140,8 @@ export const ROUTES = {
   claimBillChecklist: "/claims/new/bill-checklist",
   /** Single claim detail (`GET /patient/reimbursement/:id`). */
   claimsDetail: "/claims/:claimId",
+  /** Edit one bill on an existing claim (`PATCH /patient/reimbursement/bill/:billId`). */
+  claimsBillEdit: "/claims/:claimId/bills/:billId/edit",
 } as const;
 
 /** Path param for {@link ROUTES.servicesWellness}. */

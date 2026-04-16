@@ -1,9 +1,27 @@
-import { patientFetch } from "@/api/patientHttp";
+import { readAppointmentPaymentLayer } from "@/api/appointmentBook";
 import { readPatientApiError } from "@/api/patientClient";
+import { patientFetch, patientJson } from "@/api/patientHttp";
+import { readRazorpayPayloadFromPaymentEnvelope } from "@/lib/razorpayCheckout";
 
-function initPath(): string {
+function gymPaymentResourceBase(): string {
+  const p = import.meta.env.VITE_GYM_PAYMENT_PATH?.trim();
+  return p && p.length > 0 ? p.replace(/\/$/, "") : "gym/payment";
+}
+
+function gymPaymentPath(invoiceId: string, query: Record<string, string | boolean>): string {
+  const id = encodeURIComponent(invoiceId.trim());
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(query)) {
+    q.set(k, typeof v === "boolean" ? String(v) : v);
+  }
+  return `${gymPaymentResourceBase()}/${id}?${q.toString()}`;
+}
+
+/** POST target to create/open checkout (same resource family as {@link gymPaymentPath}). */
+function gymPaymentCreatePath(): string {
   const p = import.meta.env.VITE_GYM_PAYMENT_INIT_PATH?.trim();
-  return p && p.length > 0 ? p : "gym/payment_init";
+  if (p && p.length > 0) return p.replace(/^\//, "");
+  return gymPaymentResourceBase();
 }
 
 function verifyPath(): string {
@@ -11,9 +29,15 @@ function verifyPath(): string {
   return p && p.length > 0 ? p : "gym/payment_verify";
 }
 
-function confirmPath(): string {
+function confirmPathLegacy(): string {
   const p = import.meta.env.VITE_GYM_PAYMENT_CONFIRM_PATH?.trim();
-  return p && p.length > 0 ? p : "gym/payment_confirm";
+  return p && p.length > 0 ? p : "";
+}
+
+function str(v: unknown): string | null {
+  if (typeof v === "string" && v.trim()) return v.trim();
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return null;
 }
 
 function unwrapData(raw: unknown): Record<string, unknown> {
@@ -26,10 +50,25 @@ function unwrapData(raw: unknown): Record<string, unknown> {
   return o;
 }
 
-function str(v: unknown): string | null {
-  if (typeof v === "string" && v.trim()) return v.trim();
-  if (typeof v === "number" && Number.isFinite(v)) return String(v);
-  return null;
+function paymentRequiredFromGymPatch(raw: unknown): boolean {
+  const layer = readAppointmentPaymentLayer(raw) as Record<string, unknown>;
+  const pr = layer.paymentRequired ?? layer.payment_required;
+  if (pr === false || pr === "false" || pr === 0) return false;
+  const rzp = readRazorpayPayloadFromPaymentEnvelope(layer);
+  if (rzp != null && Object.keys(rzp).length > 0) return true;
+  return pr === true || pr === "true" || pr === 1;
+}
+
+function parseGymPatchConfirmRaw(raw: unknown, fallbackInvoiceId: string): GymPaymentInitResult {
+  const layer = readAppointmentPaymentLayer(raw) as Record<string, unknown>;
+  const payment_required = paymentRequiredFromGymPatch(raw);
+  const razorpay_payload = payment_required ? readRazorpayPayloadFromPaymentEnvelope(layer) : null;
+  return {
+    payment_required,
+    razorpay_payload,
+    invoice_id: str(layer.invoice_id) ?? (fallbackInvoiceId.trim() || null),
+    order_id: str(layer.order_id),
+  };
 }
 
 export type GymPaymentInitRequest = Readonly<{
@@ -50,18 +89,34 @@ export type GymPaymentInitResult = Readonly<{
   order_id: string | null;
 }>;
 
-function asRecord(v: unknown): Record<string, unknown> | null {
-  if (v && typeof v === "object" && !Array.isArray(v)) {
-    return v as Record<string, unknown>;
-  }
-  return null;
+/**
+ * Preview totals / wallet — `PATCH gym/payment/:invoice_id?useWallet=` (parity with offline appointment payment).
+ */
+export async function patchGymPaymentPreview(invoiceId: string, useWallet: boolean): Promise<unknown> {
+  const path = gymPaymentPath(invoiceId, { useWallet });
+  return patientJson<unknown>(path, { method: "PATCH", skipGlobalLoading: true });
 }
 
 /**
- * Start gym checkout: server creates Razorpay order (if needed) and returns payload for Checkout.js.
+ * Confirm / load Razorpay — `PATCH gym/payment/:invoice_id?useWallet=&status=confirm`
+ * (parity with `PATCH offline/appointment/payment/:id?...`).
+ */
+export async function patchGymPaymentConfirm(
+  invoiceId: string,
+  useWallet: boolean,
+): Promise<GymPaymentInitResult> {
+  const path = gymPaymentPath(invoiceId, { useWallet, status: "confirm" });
+  const raw = await patientJson<unknown>(path, { method: "PATCH", skipGlobalLoading: true });
+  return parseGymPatchConfirmRaw(raw, invoiceId);
+}
+
+/**
+ * Start gym checkout when there is no invoice yet — `POST gym/payment` with plan + amounts
+ * (same payment resource as {@link patchGymPaymentConfirm}; legacy: set `VITE_GYM_PAYMENT_INIT_PATH=gym/payment_init`).
+ * When an invoice already exists, prefer {@link patchGymPaymentConfirm}.
  */
 export async function initGymPayment(body: GymPaymentInitRequest): Promise<GymPaymentInitResult> {
-  const res = await patientFetch(initPath(), {
+  const res = await patientFetch(gymPaymentCreatePath(), {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -72,42 +127,31 @@ export async function initGymPayment(body: GymPaymentInitRequest): Promise<GymPa
   if (!text) throw new Error("Empty payment init response");
   const raw = JSON.parse(text) as unknown;
   const o = unwrapData(raw);
-
-  const pr = o.payment_required;
-  const paymentRequired = !(pr === false || pr === "false" || pr === 0);
-
-  const payloadRaw = o.razorpay_payload;
-  const razorpay_payload = paymentRequired ? asRecord(payloadRaw) : null;
+  const payment_required = paymentRequiredFromGymPatch(raw);
+  const layer = readAppointmentPaymentLayer(raw) as Record<string, unknown>;
+  const razorpay_payload = payment_required ? readRazorpayPayloadFromPaymentEnvelope(layer) : null;
 
   return {
-    payment_required: paymentRequired,
+    payment_required,
     razorpay_payload,
     invoice_id: str(o.invoice_id),
     order_id: str(o.order_id),
   };
 }
 
+/** POST `gym/payment_verify` — body matches server `GymController.paymentVerify`. */
 export type GymPaymentVerifyRequest = Readonly<{
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
   invoice_id: string;
-  order_id?: string | null;
+  payment_id: string;
 }>;
 
-/** POST gym/payment_verify — server HMAC verify + activate membership. */
 export async function verifyGymPayment(body: GymPaymentVerifyRequest): Promise<void> {
-  const payload: Record<string, unknown> = {
-    razorpay_order_id: body.razorpay_order_id,
-    razorpay_payment_id: body.razorpay_payment_id,
-    razorpay_signature: body.razorpay_signature,
-    invoice_id: body.invoice_id,
-  };
-  if (body.order_id) payload.order_id = body.order_id;
-
   const res = await patientFetch(verifyPath(), {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      invoice_id: body.invoice_id,
+      payment_id: body.payment_id,
+    }),
   });
   if (!res.ok) {
     throw new Error(await readPatientApiError(res));
@@ -117,18 +161,31 @@ export async function verifyGymPayment(body: GymPaymentVerifyRequest): Promise<v
 export type GymPaymentConfirmFreeRequest = Readonly<{
   invoice_id: string;
   order_id?: string | null;
+  /** Match wallet toggle used for payable (default false). */
+  use_wallet?: boolean;
 }>;
 
-/** When payment_required is false — confirm membership without Razorpay. */
+/**
+ * When `payment_required` is false after init — confirm via `PATCH gym/payment/:id?useWallet=&status=confirm`
+ * (same resource as offline appointment confirm).
+ */
 export async function confirmGymPaymentFree(body: GymPaymentConfirmFreeRequest): Promise<void> {
-  const payload: Record<string, unknown> = { invoice_id: body.invoice_id };
-  if (body.order_id) payload.order_id = body.order_id;
-
-  const res = await patientFetch(confirmPath(), {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    throw new Error(await readPatientApiError(res));
+  const useWallet = body.use_wallet === true;
+  const legacy = confirmPathLegacy();
+  if (legacy.length > 0) {
+    const payload: Record<string, unknown> = { invoice_id: body.invoice_id };
+    if (body.order_id) payload.order_id = body.order_id;
+    const res = await patientFetch(legacy, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(await readPatientApiError(res));
+    }
+    return;
   }
+  await patientJson<unknown>(gymPaymentPath(body.invoice_id, { useWallet, status: "confirm" }), {
+    method: "PATCH",
+    skipGlobalLoading: true,
+  });
 }

@@ -1,8 +1,8 @@
 import { verifyGymPayment } from "@/api/patientGymPayment";
 import { GYM_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import type { RazorpayPaymentSuccess } from "@/types/razorpay-window";
-import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
+import { useEffect, useRef } from "react";
 
 function isSuccessDetail(d: unknown): d is RazorpayPaymentSuccess {
   if (!d || typeof d !== "object") return false;
@@ -16,14 +16,13 @@ function isSuccessDetail(d: unknown): d is RazorpayPaymentSuccess {
 
 type Refs = Readonly<{
   invoiceIdRef: MutableRefObject<string | null>;
-  internalOrderIdRef: MutableRefObject<string | null>;
   onSuccessRef: MutableRefObject<() => void>;
   onErrorRef: MutableRefObject<(message: string) => void>;
   setPayBusyRef: MutableRefObject<(busy: boolean) => void>;
 }>;
 
 /**
- * Listens for `gym.payment.done` from Razorpay handler, POSTs verify with latest invoice/order ids from refs.
+ * Listens for `gym.payment.done` from Razorpay; POSTs `gym/payment_verify` with `{ invoice_id, payment_id }`.
  * Dedupes by `razorpay_payment_id` to reduce duplicate verify under React Strict Mode / double events.
  */
 export function useGymPaymentVerify(refs: Refs): void {
@@ -34,8 +33,7 @@ export function useGymPaymentVerify(refs: Refs): void {
     const verifiedPaymentIds = new Set<string>();
 
     const onDone = async (e: Event) => {
-      const { invoiceIdRef, internalOrderIdRef, onSuccessRef, onErrorRef, setPayBusyRef } =
-        refsStable.current;
+      const { invoiceIdRef, onSuccessRef, onErrorRef, setPayBusyRef } = refsStable.current;
 
       const detail = (e as CustomEvent<unknown>).detail;
       if (!isSuccessDetail(detail)) {
@@ -48,21 +46,18 @@ export function useGymPaymentVerify(refs: Refs): void {
       if (verifiedPaymentIds.has(pid)) return;
       verifiedPaymentIds.add(pid);
 
-      const invoiceId = invoiceIdRef.current;
+      const invoiceId = invoiceIdRef.current?.trim() ?? "";
       if (!invoiceId) {
         verifiedPaymentIds.delete(pid);
-        onErrorRef.current("Missing invoice id for verification");
+        onErrorRef.current("Missing invoice id for payment verification");
         setPayBusyRef.current(false);
         return;
       }
 
       try {
         await verifyGymPayment({
-          razorpay_order_id: detail.razorpay_order_id,
-          razorpay_payment_id: detail.razorpay_payment_id,
-          razorpay_signature: detail.razorpay_signature,
           invoice_id: invoiceId,
-          order_id: internalOrderIdRef.current,
+          payment_id: detail.razorpay_payment_id,
         });
         onSuccessRef.current();
       } catch (err) {

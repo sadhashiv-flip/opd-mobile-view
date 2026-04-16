@@ -136,6 +136,10 @@ export type PharmacyOrderPaymentConfirmResult = Readonly<{
   message?: string;
   /** Prefer for `medicine/order/paymentverify` `order_id` when the server returns it on confirm. */
   verifyOrderId: string | null;
+  /**
+   * When the confirm JSON includes an invoice id (e.g. lab → `POST diagnostics/order/confirm` after Razorpay).
+   */
+  invoiceIdForDiagnosticsConfirm: string | null;
 }>;
 
 function pharmacyConfirmPaymentRequired(
@@ -168,6 +172,17 @@ function readVerifyOrderId(
   );
 }
 
+/** `invoice_id` / `invoiceId` on confirm envelope (lab payment, etc.). */
+function readInvoiceIdFromPartnerPaymentConfirmRaw(raw: unknown): string | null {
+  const layer = readAppointmentPaymentLayer(raw);
+  const data = asRecord(layer.data);
+  return (
+    str(layer.invoice_id) ??
+    str(layer.invoiceId) ??
+    (data ? str(data.invoice_id) ?? str(data.invoiceId) : null)
+  );
+}
+
 /** Shared parser for `PATCH …/payment/:id?status=confirm` (medicine order + service request). */
 export function parsePartnerOrderPaymentConfirmResponse(
   raw: unknown,
@@ -179,6 +194,7 @@ export function parsePartnerOrderPaymentConfirmResponse(
     razorpayPayload,
     message: readAppointmentResponseMessage(raw),
     verifyOrderId: readVerifyOrderId(raw, fallbackVerifyOrderId, razorpayPayload),
+    invoiceIdForDiagnosticsConfirm: readInvoiceIdFromPartnerPaymentConfirmRaw(raw),
   };
 }
 
@@ -195,6 +211,8 @@ export async function patchPharmacyOrderPaymentConfirm(
 export type PharmacyOrderPaymentVerifyBody = Readonly<{
   order_id: string;
   payment_id: string;
+  /** Lab `POST diagnostics/order/confirm` only; omit for medicine / service request verify. */
+  invoice_id?: string;
 }>;
 
 /** `PATCH medicine/order/paymentverify` */

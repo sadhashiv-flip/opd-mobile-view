@@ -15,26 +15,21 @@ import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelect
 import { useToast } from "@/hooks/useToast";
 import {
   fetchDiagnosticVendorsPricing,
+  fetchSponsoredVendorPricing,
   type DiagnosticVendorPricingRow,
+  type HealthSponsoredVendorRow,
+  type SponsoredVendorPricingResult,
 } from "@/api/patientDiagnosticsLab";
+import {
+  DIAG_HEALTH_PATH_SLOT_KEY,
+  DIAG_HEALTH_RAD_SLOT_KEY,
+  readHealthSponsoredFlag,
+  readHealthUsersPackages,
+  writeHealthVendorMeta,
+} from "@/constants/diagnosticsHealthFlowStorage";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import "./DiagnosticsScreenPage.css";
-
-type VendorMode = "home" | "center";
-
-type Vendor = Readonly<{
-  id: string;
-  name: string;
-  rating: number;
-  address: string;
-  distanceLabel?: string;
-  planName: string;
-  planFor: string;
-  priceBadge: string;
-  toPay: number;
-  modes: readonly VendorMode[];
-}>;
 
 function labVendorImageBase(): string {
   const fromEnv = import.meta.env.VITE_IMAGE_URL?.trim();
@@ -51,56 +46,120 @@ function vendorLogoUrl(logo: string | null): string | null {
   return `${base}${p}`;
 }
 
+function clearHealthSlotSessionKeys(): void {
+  try {
+    globalThis.sessionStorage?.removeItem("opd-mobile-view.diagnostics.health.slotPhase");
+    globalThis.sessionStorage?.removeItem(DIAG_HEALTH_PATH_SLOT_KEY);
+    globalThis.sessionStorage?.removeItem(DIAG_HEALTH_RAD_SLOT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function DiagnosticsScreenPage() {
   const navigate = useNavigate();
   const params = useParams();
   const toast = useToast();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const isLabTests = type === "lab-tests";
+  /** Prevents duplicate auto-navigation (e.g. React Strict Mode). Reset when pricing reloads. */
+  const healthAutoSlotsKeyRef = useRef<string | null>(null);
+  const labEmptySlotsSkipRef = useRef(false);
+  /** Lab vendor `POST` finished (or skipped with no address) — avoids auto-slots before the first fetch runs. */
+  const labVendorFetchSettledRef = useRef(false);
   const selectedAddressId = useSyncExternalStore(
     subscribeSelectedAddress,
     () => readSelectedAddress()?.id?.trim() ?? "",
     () => "",
   );
 
-  const vendors = useMemo(
-    (): readonly Vendor[] => [
-      {
-        id: "neuberg",
-        name: "Neuberg Diagnostics",
-        rating: 4.5,
-        address: "Home Collection",
-        planName: "Flip Health AHC 2025-2026",
-        planFor: "for Kalyan",
-        priceBadge: "Free",
-        toPay: 0,
-        modes: ["home"],
-      },
-      {
-        id: "orange-health",
-        name: "Orange Health Labs",
-        rating: 4.5,
-        address:
-          "3rd & 4th floor, Bright Square, Dharam Karan Rd, ShivBagh, Ameerpet, Hyderabad, Telangana 500016",
-        distanceLabel: "1 km",
-        planName: "Flip Health AHC 2025-2026",
-        planFor: "for Kalyan",
-        priceBadge: "Free",
-        toPay: 0,
-        modes: ["home", "center"],
-      },
-    ],
-    [],
-  );
-
-  const [mode, setMode] = useState<VendorMode>("home");
-  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
 
-  const visibleVendors = useMemo(
-    () => vendors.filter((v) => v.modes.includes(mode)),
-    [vendors, mode],
-  );
+  const [healthPricing, setHealthPricing] = useState<SponsoredVendorPricingResult | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [pathVendorCode, setPathVendorCode] = useState<string | null>(null);
+  const [radVendorCode, setRadVendorCode] = useState<string | null>(null);
+
+  const loadHealthPricing = useCallback(async () => {
+    const rows = readHealthUsersPackages();
+    if (rows.length === 0) {
+      setHealthError("Go back and choose a package for each person.");
+      setHealthPricing(null);
+      return;
+    }
+    const addr = readSelectedAddress();
+    if (!addr?.id.trim()) {
+      setHealthError("Choose a saved address to see lab partners.");
+      setHealthPricing(null);
+      return;
+    }
+    setHealthLoading(true);
+    setHealthError(null);
+    healthAutoSlotsKeyRef.current = null;
+    try {
+      const res = await fetchSponsoredVendorPricing({
+        addressId: addr.id.trim(),
+        sponsored: readHealthSponsoredFlag(),
+        users: rows,
+      });
+      setHealthPricing(res);
+      const pv = res.pathologyVendors;
+      const rv = res.radiologyVendors;
+      setPathVendorCode(
+        pv.length === 1 ? pv[0].code : pv.length === 0 && res.pathologyCategoryExists ? "unknown" : null,
+      );
+      setRadVendorCode(
+        rv.length === 1 ? rv[0].code : rv.length === 0 && res.radiologyCategoryExists ? "unknown" : null,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not load partners";
+      setHealthError(msg);
+      setHealthPricing(null);
+      toast.error(msg);
+    } finally {
+      setHealthLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (isLabTests) return;
+    void loadHealthPricing();
+  }, [isLabTests, loadHealthPricing, selectedAddressId]);
+
+  const goHealthSlots = useCallback(() => {
+    const hp = healthPricing;
+    if (!hp) return;
+    writeHealthVendorMeta({
+      needPathology: hp.pathologyCategoryExists,
+      needRadiology: hp.radiologyCategoryExists,
+      pathVendorCode: hp.pathologyCategoryExists ? pathVendorCode ?? "unknown" : "unknown",
+      radVendorCode: hp.radiologyCategoryExists ? radVendorCode ?? "unknown" : "unknown",
+    });
+    clearHealthSlotSessionKeys();
+    navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
+  }, [healthPricing, pathVendorCode, radVendorCode, navigate, type]);
+
+  /** Health (Dart `continueToVendorSelection`): no selectable pathology/radiology vendors → skip vendor UI, open slots. */
+  useEffect(() => {
+    if (isLabTests) return;
+    if (healthLoading || healthError || !healthPricing) return;
+    const pv = healthPricing.pathologyVendors.length;
+    const rv = healthPricing.radiologyVendors.length;
+    if (pv > 0 || rv > 0) return;
+
+    const autoKey = `${selectedAddressId}|${JSON.stringify(readHealthUsersPackages())}|p${healthPricing.pathologyCategoryExists ? 1 : 0}r${healthPricing.radiologyCategoryExists ? 1 : 0}`;
+    if (healthAutoSlotsKeyRef.current === autoKey) return;
+    healthAutoSlotsKeyRef.current = autoKey;
+    goHealthSlots();
+  }, [
+    goHealthSlots,
+    healthError,
+    healthLoading,
+    healthPricing,
+    isLabTests,
+    selectedAddressId,
+  ]);
 
   const [labApiVendors, setLabApiVendors] = useState<readonly DiagnosticVendorPricingRow[]>([]);
   const [labApiLoading, setLabApiLoading] = useState(false);
@@ -111,10 +170,12 @@ export function DiagnosticsScreenPage() {
     if (!isLabTests) return;
     const addr = readSelectedAddress();
     if (!addr?.id.trim()) {
+      labVendorFetchSettledRef.current = true;
       setLabApiVendors([]);
       setLabApiError("Choose a saved address to see labs.");
       return;
     }
+    labVendorFetchSettledRef.current = false;
     let cancelled = false;
     void (async () => {
       setLabApiLoading(true);
@@ -131,7 +192,10 @@ export function DiagnosticsScreenPage() {
           toast.error(msg);
         }
       } finally {
-        if (!cancelled) setLabApiLoading(false);
+        if (!cancelled) {
+          labVendorFetchSettledRef.current = true;
+          setLabApiLoading(false);
+        }
       }
     })();
     return () => {
@@ -142,7 +206,43 @@ export function DiagnosticsScreenPage() {
   useEffect(() => {
     if (!isLabTests) return;
     setLabSelectedCode("");
+    labEmptySlotsSkipRef.current = false;
+    labVendorFetchSettledRef.current = false;
   }, [isLabTests, selectedAddressId]);
+
+  /** Lab (Dart `LabSelectionScreen`): no vendors → skip picker and open slots; vendor_code falls back to `unknown` like health slots. */
+  const goLabSlotsWithUnknownVendor = useCallback(() => {
+    try {
+      globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorId", "unknown");
+      globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
+      globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_CODE_KEY, "unknown");
+      globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_NAME_KEY, "");
+    } catch {
+      // ignore
+    }
+    navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
+  }, [navigate, type]);
+
+  useEffect(() => {
+    if (!isLabTests) return;
+    if (!labVendorFetchSettledRef.current || labApiLoading || labApiError) return;
+    const addr = readSelectedAddress();
+    if (!addr?.id.trim()) return;
+    if (labApiVendors.length > 0) {
+      labEmptySlotsSkipRef.current = false;
+      return;
+    }
+    if (labEmptySlotsSkipRef.current) return;
+    labEmptySlotsSkipRef.current = true;
+    goLabSlotsWithUnknownVendor();
+  }, [
+    goLabSlotsWithUnknownVendor,
+    isLabTests,
+    labApiError,
+    labApiLoading,
+    labApiVendors.length,
+    selectedAddressId,
+  ]);
 
   const dsLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
   const dsLocTag = useSelectedAddressTag("HOME");
@@ -221,7 +321,8 @@ export function DiagnosticsScreenPage() {
             ) : null}
             {!labApiLoading && !labApiError && labApiVendors.length === 0 ? (
               <p className="ds-location__addr">
-                No lab is available for your cart at this address. Add tests or try another address.
+                No lab partner is listed for this address. You can still open time slots — a partner may be
+                assigned when you book (or try another address).
               </p>
             ) : null}
             {labApiVendors.map((v) => {
@@ -291,21 +392,31 @@ export function DiagnosticsScreenPage() {
           <button
             type="button"
             className="ds-continue"
-            disabled={!labSelectedCode || labApiVendors.length === 0}
+            disabled={
+              labApiLoading ||
+              !!labApiError ||
+              (labApiVendors.length > 0 && !labSelectedCode)
+            }
             onClick={() => {
+              if (labApiVendors.length === 0) {
+                goLabSlotsWithUnknownVendor();
+                return;
+              }
               const v = labApiVendors.find((x) => x.code === labSelectedCode);
               try {
-                localStorage.setItem("opd-mobile-view.diagnostics.vendorId", labSelectedCode);
-                localStorage.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
-                localStorage.setItem(DIAG_LAB_VENDOR_CODE_KEY, labSelectedCode);
-                localStorage.setItem(DIAG_LAB_VENDOR_NAME_KEY, v?.name ?? "");
+                globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorId", labSelectedCode);
+                globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
+                globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_CODE_KEY, labSelectedCode);
+                globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_NAME_KEY, v?.name ?? "");
               } catch {
                 // ignore
               }
               navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
             }}
           >
-            Continue
+            {labApiVendors.length === 0 && !labApiLoading && !labApiError
+              ? "Continue to time slots"
+              : "Continue"}
           </button>
         </footer>
       </div>
@@ -314,168 +425,159 @@ export function DiagnosticsScreenPage() {
     );
   }
 
+  const formatInr = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+  const renderHealthVendor = (v: HealthSponsoredVendorRow, selected: boolean, onSelect: () => void) => {
+    const logoSrc = vendorLogoUrl(v.logo);
+    return (
+      <button
+        key={v.code}
+        type="button"
+        className={`ds-lab-card ds-lab-card--sel${selected ? " ds-lab-card--selected" : ""}`}
+        onClick={onSelect}
+      >
+        <div className="ds-lab-card__top ds-lab-card__top--sel">
+          <div className="ds-lab-card__brand ds-lab-card__brand--sel">
+            {logoSrc ? (
+              <img className="ds-sellab-logo" src={logoSrc} alt="" width={40} height={40} />
+            ) : (
+              <span className="ds-sellab-logo-fallback" aria-hidden="true">
+                {v.name.slice(0, 1)}
+              </span>
+            )}
+            <span className="ds-lab-card__logo ds-lab-card__logo--sel">{v.name}</span>
+          </div>
+          <span className={`ds-sellab-check${selected ? " ds-sellab-check--on" : ""}`} aria-hidden="true">
+            {selected ? "✓" : ""}
+          </span>
+        </div>
+        <div className="ds-sellab-home">
+          <span>{v.category || "Diagnostics"}</span>
+        </div>
+        <div className="ds-sellab-total">
+          <span>From</span>
+          <span>₹{formatInr(v.price)}</span>
+        </div>
+      </button>
+    );
+  };
+
+  const healthContinueDisabled =
+    healthLoading ||
+    !healthPricing ||
+    (healthPricing.pathologyVendors.length > 1 && !pathVendorCode) ||
+    (healthPricing.radiologyVendors.length > 1 && !radVendorCode);
+
   return (
     <>
-    <div className="ds-page">
-      <header className="ds-top">
-        <Link
-          to={generatePath(ROUTES.diagnosticsPlan, { type })}
-          className="ds-back"
-          aria-label="Back to Health Checkups plan"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
-        <h1 className="ds-title">Health Checkups</h1>
-      </header>
-
-      <main className="ds-main">
-        <button
-          type="button"
-          className="ds-location"
-          aria-label="Choose address"
-          onClick={() => setAddrSheetOpen(true)}
-        >
-          <span className="ds-location__pin" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <div className="ds-page">
+        <header className="ds-top">
+          <Link
+            to={generatePath(ROUTES.diagnosticsPlan, { type })}
+            className="ds-back"
+            aria-label="Back to Health Checkups plan"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
-                d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
-                fill="#FF541E"
-              />
-              <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
-            </svg>
-          </span>
-          <span className="ds-location__title">Home</span>
-          <span className="ds-location__sep" aria-hidden="true">
-            |
-          </span>
-          <span className="ds-location__addr">{dsLocAddrLine}</span>
-          <span className="ds-location__chev" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 9l6 6 6-6"
+                d="M15 18l-6-6 6-6"
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
-          </span>
-        </button>
+          </Link>
+          <h1 className="ds-title">Health Checkups</h1>
+        </header>
 
-        <div className="ds-mode" role="tablist" aria-label="Service mode">
+        <main className="ds-main">
           <button
             type="button"
-            className={`ds-mode__pill${mode === "home" ? " ds-mode__pill--active" : ""}`}
-            role="tab"
-            aria-selected={mode === "home"}
-            onClick={() => {
-              setMode("home");
-              setSelectedVendorId(null);
-            }}
+            className="ds-location"
+            aria-label="Choose address"
+            onClick={() => setAddrSheetOpen(true)}
           >
-            Home Collection
+            <span className="ds-location__pin" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
+                  fill="#FF541E"
+                />
+                <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
+              </svg>
+            </span>
+            <span className="ds-location__title">Home</span>
+            <span className="ds-location__sep" aria-hidden="true">
+              |
+            </span>
+            <span className="ds-location__addr">{dsLocAddrLine}</span>
+            <span className="ds-location__chev" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
           </button>
+
+          <p className="ds-sellab-hint">Choose partners for pathology and radiology (when applicable)</p>
+
+          {healthLoading ? <p className="ds-location__addr">Loading partners…</p> : null}
+          {healthError && !healthLoading ? (
+            <p className="ds-location__addr" role="alert">
+              {healthError}
+            </p>
+          ) : null}
+
+          {healthPricing?.pathologyCategoryExists ? (
+            <section className="ds-health-sec" aria-label="Pathology">
+              <h2 className="ds-health-sec__title">Pathology</h2>
+              {healthPricing.pathologyVendors.length === 0 ? (
+                <p className="ds-location__addr">Partner will be assigned for you.</p>
+              ) : (
+                <div className="ds-vendors ds-vendors--lab" aria-label="Pathology vendors">
+                  {healthPricing.pathologyVendors.map((v) =>
+                    renderHealthVendor(v, pathVendorCode === v.code, () => setPathVendorCode(v.code)),
+                  )}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {healthPricing?.radiologyCategoryExists ? (
+            <section className="ds-health-sec" aria-label="Radiology">
+              <h2 className="ds-health-sec__title">Radiology</h2>
+              {healthPricing.radiologyVendors.length === 0 ? (
+                <p className="ds-location__addr">Partner will be assigned for you.</p>
+              ) : (
+                <div className="ds-vendors ds-vendors--lab" aria-label="Radiology vendors">
+                  {healthPricing.radiologyVendors.map((v) =>
+                    renderHealthVendor(v, radVendorCode === v.code, () => setRadVendorCode(v.code)),
+                  )}
+                </div>
+              )}
+            </section>
+          ) : null}
+        </main>
+
+        <footer className="ds-footer">
           <button
             type="button"
-            className={`ds-mode__pill${mode === "center" ? " ds-mode__pill--active" : ""}`}
-            role="tab"
-            aria-selected={mode === "center"}
+            className="ds-continue"
+            disabled={healthContinueDisabled}
             onClick={() => {
-              setMode("center");
-              setSelectedVendorId(null);
+              goHealthSlots();
             }}
           >
-            At Center
+            Continue
           </button>
-        </div>
-
-        <div className="ds-vendors" aria-label="Vendors">
-          {visibleVendors.map((v) => {
-            const selected = v.id === selectedVendorId;
-            return (
-              <button
-                key={v.id}
-                type="button"
-                className={`ds-vendor-card${selected ? " ds-vendor-card--selected" : ""}`}
-                aria-pressed={selected}
-                onClick={() => setSelectedVendorId(v.id)}
-              >
-                <div className="ds-vendor-card__top">
-                  <div className="ds-vendor-card__brand">
-                    <div className="ds-vendor-card__name">{v.name}</div>
-                    <span className="ds-vendor-card__rating" aria-label={`Rating ${v.rating}`}>
-                      ★ {v.rating.toFixed(1)}
-                    </span>
-                  </div>
-
-                  <span
-                    className={`ds-vendor-card__check${selected ? " ds-vendor-card__check--on" : ""}`}
-                    aria-hidden="true"
-                  >
-                    {selected ? "✓" : ""}
-                  </span>
-                </div>
-
-                <div className="ds-vendor-card__addr">
-                  <div className="ds-vendor-card__addr-text">{v.address}</div>
-                  {v.distanceLabel ? (
-                    <div className="ds-vendor-card__addr-side">
-                      <div className="ds-vendor-card__distance">{v.distanceLabel}</div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="ds-vendor-card__plan">
-                  <div className="ds-vendor-card__plan-left">
-                    <div className="ds-vendor-card__plan-name">{v.planName}</div>
-                    <div className="ds-vendor-card__plan-for">{v.planFor}</div>
-                  </div>
-                  <span className="ds-vendor-card__free">{v.priceBadge}</span>
-                </div>
-
-                <div className="ds-vendor-card__pay">
-                  <span className="ds-vendor-card__pay-label">To Pay</span>
-                  <span className="ds-vendor-card__pay-amt">₹ {v.toPay}</span>
-                </div>
-
-                <div className={`ds-vendor-card__footer${mode === "home" ? " ds-vendor-card__footer--home" : ""}`}>
-                  {mode === "home" ? "Home Collection" : "At Center"}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </main>
-
-      <footer className="ds-footer">
-        <button
-          type="button"
-          className="ds-continue"
-          disabled={!selectedVendorId}
-          onClick={() => {
-            if (!selectedVendorId) return;
-            try {
-              localStorage.setItem("opd-mobile-view.diagnostics.vendorId", selectedVendorId);
-              localStorage.setItem("opd-mobile-view.diagnostics.vendorMode", mode);
-            } catch {
-              // ignore storage errors
-            }
-            navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
-          }}
-        >
-          Continue
-        </button>
-      </footer>
-    </div>
-    <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+        </footer>
+      </div>
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
     </>
   );
 }

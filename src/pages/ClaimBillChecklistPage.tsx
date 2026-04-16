@@ -14,7 +14,7 @@ import {
 } from "@/api/patientReimbursement";
 import { uploadReimbursementChecklistDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
-import { clearClaimChecklistEscrow } from "@/constants/claimsChecklistEscrow";
+import { clearClaimChecklistEscrow, mergeClaimChecklistEscrowProgress } from "@/constants/claimsChecklistEscrow";
 import { useToast } from "@/hooks/useToast";
 import "./ClaimsPages.css";
 
@@ -350,13 +350,18 @@ export function ClaimBillChecklistPage() {
   }, []);
 
   const onBack = useCallback(() => {
-    clearClaimChecklistEscrow();
+    if (localBillId.trim()) {
+      mergeClaimChecklistEscrowProgress(localBillId, filesBySlot);
+    }
     const echoPath = state?.claimReturnPath?.trim();
     navigate(returnTo, {
       replace: true,
-      state: echoPath ? { returnPath: echoPath } : {},
+      state: {
+        restoreClaimBillEscrow: true as const,
+        ...(echoPath ? { returnPath: echoPath } : {}),
+      },
     });
-  }, [navigate, returnTo, state?.claimReturnPath]);
+  }, [filesBySlot, localBillId, navigate, returnTo, state?.claimReturnPath]);
 
   const onDone = useCallback(() => {
     if (!localBillId) {

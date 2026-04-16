@@ -1,6 +1,8 @@
+import { getGymCheck, postGymOptIn } from "@/api/patientGym";
+import { initGymPayment, verifyGymPayment } from "@/api/patientGymPayment";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
-import { readGymCheckSnapshot } from "@/constants/gymCheckStorage";
+import { readGymCheckSnapshot, writeGymCheckSnapshot } from "@/constants/gymCheckStorage";
 import {
   buildGymMemberSnapshotFromRow,
   clearGymSelectedMemberSnapshot,
@@ -29,6 +31,13 @@ import { gymPackageToMembershipPlan } from "@/lib/gymPackageToPlan";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
+import { GYM_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
+import { useToast } from "@/hooks/useToast";
+import {
+  isPaymentCancelledMessage,
+  loadRazorpayScript,
+} from "@/lib/gymMembershipRazorpayPay";
+import { openRazorpayCheckoutWithEvent } from "@/lib/razorpayCheckout";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
@@ -341,6 +350,7 @@ function GymMemberConfigureCard({
 export function GymMembershipConfigurePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const toast = useToast();
   const statePlanId =
     typeof (location.state as { planId?: unknown } | null)?.planId === "string"
       ? (location.state as { planId: string }).planId
@@ -371,6 +381,7 @@ export function GymMembershipConfigurePage() {
   const [removeConfirmTarget, setRemoveConfirmTarget] = useState<"primary" | "secondary" | null>(
     null,
   );
+  const [optInBusy, setOptInBusy] = useState(false);
 
   const [apiMemberRows, setApiMemberRows] = useState<GymMemberListRow[] | null>(null);
   const [apiMembersReady, setApiMembersReady] = useState(false);
@@ -545,8 +556,8 @@ export function GymMembershipConfigurePage() {
   useEffect(() => {
     if (!planId) return;
     if (!displayPlans.some((p) => p.id === planId)) return;
-    setPrimaryMemberPlanId((prev) => (prev === null ? planId : prev));
-    setSecondaryMemberPlanId((prev) => (prev === null ? planId : prev));
+    setPrimaryMemberPlanId((prev) => prev ?? planId);
+    setSecondaryMemberPlanId((prev) => prev ?? planId);
   }, [planId, displayPlans]);
 
   useEffect(() => {
@@ -562,6 +573,216 @@ export function GymMembershipConfigurePage() {
   const canContinue = termsAccepted && packagesReady;
 
   const backState = planId ? { planId } : undefined;
+
+  const handleContinueToOverview = useCallback(async () => {
+    if (!primaryResolved || !primaryMemberPlanId) return;
+    if (showSecondary && !secondaryMemberPlanId) return;
+    const loc = primaryCityDisplay.trim();
+    if (!loc) {
+      toast.error("Please choose a location before continuing.");
+      return;
+    }
+    const email =
+      primaryResolved.email?.trim() ||
+      `${primaryResolved.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`;
+    const phone = primaryResolved.phone?.trim() || "";
+    if (!phone) {
+      toast.error("Phone number is required for gym enrolment.");
+      return;
+    }
+    const sub = gymCheck?.subscription_id?.trim();
+
+    const goOverview = () => {
+      const selfRow = apiMemberRows?.find((r) => r.section === "self");
+      const accountPrimaryUser = (() => {
+        if (selfRow) {
+          const snap = enrichGymMemberSnapshot(
+            buildGymMemberSnapshotFromRow(selfRow, gymCheck),
+            gymCheck,
+          );
+          return {
+            name: snap.name,
+            email:
+              snap.email?.trim() ||
+              `${snap.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
+            phone: snap.phone?.trim() || "—",
+          };
+        }
+        return {
+          name: primaryResolved.name,
+          email:
+            primaryResolved.email?.trim() ||
+            `${primaryResolved.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
+          phone: primaryResolved.phone?.trim() || "—",
+        };
+      })();
+      const snapshot: GymOverviewSnapshot = {
+        planId,
+        accountPrimaryUser,
+        showSecondary,
+        primary: {
+          role: "primary",
+          isAccountPrimary: isAccountPrimaryMember(primaryResolved, accountPrimaryMemberId),
+          name: primaryResolved.name,
+          phone: primaryResolved.phone?.trim() || "—",
+          email: primaryResolved.email?.trim() || "—",
+          cityChosen: primaryCityConfirmed,
+          planId: primaryMemberPlanId,
+        },
+        secondary:
+          showSecondary && secondaryMemberPlanId && secondaryResolved
+            ? {
+                role: "secondary",
+                isAccountPrimary: isAccountPrimaryMember(secondaryResolved, accountPrimaryMemberId),
+                name: secondaryResolved.name,
+                phone: secondaryResolved.phone?.trim() || "—",
+                email: secondaryResolved.email?.trim() || "—",
+                cityChosen: secondaryCityConfirmed,
+                planId: secondaryMemberPlanId,
+              }
+            : null,
+      };
+      try {
+        sessionStorage.setItem(GYM_OVERVIEW_SNAPSHOT_KEY, JSON.stringify(snapshot));
+      } catch {
+        // ignore storage errors
+      }
+      navigate(ROUTES.gymMembershipOverview);
+    };
+
+    setOptInBusy(true);
+    let optInResult: Awaited<ReturnType<typeof postGymOptIn>>;
+    try {
+      optInResult = await postGymOptIn({
+        location: loc,
+        package_code: primaryMemberPlanId,
+        subscription_id: sub && sub.length > 0 ? sub : null,
+        name: primaryResolved.name.trim(),
+        phone,
+        email,
+        personal_email: email,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not submit gym enrolment");
+      setOptInBusy(false);
+      return;
+    }
+
+    let refreshed = await getGymCheck();
+    writeGymCheckSnapshot(refreshed);
+
+    let invoiceId = (optInResult.invoice_id ?? refreshed.order?.invoice_id ?? "").trim();
+
+    let rp = optInResult.razorpay_payload;
+    if (
+      optInResult.payment_required &&
+      (!rp || Object.keys(rp).length === 0) &&
+      optInResult.pending_amount != null &&
+      optInResult.pending_amount > 0
+    ) {
+      try {
+        const init = await initGymPayment({
+          payable_rupees: optInResult.pending_amount,
+          amount_paise: Math.max(100, Math.round(optInResult.pending_amount * 100)),
+          plan_id: primaryMemberPlanId,
+          primary_plan_id: primaryMemberPlanId,
+          secondary_plan_id:
+            showSecondary && secondaryMemberPlanId ? secondaryMemberPlanId : null,
+          subscription_id: gymCheck?.subscription_id ?? null,
+          gym_invoice_id: refreshed.order?.invoice_id ?? null,
+          show_secondary: Boolean(showSecondary),
+        });
+        if (init.razorpay_payload && Object.keys(init.razorpay_payload).length > 0) {
+          rp = init.razorpay_payload;
+        }
+        if (!invoiceId) {
+          invoiceId = (init.invoice_id ?? init.order_id ?? "").trim();
+        }
+      } catch {
+        // leave rp null; user sees error below
+      }
+    }
+
+    if (optInResult.payment_required) {
+      if (!rp || Object.keys(rp).length === 0) {
+        toast.error("Payment is required but checkout options were not returned.");
+        setOptInBusy(false);
+        return;
+      }
+      if (!invoiceId) {
+        toast.error("Missing invoice for payment. Try again from My Orders.");
+        setOptInBusy(false);
+        return;
+      }
+      try {
+        await loadRazorpayScript();
+        if (!(globalThis as unknown as { Razorpay?: unknown }).Razorpay) {
+          throw new Error("Razorpay Checkout could not load. Check your network or ad blocker.");
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not load Razorpay");
+        setOptInBusy(false);
+        return;
+      }
+
+      const onPaymentFailed = (failMsg: string) => {
+        if (!isPaymentCancelledMessage(failMsg)) {
+          toast.error(failMsg);
+        }
+        setOptInBusy(false);
+      };
+
+      const onDone = async (e: Event) => {
+        const detail = (e as CustomEvent<unknown>).detail;
+        if (!detail || typeof detail !== "object") {
+          toast.error("Invalid payment response");
+          setOptInBusy(false);
+          return;
+        }
+        const o = detail as Record<string, unknown>;
+        const paymentId = o.razorpay_payment_id;
+        if (typeof paymentId !== "string") {
+          toast.error("Invalid payment response");
+          setOptInBusy(false);
+          return;
+        }
+        try {
+          await verifyGymPayment({ invoice_id: invoiceId, payment_id: paymentId });
+          refreshed = await getGymCheck();
+          writeGymCheckSnapshot(refreshed);
+          toast.success("Payment successful");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Payment verification failed");
+          setOptInBusy(false);
+          return;
+        }
+        setOptInBusy(false);
+        goOverview();
+      };
+
+      globalThis.window.addEventListener(GYM_PAYMENT_DONE_EVENT, onDone, { once: true });
+      openRazorpayCheckoutWithEvent(rp, GYM_PAYMENT_DONE_EVENT, onPaymentFailed);
+      return;
+    }
+
+    setOptInBusy(false);
+    goOverview();
+  }, [
+    primaryResolved,
+    primaryMemberPlanId,
+    showSecondary,
+    secondaryMemberPlanId,
+    secondaryResolved,
+    primaryCityDisplay,
+    primaryCityConfirmed,
+    secondaryCityConfirmed,
+    gymCheck,
+    toast,
+    apiMemberRows,
+    accountPrimaryMemberId,
+    planId,
+    navigate,
+  ]);
 
   const closePackageSheet = useCallback(() => {
     setPackageSheetTarget(null);
@@ -780,71 +1001,10 @@ export function GymMembershipConfigurePage() {
         <button
           type="button"
           className="gmc-continue"
-          disabled={!canContinue}
-          onClick={() => {
-            if (!primaryMemberPlanId) return;
-            if (showSecondary && !secondaryMemberPlanId) return;
-            const selfRow = apiMemberRows?.find((r) => r.section === "self");
-            const accountPrimaryUser = (() => {
-              if (selfRow) {
-                const snap = enrichGymMemberSnapshot(
-                  buildGymMemberSnapshotFromRow(selfRow, gymCheck),
-                  gymCheck,
-                );
-                return {
-                  name: snap.name,
-                  email:
-                    snap.email?.trim() ||
-                    `${snap.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
-                  phone: snap.phone?.trim() || "—",
-                };
-              }
-              return {
-                name: primaryResolved.name,
-                email:
-                  primaryResolved.email?.trim() ||
-                  `${primaryResolved.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`,
-                phone: primaryResolved.phone?.trim() || "—",
-              };
-            })();
-            const snapshot: GymOverviewSnapshot = {
-              planId,
-              accountPrimaryUser,
-              showSecondary,
-              primary: {
-                role: "primary",
-                isAccountPrimary: isAccountPrimaryMember(primaryResolved, accountPrimaryMemberId),
-                name: primaryResolved.name,
-                phone: primaryResolved.phone?.trim() || "—",
-                email: primaryResolved.email?.trim() || "—",
-                cityChosen: primaryCityConfirmed,
-                planId: primaryMemberPlanId,
-              },
-              secondary:
-                showSecondary && secondaryMemberPlanId && secondaryResolved
-                  ? {
-                      role: "secondary",
-                      isAccountPrimary: isAccountPrimaryMember(
-                        secondaryResolved,
-                        accountPrimaryMemberId,
-                      ),
-                      name: secondaryResolved.name,
-                      phone: secondaryResolved.phone?.trim() || "—",
-                      email: secondaryResolved.email?.trim() || "—",
-                      cityChosen: secondaryCityConfirmed,
-                      planId: secondaryMemberPlanId,
-                    }
-                  : null,
-            };
-            try {
-              sessionStorage.setItem(GYM_OVERVIEW_SNAPSHOT_KEY, JSON.stringify(snapshot));
-            } catch {
-              // ignore storage errors
-            }
-            navigate(ROUTES.gymMembershipOverview);
-          }}
+          disabled={!canContinue || optInBusy}
+          onClick={() => void handleContinueToOverview()}
         >
-          Continue
+          {optInBusy ? "Saving…" : "Continue"}
         </button>
       </footer>
 

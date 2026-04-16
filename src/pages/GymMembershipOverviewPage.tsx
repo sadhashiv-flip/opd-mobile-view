@@ -11,6 +11,7 @@ import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
 import {
   confirmGymPaymentFree,
   initGymPayment,
+  patchGymPaymentConfirm,
 } from "@/api/patientGymPayment";
 import { useGymPaymentVerify } from "@/hooks/useGymPaymentVerify";
 import {
@@ -41,6 +42,12 @@ type GymCheckSnapshot = ReturnType<typeof readGymCheckSnapshot>;
 
 function formatRupee(n: number): string {
   return `₹ ${n.toLocaleString("en-IN")}`;
+}
+
+/** GST (18%) already included in a tax-inclusive total: GST portion = total × 18/118. */
+function gstAmountFromInclusiveTotal(totalInclGst: number): number {
+  if (totalInclGst <= 0) return 0;
+  return Math.round((totalInclGst * 18) / 118);
 }
 
 function PersonIcon({ className }: Readonly<{ className?: string }>) {
@@ -111,7 +118,22 @@ function BeneficiaryCard({ b, gymCheck, onRemove, onEditCity, onEdit }: Benefici
 
   return (
     <article className={`gmo-ben ${borderClass}`}>
-      <div className="gmo-ben__top">
+      {plan ? (
+        <div className="gmo-ben__package">
+          <p className="gmo-ben__tier">
+            {plan.cardTitle ? (
+              <span className={`gmo-ben__tier-accent ${accentClass}`}>{plan.cardTitle}</span>
+            ) : (
+              <>
+                <span className="gmo-ben__tier-muted">Cult </span>
+                <span className={`gmo-ben__tier-accent ${accentClass}`}>{tierWord}</span>
+              </>
+            )}
+          </p>
+          <p className="gmo-ben__months">{plan.months} Months</p>
+        </div>
+      ) : null}
+      <div className="gmo-ben__main">
         <div className="gmo-ben__col gmo-ben__col--left">
           <div className="gmo-ben__row">
             <span className="gmo-ben__k">Name</span>
@@ -151,23 +173,6 @@ function BeneficiaryCard({ b, gymCheck, onRemove, onEditCity, onEdit }: Benefici
               </button>
             </span>
           </div>
-        </div>
-        <div className="gmo-ben__col gmo-ben__col--center">
-          {plan ? (
-            <>
-              <p className="gmo-ben__tier">
-                {plan.cardTitle ? (
-                  <span className={`gmo-ben__tier-accent ${accentClass}`}>{plan.cardTitle}</span>
-                ) : (
-                  <>
-                    <span className="gmo-ben__tier-muted">Cult </span>
-                    <span className={`gmo-ben__tier-accent ${accentClass}`}>{tierWord}</span>
-                  </>
-                )}
-              </p>
-              <p className="gmo-ben__months">{plan.months} Months</p>
-            </>
-          ) : null}
         </div>
         <div className="gmo-ben__col gmo-ben__col--right">
           {plan ? (
@@ -217,7 +222,6 @@ export function GymMembershipOverviewPage() {
   const paymentAvailable = true;
 
   const invoiceIdForVerifyRef = useRef<string | null>(null);
-  const internalOrderIdRef = useRef<string | null>(null);
   const onPaymentVerifiedRef = useRef<() => void>(() => {});
   const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
   const setPayBusyRef = useRef<(busy: boolean) => void>(() => {});
@@ -236,7 +240,6 @@ export function GymMembershipOverviewPage() {
 
   useGymPaymentVerify({
     invoiceIdRef: invoiceIdForVerifyRef,
-    internalOrderIdRef,
     onSuccessRef: onPaymentVerifiedRef,
     onErrorRef: onPaymentVerifyErrorRef,
     setPayBusyRef,
@@ -258,17 +261,17 @@ export function GymMembershipOverviewPage() {
   }, []);
 
   const payment = useMemo(() => {
-    if (!data) return { subtotal: 0, gst: 0, payable: 0, wallet: 0 };
+    if (!data) return { totalInclGst: 0, gstIncluded: 0, payable: 0, wallet: 0 };
     const ids = [data.primary.planId];
     if (data.secondary) ids.push(data.secondary.planId);
-    const subtotal = ids.reduce((sum, id) => {
+    const totalInclGst = ids.reduce((sum, id) => {
       const p = resolveGymMembershipPlan(id, gymCheck);
       return sum + (p?.price ?? 0);
     }, 0);
-    const gst = Math.round(subtotal * 0.18);
-    const wallet = enableWallet ? subtotal + gst : 0;
-    const payable = subtotal - wallet + gst;
-    return { subtotal, gst, payable, wallet };
+    const gstIncluded = gstAmountFromInclusiveTotal(totalInclGst);
+    const wallet = enableWallet ? totalInclGst : 0;
+    const payable = totalInclGst - wallet;
+    return { totalInclGst, gstIncluded, payable, wallet };
   }, [data, gymCheck, enableWallet]);
 
   const handleGymPay = useCallback(async () => {
@@ -279,30 +282,34 @@ export function GymMembershipOverviewPage() {
     }
     setPayBusy(true);
     try {
-      const amountPaise = Math.max(100, Math.round(payment.payable * 100));
-      const init = await initGymPayment({
-        payable_rupees: payment.payable,
-        amount_paise: amountPaise,
-        plan_id: data.planId,
-        primary_plan_id: data.primary.planId,
-        secondary_plan_id: data.secondary?.planId ?? null,
-        subscription_id: gymCheck?.subscription_id ?? null,
-        gym_invoice_id: gymCheck?.order?.invoice_id ?? null,
-        show_secondary: Boolean(data.secondary),
-      });
+      const existingInvoice = gymCheck?.order?.invoice_id?.trim() ?? "";
+      const init = existingInvoice
+        ? await patchGymPaymentConfirm(existingInvoice, enableWallet)
+        : await initGymPayment({
+            payable_rupees: payment.payable,
+            amount_paise: Math.max(100, Math.round(payment.payable * 100)),
+            plan_id: data.planId,
+            primary_plan_id: data.primary.planId,
+            secondary_plan_id: data.secondary?.planId ?? null,
+            subscription_id: gymCheck?.subscription_id ?? null,
+            gym_invoice_id: gymCheck?.order?.invoice_id ?? null,
+            show_secondary: Boolean(data.secondary),
+          });
 
-      invoiceIdForVerifyRef.current = init.invoice_id ?? init.order_id;
-      internalOrderIdRef.current = init.order_id;
+      invoiceIdForVerifyRef.current = init.invoice_id ?? init.order_id ?? null;
 
       if (!init.payment_required) {
         const confirmId = init.invoice_id ?? init.order_id;
         if (!confirmId) {
           throw new Error("Missing invoice or order id for confirmation");
         }
-        await confirmGymPaymentFree({
-          invoice_id: confirmId,
-          order_id: init.order_id,
-        });
+        if (!existingInvoice) {
+          await confirmGymPaymentFree({
+            invoice_id: confirmId,
+            order_id: init.order_id,
+            use_wallet: enableWallet,
+          });
+        }
         toast.success("Membership confirmed");
         navigate(ROUTES.orders);
         setPayBusy(false);
@@ -329,7 +336,7 @@ export function GymMembershipOverviewPage() {
       const msg = e instanceof Error ? e.message : "Payment could not start";
       toast.error(msg);
     }
-  }, [data, gymCheck, payBusy, payment.payable, navigate, toast]);
+  }, [data, gymCheck, enableWallet, payBusy, payment.payable, navigate, toast]);
 
   const goConfigure = useCallback(() => {
     if (!data) return;
@@ -437,15 +444,15 @@ export function GymMembershipOverviewPage() {
         <h2 className="gmo-pay-title">Payment Details</h2>
         <div className="gmo-pay-row">
           <span className="gmo-pay-label">Total Amount</span>
-          <span className="gmo-pay-value">{formatRupee(payment.subtotal)}</span>
+          <span className="gmo-pay-value">{formatRupee(payment.totalInclGst)}</span>
         </div>
         <div className="gmo-pay-row gmo-pay-row--muted">
           <span className="gmo-pay-label">Deducted Amount (from wallet)</span>
           <span className="gmo-pay-value gmo-pay-value--wallet">{formatRupee(payment.wallet)}</span>
         </div>
         <div className="gmo-pay-row">
-          <span className="gmo-pay-label">GST</span>
-          <span className="gmo-pay-value">{formatRupee(payment.gst)}</span>
+          <span className="gmo-pay-label">GST (included in total)</span>
+          <span className="gmo-pay-value">{formatRupee(payment.gstIncluded)}</span>
         </div>
         <div className="gmo-pay-sep" />
         <div className="gmo-pay-total">

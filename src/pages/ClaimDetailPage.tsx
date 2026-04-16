@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  canPatientEditClaimBillDetails,
   fetchReimbursementAttachmentBlobUrl,
   fetchReimbursementById,
   fetchReimbursementServiceTypes,
@@ -123,12 +124,18 @@ function BillCard({
   bill,
   billServiceLine,
   onOpen,
+  onEdit,
 }: Readonly<{
   bill: ReimbursementBillDetail;
   billServiceLine: string | null;
   onOpen: (row: ReimbursementAttachmentRow, siblings: readonly ReimbursementAttachmentRow[]) => void;
+  onEdit?: () => void;
 }>) {
-  const metaBits = [bill.clinicName?.trim() || null, bill.billDate ? formatClaimDate(bill.billDate) : null].filter(
+  const amt =
+    bill.billAmount != null && Number.isFinite(bill.billAmount)
+      ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(bill.billAmount)
+      : null;
+  const metaBits = [amt ? `₹${amt}` : null, bill.clinicName?.trim() || null, bill.billDate ? formatClaimDate(bill.billDate) : null].filter(
     Boolean,
   ) as string[];
   const meta = metaBits.join(" • ") || "—";
@@ -136,7 +143,14 @@ function BillCard({
   return (
     <div className="claim-detail-doc-card">
       <div className="claim-detail-doc-card__main">
-        <p className="claim-detail-doc-card__title">Bill Number: {bill.billNumber}</p>
+        <div className="claim-detail-doc-card__title-row">
+          <p className="claim-detail-doc-card__title">Bill Number: {bill.billNumber}</p>
+          {onEdit ? (
+            <button type="button" className="claim-detail-doc-card__edit" onClick={onEdit}>
+              Edit
+            </button>
+          ) : null}
+        </div>
         <p className="claim-detail-doc-card__meta">{meta}</p>
         {billServiceLine ? (
           <p className="claim-detail-doc-card__meta">Service Type: {billServiceLine}</p>
@@ -356,6 +370,11 @@ export function ClaimDetailPage() {
     return synthetic;
   }, [detail, summary]);
 
+  const canEditBills = useMemo(
+    () => detail != null && canPatientEditClaimBillDetails(detail.statusCode),
+    [detail],
+  );
+
   const badge = useMemo(() => {
     if (!display) return { text: "…", variant: "muted" as const };
     return statusBadge(display.statusCode, display.statusLabel);
@@ -569,6 +588,17 @@ export function ClaimDetailPage() {
                           bill={b}
                           billServiceLine={billServiceLines.get(b.billId) ?? null}
                           onOpen={openClaimAttachment}
+                          onEdit={
+                            canEditBills
+                              ? () =>
+                                  navigate(
+                                    generatePath(ROUTES.claimsBillEdit, {
+                                      claimId: display.id,
+                                      billId: b.billId,
+                                    }),
+                                  )
+                              : undefined
+                          }
                         />
                       ))}
                     </div>

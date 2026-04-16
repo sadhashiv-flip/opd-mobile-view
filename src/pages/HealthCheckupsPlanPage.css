@@ -748,3 +748,49 @@
   opacity: 0.5;
 }
 
+.hcp-member-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.hcp-member-tab {
+  border: 1px solid #e4e4e4;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 600;
+  background: #fff;
+  color: #111;
+}
+
+.hcp-member-tab--active {
+  border-color: #ff541e;
+  color: #ff541e;
+  background: rgba(255, 84, 30, 0.06);
+}
+
+.hcp-plan-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.hcp-empty {
+  padding: 16px 0;
+}
+
+.hcp-empty__link {
+  display: inline-block;
+  margin-top: 10px;
+  font-weight: 700;
+  color: #ff541e;
+  text-decoration: none;
+}
+
+.hcp-plans--api {
+  margin-top: 8px;
+}
+

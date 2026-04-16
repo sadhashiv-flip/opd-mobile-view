@@ -695,13 +695,24 @@ export type ReimbursementBillDetail = Readonly<{
   billId: string;
   billNumber: string;
   billDate: string | null;
+  billAmount: number | null;
   clinicName: string | null;
+  clinicAddress: string | null;
+  doctorName: string | null;
+  doctorRegistrationNumber: string | null;
   /** Bill-level service labels (often comma-joined human-readable types). */
   documentName: string | null;
   /** Service keys on this bill (mapped to labels in the claim UI via service types catalog). */
   serviceKeys: readonly string[];
   files: readonly ReimbursementAttachmentRow[];
+  /** Rows for `PATCH /patient/reimbursement/bill/:id` (ids required; other fields from API when present). */
+  billFileRecords: readonly ReimbursementUploadFileRecord[];
 }>;
+
+/** Whether the patient may edit bill text / scans (server may still reject by status). */
+export function canPatientEditClaimBillDetails(statusCode: number | null): boolean {
+  return statusCode === 0 || statusCode === 1 || statusCode === 3;
+}
 
 export type ReimbursementBankDetail = Readonly<{
   accountHolderName: string | null;
@@ -879,6 +890,30 @@ function mapFileArray(raw: unknown, fallbackPrefix: string): readonly Reimbursem
   return out;
 }
 
+function reimbursementUploadFileFromBillApiRow(r: Record<string, unknown>): ReimbursementUploadFileRecord | null {
+  const id = str(r.id);
+  if (!id) return null;
+  return {
+    id,
+    path: str(r.path),
+    file_type: str(r.file_type) || str(r.fileType) || "IMG",
+    document_type: str(r.document_type) || str(r.documentType) || "",
+    ref_type: str(r.ref_type) || str(r.refType) || "BILL",
+  };
+}
+
+function mapBillFileRecords(raw: unknown): readonly ReimbursementUploadFileRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReimbursementUploadFileRecord[] = [];
+  for (const item of raw) {
+    const o = asRecord(item);
+    if (!o) continue;
+    const row = reimbursementUploadFileFromBillApiRow(o);
+    if (row) out.push(row);
+  }
+  return out;
+}
+
 function normalizeBankDetail(v: unknown): ReimbursementBankDetail | null {
   const o = asRecord(v);
   if (!o) return null;
@@ -955,14 +990,31 @@ export function parseReimbursementDetailResponse(body: unknown): ReimbursementDe
         (typeof billIdRaw === "number" && Number.isFinite(billIdRaw) ? String(billIdRaw) : str(billIdRaw)) ||
         `bill_${i}`;
       const files = mapFileArray(b.reimbursement_bill_files, "File");
+      let billFileRecords = mapBillFileRecords(b.reimbursement_bill_files);
+      if (billFileRecords.length === 0 && files.length > 0) {
+        billFileRecords = files.map((f) => ({
+          id: f.id,
+          path: "",
+          file_type: "IMG",
+          document_type: "",
+          ref_type: "BILL",
+        }));
+      }
+      const billAmt = num(b.bill_amount) ?? num(b.billAmount);
       bills.push({
         billId,
         billNumber: str(b.bill_number) || str(b.billNumber) || "—",
         billDate: str(b.bill_date) || str(b.billDate) || null,
+        billAmount: billAmt != null && Number.isFinite(billAmt) ? billAmt : null,
         clinicName: str(b.clinic_name) || str(b.clinicName) || null,
+        clinicAddress: str(b.clinic_address) || str(b.clinicAddress) || null,
+        doctorName: str(b.doctor_name) || str(b.doctorName) || null,
+        doctorRegistrationNumber:
+          str(b.doctor_registration_number) || str(b.doctorRegistrationNumber) || str(b.doctor_reg) || null,
         documentName: str(b.document_name) || str(b.documentName) || null,
         serviceKeys: extractServiceKeysFromBill(b),
         files,
+        billFileRecords,
       });
     }
   }

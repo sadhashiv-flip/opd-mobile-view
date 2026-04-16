@@ -1,9 +1,11 @@
 import { ROUTES } from "@/constants";
 import {
+  clearDentalBookingFlowState,
   readDentalPreferredDateTime,
   readDentalSelectedClinicRaw,
   writeDentalPreferredDateTime,
 } from "@/constants/dentalBookingStorage";
+import { readSelectedAddress } from "@/constants/selectedAddressStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import type { DentalNetworkClinicRow } from "@/api/networkList";
 import { DentalSlotPicker } from "@/components/dental/DentalSlotPicker";
@@ -13,7 +15,9 @@ import {
   formatVaccineSlotDisplay,
   parsePreferredApiDateTime,
 } from "@/components/vaccination/VaccinationSlotPicker";
+import { postDentalServiceRequest } from "@/api/dentalServiceBooking";
 import { fetchPatientProfile } from "@/api/patientProfile";
+import { getAccessToken } from "@/lib/authStorage";
 import {
   DENTAL_BOOKING_DAY_COUNT,
   firstDayWithBookableDentalSlots,
@@ -33,6 +37,10 @@ import "./VaccinationOverviewPage.css";
 import "./DentalOverviewPage.css";
 
 const DENTAL_SERVICE_NAME = "Dental Comprehensive Checkup";
+
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
+}
 
 function parseDentalClinic(raw: string | null): DentalNetworkClinicRow | null {
   if (!raw?.trim()) return null;
@@ -148,15 +156,72 @@ export function DentalOverviewPage() {
   const displayPhone = primaryPhone ?? "—";
   const patientLine = member?.name?.trim() ? `For ${member.name.trim()}` : "For —";
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = useCallback(async () => {
+    const addr = readSelectedAddress();
+    if (!addr?.id?.trim()) {
+      toast.error("Choose an address.");
+      return;
+    }
+    const token = await getAccessToken();
+    if (!token) {
+      toast.error("Session expired. Please sign in again.");
+      return;
+    }
+    const uid = member?.userId;
+    if (uid == null || !Number.isFinite(uid)) {
+      toast.error("Missing member details. Go back and select a member again.");
+      return;
+    }
+    if (!clinic) {
+      toast.error("Select a clinic first.");
+      void navigate(ROUTES.dentalNetworkList, { replace: true });
+      return;
+    }
+    const pdt = preferredDateTime?.trim() ?? "";
+    if (!parsePreferredApiDateTime(pdt)) {
+      toast.error("Invalid slot. Go back and pick a time again.");
+      void navigate(ROUTES.dentalSlots, { replace: true });
+      return;
+    }
+
+    const clinicIdStr = String(clinic.clinicid);
+    const providerIdStr =
+      clinic.providerid != null && clinic.providerid !== 0
+        ? String(clinic.providerid)
+        : clinicIdStr;
+
     setBusy(true);
     try {
-      // TODO: POST dental booking when API is available
+      const altDigits = digitsOnly(altPhone);
+      const primaryDigits = digitsOnly(primaryPhone ?? "");
+      await postDentalServiceRequest({
+        address_id: addr.id.trim(),
+        preferred_date_time: pdt,
+        alternate_phone: altDigits || primaryDigits || "",
+        conditions: "No conditions",
+        note: "Notes here",
+        language: "en",
+        provider_id: providerIdStr,
+        clinic_id: clinicIdStr,
+        user_id: uid,
+        center: {
+          name: clinic.name.trim(),
+          phone: clinic.cell.trim(),
+          address: {
+            line_1: clinic.practiceaddress.trim(),
+            city: clinic.city.trim(),
+            pincode: clinic.pin.trim(),
+          },
+        },
+      });
+      clearDentalBookingFlowState();
       void navigate(ROUTES.dentalBookingSuccess, { replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not complete booking");
     } finally {
       setBusy(false);
     }
-  }, [navigate]);
+  }, [altPhone, clinic, member, navigate, preferredDateTime, primaryPhone, toast]);
 
   if (!clinic || !preferredDateTime?.trim() || !member) {
     return null;

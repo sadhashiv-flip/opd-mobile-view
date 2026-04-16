@@ -6,6 +6,91 @@ function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
+/** Some APIs return Checkout options as a JSON string. */
+function parseMaybeJsonObject(v: unknown): Record<string, unknown> | null {
+  if (v == null) return null;
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t.startsWith("{")) return null;
+    try {
+      const parsed: unknown = JSON.parse(t);
+      return asRecord(parsed);
+    } catch {
+      return null;
+    }
+  }
+  return asRecord(v);
+}
+
+function looksLikeRazorpayCheckoutOptions(rec: Record<string, unknown>): boolean {
+  return (
+    typeof rec.key === "string" ||
+    typeof rec.order_id === "string" ||
+    typeof rec.amount === "number" ||
+    rec.amount != null
+  );
+}
+
+/** Strong signal that Checkout.js can open (key + order + positive amount in paise). */
+function isRazorpayOrderCheckoutShape(rec: Record<string, unknown>): boolean {
+  const key = typeof rec.key === "string" && rec.key.trim().length > 0;
+  const order = typeof rec.order_id === "string" && rec.order_id.trim().length > 0;
+  const a = rec.amount;
+  const amtOk =
+    (typeof a === "number" && Number.isFinite(a) && a > 0) ||
+    (typeof a === "string" && /^\d+$/.test(a.trim()) && Number.parseInt(a.trim(), 10) > 0);
+  return key && order && amtOk;
+}
+
+function pushRazorpayPayloadCandidates(rec: Record<string, unknown> | null, out: unknown[]): void {
+  if (!rec) return;
+  out.push(
+    rec.razorpay_payload,
+    rec.razorpayPayload,
+    rec.razorpay,
+    rec.checkout_payload,
+    rec.checkoutPayload,
+    rec.gateway_payload,
+    rec.gatewayPayload,
+    rec.payment_payload,
+    rec.paymentPayload,
+  );
+}
+
+/**
+ * Reads a Razorpay Checkout options object from payment-init / confirm envelopes (snake_case, camelCase,
+ * nested `payment` / `result`, or JSON string) — same alternates as pharmacy / offline appointment flows.
+ */
+export function readRazorpayPayloadFromPaymentEnvelope(o: Record<string, unknown>): Record<string, unknown> | null {
+  const candidates: unknown[] = [];
+  pushRazorpayPayloadCandidates(o, candidates);
+  pushRazorpayPayloadCandidates(asRecord(o.data), candidates);
+  pushRazorpayPayloadCandidates(asRecord(o.payment), candidates);
+  pushRazorpayPayloadCandidates(asRecord(o.result), candidates);
+  pushRazorpayPayloadCandidates(asRecord(asRecord(o.result)?.data), candidates);
+
+  const normalized: Record<string, unknown>[] = [];
+  for (const c of candidates) {
+    const rec = parseMaybeJsonObject(c);
+    if (rec != null && Object.keys(rec).length > 0) {
+      normalized.push(normalizeRazorpayCheckoutPayload(rec));
+    }
+  }
+
+  for (const n of normalized) {
+    if (isRazorpayOrderCheckoutShape(n)) return n;
+  }
+  for (const n of normalized) {
+    if (typeof n.key === "string" && n.key.trim() && typeof n.order_id === "string" && n.order_id.trim()) {
+      return n;
+    }
+  }
+  for (const n of normalized) {
+    if (looksLikeRazorpayCheckoutOptions(n)) return n;
+  }
+  return null;
+}
+
 /**
  * Checkout.js often returns HTTP 400 when `currency` is missing, `prefill.contact` is sent as a number,
  * or the gateway nests options under `options` / `checkout` while the parent object is not valid input.

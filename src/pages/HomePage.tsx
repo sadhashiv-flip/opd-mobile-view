@@ -20,12 +20,15 @@ import { cssBackgroundUrl } from "@/lib/cssBackgroundUrl";
 import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useHomeDashboard } from "@/hooks/useHomeDashboard";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
 import "./ServicesHubPage.css";
 
 const PLACEHOLDER_ADDRESS = "Street, 7th floor, Building A…";
+
+/** Dots for slide counts 2–7; at 8+ use compact progress + prev/next (too many dots otherwise). */
+const HOME_CAROUSEL_DOT_MAX = 7;
 
 /** Home card artwork by ongoing `type` / `order_type` from dashboard API. */
 function ongoingSlideBackgroundUrl(type: string, orderType: string): string {
@@ -81,6 +84,99 @@ export function HomePage() {
       document.body.style.overflow = prevOverflow;
     };
   }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen]);
+
+  let homeCarouselPagination: ReactNode = null;
+  if (homeCarouselCount > 1) {
+    if (homeCarouselCount <= HOME_CAROUSEL_DOT_MAX) {
+      homeCarouselPagination = (
+        <div
+          className="home-banner__dots"
+          role="tablist"
+          aria-label="Choose slide"
+        >
+          {apiBanners.map((slide, index) => (
+            <button
+              key={`dot-banner-${slide.id ?? slide.image}-${index}`}
+              type="button"
+              role="tab"
+              aria-selected={index === activeHomeCarousel}
+              aria-label={`Promotion, slide ${index + 1} of ${homeCarouselCount}`}
+              className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
+              onClick={() => goToHomeCarousel(index)}
+            />
+          ))}
+          {ongoing.map((item, i) => {
+            const index = apiBannerCount + i;
+            return (
+              <button
+                key={`dot-ongoing-${item.id}`}
+                type="button"
+                role="tab"
+                aria-selected={index === activeHomeCarousel}
+                aria-label={`${item.title}, ongoing slide ${index + 1} of ${homeCarouselCount}`}
+                className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
+                onClick={() => goToHomeCarousel(index)}
+              />
+            );
+          })}
+        </div>
+      );
+    } else {
+      homeCarouselPagination = (
+        <div className="home-banner__compact-nav" aria-label="Carousel position">
+          <button
+            type="button"
+            className="home-banner__compact-nav-btn"
+            aria-label="Previous slide"
+            onClick={() => goToHomeCarousel(activeHomeCarousel - 1)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M15 6l-6 6 6 6"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <div className="home-banner__compact-nav-mid">
+            <div className="home-banner__progress-track" aria-hidden>
+              <div
+                className="home-banner__progress-fill"
+                style={{
+                  width: `${((activeHomeCarousel + 1) / homeCarouselCount) * 100}%`,
+                }}
+              />
+            </div>
+            <p className="home-banner__slide-count" aria-live="polite">
+              <span className="home-banner__slide-count-current">{activeHomeCarousel + 1}</span>
+              <span className="home-banner__slide-count-sep" aria-hidden>
+                {" / "}
+              </span>
+              <span className="home-banner__slide-count-total">{homeCarouselCount}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            className="home-banner__compact-nav-btn"
+            aria-label="Next slide"
+            onClick={() => goToHomeCarousel(activeHomeCarousel + 1)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M9 6l6 6-6 6"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="home-page">
@@ -363,7 +459,7 @@ export function HomePage() {
 
         {homeCarouselCount > 0 ? (
           <section
-            className="home-banner home-banner--mixed"
+            className={`home-banner home-banner--mixed${homeCarouselCount > HOME_CAROUSEL_DOT_MAX ? " home-banner--many-slides" : ""}`}
             aria-label="Promotions and ongoing orders"
             aria-roledescription="carousel"
           >
@@ -484,37 +580,7 @@ export function HomePage() {
                 })}
               </div>
             </div>
-            <div
-              className="home-banner__dots"
-              role="tablist"
-              aria-label="Choose slide"
-            >
-              {apiBanners.map((slide, index) => (
-                <button
-                  key={`dot-banner-${slide.id ?? slide.image}-${index}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={index === activeHomeCarousel}
-                  aria-label={`Promotion, slide ${index + 1} of ${homeCarouselCount}`}
-                  className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
-                  onClick={() => goToHomeCarousel(index)}
-                />
-              ))}
-              {ongoing.map((item, i) => {
-                const index = apiBannerCount + i;
-                return (
-                  <button
-                    key={`dot-ongoing-${item.id}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={index === activeHomeCarousel}
-                    aria-label={`${item.title}, ongoing slide ${index + 1} of ${homeCarouselCount}`}
-                    className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
-                    onClick={() => goToHomeCarousel(index)}
-                  />
-                );
-              })}
-            </div>
+            {homeCarouselPagination}
           </section>
         ) : null}
       </main>

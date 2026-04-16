@@ -286,6 +286,14 @@ function normalizeDentalClinicRow(raw: unknown, index: number): DentalNetworkCli
   const practiceaddress = str(r.practiceaddress) ?? "";
   const clinicid = num(r.clinicid) ?? num(r.clinic_id) ?? index;
   const providerid = num(r.providerid) ?? num(r.provider_id) ?? 0;
+  const networkEntityId =
+    str(r.id) ??
+    str(r.network_id) ??
+    str(r.networkId) ??
+    str(r.network_entity_id) ??
+    str(r.entity_id) ??
+    undefined;
+
   return {
     available: Boolean(r.available),
     distance: str(r.distance) ?? "—",
@@ -304,6 +312,7 @@ function normalizeDentalClinicRow(raw: unknown, index: number): DentalNetworkCli
     provider: str(r.provider) ?? "",
     primary_clinic: Boolean(r.primary_clinic),
     email: str(r.email) ?? "",
+    networkEntityId,
   };
 }
 

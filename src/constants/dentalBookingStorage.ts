@@ -29,3 +29,12 @@ export function readDentalPreferredDateTime(): string | null {
     return null;
   }
 }
+
+export function clearDentalBookingFlowState(): void {
+  try {
+    sessionStorage.removeItem(DENTAL_SELECTED_CLINIC_KEY);
+    sessionStorage.removeItem(DENTAL_PREFERRED_DATETIME_KEY);
+  } catch {
+    // ignore
+  }
+}

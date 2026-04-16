@@ -1,4 +1,10 @@
-import { patientJson } from "@/api/patientHttp";
+import { readAppointmentPaymentLayer } from "@/api/appointmentBook";
+import { readPatientApiError } from "@/api/patientClient";
+import { patientFetch, patientJson } from "@/api/patientHttp";
+import {
+  normalizeRazorpayCheckoutPayload,
+  readRazorpayPayloadFromPaymentEnvelope,
+} from "@/lib/razorpayCheckout";
 
 /** GET gym/check — `data` payload after a typical API envelope. */
 
@@ -163,4 +169,104 @@ export async function getGymCheck(): Promise<GymCheckData> {
     throw new Error("Invalid gym check response");
   }
   return parsed;
+}
+
+function gymOptInPath(): string {
+  const p = import.meta.env.VITE_GYM_OPTIN_PATH?.trim();
+  return p && p.length > 0 ? p.replace(/^\//, "") : "gym/optIn";
+}
+
+/** POST `gym/optIn` — enrolment payload before payment (server: `GymController.gymOptIn`). */
+export type GymOptInRequest = Readonly<{
+  location: string;
+  package_code: string;
+  subscription_id?: string | null;
+  name: string;
+  phone: string;
+  email: string;
+  personal_email: string;
+}>;
+
+function numOptIn(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    const n = Number.parseFloat(v.trim());
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+function strOptIn(v: unknown): string | null {
+  if (typeof v === "string" && v.trim()) return v.trim();
+  return null;
+}
+
+export type GymOptInResult = Readonly<{
+  opd_paid_amount: number | null;
+  opd_wallet_available: number | null;
+  opt_in_amount: number | null;
+  pending_amount: number | null;
+  payment_required: boolean;
+  invoice_id: string | null;
+  order_id: string | null;
+  /** Checkout options when the server returns them; `amount` may be set from `pending_amount` (rupees → paise). */
+  razorpay_payload: Record<string, unknown> | null;
+}>;
+
+function parseGymOptInResponse(raw: unknown): GymOptInResult {
+  const layer = readAppointmentPaymentLayer(raw);
+  const pr = layer.payment_required ?? layer.paymentRequired;
+  const payment_required = !(pr === false || pr === "false" || pr === 0);
+
+  const pending_amount = numOptIn(layer.pending_amount ?? layer.pendingAmount);
+  const opt_in_amount = numOptIn(layer.opt_in_amount ?? layer.optInAmount);
+  const opd_paid_amount = numOptIn(layer.opd_paid_amount ?? layer.opdPaidAmount);
+  const opd_wallet_available = numOptIn(layer.opd_wallet_available ?? layer.opdWalletAvailable);
+
+  let razorpay_payload = payment_required
+    ? readRazorpayPayloadFromPaymentEnvelope(layer)
+    : null;
+
+  if (payment_required && razorpay_payload != null && Object.keys(razorpay_payload).length > 0) {
+    const next = { ...razorpay_payload };
+    if (pending_amount != null && pending_amount > 0) {
+      const amountPaise = Math.max(100, Math.round(pending_amount * 100));
+      if (next.amount == null || next.amount === "") {
+        next.amount = amountPaise;
+      }
+    }
+    razorpay_payload = normalizeRazorpayCheckoutPayload(next);
+  }
+
+  return {
+    opd_paid_amount,
+    opd_wallet_available,
+    opt_in_amount,
+    pending_amount,
+    payment_required,
+    invoice_id: strOptIn(layer.invoice_id ?? layer.invoiceId),
+    order_id: strOptIn(layer.order_id ?? layer.orderId),
+    razorpay_payload,
+  };
+}
+
+export async function postGymOptIn(body: GymOptInRequest): Promise<GymOptInResult> {
+  const res = await patientFetch(gymOptInPath(), {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(await readPatientApiError(res));
+  }
+  const text = await res.text();
+  if (!text) {
+    return parseGymOptInResponse({});
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid JSON from gym opt-in");
+  }
+  return parseGymOptInResponse(raw);
 }

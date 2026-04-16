@@ -116,6 +116,137 @@ export async function fetchDiagnosticVendorsPricing(addressId: string): Promise<
   return vendors;
 }
 
+// --- Health checkup packages (`GET …/diagnostics/packages?user=&type=&sponsored=`) ---
+
+export type HealthCheckupPackageRow = Readonly<{
+  id: number;
+  name: string;
+  type: string;
+  category: string;
+  fastingTime: number | null;
+  tat: number | null;
+}>;
+
+/** Special / AHC packages for a member — same query shape as patient_app `getPackages`. */
+export async function fetchHealthCheckupPackages(params: Readonly<{
+  userId: number;
+  type?: string;
+  sponsored?: boolean;
+}>): Promise<readonly HealthCheckupPackageRow[]> {
+  const q = new URLSearchParams();
+  q.set("user", String(params.userId));
+  q.set("type", (params.type ?? "special").trim() || "special");
+  q.set("sponsored", params.sponsored === true ? "true" : "false");
+  const raw = await patientJson<unknown>(`diagnostics/packages?${q.toString()}`, { method: "GET" });
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+  const data = (raw as Record<string, unknown>).data;
+  if (!Array.isArray(data)) return [];
+  const out: HealthCheckupPackageRow[] = [];
+  for (const row of data) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const o = row as Record<string, unknown>;
+    const id = num(o.id);
+    if (id == null) continue;
+    out.push({
+      id,
+      name: str(o.name) || "Package",
+      type: str(o.type) || "special",
+      category: str(o.category) || "pathology",
+      fastingTime: num(o.fasting_time),
+      tat: num(o.tat),
+    });
+  }
+  return out;
+}
+
+export type HealthSponsoredVendorRow = Readonly<{
+  id: number;
+  name: string;
+  code: string;
+  logo: string | null;
+  category: string;
+  price: number;
+}>;
+
+export type SponsoredVendorPricingResult = Readonly<{
+  pathologyVendors: readonly HealthSponsoredVendorRow[];
+  radiologyVendors: readonly HealthSponsoredVendorRow[];
+  pathologyCategoryExists: boolean;
+  radiologyCategoryExists: boolean;
+}>;
+
+function vendorPayloadExists(raw: unknown): boolean {
+  if (Array.isArray(raw)) return raw.length > 0;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) return Object.keys(raw as object).length > 0;
+  return false;
+}
+
+function parseSponsoredVendorMaps(raw: unknown): Record<string, unknown>[] {
+  const maps: Record<string, unknown>[] = [];
+  if (Array.isArray(raw)) {
+    for (const e of raw) {
+      if (e && typeof e === "object" && !Array.isArray(e)) maps.push(e as Record<string, unknown>);
+    }
+  } else if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    maps.push(raw as Record<string, unknown>);
+  }
+  return maps;
+}
+
+function parseHealthSponsoredVendorList(raw: unknown): HealthSponsoredVendorRow[] {
+  const out: HealthSponsoredVendorRow[] = [];
+  for (const json of parseSponsoredVendorMaps(raw)) {
+    const code = str(json.code);
+    if (code === "unknown") continue;
+    const id = num(json.id) ?? 0;
+    out.push({
+      id,
+      name: str(json.name) || "Lab",
+      code,
+      logo: typeof json.logo === "string" ? json.logo : null,
+      category: str(json.category) || "",
+      price: num(json.price) ?? 0,
+    });
+  }
+  return out;
+}
+
+/** POST `/diagnostics/sponsored/pricing?page=1` — health checkup vendor matrix (pathology / radiology). */
+export async function fetchSponsoredVendorPricing(params: Readonly<{
+  addressId: string;
+  sponsored: boolean;
+  users: readonly { user_id: number; packages: readonly number[] }[];
+}>): Promise<SponsoredVendorPricingResult> {
+  const raw = await patientJson<unknown>("diagnostics/sponsored/pricing?page=1", {
+    method: "POST",
+    body: JSON.stringify({
+      address_id: params.addressId.trim(),
+      sponsored: params.sponsored,
+      users: params.users.map((u) => ({
+        user_id: u.user_id,
+        packages: [...u.packages],
+      })),
+    }),
+  });
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return {
+      pathologyVendors: [],
+      radiologyVendors: [],
+      pathologyCategoryExists: false,
+      radiologyCategoryExists: false,
+    };
+  }
+  const root = raw as Record<string, unknown>;
+  const rawPath = root.pathology_vendor;
+  const rawRad = root.radiology_vendor;
+  return {
+    pathologyVendors: parseHealthSponsoredVendorList(rawPath),
+    radiologyVendors: parseHealthSponsoredVendorList(rawRad),
+    pathologyCategoryExists: vendorPayloadExists(rawPath),
+    radiologyCategoryExists: vendorPayloadExists(rawRad),
+  };
+}
+
 export type DiagnosticSlotPick = Readonly<{
   slot_id: string;
   vendor_code: string;
@@ -124,21 +255,26 @@ export type DiagnosticSlotPick = Readonly<{
   end_time: string;
 }>;
 
-/** POST `/diagnostics/slots` — `package` is `"test"` for individual lab flow (Postman). */
+/** POST `/diagnostics/slots` — `package` `"test"` for lab cart; `"special"` + optional `category` for health checkups. */
 export async function fetchDiagnosticSlots(body: Readonly<{
   address_id: string;
   date: string;
   vendor_code: string;
   package: string;
+  category?: string;
 }>): Promise<{ morning: DiagnosticSlotPick[]; afternoon: DiagnosticSlotPick[]; evening: DiagnosticSlotPick[] }> {
+  const slotBody: Record<string, string> = {
+    address_id: body.address_id.trim(),
+    date: body.date.trim(),
+    vendor_code: body.vendor_code.trim(),
+    package: body.package.trim(),
+  };
+  const cat = body.category?.trim();
+  if (cat) slotBody.category = cat;
+
   const raw = await patientJson<unknown>("diagnostics/slots", {
     method: "POST",
-    body: JSON.stringify({
-      address_id: body.address_id.trim(),
-      date: body.date.trim(),
-      vendor_code: body.vendor_code.trim(),
-      package: body.package.trim(),
-    }),
+    body: JSON.stringify(slotBody),
   });
   const empty: { morning: DiagnosticSlotPick[]; afternoon: DiagnosticSlotPick[]; evening: DiagnosticSlotPick[] } = {
     morning: [],
@@ -184,6 +320,53 @@ export type DiagnosticsBookingBody = Readonly<{
   slot: DiagnosticSlotPick;
   users: readonly DiagnosticsBookingUser[];
 }>;
+
+export type DiagnosticsHealthUserRow = Readonly<{ user_id: number; packages: readonly number[] }>;
+
+/** Health checkup finalize body — matches patient_app `buildHealthCheckupBookingBody`. */
+export type DiagnosticsHealthBookingBody = Readonly<{
+  booking_type: "special";
+  sponsored: boolean;
+  address_id: string;
+  alternative_phone: string;
+  users: readonly DiagnosticsHealthUserRow[];
+  pathology_slot?: DiagnosticSlotPick;
+  radiology_slot?: DiagnosticSlotPick;
+}>;
+
+function slotPayloadForHealth(s: DiagnosticSlotPick): Record<string, string> {
+  return {
+    slot_id: s.slot_id,
+    vendor_code: s.vendor_code,
+    slot_date: s.slot_date,
+    start_time: s.start_time,
+    end_time: s.end_time,
+  };
+}
+
+/** POST `/diagnostics/order/booking` with health-checkup payload (pathology/radiology slots). */
+export async function postDiagnosticsHealthBooking(
+  overview: boolean,
+  body: DiagnosticsHealthBookingBody,
+  useAppWallet = false,
+): Promise<unknown> {
+  const q = new URLSearchParams();
+  q.set("overview", overview ? "yes" : "no");
+  q.set("useAppWallet", useAppWallet ? "yes" : "no");
+  const payload: Record<string, unknown> = {
+    booking_type: body.booking_type,
+    sponsored: body.sponsored,
+    address_id: body.address_id.trim(),
+    alternative_phone: body.alternative_phone.trim(),
+    users: body.users.map((u) => ({ user_id: u.user_id, packages: [...u.packages] })),
+  };
+  if (body.pathology_slot) payload.pathology_slot = slotPayloadForHealth(body.pathology_slot);
+  if (body.radiology_slot) payload.radiology_slot = slotPayloadForHealth(body.radiology_slot);
+  return patientJson<unknown>(`diagnostics/order/booking?${q.toString()}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
 
 export type NormalizedBookingOverview = Readonly<{
   items: readonly { name: string; lineTotal: number; qty: number }[];
@@ -321,4 +504,27 @@ export function parseBookingInvoiceId(raw: unknown): string | null {
   const id = (data as Record<string, unknown>).invoice_id;
   if (typeof id === "string" && id.trim()) return id.trim();
   return null;
+}
+
+/** `POST …/diagnostics/order/booking?overview=no` — aligns with patient_app `DiagnosticsBookingApiResult`. */
+export function parseDiagnosticsFinalizeResponse(raw: unknown): Readonly<{
+  invoiceId: string | null;
+  paymentRequired: boolean;
+  razorpayPayload: Record<string, unknown> | null;
+}> {
+  const invoiceId = parseBookingInvoiceId(raw);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { invoiceId, paymentRequired: false, razorpayPayload: null };
+  }
+  const root = raw as Record<string, unknown>;
+  const paymentRequired =
+    root.paymentRequired === true ||
+    root.isPaymentRequired === true ||
+    root.payment_required === true;
+  const rzpRaw = root.razorpay_payload ?? root.razorpayPayload;
+  let razorpayPayload: Record<string, unknown> | null = null;
+  if (rzpRaw && typeof rzpRaw === "object" && !Array.isArray(rzpRaw)) {
+    razorpayPayload = rzpRaw as Record<string, unknown>;
+  }
+  return { invoiceId, paymentRequired, razorpayPayload };
 }

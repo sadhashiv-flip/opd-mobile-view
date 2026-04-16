@@ -1403,6 +1403,50 @@
   color: #111111;
 }
 
+/* Patient details: home / lab user address (text only; same row pattern as phone / email) */
+.od-row--patient-user-addr {
+  align-items: flex-start;
+}
+
+.od-row--patient-user-addr .od-row__label {
+  align-self: flex-start;
+  padding-top: 1px;
+}
+
+.od-row__value--patient-addr-stack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
+.od-patient-addr__tag {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #616161;
+}
+
+.od-patient-addr__text {
+  margin: 0;
+  font-size: 0.775rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #111111;
+}
+
+.od-patient-addr__phone {
+  margin: 0;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: #424242;
+}
+
 .od-card--invoice-consult .od-card__head {
   margin-bottom: 10px;
 }

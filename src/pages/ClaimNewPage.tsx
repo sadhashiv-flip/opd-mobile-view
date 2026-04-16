@@ -238,6 +238,8 @@ export function ClaimNewPage() {
   const [bills, setBills] = useState<DraftBill[]>([]);
   const billsRef = useRef(bills);
   billsRef.current = bills;
+  /** When set, “Save bill” on review replaces this row instead of appending. */
+  const editingBillLocalIdRef = useRef<string | null>(null);
   const [serviceTypesCatalog, setServiceTypesCatalog] = useState<ReimbursementServiceType[]>([]);
 
   const [bankSheetOpen, setBankSheetOpen] = useState(false);
@@ -304,9 +306,29 @@ export function ClaimNewPage() {
           checklistDone?: { localBillId: string; filesBySlot: Record<string, ReimbursementCreateBillFileWithServices[]> };
           returnPath?: string;
           afterChecklistReview?: boolean;
+          restoreClaimBillEscrow?: boolean;
         }
       | null
       | undefined;
+
+    if (st?.restoreClaimBillEscrow) {
+      const escrow = readChecklistEscrow();
+      if (escrow) {
+        setBills(escrow.bills);
+        setBillDraft(escrow.billDraft);
+        setStep(2);
+        setBillSheetOpen(true);
+        setBillSaveReviewOpen(true);
+        setServiceSheetOpen(false);
+      }
+      const rp = typeof st?.returnPath === "string" && st.returnPath.trim() ? st.returnPath.trim() : undefined;
+      navigate(`${location.pathname}${location.search}`, {
+        replace: true,
+        state: rp ? { returnPath: rp } : {},
+      });
+      return;
+    }
+
     const done = st?.checklistDone;
     const afterChecklistReview = Boolean(st?.afterChecklistReview);
     if (done?.localBillId) {
@@ -431,14 +453,24 @@ export function ClaimNewPage() {
     email.trim().length > 3;
 
   const closeBillSheet = useCallback(() => {
+    editingBillLocalIdRef.current = null;
     setBillSaveReviewOpen(false);
     setBillSheetOpen(false);
   }, []);
 
   const openAddBill = useCallback(() => {
+    editingBillLocalIdRef.current = null;
     setBillDraft(emptyDraftBill());
     setBillSaveReviewOpen(false);
     setBillSheetOpen(true);
+  }, []);
+
+  const openEditBill = useCallback((b: DraftBill) => {
+    editingBillLocalIdRef.current = b.localId;
+    setBillDraft({ ...b });
+    const hasServices = b.serviceTypes.length > 0;
+    setBillSheetOpen(true);
+    setBillSaveReviewOpen(hasServices);
   }, []);
 
   const toggleServiceInDraft = useCallback((t: ReimbursementServiceType) => {
@@ -557,10 +589,17 @@ export function ClaimNewPage() {
         return;
       }
     }
-    setBills((prev) => [...prev, d]);
+    const replaceId = editingBillLocalIdRef.current;
+    editingBillLocalIdRef.current = null;
+    setBills((prev) => {
+      if (replaceId) {
+        return prev.map((x) => (x.localId === replaceId ? d : x));
+      }
+      return [...prev, d];
+    });
     setBillSaveReviewOpen(false);
     setBillSheetOpen(false);
-    toast.success("Bill added");
+    toast.success(replaceId ? "Bill updated" : "Bill added");
   }, [billDraft, toast]);
 
   const openServiceTypesFromBillReview = useCallback(() => {
@@ -945,13 +984,48 @@ export function ClaimNewPage() {
               Add Medical Bill
             </button>
             {bills.length > 0 ? (
-              <ul style={{ listStyle: "none", margin: "16px 0 0", padding: 0 }}>
+              <ul className="claim-review-block-list" aria-label="Saved bills">
                 {bills.map((b) => (
                   <li key={b.localId} className="claim-review-block">
-                    <strong>{b.clinicName}</strong>
-                    <div style={{ fontSize: 13, color: "#666", marginTop: 4 }}>
-                      ₹{b.billAmount} · {b.billDate} · {b.serviceTypes.map((s) => s.value).join(", ")}
+                    <div className="claim-review-block__head">
+                      <div className="claim-review-block__intro">
+                        <p className="claim-review-block__label">Bill number</p>
+                        <p className="claim-review-block__bill-no">#{b.billNumber.trim() || "—"}</p>
+                        {b.clinicName.trim() ? (
+                          <p className="claim-review-block__clinic">{b.clinicName.trim()}</p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="claim-review-block__exit"
+                        aria-label="Edit this bill"
+                        onClick={() => openEditBill(b)}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M12 15h8M16 5l3 3-9.5 9.5-4 1 1-4L16 5z"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
                     </div>
+                    <dl className="claim-review-block__facts">
+                      <div className="claim-review-block__fact">
+                        <dt>Amount</dt>
+                        <dd>₹{formatInrInteger(b.billAmount)}</dd>
+                      </div>
+                      <div className="claim-review-block__fact">
+                        <dt>Date</dt>
+                        <dd>{b.billDate || "—"}</dd>
+                      </div>
+                      <div className="claim-review-block__fact claim-review-block__fact--wide">
+                        <dt>Service types</dt>
+                        <dd>{b.serviceTypes.map((s) => s.value.trim() || s.key).join(", ") || "—"}</dd>
+                      </div>
+                    </dl>
                   </li>
                 ))}
               </ul>

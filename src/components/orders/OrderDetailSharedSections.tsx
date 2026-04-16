@@ -2,6 +2,7 @@ import type {
   ConsultationOrderPatientUi,
   InvoiceDetailLineItem,
   InvoiceDetailModel,
+  PharmacyOrderLocationCardUi,
 } from "@/api/patientInvoices";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 
@@ -25,14 +26,25 @@ export type OrderDetailPatientSectionProps = Readonly<{
   consultationPatient: ConsultationOrderPatientUi | null;
   /** From invoice `info.details.alternate_phone` when set. */
   alternatePhone?: string | null;
+  /** Lab / pharmacy / vision home: user address from invoice `info` (shown in this card, not a separate section). */
+  userAddress?: PharmacyOrderLocationCardUi | null;
 }>;
 
 export function OrderDetailPatientSection({
   patientName,
   consultationPatient,
   alternatePhone,
+  userAddress,
 }: OrderDetailPatientSectionProps) {
   const alt = alternatePhone?.trim() ?? "";
+  const loc = userAddress ?? null;
+  const hasUserAddressContent =
+    loc != null &&
+    Boolean(
+      (loc.headerName?.trim() ?? "").length > 0 ||
+        (loc.addressText?.trim() ?? "").length > 0 ||
+        (loc.phoneText?.trim() ?? "").length > 0,
+    );
   return (
     <section className="od-card od-card--patient" aria-label="Patient details">
       <h3 className="od-card__title">Patient Details</h3>
@@ -64,6 +76,22 @@ export function OrderDetailPatientSection({
         <div className="od-row">
           <span className="od-row__label">Age / Gender</span>
           <span className="od-row__value od-row__value--other">{consultationPatient.ageGenderLine}</span>
+        </div>
+      ) : null}
+      {hasUserAddressContent && loc != null ? (
+        <div className="od-row od-row--patient-user-addr">
+          <span className="od-row__label">Address</span>
+          <div className="od-row__value od-row__value--other od-row__value--patient-addr-stack">
+            {loc.headerName?.trim() ? (
+              <p className="od-patient-addr__tag">{loc.headerName.trim()}</p>
+            ) : null}
+            {loc.addressText?.trim() ? (
+              <p className="od-patient-addr__text">{loc.addressText.trim()}</p>
+            ) : null}
+            {loc.phoneText?.trim() ? (
+              <p className="od-patient-addr__phone">Phone: {loc.phoneText.trim()}</p>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </section>

@@ -23,8 +23,13 @@ import {
   type ConsultationAttachmentRow,
   type InvoiceConsultationCompletedView,
   type InvoiceDetailModel,
-  type PharmacyOrderLocationCardUi,
 } from "@/api/patientInvoices";
+import { patchLabOrderConfirm } from "@/api/patientLabOrderConfirm";
+import {
+  patchLabOrderPaymentConfirm,
+  patchLabOrderPaymentPreview,
+  verifyLabOrderPayment,
+} from "@/api/patientLabOrderPayment";
 import { patchMedicineOrderConfirm } from "@/api/patientMedicineOrderConfirm";
 import {
   patchPharmacyOrderPaymentConfirm,
@@ -44,8 +49,13 @@ import {
   type OfflineBookingPaymentSheetModel,
 } from "@/api/patientOfflineAppointmentPayment";
 import { BookingConfirmationBottomSheet } from "@/components/orders/BookingConfirmationBottomSheet";
-import { PAYMENT_DONE_EVENT, PHARMACY_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
+import {
+  DIAGNOSTICS_PAYMENT_DONE_EVENT,
+  PAYMENT_DONE_EVENT,
+  PHARMACY_PAYMENT_DONE_EVENT,
+} from "@/constants/windowPaymentEvents";
 import { useConsultationPaymentVerify } from "@/hooks/useConsultationPaymentVerify";
+import { useDiagnosticsRazorpayConfirm } from "@/hooks/useDiagnosticsRazorpayConfirm";
 import { usePharmacyOrderPaymentVerify } from "@/hooks/usePharmacyOrderPaymentVerify";
 import {
   isPaymentCancelledMessage,
@@ -103,6 +113,15 @@ function navigatePartnerOrderPaymentSuccess(
       navigate(ROUTES.pharmacyOrderSuccess, {
         replace: true,
         state: { returnPath: pharmacyPayReturnPath },
+      });
+      return;
+    case "lab":
+      navigate(ROUTES.bookingSuccess, {
+        replace: true,
+        state: {
+          layout: "consult" as const,
+          description: "Your lab order payment is complete.",
+        },
       });
       return;
     case "dental":
@@ -280,39 +299,6 @@ function doctorInitial(name: string): string {
   return t.length ? t.charAt(0).toUpperCase() : "?";
 }
 
-function PharmacyLocationAddressSection({
-  loc,
-  heading,
-}: Readonly<{ loc: PharmacyOrderLocationCardUi; heading: string }>) {
-  return (
-    <section className="od-card od-card--visit od-card--pharmacy-loc" aria-label={heading}>
-      <h3 className="od-card__title">{heading}</h3>
-      {loc.headerName ? <p className="od-visit__facility">{loc.headerName}</p> : null}
-      {loc.addressText || loc.mapsUrl ? (
-        <div className="od-pharmacy-loc__addr-line">
-          {loc.addressText ? (
-            <p className="od-visit__addr">{loc.addressText}</p>
-          ) : (
-            <span className="od-pharmacy-loc__addr-spacer" aria-hidden />
-          )}
-          {loc.mapsUrl ? (
-            <a
-              className="od-visit__map-btn od-visit__map-btn--pharmacy"
-              href={loc.mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Open directions in maps"
-            >
-              <NavMapIcon />
-            </a>
-          ) : null}
-        </div>
-      ) : null}
-      {loc.phoneText ? <p className="od-pharmacy__phone">Phone: {loc.phoneText}</p> : null}
-    </section>
-  );
-}
-
 export function OrderDetailsPage() {
   const { orderKind: orderKindFromUrl, invoiceId } = useParams<{
     orderKind?: string;
@@ -356,12 +342,29 @@ export function OrderDetailsPage() {
   const [confirmMedicineOrderBusy, setConfirmMedicineOrderBusy] = useState(false);
   /** `order_id` for payment verify when returned on confirm; else Razorpay order id. */
   const pharmacyVerifyOrderIdRef = useRef<string | null>(null);
+  /**
+   * Lab: `invoice_id` for `POST diagnostics/order/confirm` — from `PATCH lab/order/payment/.../confirm` response
+   * when present, else route `invoiceId`. Cleared when not a lab order detail.
+   */
+  const labDiagnosticsPostInvoiceIdRef = useRef<string | null>(null);
+  const diagnosticsConfirmSuccessRef = useRef<() => void>(() => {});
+  const diagnosticsConfirmErrorRef = useRef<(message: string) => void>(() => {});
   const partnerPaymentVerifyRef = useRef<(body: PharmacyOrderPaymentVerifyBody) => Promise<void>>(
     verifyPharmacyOrderPayment,
   );
 
   useEffect(() => {
-    if (
+    if (detail?.categoryKey !== "lab") {
+      labDiagnosticsPostInvoiceIdRef.current = null;
+    } else {
+      labDiagnosticsPostInvoiceIdRef.current = invoiceId?.trim() ?? null;
+    }
+  }, [detail?.categoryKey, invoiceId]);
+
+  useEffect(() => {
+    if (detail?.categoryKey === "lab") {
+      partnerPaymentVerifyRef.current = verifyLabOrderPayment;
+    } else if (
       detail != null &&
       isPartnerOrderPayFlowCategory(detail.categoryKey) &&
       detail.categoryKey !== "pharmacy"
@@ -603,19 +606,16 @@ export function OrderDetailsPage() {
     setBookingPreviewLoading(true);
     void (async () => {
       try {
+        const partnerPayId = detail?.consultationInfoId?.trim();
         const raw =
           detail != null &&
-          isPartnerOrderPayFlowCategory(detail.categoryKey) &&
-          detail.consultationInfoId?.trim()
+          partnerPayId &&
+          (isPartnerOrderPayFlowCategory(detail.categoryKey) || detail.categoryKey === "lab")
             ? detail.categoryKey === "pharmacy"
-              ? await patchPharmacyOrderPaymentPreview(
-                  detail.consultationInfoId.trim(),
-                  useWalletForOfflinePayment,
-                )
-              : await patchServiceRequestOrderPaymentPreview(
-                  detail.consultationInfoId.trim(),
-                  useWalletForOfflinePayment,
-                )
+              ? await patchPharmacyOrderPaymentPreview(partnerPayId, useWalletForOfflinePayment)
+              : detail.categoryKey === "lab"
+                ? await patchLabOrderPaymentPreview(partnerPayId, useWalletForOfflinePayment)
+                : await patchServiceRequestOrderPaymentPreview(partnerPayId, useWalletForOfflinePayment)
             : await patchOfflineAppointmentPaymentPreview(id, useWalletForOfflinePayment);
         setOfflinePaymentPreview(mapOfflinePaymentPreviewToSheetModel(raw));
       } catch (e) {
@@ -644,6 +644,7 @@ export function OrderDetailsPage() {
       setOfflinePaymentPreview(null);
       setBookingProceedBusy(false);
       pharmacyVerifyOrderIdRef.current = null;
+      labDiagnosticsPostInvoiceIdRef.current = null;
       if (detail?.isConsultationOrder) {
         navigate(
           detail.consultationPlaceTag === "virtual"
@@ -651,7 +652,10 @@ export function OrderDetailsPage() {
             : ROUTES.consultationHospitalBookingSuccess,
           { replace: true },
         );
-      } else if (detail && isPartnerOrderPayFlowCategory(detail.categoryKey)) {
+      } else if (
+        detail &&
+        (isPartnerOrderPayFlowCategory(detail.categoryKey) || detail.categoryKey === "lab")
+      ) {
         navigatePartnerOrderPaymentSuccess(navigate, detail, pharmacyPayReturnPath);
       } else {
         toast.success("Payment successful");
@@ -659,6 +663,18 @@ export function OrderDetailsPage() {
       }
     };
     onPaymentVerifyErrorRef.current = (message: string) => {
+      toast.error(message);
+      setBookingProceedBusy(false);
+    };
+    diagnosticsConfirmSuccessRef.current = () => {
+      setBookingSheetOpen(false);
+      setOfflinePaymentPreview(null);
+      setBookingProceedBusy(false);
+      labDiagnosticsPostInvoiceIdRef.current = null;
+      toast.success("Payment successful");
+      void load();
+    };
+    diagnosticsConfirmErrorRef.current = (message: string) => {
       toast.error(message);
       setBookingProceedBusy(false);
     };
@@ -682,6 +698,13 @@ export function OrderDetailsPage() {
     onErrorRef: onPaymentVerifyErrorRef,
     setBusyRef: setBookingProceedBusyRef,
     verifyPaymentRef: partnerPaymentVerifyRef,
+    paymentVerifyInvoiceIdRef: labDiagnosticsPostInvoiceIdRef,
+  });
+
+  useDiagnosticsRazorpayConfirm({
+    invoiceIdRef: labDiagnosticsPostInvoiceIdRef,
+    onSuccessRef: diagnosticsConfirmSuccessRef,
+    onErrorRef: diagnosticsConfirmErrorRef,
   });
 
   const onBookingSheetProceed = useCallback(async () => {
@@ -689,17 +712,23 @@ export function OrderDetailsPage() {
     if (!id) return;
     setBookingProceedBusy(true);
     try {
+      const partnerOrderId = detail?.consultationInfoId?.trim();
       if (
         detail != null &&
-        isPartnerOrderPayFlowCategory(detail.categoryKey) &&
-        detail.consultationInfoId?.trim()
+        partnerOrderId &&
+        (isPartnerOrderPayFlowCategory(detail.categoryKey) || detail.categoryKey === "lab")
       ) {
-        const partnerOrderId = detail.consultationInfoId.trim();
         const res =
           detail.categoryKey === "pharmacy"
             ? await patchPharmacyOrderPaymentConfirm(partnerOrderId, useWalletForOfflinePayment)
-            : await patchServiceRequestOrderPaymentConfirm(partnerOrderId, useWalletForOfflinePayment);
+            : detail.categoryKey === "lab"
+              ? await patchLabOrderPaymentConfirm(partnerOrderId, useWalletForOfflinePayment)
+              : await patchServiceRequestOrderPaymentConfirm(partnerOrderId, useWalletForOfflinePayment);
         pharmacyVerifyOrderIdRef.current = res.verifyOrderId ?? partnerOrderId;
+        if (detail.categoryKey === "lab") {
+          labDiagnosticsPostInvoiceIdRef.current =
+            res.invoiceIdForDiagnosticsConfirm?.trim() ?? id ?? null;
+        }
         const rzp = res.razorpayPayload;
         if (rzp != null && Object.keys(rzp).length > 0) {
           await loadRazorpayScript();
@@ -712,6 +741,9 @@ export function OrderDetailsPage() {
             if (!isPaymentCancelledMessage(failMsg)) {
               toast.error(failMsg);
             }
+            if (detail.categoryKey === "lab") {
+              labDiagnosticsPostInvoiceIdRef.current = id;
+            }
             setBookingProceedBusy(false);
           });
           return;
@@ -721,6 +753,7 @@ export function OrderDetailsPage() {
           setOfflinePaymentPreview(null);
           setBookingProceedBusy(false);
           pharmacyVerifyOrderIdRef.current = null;
+          labDiagnosticsPostInvoiceIdRef.current = null;
           navigatePartnerOrderPaymentSuccess(navigate, detail, pharmacyPayReturnPath);
           return;
         }
@@ -729,6 +762,7 @@ export function OrderDetailsPage() {
         return;
       }
 
+      const isLabDiagnosticsOrder = detail?.categoryKey === "lab";
       const res = await patchOfflineAppointmentPaymentConfirm(id, useWalletForOfflinePayment);
       const rzp = res.razorpayPayload;
       if (rzp != null && Object.keys(rzp).length > 0) {
@@ -738,12 +772,21 @@ export function OrderDetailsPage() {
           setBookingProceedBusy(false);
           return;
         }
-        openRazorpayCheckoutWithEvent(rzp, PAYMENT_DONE_EVENT, (failMsg) => {
-          if (!isPaymentCancelledMessage(failMsg)) {
-            toast.error(failMsg);
-          }
-          setBookingProceedBusy(false);
-        });
+        if (isLabDiagnosticsOrder) {
+          openRazorpayCheckoutWithEvent(rzp, DIAGNOSTICS_PAYMENT_DONE_EVENT, (failMsg) => {
+            if (!isPaymentCancelledMessage(failMsg)) {
+              toast.error(failMsg);
+            }
+            setBookingProceedBusy(false);
+          });
+        } else {
+          openRazorpayCheckoutWithEvent(rzp, PAYMENT_DONE_EVENT, (failMsg) => {
+            if (!isPaymentCancelledMessage(failMsg)) {
+              toast.error(failMsg);
+            }
+            setBookingProceedBusy(false);
+          });
+        }
         return;
       }
       if (!res.paymentRequired) {
@@ -829,29 +872,20 @@ export function OrderDetailsPage() {
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
 
   /**
-   * Pay / confirm footer: consultation uses `consultationInfoStatus` + `consultationPaymentRequired`.
-   * Pharmacy, vision, dental, and vaccine share the same rule: `info.status === 4`, `netPayAmount > 0`, and
-   * payment required from merged envelope / `info.additional_info` (see {@link isPartnerOrderPayFlowCategory}).
+   * Pay footer: `netPayAmount > 0`, **`info.status === 4`**, **`info.additional_info.payment_required`** present and `true`.
+   * Lab only: also requires non-empty `data.orders` with every row `status === 4` ({@link InvoiceDetailModel.labSubOrdersAllPendingPayment}).
    */
   const showPayConfirmBooking = useMemo(() => {
     if (!detail) return false;
     if (detail.netPayAmount <= 0) return false;
-    if (detail.isConsultationOrder) {
-      return detail.consultationInfoStatus === 4 && detail.consultationPaymentRequired === true;
-    }
-    if (detail.serviceInfoStatus !== 4) return false;
     if (!detail.dataAdditionalInfoPaymentRequiredKeyPresent) return false;
     if (!detail.dataAdditionalInfoPaymentRequired) return false;
+    if (detail.serviceInfoStatus !== 4) return false;
+    if (detail.categoryKey === "lab" && !detail.labSubOrdersAllPendingPayment) return false;
     return true;
   }, [detail]);
 
-  const isPaymentPendingBanner = useMemo(() => {
-    if (!detail) return false;
-    if (detail.isConsultationOrder) {
-      return detail.consultationInfoStatus === 4 && detail.consultationPaymentRequired === true;
-    }
-    return showPayConfirmBooking;
-  }, [detail, showPayConfirmBooking]);
+  const isPaymentPendingBanner = useMemo(() => showPayConfirmBooking, [showPayConfirmBooking]);
 
   const visitCardVisible = useMemo(() => {
     if (detail?.consultationPlaceTag === "virtual") return false;
@@ -877,21 +911,32 @@ export function OrderDetailsPage() {
     if (detail.patientName.trim().length > 0) return true;
     if (detail.infoDetailsAlternatePhone?.trim()) return true;
     const p = detail.consultationPatient;
-    return Boolean(p?.phone || p?.email || p?.ageGenderLine);
+    if (p?.phone || p?.email || p?.ageGenderLine) return true;
+    const loc = detail.pharmacyOrderLocation;
+    return Boolean(
+      loc &&
+        ((loc.headerName?.trim() ?? "").length > 0 ||
+          (loc.addressText?.trim() ?? "").length > 0 ||
+          (loc.phoneText?.trim() ?? "").length > 0),
+    );
   }, [detail]);
 
   const showPharmacyAwaitingDetailConfirmation = Boolean(detail?.pharmacyAwaitingDetailConfirmation);
 
-  /** Pharmacy + vision/dental/vaccine: requested items, address, and center for every `info.status`; “Confirm details” only when `pharmacyAwaitingDetailConfirmation`. */
+  /** Pharmacy, vision/dental/vaccine, and lab: requested items, address, and center; “Confirm details” when `pharmacyAwaitingDetailConfirmation`. */
   const showPartnerOrderDetailSections = useMemo(() => {
     if (!detail) return false;
     if (detail.isConsultationOrder) return false;
     const id = detail.consultationInfoId?.trim() ?? "";
-    return isPartnerOrderPayFlowCategory(detail.categoryKey) && id.length > 0;
+    return (
+      (isPartnerOrderPayFlowCategory(detail.categoryKey) || detail.categoryKey === "lab") &&
+      id.length > 0
+    );
   }, [detail]);
 
   const pharmacyCenterForConfirmUi = useMemo(() => {
-    if (!detail || !isPartnerOrderPayFlowCategory(detail.categoryKey)) return null;
+    if (!detail) return null;
+    if (!isPartnerOrderPayFlowCategory(detail.categoryKey) && detail.categoryKey !== "lab") return null;
     return detail.pharmacyConfirmCenter;
   }, [detail]);
 
@@ -905,6 +950,8 @@ export function OrderDetailsPage() {
         await patchMedicineOrderConfirm(serviceOrOrderId);
       } else if (isPartnerOrderPayFlowCategory(detail.categoryKey)) {
         await patchServiceRequestOrderConfirm(serviceOrOrderId);
+      } else if (detail.categoryKey === "lab") {
+        await patchLabOrderConfirm(serviceOrOrderId);
       } else {
         return;
       }
@@ -1036,6 +1083,7 @@ export function OrderDetailsPage() {
                     patientName={detail.patientName}
                     consultationPatient={detail.consultationPatient}
                     alternatePhone={detail.infoDetailsAlternatePhone}
+                    userAddress={detail.pharmacyOrderLocation}
                   />
                 ) : null}
 
@@ -1124,6 +1172,7 @@ export function OrderDetailsPage() {
                     patientName={detail.patientName}
                     consultationPatient={detail.consultationPatient}
                     alternatePhone={detail.infoDetailsAlternatePhone}
+                    userAddress={detail.pharmacyOrderLocation}
                   />
                 ) : null}
 
@@ -1140,9 +1189,23 @@ export function OrderDetailsPage() {
                       ) : (
                         <p className="od-pharm-req__empty">No items listed.</p>
                       )}
+                      {detail.categoryKey === "lab" && detail.labBookingRequestedDisplay ? (
+                        <div className="od-row od-row--pharm-req">
+                          <span className="od-row__label">You requested</span>
+                          <span className="od-row__value od-row__value--other">
+                            {detail.labBookingRequestedDisplay}
+                          </span>
+                        </div>
+                      ) : null}
                       {detail.pharmacyPreferredSlotDisplay ? (
                         <div className="od-row od-row--pharm-req">
-                          <span className="od-row__label">Preferred slot</span>
+                          <span className="od-row__label">
+                            {detail.categoryKey === "lab"
+                              ? detail.labBookingRequestedDisplay
+                                ? "Updated booking"
+                                : "Collection slot"
+                              : "Preferred slot"}
+                          </span>
                           <span className="od-row__value od-row__value--other">
                             {detail.pharmacyPreferredSlotDisplay}
                           </span>
@@ -1161,17 +1224,6 @@ export function OrderDetailsPage() {
                         </div>
                       ) : null}
                     </section>
-
-                    {detail.pharmacyOrderLocation ? (
-                      <PharmacyLocationAddressSection
-                        loc={detail.pharmacyOrderLocation}
-                        heading={
-                          detail.pharmacyOrderLocation.cardTitle === "Delivery address"
-                            ? "Address"
-                            : detail.pharmacyOrderLocation.cardTitle
-                        }
-                      />
-                    ) : null}
 
                     {pharmacyCenterForConfirmUi != null ? (
                       <section className="od-card od-card--pharmacy-center-confirm" aria-label="Center details">
@@ -1232,11 +1284,6 @@ export function OrderDetailsPage() {
                       </section>
                     ) : null}
                   </>
-                ) : detail.pharmacyOrderLocation ? (
-                  <PharmacyLocationAddressSection
-                    loc={detail.pharmacyOrderLocation}
-                    heading={detail.pharmacyOrderLocation.cardTitle}
-                  />
                 ) : null}
               </>
             )}

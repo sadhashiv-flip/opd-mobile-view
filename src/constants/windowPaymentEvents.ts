@@ -9,3 +9,6 @@ export const GYM_PAYMENT_DONE_EVENT = "gym.payment.done" as const;
 
 /** Checkout.js success for medicine-order and service-request (vision/dental/vaccine) pay flows. */
 export const PHARMACY_PAYMENT_DONE_EVENT = "pharmacy.payment.done" as const;
+
+/** Lab / health checkup diagnostics — `POST …/diagnostics/order/booking` then Checkout.js, then `POST …/diagnostics/order/confirm`. */
+export const DIAGNOSTICS_PAYMENT_DONE_EVENT = "diagnostics.payment.done" as const;

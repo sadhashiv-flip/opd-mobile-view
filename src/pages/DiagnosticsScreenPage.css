@@ -693,3 +693,14 @@ button.ds-lab-card.ds-lab-card--selected {
   color: #111111;
 }
 
+.ds-health-sec {
+  margin-top: 16px;
+}
+
+.ds-health-sec__title {
+  margin: 0 0 10px;
+  font-size: clamp(13px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+}
+

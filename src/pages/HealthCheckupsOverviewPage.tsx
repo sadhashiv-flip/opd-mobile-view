@@ -13,17 +13,35 @@ import {
 } from "@/constants/selectedAddressStorage";
 import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
+import { useDiagnosticsRazorpayConfirm } from "@/hooks/useDiagnosticsRazorpayConfirm";
 import { confirmDiagnosticsOrder } from "@/api/patientDiagnosticsOrderConfirm";
 import {
   normalizeBookingOverviewPayload,
   parseBookingInvoiceId,
+  parseDiagnosticsFinalizeResponse,
   postDiagnosticsBooking,
+  postDiagnosticsHealthBooking,
   type DiagnosticSlotPick,
   type DiagnosticsBookingBody,
+  type DiagnosticsHealthBookingBody,
   type NormalizedBookingOverview,
 } from "@/api/patientDiagnosticsLab";
+import {
+  readHealthPathologySlotJson,
+  readHealthRadiologySlotJson,
+  readHealthSponsoredFlag,
+  readHealthUsersPackages,
+  readHealthVendorMeta,
+} from "@/constants/diagnosticsHealthFlowStorage";
+import { DIAGNOSTICS_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
+import {
+  isPaymentCancelledMessage,
+  loadRazorpayScript,
+  normalizeRazorpayCheckoutPayload,
+  openRazorpayCheckoutWithEvent,
+} from "@/lib/razorpayCheckout";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import "./HealthCheckupsOverviewPage.css";
 
 const LAB_OVERVIEW_ADDRESS =
@@ -37,6 +55,24 @@ function readSlotPayload(): DiagnosticSlotPick | null {
   try {
     const raw = localStorage.getItem(DIAG_LAB_SLOT_PAYLOAD_KEY);
     if (!raw?.trim()) return null;
+    const p = JSON.parse(raw) as unknown;
+    if (!p || typeof p !== "object" || Array.isArray(p)) return null;
+    const o = p as Record<string, unknown>;
+    const slot_id = String(o.slot_id ?? "");
+    const vendor_code = String(o.vendor_code ?? "");
+    const slot_date = String(o.slot_date ?? "");
+    const start_time = String(o.start_time ?? "");
+    const end_time = String(o.end_time ?? "");
+    if (!slot_id || !vendor_code || !slot_date || !start_time) return null;
+    return { slot_id, vendor_code, slot_date, start_time, end_time };
+  } catch {
+    return null;
+  }
+}
+
+function parseStoredHealthSlot(raw: string | null): DiagnosticSlotPick | null {
+  if (!raw?.trim()) return null;
+  try {
     const p = JSON.parse(raw) as unknown;
     if (!p || typeof p !== "object" || Array.isArray(p)) return null;
     const o = p as Record<string, unknown>;
@@ -158,6 +194,141 @@ export function HealthCheckupsOverviewPage() {
     return () => window.clearTimeout(t);
   }, [isLabTests, loadLabOverview, selectedAddressId]);
 
+  const buildHealthBookingBody = useCallback((): DiagnosticsHealthBookingBody | null => {
+    const addr = readSelectedAddress();
+    const meta = readHealthVendorMeta();
+    const users = readHealthUsersPackages();
+    if (!addr?.id.trim() || users.length === 0 || !meta) return null;
+    const pathSlot = parseStoredHealthSlot(readHealthPathologySlotJson());
+    const radSlot = parseStoredHealthSlot(readHealthRadiologySlotJson());
+    if (meta?.needPathology && !pathSlot) return null;
+    if (meta?.needRadiology && !radSlot) return null;
+    const base: DiagnosticsHealthBookingBody = {
+      booking_type: "special",
+      sponsored: readHealthSponsoredFlag(),
+      address_id: addr.id.trim(),
+      alternative_phone: altPhone.trim(),
+      users,
+    };
+    return {
+      ...base,
+      ...(pathSlot ? { pathology_slot: pathSlot } : {}),
+      ...(radSlot ? { radiology_slot: radSlot } : {}),
+    };
+  }, [altPhone]);
+
+  const loadHealthOverview = useCallback(async () => {
+    if (isLabTests) return;
+    const body = buildHealthBookingBody();
+    if (!body) {
+      setLabOverview(null);
+      setLabOverviewError("Complete package, vendor, and slot steps before review.");
+      return;
+    }
+    setLabOverviewLoading(true);
+    setLabOverviewError(null);
+    try {
+      const raw = await postDiagnosticsHealthBooking(true, body, false);
+      const norm = normalizeBookingOverviewPayload(raw);
+      setLabOverview(norm);
+      if (!norm) setLabOverviewError("Could not read booking summary.");
+    } catch (e) {
+      setLabOverview(null);
+      const msg = e instanceof Error ? e.message : "Could not load summary";
+      setLabOverviewError(msg);
+      toast.error(msg);
+    } finally {
+      setLabOverviewLoading(false);
+    }
+  }, [isLabTests, buildHealthBookingBody, toast]);
+
+  useEffect(() => {
+    if (isLabTests) return;
+    const t = window.setTimeout(() => {
+      void loadHealthOverview();
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [isLabTests, loadHealthOverview, selectedAddressId]);
+
+  const diagRzpInvoiceIdRef = useRef<string | null>(null);
+  const diagRzpSuccessRef = useRef<() => void>(() => {});
+  const diagRzpErrorRef = useRef<(message: string) => void>(() => {});
+
+  useDiagnosticsRazorpayConfirm({
+    invoiceIdRef: diagRzpInvoiceIdRef,
+    onSuccessRef: diagRzpSuccessRef,
+    onErrorRef: diagRzpErrorRef,
+  });
+
+  diagRzpSuccessRef.current = () => {
+    setLabSubmitting(false);
+    toast.success("Booking confirmed");
+    navigate(generatePath(ROUTES.diagnosticsBookingSuccess, { type }));
+  };
+  diagRzpErrorRef.current = (message: string) => {
+    setLabSubmitting(false);
+    toast.error(message);
+  };
+
+  const finalizeDiagnosticsCheckout = useCallback(
+    async (raw: unknown): Promise<"razorpay" | "done" | "fail"> => {
+      const fin = parseDiagnosticsFinalizeResponse(raw);
+      const amountToPay = labOverview?.amountToPay ?? null;
+      const hasRzpKeys =
+        fin.razorpayPayload != null && Object.keys(fin.razorpayPayload).length > 0;
+      /** Preview flags only — used when finalize omits a gateway payload (Flutter does not gate on these to open Razorpay). */
+      const wantsPay =
+        fin.paymentRequired || (amountToPay != null && amountToPay > 0);
+
+      // patient_app `finalizeHealthCheckupBooking`: open Checkout whenever `razorpay_payload` is non-empty.
+      if (hasRzpKeys) {
+        const invoiceId = fin.invoiceId?.trim() || parseBookingInvoiceId(raw)?.trim() || null;
+        if (!invoiceId) {
+          toast.error("Missing invoice for payment.");
+          return "fail";
+        }
+        diagRzpInvoiceIdRef.current = invoiceId;
+        try {
+          await loadRazorpayScript();
+        } catch {
+          toast.error("Could not load payment gateway.");
+          return "fail";
+        }
+        if (!window.Razorpay) {
+          toast.error("Payment gateway is not available.");
+          return "fail";
+        }
+        openRazorpayCheckoutWithEvent(
+          normalizeRazorpayCheckoutPayload({ ...fin.razorpayPayload }),
+          DIAGNOSTICS_PAYMENT_DONE_EVENT,
+          (failMsg) => {
+            if (!isPaymentCancelledMessage(failMsg)) toast.error(failMsg);
+            diagRzpInvoiceIdRef.current = null;
+            setLabSubmitting(false);
+          },
+        );
+        return "razorpay";
+      }
+
+      if (wantsPay && !hasRzpKeys) {
+        toast.error(
+          "Payment is required but checkout could not start. Please try again or complete booking in the main app.",
+        );
+        return "fail";
+      }
+
+      const invoiceId = fin.invoiceId?.trim() || parseBookingInvoiceId(raw)?.trim() || null;
+      if (!invoiceId) {
+        toast.error("Could not read booking confirmation.");
+        return "fail";
+      }
+      await confirmDiagnosticsOrder({ invoice_id: invoiceId, payment_id: "" });
+      diagRzpSuccessRef.current();
+      return "done";
+    },
+    [labOverview?.amountToPay, toast],
+  );
+
   const formattedScheduleDate = useMemo(() => {
     if (!dateLabel) return "April 10, 2024";
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateLabel)) {
@@ -174,9 +345,7 @@ export function HealthCheckupsOverviewPage() {
     return `${formattedScheduleDate} | 2PM-3PM`;
   }, [slotLabel, formattedScheduleDate]);
 
-  const addedItemsCount = isLabTests
-    ? Math.max(1, labOverview?.items.length ?? 1)
-    : 1;
+  const addedItemsCount = Math.max(1, labOverview?.items.length ?? 1);
 
   const onLabConfirm = async () => {
     if (!isLabTests || labSubmitting) return;
@@ -202,27 +371,40 @@ export function HealthCheckupsOverviewPage() {
       users,
     };
     setLabSubmitting(true);
+    let keepSubmitting = false;
     try {
       const raw = await postDiagnosticsBooking(false, body, false);
-      const invoiceId = parseBookingInvoiceId(raw);
-      const pay = labOverview?.amountToPay ?? null;
-      if (pay != null && pay > 0) {
-        toast.error("Payment is required for this booking. Complete payment in the main app.");
-        return;
-      }
-      if (invoiceId) {
-        await confirmDiagnosticsOrder({ src: "self", order_id: invoiceId });
-      }
-      navigate(generatePath(ROUTES.diagnosticsBookingSuccess, { type }));
+      const r = await finalizeDiagnosticsCheckout(raw);
+      if (r === "razorpay") keepSubmitting = true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Booking failed");
     } finally {
-      setLabSubmitting(false);
+      if (!keepSubmitting) setLabSubmitting(false);
+    }
+  };
+
+  const onHealthConfirm = async () => {
+    if (isLabTests || labSubmitting) return;
+    const body = buildHealthBookingBody();
+    if (!body) {
+      toast.error("Missing booking details.");
+      return;
+    }
+    setLabSubmitting(true);
+    let keepSubmitting = false;
+    try {
+      const raw = await postDiagnosticsHealthBooking(false, body, false);
+      const r = await finalizeDiagnosticsCheckout(raw);
+      if (r === "razorpay") keepSubmitting = true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Booking failed");
+    } finally {
+      if (!keepSubmitting) setLabSubmitting(false);
     }
   };
 
   return (
-    <div className={`hco-page${isLabTests ? " hco-page--lab" : ""}`}>
+    <div className="hco-page hco-page--lab">
       <header className="hco-top">
         <Link
           to={generatePath(ROUTES.diagnosticsSlots, { type })}
@@ -239,7 +421,7 @@ export function HealthCheckupsOverviewPage() {
             />
           </svg>
         </Link>
-        <h1 className="hco-title">{isLabTests ? "Cart Overview" : "Health Checkups"}</h1>
+        <h1 className="hco-title">{isLabTests ? "Cart Overview" : "Booking summary"}</h1>
         {isLabTests ? (
           <span className="hco-top__balance" aria-hidden="true" />
         ) : (
@@ -290,8 +472,7 @@ export function HealthCheckupsOverviewPage() {
       <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
       <main className="hco-main">
-        {isLabTests ? (
-          <>
+        <div className="hco-main__inner">
             <div className="hco-main__content">
               <div className="hco-subhead">
                 <span className="hco-subhead__title">Added Items({addedItemsCount})</span>
@@ -310,7 +491,9 @@ export function HealthCheckupsOverviewPage() {
                     <div className="hco-item__text">
                       <div className="hco-item__name">{it.name}</div>
                       <div className="hco-item__meta">
-                        {vendorDisplayName || vendorId || "Lab partner"}
+                        {isLabTests
+                          ? vendorDisplayName || vendorId || "Lab partner"
+                          : labOverview?.vendorName || vendorId || "Diagnostics partner"}
                         {it.qty > 1 ? ` · Qty ${it.qty}` : ""}
                       </div>
                     </div>
@@ -350,7 +533,9 @@ export function HealthCheckupsOverviewPage() {
               <section className="hco-lab-vendor" aria-label="Price breakdown">
                 <div className="hco-lab-vendor__head">
                   <span className="hco-lab-vendor__logo">
-                    {labOverview?.vendorName || vendorDisplayName || "Lab"}
+                    {isLabTests
+                      ? labOverview?.vendorName || vendorDisplayName || "Lab"
+                      : labOverview?.vendorName || "Diagnostics"}
                   </span>
                   <span className="hco-lab-vendor__rating" aria-hidden="true">
                     ★ 4.5
@@ -426,200 +611,16 @@ export function HealthCheckupsOverviewPage() {
                 type="button"
                 className="hco-paybar__btn hco-paybar__btn--lab"
                 disabled={labSubmitting || labOverviewLoading || !labOverview}
-                onClick={() => void onLabConfirm()}
+                onClick={() => {
+                  void (isLabTests ? onLabConfirm() : onHealthConfirm());
+                }}
               >
                 <span className="hco-paybar__lab-label">
                   {labSubmitting ? "Confirming…" : "Confirm and pay"}
                 </span>
               </button>
             </footer>
-          </>
-        ) : (
-          <>
-            <div className="hco-main__content">
-              <div className="hco-subhead">
-                <span className="hco-subhead__title">Added Items({addedItemsCount})</span>
-              </div>
-
-              <section className="hco-item">
-                <div className="hco-item__row">
-                  <div className="hco-item__text">
-                    <div className="hco-item__name">Employee Annual Health Checkup</div>
-                    <div className="hco-item__meta">{vendorId ? `Vendor: ${vendorId}` : "For Kalyan"}</div>
-                  </div>
-                  <div className="hco-item__price">₹ 4,000</div>
-                </div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Phone number : +91 73********</div>
-                <div className="hco-help">Booking related updates will be sent on this number</div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Alternate Phone number</div>
-                <div className="hco-alt">
-                  <span className="hco-alt__cc">+91</span>
-                  <input
-                    className="hco-alt__input"
-                    placeholder="Enter your alternate number here"
-                    value={altPhone}
-                    onChange={(e) => setAltPhone(e.target.value)}
-                  />
-                </div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Date and time</div>
-                <div className="hco-dt">
-                  <span className="hco-dt__value">{slotLabel || "April 10, 2024 | 2PM–3PM"}</span>
-                  <button type="button" className="hco-dt__edit" aria-label="Edit date and time">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5z"
-                        stroke="#1A73E8"
-                        strokeWidth="2"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </section>
-
-              <section className="hco-totals">
-                <div className="hco-totals__row">
-                  <span className="hco-totals__k">Total MRP</span>
-                  <span className="hco-totals__v">₹ 4,000</span>
-                </div>
-                <div className="hco-totals__row hco-totals__muted">
-                  <span className="hco-totals__k">Home Collection Charges</span>
-                  <span className="hco-totals__v">₹ 80</span>
-                </div>
-
-                <div className="hco-wallet">
-                  <div className="hco-wallet__left">
-                    <div className="hco-wallet__k">From Wallet</div>
-                    <div className="hco-wallet__sub">Wallet Limit : ₹ 4,600</div>
-                  </div>
-                  <div className="hco-wallet__v">₹ 4,000</div>
-                </div>
-
-                <div className="hco-net">
-                  <span className="hco-net__k">Net Pay</span>
-                  <span className="hco-net__v">
-                    <span className="hco-net__strike">₹ 4,080</span> ₹ 0
-                  </span>
-                </div>
-              </section>
-
-              <section className="hco-item">
-                <div className="hco-item__row">
-                  <div className="hco-item__text">
-                    <div className="hco-item__name">Employee Annual Health Checkup</div>
-                    <div className="hco-item__meta">{vendorId ? `Vendor: ${vendorId}` : "For Kalyan"}</div>
-                  </div>
-                  <div className="hco-item__price">₹ 4,000</div>
-                </div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">
-                  <span>Phone number : +91 9999999999</span>
-                </div>
-                <div className="hco-help">
-                  <span>Booking related updates will be sent on this number</span>
-                </div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Alternate Phone number</div>
-                <div className="hco-alt">
-                  <span className="hco-alt__cc">+91</span>
-                  <input
-                    className="hco-alt__input"
-                    placeholder="Enter your alternate number here"
-                    value={altPhone}
-                    onChange={(e) => setAltPhone(e.target.value)}
-                  />
-                </div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Date and time</div>
-                <div className="hco-dt">
-                  <span className="hco-dt__value">{dateTimeDisplay}</span>
-                  <button type="button" className="hco-dt__edit" aria-label="Edit date and time">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5z"
-                        stroke="#1A73E8"
-                        strokeWidth="2"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </section>
-
-              <section className="hco-totals">
-                <div className="hco-totals__row">
-                  <span className="hco-totals__k">Total MRP</span>
-                  <span className="hco-totals__v">₹ 4,000</span>
-                </div>
-                <div className="hco-totals__row hco-totals__muted">
-                  <span className="hco-totals__k">Home Collection Charges</span>
-                  <span className="hco-totals__v">₹ 80</span>
-                </div>
-
-                <div className="hco-wallet">
-                  <div className="hco-wallet__left">
-                    <div className="hco-wallet__k">From Wallet</div>
-                    <div className="hco-wallet__sub">Wallet Limit : ₹ 4,600</div>
-                  </div>
-                  <div className="hco-wallet__v">₹ 4,000</div>
-                </div>
-
-                <div className="hco-net">
-                  <span className="hco-net__k">Net Pay</span>
-                  <span className="hco-net__v">
-                    <span className="hco-net__strike">₹ 4,080</span> ₹ 0
-                  </span>
-                </div>
-              </section>
-
-              <section className="hco-coins">
-                <span className="hco-coins__text">Flip Coins to be earned (1%):</span>
-                <span className="hco-coins__pill">
-                  <span className="hco-coins__coin" aria-hidden="true">
-                    ₹
-                  </span>
-                  <span>400</span>
-                  <span className="hco-coins__worth">Worth ₹ 40</span>
-                </span>
-              </section>
-
-              <p className="hco-coins__note">
-                Note : Flip Coins will be credited after order completion
-              </p>
-
-              <div className="hco-remarks">
-                <div className="hco-remarks__k">Remarks :</div>
-                <div className="hco-remarks__v">Order cannot be cancelled once confirmed</div>
-              </div>
-            </div>
-
-            <footer className="hco-paybar">
-              <button
-                type="button"
-                className="hco-paybar__btn"
-                onClick={() => navigate(generatePath(ROUTES.diagnosticsBookingSuccess, { type }))}
-              >
-                <span className="hco-paybar__amt">₹ 0</span>
-                <span className="hco-paybar__label">Confirm and pay</span>
-              </button>
-            </footer>
-          </>
-        )}
+        </div>
       </main>
     </div>
   );

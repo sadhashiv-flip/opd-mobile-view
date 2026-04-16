@@ -20,11 +20,24 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_MAPS_API_KEY?: string;
   /** Loader `region` bias (e.g. `in`). Defaults to `in`. */
   readonly VITE_GOOGLE_MAPS_REGION?: string;
-  /** POST gym payment init (returns payment_required, razorpay_payload, invoice_id). Default: `gym/payment_init`. */
+  /** POST gym opt-in / enrolment. Default: `gym/optIn`. */
+  readonly VITE_GYM_OPTIN_PATH?: string;
+  /**
+   * Gym payment resource base (no trailing slash), e.g. `gym/payment`.
+   * Used for `PATCH {base}/:invoice_id?useWallet=&status=confirm` like `offline/appointment/payment/:id`.
+   */
+  readonly VITE_GYM_PAYMENT_PATH?: string;
+  /**
+   * Override POST URL to open checkout when there is no invoice yet.
+   * Default: same as {@link VITE_GYM_PAYMENT_PATH} / `gym/payment` (`POST gym/payment`).
+   * Set to `gym/payment_init` only if the server still exposes that route.
+   */
   readonly VITE_GYM_PAYMENT_INIT_PATH?: string;
-  /** POST verify after Razorpay success. Default: `gym/payment_verify`. */
+  /**
+   * POST verify after Razorpay — body `{ invoice_id, payment_id }`. Default: `gym/payment_verify`.
+   */
   readonly VITE_GYM_PAYMENT_VERIFY_PATH?: string;
-  /** POST free confirm when payment_required is false. Default: `gym/payment_confirm`. */
+  /** @deprecated Prefer `PATCH` on {@link VITE_GYM_PAYMENT_PATH}/:id?status=confirm. Kept for env override only. */
   readonly VITE_GYM_PAYMENT_CONFIRM_PATH?: string;
   /**
    * WebSocket URL for video consultation signaling (e.g. API Gateway `wss://…/production`).

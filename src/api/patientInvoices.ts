@@ -752,20 +752,26 @@ export type InvoiceDetailModel = Readonly<{
   serviceVisitTypeLabel: string | null;
   /** Appointment id for `POST /upload` (`ref_id`) — from invoice `additional_info` / `info` when set, else `info.id`. */
   consultationUploadRefId: string | null;
-  /** Strict `info.additional_info.payment_required === true` (consultation invoices). */
+  /**
+   * Consultation: `info` exists, `info.additional_info` has own property `payment_required`, and it is strictly `true`.
+   */
   consultationPaymentRequired: boolean;
   /** `info.status` when an `info` block exists (e.g. pharmacy medicine order `4` = pending payment). */
   serviceInfoStatus: number | null;
-  /** `info.additional_info.payment_required === true` for any invoice type when `info` is present. */
-  infoPaymentRequired: boolean;
   /**
-   * Pharmacy + vision/dental/vaccine: envelope / `info.additional_info` via {@link pharmacyPaymentRequiredFromPayload},
-   * merged with `info.additional_info` and any `details[].payment_required` (vision-style payloads).
-   * Other categories: merged root `additional_info.payment_required` only.
+   * Same rule as {@link dataAdditionalInfoPaymentRequired}: `info.additional_info.payment_required`
+   * key present and value `true` (order detail pay CTA uses this with {@link dataAdditionalInfoPaymentRequiredKeyPresent}).
    */
+  infoPaymentRequired: boolean;
+  /** `info.additional_info` includes own property `payment_required` (used with {@link dataAdditionalInfoPaymentRequired}). */
   dataAdditionalInfoPaymentRequiredKeyPresent: boolean;
-  /** When {@link dataAdditionalInfoPaymentRequiredKeyPresent}, whether payment is required (true). */
+  /** Strict `true` only when {@link dataAdditionalInfoPaymentRequiredKeyPresent} and `payment_required === true`. */
   dataAdditionalInfoPaymentRequired: boolean;
+  /**
+   * Lab only: invoice `orders` is a non-empty array and every entry has `status === 4` (matches Flutter
+   * `showCompletePaymentBar` / `subOrders`). Always `false` for other categories.
+   */
+  labSubOrdersAllPendingPayment: boolean;
   /** Parsed `net_amount` / payable number for UI logic (e.g. pay CTA). */
   netPayAmount: number;
   /** `transaction_type` consultation — drives order-details layout. */
@@ -789,13 +795,19 @@ export type InvoiceDetailModel = Readonly<{
   /** Pharmacy pickup/delivery; vision/dental/vaccine **HOME_VISIT** user address from `info.details.address`. */
   pharmacyOrderLocation: PharmacyOrderLocationCardUi | null;
   /**
-   * True when partner/pharmacy order `info.status === 3` (user must confirm details).
+   * True when partner/pharmacy/lab order `info.status === 3` (user must confirm details).
    * Requested items, address, and center blocks render for all statuses — only the confirm CTA uses this flag.
-   * Confirm: `PATCH medicine/order/confirm/:id` (pharmacy) or `PATCH service/request/confirm/:info.id` (vision/dental/vaccine).
+   * Confirm: `PATCH medicine/order/confirm/:id` (pharmacy), `PATCH service/request/confirm/:info.id` (vision/dental/vaccine),
+   * or `PATCH lab/order/confirm/:serviceId` (lab).
    */
   pharmacyAwaitingDetailConfirmation: boolean;
   /** Pharmacy: `additional_info.time_slot`; vision/dental/vaccine: `info.details.slot` / `booking_time`. */
   pharmacyPreferredSlotDisplay: string | null;
+  /**
+   * Lab only: `info.additional_info.requested.collection_date` + `collection_slot_time` when present
+   * and different from the assigned slot (`pharmacyPreferredSlotDisplay` for lab).
+   */
+  labBookingRequestedDisplay: string | null;
   /** Pharmacy: `info.additional_info.center`; vision/dental/vaccine: `info.details.center`. */
   pharmacyConfirmCenter: PharmacyOrderConfirmCenterUi | null;
   /** `info.details.alternate_phone` / `alternatePhone` when present (any order type with an `info` block). */
@@ -915,49 +927,6 @@ function envelopeDataAdditionalInfoForPaymentGate(o: Record<string, unknown>): R
   return asRecord(o.additional_info);
 }
 
-/**
- * Pharmacy: `data.additional_info.info.payment_required` when nested `info` has the key; otherwise
- * `data.additional_info.payment_required`. Coerces common string/number forms to true|false.
- */
-function pharmacyDataPaymentRequiredFlags(dataLevelAdditional: Record<string, unknown> | null): Readonly<{
-  keyPresent: boolean;
-  requiredTrue: boolean;
-}> {
-  if (dataLevelAdditional == null) return { keyPresent: false, requiredTrue: false };
-  const infoRec = asRecord(dataLevelAdditional.info);
-  const source: Record<string, unknown> | null =
-    infoRec != null && Object.prototype.hasOwnProperty.call(infoRec, "payment_required")
-      ? infoRec
-      : Object.prototype.hasOwnProperty.call(dataLevelAdditional, "payment_required")
-        ? dataLevelAdditional
-        : null;
-  if (source == null) return { keyPresent: false, requiredTrue: false };
-  const v = source.payment_required;
-  if (v === true) return { keyPresent: true, requiredTrue: true };
-  if (v === false) return { keyPresent: true, requiredTrue: false };
-  if (typeof v === "string") {
-    const s = v.trim().toLowerCase();
-    if (s === "true" || s === "1" || s === "yes") return { keyPresent: true, requiredTrue: true };
-    return { keyPresent: true, requiredTrue: false };
-  }
-  if (typeof v === "number" && v === 1) return { keyPresent: true, requiredTrue: true };
-  return { keyPresent: true, requiredTrue: false };
-}
-
-/**
- * Pharmacy and Vision: order envelope `data.additional_info` first; if `payment_required` is absent there,
- * fall back to `data.info.additional_info` (flat `GET /invoice/:id` where the invoice row has `info`).
- */
-function pharmacyPaymentRequiredFromPayload(
-  o: Record<string, unknown>,
-  infoForStatus: Record<string, unknown> | null,
-): Readonly<{ keyPresent: boolean; requiredTrue: boolean }> {
-  const fromEnvelope = pharmacyDataPaymentRequiredFlags(envelopeDataAdditionalInfoForPaymentGate(o));
-  if (fromEnvelope.keyPresent) return fromEnvelope;
-  const infoAdd = infoForStatus != null ? asRecord(infoForStatus.additional_info) : null;
-  return pharmacyDataPaymentRequiredFlags(infoAdd);
-}
-
 function tryMergeInvoiceFromLineItemsArray(
   root: Record<string, unknown>,
   data: unknown[],
@@ -1062,17 +1031,6 @@ function lineRecordPaymentRequired(o: Record<string, unknown>): boolean {
   if (truthyLinePaymentRequired(o.payment_required ?? o.paymentRequired)) return true;
   const add = asRecord(o.additional_info);
   return add != null && truthyLinePaymentRequired(add.payment_required ?? add.paymentRequired);
-}
-
-/** Partner invoices may omit `additional_info.payment_required` but set `details[].payment_required`. */
-function invoiceDetailsAnyLinePaymentRequired(o: Record<string, unknown>): boolean {
-  const raw = o.details;
-  if (!Array.isArray(raw)) return false;
-  for (const item of raw) {
-    const rec = asRecord(item);
-    if (rec != null && lineRecordPaymentRequired(rec)) return true;
-  }
-  return false;
 }
 
 function parseDetailLineItem(v: unknown, index: number): ParsedLineRow | null {
@@ -1813,6 +1771,76 @@ function formatConsultationScheduleDisplay(info: Record<string, unknown>): strin
   return timePart ? `${date} ${timePart}` : date;
 }
 
+/** Lab / LABTEST: `info.additional_info.collection_date` + `collection_slot_time` (and root `info.date`). */
+function formatLabOrderSlotDisplay(info: Record<string, unknown>): string | null {
+  const add = asRecord(info.additional_info);
+  const date = (add ? str(add.collection_date) : null)?.trim() || str(info.date)?.trim() || null;
+  const slotTime = (add ? str(add.collection_slot_time) : null)?.trim() || null;
+  if (date && slotTime) return `${date}, ${slotTime}`;
+  if (slotTime) return slotTime;
+  return date;
+}
+
+/** Lab: patient’s original ask from `info.additional_info.requested` (before center / slot updates). */
+/**
+ * Lab invoice `orders[]` (Flutter `subOrders`): non-empty and every row `status === 4` (payment pending).
+ */
+function labInvoiceSubOrdersAllPaymentPendingStatus(o: Record<string, unknown>): boolean {
+  const raw = o.orders;
+  if (!Array.isArray(raw) || raw.length === 0) return false;
+  for (const item of raw) {
+    const rec = asRecord(item);
+    if (rec == null) return false;
+    const s = rec.status;
+    let status: number;
+    if (typeof s === "number" && !Number.isNaN(s)) {
+      status = Math.trunc(s);
+    } else {
+      const n = num(s);
+      status = n != null && !Number.isNaN(n) ? Math.trunc(n) : -1;
+    }
+    if (status !== 4) return false;
+  }
+  return true;
+}
+
+function formatLabOrderRequestedSlotDisplay(info: Record<string, unknown>): string | null {
+  const add = asRecord(info.additional_info);
+  if (!add) return null;
+  const req = asRecord(add.requested);
+  if (!req) return null;
+  const date = str(req.collection_date)?.trim() || null;
+  const slotTime = str(req.collection_slot_time)?.trim() || null;
+  if (date && slotTime) return `${date}, ${slotTime}`;
+  if (slotTime) return slotTime;
+  return date;
+}
+
+/** Lab home / registered address from `info.address` when present (sample collection / communication). */
+function parseLabOrderLocationCardUi(
+  _o: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+  categoryKey: string,
+): PharmacyOrderLocationCardUi | null {
+  if (categoryKey !== "lab" || info == null) return null;
+  const addr = asRecord(info.address);
+  if (!addr) return null;
+  const addressText = formatStructuredAddressLine(addr);
+  const phoneText = (str(addr.phone) ?? str(addr.mobile))?.trim() || null;
+  const mapsUrl = mapsUrlFromCoordinates(str(addr.location));
+  const headerName = str(addr.name)?.trim() || str(addr.tag)?.trim() || null;
+  const hasAny =
+    Boolean(addressText?.trim()) || Boolean(phoneText?.trim()) || Boolean(mapsUrl?.trim());
+  if (!hasAny) return null;
+  return {
+    cardTitle: "Address on file",
+    headerName,
+    addressText,
+    phoneText,
+    mapsUrl,
+  };
+}
+
 function parseConsultationOrderPatientUi(o: Record<string, unknown>): ConsultationOrderPatientUi | null {
   const user = asRecord(o.user);
   if (!user) return null;
@@ -2076,35 +2104,16 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const deliveryChargesFormatted =
     deliveryChargesNum > 0 ? `+ ${formatInr(deliveryChargesNum)}` : null;
 
-  const infoAdd =
-    isConsultationInvoice && infoForStatus != null
-      ? asRecord(infoForStatus.additional_info)
-      : null;
-  const consultationPaymentRequired = infoAdd != null && infoAdd.payment_required === true;
-
   const infoAddForPayment =
     infoForStatus != null ? asRecord(infoForStatus.additional_info) : null;
-  const infoPaymentRequired =
-    infoAddForPayment != null && infoAddForPayment.payment_required === true;
-  const rootAdd = asRecord(o.additional_info);
-  let dataAdditionalInfoPaymentRequiredKeyPresent =
-    rootAdd != null && Object.prototype.hasOwnProperty.call(rootAdd, "payment_required");
-  let dataAdditionalInfoPaymentRequired =
-    dataAdditionalInfoPaymentRequiredKeyPresent &&
-    rootAdd != null &&
-    rootAdd.payment_required === true;
-  if (isPartnerOrderPayFlowCategory(categoryKey)) {
-    const phFlags = pharmacyPaymentRequiredFromPayload(o, infoForStatus);
-    const anyLinePaymentRequired = invoiceDetailsAnyLinePaymentRequired(o);
-    const mergedRequired =
-      phFlags.requiredTrue || infoPaymentRequired || anyLinePaymentRequired;
-    dataAdditionalInfoPaymentRequired = mergedRequired;
-    dataAdditionalInfoPaymentRequiredKeyPresent =
-      phFlags.keyPresent ||
-      infoPaymentRequired ||
-      anyLinePaymentRequired ||
-      mergedRequired;
-  }
+  const dataAdditionalInfoPaymentRequiredKeyPresent =
+    infoAddForPayment != null &&
+    Object.prototype.hasOwnProperty.call(infoAddForPayment, "payment_required");
+  const dataAdditionalInfoPaymentRequired =
+    dataAdditionalInfoPaymentRequiredKeyPresent && infoAddForPayment.payment_required === true;
+  const consultationPaymentRequired =
+    isConsultationInvoice && dataAdditionalInfoPaymentRequired;
+  const infoPaymentRequired = dataAdditionalInfoPaymentRequired;
   /** Parsed from `o.user` when present — used on consultation and other service order detail UIs. */
   const consultationPatient = parseConsultationOrderPatientUi(o);
   const consultationBooking =
@@ -2120,27 +2129,45 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
   const pharmacyOrderLocation =
     parsePharmacyOrderLocationCardUi(o, infoForStatus, categoryKey) ??
-    parseVisionOrderLocationCardUi(o, infoForStatus, categoryKey);
+    parseVisionOrderLocationCardUi(o, infoForStatus, categoryKey) ??
+    parseLabOrderLocationCardUi(o, infoForStatus, categoryKey);
 
   const pharmacyPreferredSlotDisplay =
     categoryKey === "pharmacy" && infoForStatus != null
       ? formatConsultationScheduleDisplay(infoForStatus)
       : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
         ? formatVisionBookingSlotDisplay(infoForStatus)
+        : categoryKey === "lab" && infoForStatus != null
+          ? formatLabOrderSlotDisplay(infoForStatus)
+          : null;
+  const labBookingRequestedRaw =
+    categoryKey === "lab" && infoForStatus != null
+      ? formatLabOrderRequestedSlotDisplay(infoForStatus)
+      : null;
+  const labBookingRequestedDisplay =
+    labBookingRequestedRaw == null
+      ? null
+      : pharmacyPreferredSlotDisplay == null ||
+          labBookingRequestedRaw.replace(/\s+/g, " ").trim().toLowerCase() !==
+            pharmacyPreferredSlotDisplay.replace(/\s+/g, " ").trim().toLowerCase()
+        ? labBookingRequestedRaw
         : null;
   const pharmacyConfirmCenterParsed =
     categoryKey === "pharmacy" && infoForStatus != null
       ? parsePharmacyOrderConfirmCenterUi(infoForStatus)
       : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
         ? parseVisionOrderConfirmCenterUi(infoForStatus)
-        : null;
+        : categoryKey === "lab" && infoForStatus != null
+          ? parsePharmacyOrderConfirmCenterUi(infoForStatus)
+          : null;
   const pharmacyConfirmCenter =
     pharmacyConfirmCenterParsed != null &&
     pharmacyOrderConfirmCenterUiHasContent(pharmacyConfirmCenterParsed)
       ? pharmacyConfirmCenterParsed
       : null;
+  /** Lab: same `info.status === 3` gate as pharmacy / vision — user confirms center before payment when required. */
   const pharmacyAwaitingDetailConfirmation =
-    isPartnerOrderPayFlowCategory(categoryKey) &&
+    (isPartnerOrderPayFlowCategory(categoryKey) || categoryKey === "lab") &&
     serviceInfoStatus === 3 &&
     consultationInfoId != null &&
     consultationInfoId.trim().length > 0;
@@ -2150,6 +2177,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus,
     categoryKey,
   );
+
+  const labSubOrdersAllPendingPayment =
+    categoryKey === "lab" && labInvoiceSubOrdersAllPaymentPendingStatus(o);
 
   return {
     id,
@@ -2168,6 +2198,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoPaymentRequired,
     dataAdditionalInfoPaymentRequiredKeyPresent,
     dataAdditionalInfoPaymentRequired,
+    labSubOrdersAllPendingPayment,
     netPayAmount: netPayNum,
     isConsultationOrder: isConsultationInvoice,
     consultationPatient,
@@ -2185,6 +2216,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     pharmacyOrderLocation,
     pharmacyAwaitingDetailConfirmation,
     pharmacyPreferredSlotDisplay,
+    labBookingRequestedDisplay,
     pharmacyConfirmCenter,
     infoDetailsAlternatePhone,
     infoDetailsConditions,
