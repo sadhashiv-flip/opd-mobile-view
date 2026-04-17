@@ -16,6 +16,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
+import { fetchConsultationReportPdfObjectUrl } from "@/api/patientConsultationReport";
 import {
   downloadConsultationPrescriptionPdf,
   fetchInvoiceOrderPageData,
@@ -24,6 +25,7 @@ import {
   type InvoiceConsultationCompletedView,
   type InvoiceDetailModel,
 } from "@/api/patientInvoices";
+import { patchJumpingMindOrderCancel } from "@/api/patientJumpingMindOrder";
 import { patchLabOrderConfirm } from "@/api/patientLabOrderConfirm";
 import {
   patchLabOrderPaymentConfirm,
@@ -62,7 +64,7 @@ import {
   loadRazorpayScript,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
-import { AttachmentFilePreview } from "@/components/attachments/AttachmentFilePreview";
+import { AttachmentFilePreview, type AttachmentFilePreviewViewer } from "@/components/attachments/AttachmentFilePreview";
 import {
   ConsultationAttachReportsReadOnlyTabs,
   ConsultationManagedFilesTabs,
@@ -75,6 +77,7 @@ import {
   OrderDetailServiceMetaCard,
 } from "@/components/orders/OrderDetailSharedSections";
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { DEFAULT_CONSULT_SUCCESS_TITLE } from "@/constants/bookingSuccessNavigation";
 import {
   VIRTUAL_CONSULT_LANGUAGE_KEY,
   VIRTUAL_CONSULT_PURPOSE_KEY,
@@ -120,7 +123,8 @@ function navigatePartnerOrderPaymentSuccess(
         replace: true,
         state: {
           layout: "consult" as const,
-          description: "Your lab order payment is complete.",
+          title: DEFAULT_CONSULT_SUCCESS_TITLE,
+          description: "Your lab appointment has been booked successfully.",
         },
       });
       return;
@@ -137,7 +141,8 @@ function navigatePartnerOrderPaymentSuccess(
         replace: true,
         state: {
           layout: "consult" as const,
-          description: "Your booking has been confirmed.",
+          title: DEFAULT_CONSULT_SUCCESS_TITLE,
+          description: "Your appointment has been booked successfully.",
         },
       });
   }
@@ -313,7 +318,8 @@ export function OrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [linesExpanded, setLinesExpanded] = useState(false);
   const [prescriptionOpen, setPrescriptionOpen] = useState(false);
-  const [prescriptionDownloadBusyId, setPrescriptionDownloadBusyId] = useState<string | null>(null);
+  const [prescriptionPdfBusy, setPrescriptionPdfBusy] = useState(false);
+  const [prescriptionPdfViewer, setPrescriptionPdfViewer] = useState<AttachmentFilePreviewViewer>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -429,25 +435,75 @@ export function OrderDetailsPage() {
     });
   }, [consultationCompleted?.followUp, detail, navigate]);
 
-  const onDownloadPrescription = useCallback(
-    async (prescriptionId: string) => {
-      setPrescriptionDownloadBusyId(prescriptionId);
-      try {
-        await downloadConsultationPrescriptionPdf(prescriptionId);
-        toast.success("Download started");
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Could not download prescription";
-        toast.info(msg);
-      } finally {
-        setPrescriptionDownloadBusyId(null);
+  const prescriptionPdfAppointmentId = useMemo(() => {
+    const fromCompleted = consultationCompleted?.appointmentId?.trim();
+    if (fromCompleted) return fromCompleted;
+    const uploadRef = detail?.consultationUploadRefId?.trim();
+    if (uploadRef) return uploadRef;
+    return detail?.consultationInfoId?.trim() ?? null;
+  }, [
+    consultationCompleted?.appointmentId,
+    detail?.consultationInfoId,
+    detail?.consultationUploadRefId,
+  ]);
+
+  const closePrescriptionPdfViewer = useCallback(() => {
+    setPrescriptionPdfViewer((prev) => {
+      if (prev?.url?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.url);
       }
-    },
-    [toast],
-  );
+      return null;
+    });
+  }, []);
+
+  const openPrescriptionPdfViewer = useCallback(async () => {
+    const aid = prescriptionPdfAppointmentId;
+    if (!aid) {
+      toast.error("Prescription is not available for this order.");
+      return;
+    }
+    setPrescriptionPdfBusy(true);
+    try {
+      const url = await fetchConsultationReportPdfObjectUrl(aid);
+      setPrescriptionPdfViewer((prev) => {
+        if (prev?.url?.startsWith("blob:")) {
+          URL.revokeObjectURL(prev.url);
+        }
+        return { kind: "pdf", url, name: "Prescription.pdf" };
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not load prescription";
+      toast.error(msg);
+    } finally {
+      setPrescriptionPdfBusy(false);
+    }
+  }, [prescriptionPdfAppointmentId, toast]);
+
+  const onDownloadPrescription = useCallback(async () => {
+    const aid = prescriptionPdfAppointmentId;
+    if (!aid) {
+      toast.error("Prescription is not available for this order.");
+      return;
+    }
+    setPrescriptionPdfBusy(true);
+    try {
+      await downloadConsultationPrescriptionPdf(aid);
+      toast.success("Download started");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not download prescription";
+      toast.error(msg);
+    } finally {
+      setPrescriptionPdfBusy(false);
+    }
+  }, [prescriptionPdfAppointmentId, toast]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    closePrescriptionPdfViewer();
+  }, [invoiceId, closePrescriptionPdfViewer]);
 
   useEffect(() => {
     if (!detail || !invoiceId) return;
@@ -459,6 +515,9 @@ export function OrderDetailsPage() {
 
   const canCancelOrder = useMemo(() => {
     if (!detail) return false;
+    if (detail.categoryKey === "mental_wellness" || detail.categoryKey === "nutrition") {
+      return false;
+    }
     const serviceId = detail.consultationInfoId?.trim();
     if (!serviceId) return false;
     if (detail.isConsultationOrder) {
@@ -472,9 +531,11 @@ export function OrderDetailsPage() {
     return st !== 1 && st !== 2;
   }, [detail]);
 
+  const canCancelWellnessSession = detail?.wellnessSessionCancelAllowed === true;
+
   useEffect(() => {
-    if (!canCancelOrder) setCancelDialogOpen(false);
-  }, [canCancelOrder]);
+    if (!canCancelOrder && !canCancelWellnessSession) setCancelDialogOpen(false);
+  }, [canCancelOrder, canCancelWellnessSession]);
 
   useEffect(() => {
     const d = cancelDialogRef.current;
@@ -557,6 +618,7 @@ export function OrderDetailsPage() {
 
   const openConsultationFilePreview = useCallback(
     (rows: readonly ConsultationAttachmentRow[], url: string | null, _name: string) => {
+      closePrescriptionPdfViewer();
       const u = url?.trim();
       if (!u) return;
       const items = rows
@@ -564,7 +626,7 @@ export function OrderDetailsPage() {
         .filter((x) => x.url.length > 0);
       openAttachmentGalleryPreview(items, u);
     },
-    [openAttachmentGalleryPreview],
+    [closePrescriptionPdfViewer, openAttachmentGalleryPreview],
   );
 
   const onConfirmCancelConsultation = useCallback(async () => {
@@ -576,16 +638,26 @@ export function OrderDetailsPage() {
     }
     setCancelBusy(true);
     try {
-      const useServiceRequestCancel =
-        detail?.categoryKey === "vision" ||
-        detail?.categoryKey === "dental" ||
-        detail?.categoryKey === "vaccine";
-      if (useServiceRequestCancel) {
-        await patchServiceRequestOrderCancel(serviceId, cancelReason.trim());
+      const isWellness =
+        detail?.categoryKey === "mental_wellness" || detail?.categoryKey === "nutrition";
+      if (isWellness && detail.wellnessSessionCancelAllowed) {
+        await patchJumpingMindOrderCancel({
+          service_id: serviceId,
+          cancellation_reason: cancelReason.trim(),
+        });
+        toast.success("Session cancelled");
       } else {
-        await patchCancelServiceRequest(serviceId, cancelReason.trim());
+        const useServiceRequestCancel =
+          detail?.categoryKey === "vision" ||
+          detail?.categoryKey === "dental" ||
+          detail?.categoryKey === "vaccine";
+        if (useServiceRequestCancel) {
+          await patchServiceRequestOrderCancel(serviceId, cancelReason.trim());
+        } else {
+          await patchCancelServiceRequest(serviceId, cancelReason.trim());
+        }
+        toast.success(detail?.isConsultationOrder ? "Appointment cancelled" : "Order cancelled");
       }
-      toast.success(detail?.isConsultationOrder ? "Appointment cancelled" : "Order cancelled");
       setCancelDialogOpen(false);
       await load();
     } catch (e) {
@@ -593,7 +665,15 @@ export function OrderDetailsPage() {
     } finally {
       setCancelBusy(false);
     }
-  }, [cancelReason, detail?.categoryKey, detail?.consultationInfoId, detail?.isConsultationOrder, load, toast]);
+  }, [
+    cancelReason,
+    detail?.categoryKey,
+    detail?.consultationInfoId,
+    detail?.isConsultationOrder,
+    detail?.wellnessSessionCancelAllowed,
+    load,
+    toast,
+  ]);
 
   const useWalletForOfflinePayment = false;
 
@@ -1330,9 +1410,15 @@ export function OrderDetailsPage() {
                     <button
                       type="button"
                       className="od-rx-row__link"
-                      onClick={() => setPrescriptionOpen((o) => !o)}
+                      disabled={prescriptionPdfBusy || !prescriptionPdfAppointmentId}
+                      onClick={() => void openPrescriptionPdfViewer()}
                     >
-                      Click here to view
+                      {prescriptionPdfBusy && !prescriptionPdfViewer
+                        ? "Opening PDF…"
+                        : "View prescription PDF"}
+                    </button>
+                    <button type="button" className="od-rx-row__link od-rx-row__link--secondary" onClick={() => setPrescriptionOpen((o) => !o)}>
+                      {prescriptionOpen ? "Hide" : "Show"} medicine list
                       {cc.prescriptions.length > 1 ? ` (${cc.prescriptions.length})` : ""}
                     </button>
                   </div>
@@ -1340,9 +1426,9 @@ export function OrderDetailsPage() {
                     <button
                       type="button"
                       className="od-rx-row__dl"
-                      aria-label="Download prescription"
-                      disabled={prescriptionDownloadBusyId === cc.prescriptions[0].id}
-                      onClick={() => void onDownloadPrescription(cc.prescriptions[0].id)}
+                      aria-label="Download prescription PDF"
+                      disabled={prescriptionPdfBusy || !prescriptionPdfAppointmentId}
+                      onClick={() => void onDownloadPrescription()}
                     >
                       <DownloadIcon />
                     </button>
@@ -1360,9 +1446,9 @@ export function OrderDetailsPage() {
                           <button
                             type="button"
                             className="od-rx-item__dl"
-                            aria-label="Download this prescription"
-                            disabled={prescriptionDownloadBusyId === rx.id}
-                            onClick={() => void onDownloadPrescription(rx.id)}
+                            aria-label="Download prescription PDF"
+                            disabled={prescriptionPdfBusy || !prescriptionPdfAppointmentId}
+                            onClick={() => void onDownloadPrescription()}
                           >
                             <DownloadIcon />
                           </button>
@@ -1433,10 +1519,16 @@ export function OrderDetailsPage() {
               </section>
             ) : null}
 
-            {canCancelOrder ? (
+            {canCancelOrder || canCancelWellnessSession ? (
               <section
                 className="od-order-cancel-end"
-                aria-label={isConsultationLayout ? "Cancel appointment" : "Cancel order"}
+                aria-label={
+                  canCancelWellnessSession
+                    ? "Cancel session"
+                    : isConsultationLayout
+                      ? "Cancel appointment"
+                      : "Cancel order"
+                }
               >
                 <div className="od-order-cancel-wrap">
                   <button
@@ -1447,7 +1539,11 @@ export function OrderDetailsPage() {
                       setCancelDialogOpen(true);
                     }}
                   >
-                    {isConsultationLayout ? "Cancel appointment" : "Cancel order"}
+                    {canCancelWellnessSession
+                      ? "Cancel session"
+                      : isConsultationLayout
+                        ? "Cancel appointment"
+                        : "Cancel order"}
                   </button>
                 </div>
               </section>
@@ -1546,7 +1642,7 @@ export function OrderDetailsPage() {
         </dialog>
       ) : null}
 
-      {canCancelOrder ? (
+      {canCancelOrder || canCancelWellnessSession ? (
         <dialog
           ref={cancelDialogRef}
           className="od-cancel-dialog"
@@ -1560,12 +1656,18 @@ export function OrderDetailsPage() {
         >
           <div className="od-cancel-dialog__panel">
             <h2 id={cancelDialogTitleId} className="od-cancel-dialog__title">
-              {isConsultationLayout ? "Cancel appointment?" : "Cancel this order?"}
+              {canCancelWellnessSession
+                ? "Cancel session?"
+                : isConsultationLayout
+                  ? "Cancel appointment?"
+                  : "Cancel this order?"}
             </h2>
             <p id={`${cancelDialogTitleId}-desc`} className="od-cancel-dialog__desc">
-              {isConsultationLayout
-                ? "Please tell us why you are cancelling. This helps us improve the service."
-                : "Please tell us why you want to cancel this order. Our team may contact you if needed."}
+              {canCancelWellnessSession
+                ? "Cancellations must be at least one hour before the scheduled time. Please share a short reason."
+                : isConsultationLayout
+                  ? "Please tell us why you are cancelling. This helps us improve the service."
+                  : "Please tell us why you want to cancel this order. Our team may contact you if needed."}
             </p>
             <label className="od-cancel-dialog__label" htmlFor={cancelReasonFieldId}>
               Reason for cancellation
@@ -1587,7 +1689,11 @@ export function OrderDetailsPage() {
                 disabled={cancelBusy}
                 onClick={() => setCancelDialogOpen(false)}
               >
-                {isConsultationLayout ? "Keep appointment" : "Keep order"}
+                {canCancelWellnessSession
+                  ? "Keep session"
+                  : isConsultationLayout
+                    ? "Keep appointment"
+                    : "Keep order"}
               </button>
               <button
                 type="button"
@@ -1607,6 +1713,8 @@ export function OrderDetailsPage() {
         onClose={closeConsultationFilePreview}
         onGalleryNavigate={onConsultationGalleryNavigate}
       />
+
+      <AttachmentFilePreview viewer={prescriptionPdfViewer} onClose={closePrescriptionPdfViewer} />
     </div>
   );
 }

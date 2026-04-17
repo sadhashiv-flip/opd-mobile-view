@@ -617,7 +617,7 @@ export function GymMembershipConfigurePage() {
         };
       })();
       const snapshot: GymOverviewSnapshot = {
-        planId,
+        planId: planId ?? primaryMemberPlanId,
         accountPrimaryUser,
         showSecondary,
         primary: {

@@ -44,6 +44,15 @@ interface ImportMetaEnv {
    * Required to open the video call screen; join REST still uses {@link VITE_API_BASE_URL}.
    */
   readonly VITE_SOCKET_URL?: string;
+  /** Firebase Web SDK — same values as Flutter `firebase_options.dart` (not service-account JSON). */
+  readonly VITE_FIREBASE_API_KEY?: string;
+  readonly VITE_FIREBASE_AUTH_DOMAIN?: string;
+  readonly VITE_FIREBASE_PROJECT_ID?: string;
+  readonly VITE_FIREBASE_STORAGE_BUCKET?: string;
+  readonly VITE_FIREBASE_MESSAGING_SENDER_ID?: string;
+  readonly VITE_FIREBASE_APP_ID?: string;
+  /** Google Analytics / Firebase Analytics (optional). */
+  readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
 }
 
 interface ImportMeta {

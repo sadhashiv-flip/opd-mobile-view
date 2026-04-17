@@ -1,6 +1,6 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, generatePath } from "react-router-dom";
 import { SessionNoticeGateLayout } from "@/app/SessionNoticeGateLayout";
-import { ROUTES } from "../constants";
+import { ROUTES, VISION_ROUTE_TYPE } from "../constants";
 import { ProfileMembersAddPage } from "@/pages/ProfileMembersAddPage";
 import { BookingSuccessPage } from "../pages/BookingSuccessPage";
 import { ConsultationAppointmentSlotsPage } from "../pages/ConsultationAppointmentSlotsPage";
@@ -16,7 +16,9 @@ import { AccountLinkPage } from "@/pages/AccountLinkPage";
 import { PreLoginNoticeGate } from "../pages/PreLoginNoticeGate";
 import { RequiredLabTestsPage } from "@/pages/RequiredLabTestsPage";
 import { OtpPage } from "../pages/OtpPage";
-import { PlaceholderPage } from "../pages/PlaceholderPage";
+import { MedicalRecordsPage } from "@/pages/MedicalRecordsPage";
+import { MedicalRecordsConsultationChatPage } from "@/pages/MedicalRecordsConsultationChatPage";
+import { UnknownRouteRedirect } from "@/app/UnknownRouteRedirect";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
 import { SupportTicketChatPage } from "@/pages/SupportTicketChatPage";
 import { GymMembershipPage } from "@/pages/GymMembershipPage";
@@ -96,6 +98,9 @@ export function AppRoutes() {
       <Route path={ROUTES.userDetailsBmiResult} element={<UserDetailsBmiResultPage />} />
       <Route path={ROUTES.accountLink} element={<AccountLinkPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
+      <Route path={ROUTES.medicalRecords} element={<MedicalRecordsPage />} />
+      <Route path={ROUTES.medicalRecordsConsultationChat} element={<MedicalRecordsConsultationChatPage />} />
+      <Route path={ROUTES.medicalRecordsCategory} element={<MedicalRecordsPage />} />
       <Route path={ROUTES.videoCall} element={<VideoCallPage />} />
       <Route path={ROUTES.profile} element={<ProfilePage />} />
       <Route path={ROUTES.profileBank} element={<ProfileBankPage />} />
@@ -168,7 +173,15 @@ export function AppRoutes() {
       <Route path={ROUTES.dentalBookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.bookingSuccess} element={<BookingSuccessPage />} />
       <Route path={ROUTES.dental} element={<Navigate to={ROUTES.dentalSelectPeople} replace />} />
-      <Route path={ROUTES.vision} element={<PlaceholderPage title="Vision" />} />
+      <Route
+        path={ROUTES.vision}
+        element={
+          <Navigate
+            to={generatePath(ROUTES.visionSelectPeople, { visionType: VISION_ROUTE_TYPE.eyeCheckup })}
+            replace
+          />
+        }
+      />
       <Route path={ROUTES.pharmacy} element={<PharmacyDeliveryPage />} />
       <Route path={ROUTES.pharmacyUpload} element={<PharmacyUploadPage />} />
       <Route path={ROUTES.pharmacySelectPrescription} element={<PharmacySelectPrescriptionPage />} />
@@ -214,7 +227,7 @@ export function AppRoutes() {
       <Route path={ROUTES.vaccinationSlots} element={<VaccinationSlotsPage />} />
       <Route path={ROUTES.vaccinationOverview} element={<VaccinationOverviewPage />} />
       <Route path={ROUTES.servicesWellness} element={<WellnessSessionPage />} />
-      <Route path="*" element={<Navigate to={ROUTES.login} replace />} />
+      <Route path="*" element={<UnknownRouteRedirect />} />
       </Route>
     </Routes>
   );

@@ -36,6 +36,11 @@ export const ROUTES = {
   servicesHelpTab: "/services?tab=help",
   /** Services hub, Medical Records tab — bottom nav “Medical Records”. */
   servicesMedicalRecordsTab: "/services?tab=medical-records",
+  /** Medical history lists (`GET /patient/history/type/…`). */
+  medicalRecords: "/medical-records",
+  /** Consultation thread (`GET /patient/chat/messages/:appointmentId`, `POST /patient/chat/:appointmentId`). */
+  medicalRecordsConsultationChat: "/medical-records/consultations/chat/:appointmentId",
+  medicalRecordsCategory: "/medical-records/:categorySlug",
   diagnosticsType: "/diagnostics/:type",
   diagnosticsSelectPeople: "/diagnostics/:type/select-people",
   diagnosticsAddFamilyMember: "/diagnostics/:type/add-family-member",

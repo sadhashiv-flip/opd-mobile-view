@@ -114,8 +114,6 @@ export function ServicesHubPage() {
   // Help tab: 4-column grid; other tabs keep the shared hub layout.
   const gridCols = tabId === "help" ? 4 : 2;
 
-  const [medicalSelectedId, setMedicalSelectedId] = useState("lab");
-
   const supportTicketsFiltered = useMemo(() => {
     const filtered = supportTickets.filter((ticket) => {
       const isClosed = isSupportTicketClosedTabStatus(ticket.status ?? null);
@@ -337,7 +335,6 @@ export function ServicesHubPage() {
           {items.map((item) => {
             const Icon = item.Icon;
             const isMedical = tabId === "medical-records";
-            const selected = isMedical && medicalSelectedId === item.id;
 
             let iconNode = null;
             if (item.iconSrc) {
@@ -426,7 +423,17 @@ export function ServicesHubPage() {
                 });
               };
             } else if (isMedical) {
-              cardAction = () => setMedicalSelectedId(item.id);
+              cardAction = () => {
+                if (item.id === "appts") {
+                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "consultations" }));
+                } else if (item.id === "lab") {
+                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "lab-tests" }));
+                } else if (item.id === "rx") {
+                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "prescriptions" }));
+                } else {
+                  void navigate(ROUTES.medicalRecords);
+                }
+              };
             }
 
             return (
@@ -436,7 +443,6 @@ export function ServicesHubPage() {
                 title={item.title}
                 description={item.description}
                 badge={item.badge}
-                selected={selected}
                 onClick={cardAction}
               />
             );

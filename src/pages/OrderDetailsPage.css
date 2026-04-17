@@ -759,6 +759,17 @@
   opacity: 0.85;
 }
 
+.od-rx-row__link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.od-rx-row__link--secondary {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #5c6570;
+}
+
 .od-rx-row__dl,
 .od-rx-item__dl {
   flex-shrink: 0;

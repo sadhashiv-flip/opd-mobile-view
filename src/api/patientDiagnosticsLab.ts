@@ -13,6 +13,10 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
 /** GET `/diagnostics/packages` — Individual lab catalogue (`loc` = address id). */
 export type DiagnosticCatalogRow = Readonly<{
   id: number;
@@ -120,6 +124,8 @@ export async function fetchDiagnosticVendorsPricing(addressId: string): Promise<
 
 export type HealthCheckupPackageRow = Readonly<{
   id: number;
+  /** `pricing.id` from package row — used for `GET …/diagnostics/packages/{id}` inclusions (Flutter `openPackageInclusions`). */
+  pricingId: number | null;
   name: string;
   type: string;
   category: string;
@@ -147,14 +153,66 @@ export async function fetchHealthCheckupPackages(params: Readonly<{
     const o = row as Record<string, unknown>;
     const id = num(o.id);
     if (id == null) continue;
+    const pricing = asRecord(o.pricing);
+    const pricingIdRaw = pricing != null ? num(pricing.id) : null;
     out.push({
       id,
+      pricingId: pricingIdRaw != null && pricingIdRaw > 0 ? pricingIdRaw : null,
       name: str(o.name) || "Package",
       type: str(o.type) || "special",
       category: str(o.category) || "pathology",
       fastingTime: num(o.fasting_time),
       tat: num(o.tat),
     });
+  }
+  return out;
+}
+
+export type DiagnosticsPackageInclusionGroup = Readonly<{
+  name: string;
+  lines: readonly string[];
+}>;
+
+/** `GET /patient/diagnostics/packages/{pricingId}` → `data.parameters` (Flutter `PackageInclusionsScreen`). */
+export async function fetchDiagnosticsPackageInclusions(
+  pricingId: number,
+): Promise<readonly DiagnosticsPackageInclusionGroup[]> {
+  if (!Number.isFinite(pricingId) || pricingId <= 0) return [];
+  const raw = await patientJson<unknown>(`diagnostics/packages/${pricingId}`, { method: "GET" });
+  const root = asRecord(raw);
+  const data = root != null ? asRecord(root.data) : null;
+  const parameters = data != null && Array.isArray(data.parameters) ? data.parameters : [];
+  const out: DiagnosticsPackageInclusionGroup[] = [];
+  for (const row of parameters) {
+    const m = asRecord(row);
+    if (!m) continue;
+    const nameRaw = m.name;
+    const name =
+      typeof nameRaw === "string" && nameRaw.trim()
+        ? nameRaw.trim()
+        : typeof nameRaw === "number" || typeof nameRaw === "boolean"
+          ? String(nameRaw)
+          : "—";
+    const detailRaw = m.package_detail;
+    const lines: string[] = [];
+    if (Array.isArray(detailRaw)) {
+      for (const d of detailRaw) {
+        if (typeof d === "string" || typeof d === "number" || typeof d === "boolean") {
+          const s = String(d).trim();
+          if (s) lines.push(s);
+        } else {
+          const dr = asRecord(d);
+          if (dr) {
+            const label = str(dr.name) ?? str(dr.title);
+            const val = str(dr.value) ?? str(dr.description);
+            if (label && val) lines.push(`${label}: ${val}`);
+            else if (label) lines.push(label);
+            else if (val) lines.push(val);
+          }
+        }
+      }
+    }
+    out.push({ name, lines });
   }
   return out;
 }

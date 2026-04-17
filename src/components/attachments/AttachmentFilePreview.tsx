@@ -131,6 +131,20 @@ export function AttachmentFilePreview({
                 Open
               </a>
             ) : null}
+            {viewer.kind === "pdf" ? (
+              <a
+                href={viewer.url}
+                download={
+                  viewer.name?.trim().toLowerCase().endsWith(".pdf")
+                    ? viewer.name.trim()
+                    : `${(viewer.name ?? "prescription").replace(/\.pdf$/i, "").trim() || "prescription"}.pdf`
+                }
+                className="support-chat__viewer-btn support-chat__viewer-btn--ghost"
+                rel="noopener"
+              >
+                Download
+              </a>
+            ) : null}
             <button
               type="button"
               className="support-chat__viewer-btn support-chat__viewer-btn--close"

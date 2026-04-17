@@ -1,4 +1,5 @@
 import type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
+import { fetchConsultationReportPdfBlob, triggerConsultationReportPdfDownload } from "@/api/patientConsultationReport";
 import { patientJson } from "@/api/patientHttp";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 
@@ -828,6 +829,11 @@ export type InvoiceDetailModel = Readonly<{
   walletDebitFormatted: string | null;
   netPayFormatted: string;
   payments: readonly InvoicePaymentRow[];
+  /**
+   * Mental wellness / nutrition: `info.status === 5` and session start &gt; 60 minutes away
+   * (same rule as Flutter `WellnessOrderDetailController.canCancel`).
+   */
+  wellnessSessionCancelAllowed: boolean;
 }>;
 
 const LINE_ITEM_ARRAY_KEYS = [
@@ -1936,6 +1942,30 @@ function formatVisitTypeForDisplay(raw: string | null): string | null {
     .join(" ");
 }
 
+function computeWellnessSessionCancelAllowed(
+  categoryKey: string,
+  serviceInfoStatus: number | null,
+  infoForStatus: Record<string, unknown> | null,
+): boolean {
+  if (categoryKey !== "mental_wellness" && categoryKey !== "nutrition") return false;
+  if (serviceInfoStatus !== 5) return false;
+  if (!infoForStatus) return false;
+  const details = asRecord(infoForStatus.details);
+  if (!details) return false;
+  const bookingDetails = asRecord(details.booking_details);
+  if (!bookingDetails) return false;
+  const booking = asRecord(bookingDetails.booking);
+  if (!booking) return false;
+  const selectedDate = str(booking.selected_date);
+  const slotMap = asRecord(booking.slot);
+  const startTime = slotMap ? str(slotMap.start_time) : null;
+  if (!selectedDate || !startTime) return false;
+  let t = Date.parse(`${selectedDate} ${startTime}`);
+  if (Number.isNaN(t)) t = Date.parse(`${selectedDate}T${startTime}`);
+  if (Number.isNaN(t)) return false;
+  return t - Date.now() > 60 * 60 * 1000;
+}
+
 function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel {
   const id =
     str(o.id) ??
@@ -2181,6 +2211,12 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const labSubOrdersAllPendingPayment =
     categoryKey === "lab" && labInvoiceSubOrdersAllPaymentPendingStatus(o);
 
+  const wellnessSessionCancelAllowed = computeWellnessSessionCancelAllowed(
+    categoryKey,
+    serviceInfoStatus,
+    infoForStatus,
+  );
+
   return {
     id,
     bannerTone,
@@ -2230,6 +2266,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     walletDebitFormatted,
     netPayFormatted: formatInr(netPayNum),
     payments,
+    wellnessSessionCancelAllowed,
   };
 }
 
@@ -2479,14 +2516,10 @@ export async function fetchInvoiceOrderPageData(invoiceId: string): Promise<Invo
 }
 
 /**
- * Prescription PDF download for the order detail screen.
- * Replace with a real `patientFetch` call when the endpoint is available.
+ * Prescription PDF download for completed consultation orders.
+ * Uses `GET /patient/consultation/:appointmentId/report.pdf` (see {@link fetchConsultationReportPdfBlob}).
  */
-export async function downloadConsultationPrescriptionPdf(prescriptionId: string): Promise<void> {
-  const id = prescriptionId.trim();
-  if (!id) {
-    throw new Error("Missing prescription id");
-  }
-  void id;
-  throw new Error("Prescription download API is not configured yet");
+export async function downloadConsultationPrescriptionPdf(appointmentId: string): Promise<void> {
+  const blob = await fetchConsultationReportPdfBlob(appointmentId);
+  triggerConsultationReportPdfDownload(appointmentId, blob);
 }

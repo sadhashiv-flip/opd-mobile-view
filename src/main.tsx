@@ -4,6 +4,18 @@ import App from "@/app/App";
 import logoSmUrl from "@/assets/images/logos/logo-sm.png";
 import "./index.css";
 
+const firebaseEnvReady = Boolean(
+  import.meta.env.VITE_FIREBASE_API_KEY?.trim() &&
+    import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim() &&
+    import.meta.env.VITE_FIREBASE_APP_ID?.trim(),
+);
+if (firebaseEnvReady) {
+  void import("@/lib/firebase").then(({ getFirebaseApp, getFirebaseAnalytics }) => {
+    getFirebaseApp();
+    void getFirebaseAnalytics();
+  });
+}
+
 function applyAppIcons(iconUrl: string) {
   const ensureLink = (rel: string, type: string) => {
     let el = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);

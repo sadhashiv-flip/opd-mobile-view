@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
+    "firebase": "^12.12.0",
     "lottie-react": "^2.4.1",
     "pdfjs-dist": "5.4.296",
     "react": "^19.0.0",

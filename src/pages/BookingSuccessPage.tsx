@@ -9,9 +9,11 @@ import {
   DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL,
   DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL,
   DEFAULT_CONSULT_SUCCESS_SUB_VISION,
+  DEFAULT_CONSULT_SUCCESS_SUB_GENERIC_BOOKING,
   DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS,
   DEFAULT_CONSULT_SUCCESS_TITLE,
   isBookingSuccessLocationState,
+  resolveDiagnosticsBookingSuccessCardCopy,
 } from "@/constants/bookingSuccessNavigation";
 import successLottie from "@/assets/lotties/success.json";
 import "./BookingSuccessPage.css";
@@ -58,13 +60,19 @@ function resolveConsultCopy(
     }
     return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VISION };
   }
+  if (pathname === ROUTES.bookingSuccess) {
+    return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_GENERIC_BOOKING };
+  }
   return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL };
 }
 
 export function BookingSuccessPage() {
   const navigate = useNavigate();
   const { pathname, state: rawState } = useLocation();
-  const { visionType: visionTypeParam } = useParams<{ visionType?: string }>();
+  const { visionType: visionTypeParam, type: diagnosticsTypeParam } = useParams<{
+    visionType?: string;
+    type?: string;
+  }>();
   const consultLayout = useConsultLayout(pathname, rawState);
   const consultCopy = useMemo(
     () => resolveConsultCopy(pathname, rawState, visionTypeParam),
@@ -72,6 +80,11 @@ export function BookingSuccessPage() {
   );
 
   const cardCopy = useMemo(() => {
+    const onDiagnosticsSuccess =
+      matchPath({ path: ROUTES.diagnosticsBookingSuccess, end: true }, pathname) != null;
+    if (onDiagnosticsSuccess) {
+      return resolveDiagnosticsBookingSuccessCardCopy(diagnosticsTypeParam);
+    }
     if (!isBookingSuccessLocationState(rawState)) {
       return {
         title: DEFAULT_BOOKING_SUCCESS_TITLE,
@@ -84,7 +97,7 @@ export function BookingSuccessPage() {
       title: t || DEFAULT_BOOKING_SUCCESS_TITLE,
       description: d || DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
     };
-  }, [rawState]);
+  }, [diagnosticsTypeParam, pathname, rawState]);
 
   useEffect(() => {
     if (consultLayout) return;

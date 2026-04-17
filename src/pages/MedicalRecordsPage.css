@@ -1,0 +1,242 @@
+.medical-records-page {
+  min-height: 100%;
+  padding: 12px 16px 24px;
+  box-sizing: border-box;
+}
+
+.mr-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mr-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+  background: var(--color-surface-elevated, #f4f6f8);
+}
+
+.mr-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.mr-main {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.mr-lead {
+  margin: 0 0 16px;
+  color: var(--color-text-secondary, #5c6570);
+  font-size: 0.95rem;
+}
+
+.mr-all-cats {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-primary, #0d6efd);
+  text-decoration: none;
+}
+
+.mr-cat-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 480px) {
+  .mr-cat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.mr-cat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--color-surface-elevated, #f4f6f8);
+  border: 1px solid var(--color-border, #e6e8eb);
+}
+
+.mr-cat-card__name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.mr-cat-card__desc {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #5c6570);
+}
+
+.mr-status {
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.mr-status--error {
+  color: #b42318;
+}
+
+.mr-empty-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+
+.mr-book-now {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #fff;
+  background: var(--color-brand-orange, #ff6d00);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.mr-book-now:focus-visible {
+  outline: 2px solid var(--color-brand-orange, #ff6d00);
+  outline-offset: 2px;
+}
+
+.mr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mr-row {
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, #e6e8eb);
+  background: #fff;
+  cursor: pointer;
+}
+
+.mr-row__title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.mr-row__sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary, #5c6570);
+}
+
+.mr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 24px;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.mr-overlay__panel {
+  width: 100%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 0 0 12px;
+}
+
+.mr-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 16px 8px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-bottom: 1px solid var(--color-border, #e6e8eb);
+}
+
+.mr-dialog__head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.mr-dialog__close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.mr-dialog__body {
+  padding: 12px 16px 8px;
+}
+
+.mr-dialog__actions {
+  margin: 0 0 12px;
+}
+
+.mr-link {
+  font-weight: 600;
+  color: var(--color-primary, #0d6efd);
+}
+
+.mr-kv {
+  margin: 0;
+}
+
+.mr-kv__row {
+  display: grid;
+  grid-template-columns: minmax(0, 38%) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.82rem;
+}
+
+.mr-kv__row dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text-secondary, #5c6570);
+  word-break: break-word;
+}
+
+.mr-kv__row dd {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

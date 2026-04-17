@@ -11,8 +11,10 @@ import { useToast } from "@/hooks/useToast";
 import { addLabProductToCart, fetchLabCart, removeLabCartItem } from "@/api/patientLabCart";
 import {
   fetchDiagnosticPackages,
+  fetchDiagnosticsPackageInclusions,
   fetchHealthCheckupPackages,
   type DiagnosticCatalogRow,
+  type DiagnosticsPackageInclusionGroup,
   type HealthCheckupPackageRow,
 } from "@/api/patientDiagnosticsLab";
 import {
@@ -77,6 +79,26 @@ export function HealthCheckupsPlanPage() {
   const [addingProductId, setAddingProductId] = useState<number | null>(null);
   const [inCartProductIds, setInCartProductIds] = useState<ReadonlySet<number>>(() => new Set());
   const [labCartByProductId, setLabCartByProductId] = useState(() => new Map<number, number>());
+
+  const [inclusionsPricingId, setInclusionsPricingId] = useState<number | null>(null);
+  const [inclusionsLoading, setInclusionsLoading] = useState(false);
+  const [inclusionsGroups, setInclusionsGroups] = useState<readonly DiagnosticsPackageInclusionGroup[]>([]);
+  const [inclusionsErr, setInclusionsErr] = useState<string | null>(null);
+
+  const openPackageInclusions = useCallback(async (pricingId: number) => {
+    setInclusionsPricingId(pricingId);
+    setInclusionsLoading(true);
+    setInclusionsErr(null);
+    setInclusionsGroups([]);
+    try {
+      const g = await fetchDiagnosticsPackageInclusions(pricingId);
+      setInclusionsGroups(g);
+    } catch (e) {
+      setInclusionsErr(e instanceof Error ? e.message : "Could not load inclusions");
+    } finally {
+      setInclusionsLoading(false);
+    }
+  }, []);
 
   const refreshLabCart = useCallback(async () => {
     try {
@@ -487,58 +509,68 @@ export function HealthCheckupsPlanPage() {
                             ? `${pkg.fastingTime} hrs fasting`
                             : "No fasting required";
                         return (
-                          <button
-                            key={pkg.id}
-                            type="button"
-                            className={`hcp-card hcp-card--interactive${sel ? " hcp-card--selected" : ""}`}
-                            aria-pressed={sel}
-                            onClick={() =>
-                              setPkgByMemberKey((prev) => ({
-                                ...prev,
-                                [activeHealthMember.id]: pkg.id,
-                              }))
-                            }
-                          >
-                            <div className="hcp-card__top">
-                              <h2 className="hcp-card__name">{pkg.name}</h2>
-                              <span className="hcp-pill">{pkg.category}</span>
-                            </div>
-                            <div className="hcp-warn">
-                              <span className="hcp-warn__ic" aria-hidden="true">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                  <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
-                                  <path d="M12 7v6" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
-                                </svg>
-                              </span>
-                              <span className="hcp-warn__text">{fasting}</span>
-                            </div>
-                            <ul className="hcp-list">
-                              <li className="hcp-li">
-                                <span className="hcp-li__ic" aria-hidden="true">
-                                  ✓
+                          <div key={pkg.id} className="hcp-card-wrap">
+                            <button
+                              type="button"
+                              className={`hcp-card hcp-card--interactive${sel ? " hcp-card--selected" : ""}`}
+                              aria-pressed={sel}
+                              onClick={() =>
+                                setPkgByMemberKey((prev) => ({
+                                  ...prev,
+                                  [activeHealthMember.id]: pkg.id,
+                                }))
+                              }
+                            >
+                              <div className="hcp-card__top">
+                                <h2 className="hcp-card__name">{pkg.name}</h2>
+                                <span className="hcp-pill">{pkg.category}</span>
+                              </div>
+                              <div className="hcp-warn">
+                                <span className="hcp-warn__ic" aria-hidden="true">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                    <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
+                                    <path d="M12 7v6" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
+                                  </svg>
                                 </span>
-                                {labReportsLabel(pkg.tat)}
-                              </li>
-                              <li className="hcp-li">
-                                <span className="hcp-li__ic" aria-hidden="true">
-                                  ✓
+                                <span className="hcp-warn__text">{fasting}</span>
+                              </div>
+                              <ul className="hcp-list">
+                                <li className="hcp-li">
+                                  <span className="hcp-li__ic" aria-hidden="true">
+                                    ✓
+                                  </span>
+                                  {labReportsLabel(pkg.tat)}
+                                </li>
+                                <li className="hcp-li">
+                                  <span className="hcp-li__ic" aria-hidden="true">
+                                    ✓
+                                  </span>
+                                  Home sample collection where available
+                                </li>
+                              </ul>
+                              <div className="hcp-bottom">
+                                <span className="hcp-home-ic" aria-hidden="true">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                    <path
+                                      d="M3 10.5L12 3l9 7.5V21H3V10.5z"
+                                      fill="#ffffff"
+                                      opacity="0.95"
+                                    />
+                                  </svg>
                                 </span>
-                                Home sample collection where available
-                              </li>
-                            </ul>
-                            <div className="hcp-bottom">
-                              <span className="hcp-home-ic" aria-hidden="true">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                  <path
-                                    d="M3 10.5L12 3l9 7.5V21H3V10.5z"
-                                    fill="#ffffff"
-                                    opacity="0.95"
-                                  />
-                                </svg>
-                              </span>
-                              Health checkup
-                            </div>
-                          </button>
+                                Health checkup
+                              </div>
+                            </button>
+                            {pkg.pricingId != null ? (
+                              <button
+                                type="button"
+                                className="hcp-inclusions-btn"
+                                onClick={() => void openPackageInclusions(pkg.pricingId!)}
+                              >
+                                What&apos;s included
+                              </button>
+                            ) : null}
+                          </div>
                         );
                       })
                     : null}
@@ -565,6 +597,67 @@ export function HealthCheckupsPlanPage() {
           </button>
         </footer>
       )}
+
+      {inclusionsPricingId != null ? (
+        <div
+          className="hcp-incl-overlay"
+          role="presentation"
+          onClick={() => {
+            setInclusionsPricingId(null);
+            setInclusionsErr(null);
+            setInclusionsGroups([]);
+          }}
+        >
+          <div
+            className="hcp-incl-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hcp-incl-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="hcp-incl-head">
+              <h2 id="hcp-incl-title">What&apos;s included</h2>
+              <button
+                type="button"
+                className="hcp-incl-close"
+                aria-label="Close"
+                onClick={() => {
+                  setInclusionsPricingId(null);
+                  setInclusionsErr(null);
+                  setInclusionsGroups([]);
+                }}
+              >
+                ×
+              </button>
+            </header>
+            <div className="hcp-incl-body">
+              {inclusionsLoading ? <p className="hcp-incl-status">Loading…</p> : null}
+              {inclusionsErr ? (
+                <p className="hcp-incl-status hcp-incl-status--err" role="alert">
+                  {inclusionsErr}
+                </p>
+              ) : null}
+              {!inclusionsLoading && !inclusionsErr && inclusionsGroups.length === 0 ? (
+                <p className="hcp-incl-status">No inclusion details for this package.</p>
+              ) : null}
+              <ul className="hcp-incl-list">
+                {inclusionsGroups.map((g, gi) => (
+                  <li key={`${g.name}-${gi}`} className="hcp-incl-block">
+                    <h3 className="hcp-incl-block__title">{g.name}</h3>
+                    {g.lines.length === 0 ? null : (
+                      <ul className="hcp-incl-lines">
+                        {g.lines.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
