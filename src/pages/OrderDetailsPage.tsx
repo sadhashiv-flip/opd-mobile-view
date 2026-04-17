@@ -24,6 +24,7 @@ import {
   type ConsultationAttachmentRow,
   type InvoiceConsultationCompletedView,
   type InvoiceDetailModel,
+  type LabSubOrderDetailRow,
 } from "@/api/patientInvoices";
 import { patchJumpingMindOrderCancel } from "@/api/patientJumpingMindOrder";
 import { patchLabOrderConfirm } from "@/api/patientLabOrderConfirm";
@@ -51,6 +52,7 @@ import {
   type OfflineBookingPaymentSheetModel,
 } from "@/api/patientOfflineAppointmentPayment";
 import { BookingConfirmationBottomSheet } from "@/components/orders/BookingConfirmationBottomSheet";
+import { LabOrderRescheduleBottomSheet } from "@/components/orders/LabOrderRescheduleBottomSheet";
 import {
   DIAGNOSTICS_PAYMENT_DONE_EVENT,
   PAYMENT_DONE_EVENT,
@@ -346,6 +348,7 @@ export function OrderDetailsPage() {
   const confirmMedicineOrderTitleId = useId();
   const [confirmMedicineOrderDialogOpen, setConfirmMedicineOrderDialogOpen] = useState(false);
   const [confirmMedicineOrderBusy, setConfirmMedicineOrderBusy] = useState(false);
+  const [labRescheduleRow, setLabRescheduleRow] = useState<LabSubOrderDetailRow | null>(null);
   /** `order_id` for payment verify when returned on confirm; else Razorpay order id. */
   const pharmacyVerifyOrderIdRef = useRef<string | null>(null);
   /**
@@ -1020,6 +1023,20 @@ export function OrderDetailsPage() {
     return detail.pharmacyConfirmCenter;
   }, [detail]);
 
+  const openLabReschedule = useCallback(
+    (row: LabSubOrderDetailRow) => {
+      if (!detail || detail.categoryKey !== "lab") return;
+      const addr = detail.labCollectionAddressId?.trim() ?? "";
+      const vendor = detail.labRescheduleVendorCode?.trim() ?? "";
+      if (!addr || !vendor) {
+        toast.error("Address or lab partner is missing. You cannot reschedule from this screen right now.");
+        return;
+      }
+      setLabRescheduleRow(row);
+    },
+    [detail, toast],
+  );
+
   const onConfirmMedicineOrderDetails = useCallback(async () => {
     if (!detail) return;
     const serviceOrOrderId = detail.consultationInfoId?.trim();
@@ -1365,6 +1382,73 @@ export function OrderDetailsPage() {
                     ) : null}
                   </>
                 ) : null}
+
+                {detail.categoryKey === "lab" && detail.labSubOrders.length > 0 ? (
+                  <section className="od-card od-card--lab-suborders" aria-label="Lab collection bookings">
+                    <h3 className="od-card__title">Collection bookings</h3>
+                    <ul className="od-lab-sub-list">
+                      {detail.labSubOrders.map((row) => (
+                        <li key={row.id} className="od-lab-sub-card">
+                          <div className="od-lab-sub-card__head">
+                            <span className="od-lab-sub-card__id">#{row.id}</span>
+                            {row.categoryLabel.trim() && row.categoryLabel !== "—" ? (
+                              <span className="od-lab-sub-card__pill">{row.categoryLabel}</span>
+                            ) : null}
+                          </div>
+                          {row.visitTypeDisplay ? (
+                            <p className="od-lab-sub-card__visit">Visit: {row.visitTypeDisplay}</p>
+                          ) : null}
+                          <p className="od-lab-sub-card__status">Status: {row.statusLabel}</p>
+                          {row.dateSlotLine ? <p className="od-lab-sub-card__slot">{row.dateSlotLine}</p> : null}
+                          {row.reschedulePolicyNote ? (
+                            <p className="od-lab-sub-card__note">{row.reschedulePolicyNote}</p>
+                          ) : null}
+                          {row.rescheduleReason != null ||
+                          row.rescheduleSlotChangeDisplay != null ||
+                          row.rescheduleAtDisplay != null ||
+                          row.rescheduleCountDisplay != null ? (
+                            <div className="od-lab-sub-card__reschedule-data" aria-label="Reschedule details">
+                              <h4 className="od-lab-sub-card__subhead">Reschedule details</h4>
+                              {row.rescheduleReason ? (
+                                <div className="od-lab-sub-card__kv">
+                                  <span className="od-lab-sub-card__k">Reschedule reason</span>
+                                  <span className="od-lab-sub-card__v">{row.rescheduleReason}</span>
+                                </div>
+                              ) : null}
+                              {row.rescheduleSlotChangeDisplay ? (
+                                <div className="od-lab-sub-card__kv">
+                                  <span className="od-lab-sub-card__k">Requested slot</span>
+                                  <span className="od-lab-sub-card__v">{row.rescheduleSlotChangeDisplay}</span>
+                                </div>
+                              ) : null}
+                              {row.rescheduleAtDisplay ? (
+                                <div className="od-lab-sub-card__kv">
+                                  <span className="od-lab-sub-card__k">Reschedule time</span>
+                                  <span className="od-lab-sub-card__v">{row.rescheduleAtDisplay}</span>
+                                </div>
+                              ) : null}
+                              {row.rescheduleCountDisplay ? (
+                                <div className="od-lab-sub-card__kv">
+                                  <span className="od-lab-sub-card__k">Reschedule count</span>
+                                  <span className="od-lab-sub-card__v">{row.rescheduleCountDisplay}</span>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {row.showRescheduleButton ? (
+                            <button
+                              type="button"
+                              className="od-lab-sub-card__reschedule"
+                              onClick={() => openLabReschedule(row)}
+                            >
+                              Reschedule
+                            </button>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
               </>
             )}
 
@@ -1575,6 +1659,24 @@ export function OrderDetailsPage() {
             }
           }}
           onProceed={onBookingSheetProceed}
+        />
+      ) : null}
+
+      {labRescheduleRow != null && detail?.categoryKey === "lab" ? (
+        <LabOrderRescheduleBottomSheet
+          open
+          onClose={() => setLabRescheduleRow(null)}
+          subOrderId={labRescheduleRow.id}
+          rescheduleCategory={labRescheduleRow.rescheduleCategory}
+          addressId={detail.labCollectionAddressId?.trim() ?? ""}
+          vendorCode={detail.labRescheduleVendorCode?.trim() ?? ""}
+          onCompleted={load}
+          priorReschedule={{
+            reason: labRescheduleRow.rescheduleReason,
+            slotChangeDisplay: labRescheduleRow.rescheduleSlotChangeDisplay,
+            atDisplay: labRescheduleRow.rescheduleAtDisplay,
+            countDisplay: labRescheduleRow.rescheduleCountDisplay,
+          }}
         />
       ) : null}
 

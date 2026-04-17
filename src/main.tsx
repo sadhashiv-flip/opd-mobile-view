@@ -13,6 +13,7 @@ if (firebaseEnvReady) {
   void import("@/lib/firebase").then(({ getFirebaseApp, getFirebaseAnalytics }) => {
     getFirebaseApp();
     void getFirebaseAnalytics();
+    void import("@/lib/fcmToken").then((m) => m.prefetchWebFcmTokenSilent());
   });
 }
 

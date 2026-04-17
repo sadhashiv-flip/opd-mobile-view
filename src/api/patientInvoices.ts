@@ -732,6 +732,27 @@ function pharmacyOrderConfirmCenterUiHasContent(c: PharmacyOrderConfirmCenterUi)
   return name.length > 0 || addr.length > 0 || phone.length > 0 || maps.length > 0;
 }
 
+/** One row from invoice `orders[]` on lab / LABTEST detail (Flutter `_LabSubOrderCard`). */
+export type LabSubOrderDetailRow = Readonly<{
+  id: string;
+  categoryLabel: string;
+  visitTypeDisplay: string | null;
+  status: number;
+  statusLabel: string;
+  dateSlotLine: string | null;
+  reschedulePolicyNote: string | null;
+  showRescheduleButton: boolean;
+  rescheduleCategory: "pathology" | "radiology";
+  /** Last / pending `reschedule_reason` from the API when returned on the sub-order. */
+  rescheduleReason: string | null;
+  /** Human line for a pending or last requested slot change (nested `additional_info` or flat keys). */
+  rescheduleSlotChangeDisplay: string | null;
+  /** When a reschedule was applied or requested (`rescheduled_at`, etc.), formatted for display. */
+  rescheduleAtDisplay: string | null;
+  /** Optional count from API (`reschedule_count`, etc.). */
+  rescheduleCountDisplay: string | null;
+}>;
+
 export type InvoiceDetailModel = Readonly<{
   id: string;
   bannerTone: InvoiceDetailBannerTone;
@@ -809,6 +830,14 @@ export type InvoiceDetailModel = Readonly<{
    * and different from the assigned slot (`pharmacyPreferredSlotDisplay` for lab).
    */
   labBookingRequestedDisplay: string | null;
+  /**
+   * Lab invoice `orders[]` sub-rows for collection bookings (Flutter `subOrders` cards).
+   */
+  labSubOrders: readonly LabSubOrderDetailRow[];
+  /** `info.address.id` when present — required for reschedule slot fetch and PATCH body. */
+  labCollectionAddressId: string | null;
+  /** `info.source` (or fallbacks) — vendor code for diagnostics slots when rescheduling. */
+  labRescheduleVendorCode: string | null;
   /** Pharmacy: `info.additional_info.center`; vision/dental/vaccine: `info.details.center`. */
   pharmacyConfirmCenter: PharmacyOrderConfirmCenterUi | null;
   /** `info.details.alternate_phone` / `alternatePhone` when present (any order type with an `info` block). */
@@ -1822,6 +1851,261 @@ function formatLabOrderRequestedSlotDisplay(info: Record<string, unknown>): stri
   return date;
 }
 
+function formatLabInvoiceSubOrderDateHint(raw: string): string {
+  const t = raw.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const [y, mo, d] = t.split("-").map((x) => Number(x));
+  if (!y || !mo || !d) return t;
+  const dt = new Date(y, mo - 1, d);
+  if (Number.isNaN(dt.getTime())) return t;
+  return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function labSubOrderStatusLabelFromCode(status: number): string {
+  const map: Record<number, string> = {
+    0: "Waiting for confirmation",
+    1: "Completed",
+    2: "Cancelled",
+    3: "Confirm changes",
+    4: "Payment pending",
+    5: "Booking confirmed",
+    6: "Phlebotomist assigned",
+    7: "Sample collected",
+    8: "Waiting for report",
+    9: "Expired",
+  };
+  return map[status] ?? "In progress";
+}
+
+function labInvoiceOrderRowStatus(raw: unknown): number {
+  if (typeof raw === "number" && !Number.isNaN(raw)) return Math.trunc(raw);
+  const n = num(raw);
+  return n != null && !Number.isNaN(n) ? Math.trunc(n) : -1;
+}
+
+/** Same window as Flutter `_isLabSubOrderReschedulableNow` (slot start vs now − 1h). */
+function isLabSubOrderReschedulableNow(date: string | null, slotTime: string): boolean {
+  const d = date?.trim() ?? "";
+  const slot = slotTime.trim();
+  if (!d || !slot) return false;
+  const parts = slot.split("-");
+  const start = parts[0]?.trim() ?? "";
+  if (!start) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const combined = `${d} ${start}`;
+  const dt = new Date(combined);
+  const slotMs = dt.getTime();
+  if (Number.isNaN(slotMs)) return false;
+  const threshold = Date.now() - 60 * 60 * 1000;
+  return slotMs >= threshold;
+}
+
+function parseLabCollectionAddressId(info: Record<string, unknown> | null): string | null {
+  if (info == null) return null;
+  const addr = asRecord(info.address);
+  if (addr == null) return null;
+  const id = str(addr.id)?.trim();
+  return id && id.length > 0 ? id : null;
+}
+
+function nonEmptyTrimmed(v: unknown): string | null {
+  const s = str(v)?.trim();
+  return s != null && s.length > 0 ? s : null;
+}
+
+/**
+ * Reads reschedule-related fields from one lab `orders[]` row (snake/camel and nested `additional_info`).
+ */
+function parseLabSubOrderRescheduleApiFields(rec: Record<string, unknown>): Readonly<{
+  rescheduleReason: string | null;
+  rescheduleSlotChangeDisplay: string | null;
+  rescheduleAtDisplay: string | null;
+  rescheduleCountDisplay: string | null;
+}> {
+  const add = asRecord(rec.additional_info);
+
+  const fromRescheduleMap = (m: Record<string, unknown> | null): string | null => {
+    if (m == null) return null;
+    const d =
+      nonEmptyTrimmed(m.collection_date) ??
+      nonEmptyTrimmed(m.date) ??
+      nonEmptyTrimmed(m.slot_date);
+    const t =
+      nonEmptyTrimmed(m.collection_slot_time) ??
+      nonEmptyTrimmed(m.slot_time) ??
+      nonEmptyTrimmed(m.start_time);
+    if (!d && !t) return null;
+    const datePart =
+      d != null && /^\d{4}-\d{2}-\d{2}$/.test(d) ? formatLabInvoiceSubOrderDateHint(d) : d;
+    if (datePart && t) return `${datePart} · ${t}`;
+    return datePart ?? t ?? null;
+  };
+
+  const rescheduleMap =
+    add != null
+      ? asRecord(add.reschedule) ??
+        asRecord(add.rescheduled) ??
+        asRecord(add.reschedule_request) ??
+        asRecord(add.pending_reschedule)
+      : null;
+
+  const reason =
+    nonEmptyTrimmed(rec.reschedule_reason) ??
+    nonEmptyTrimmed(rec.rescheduleReason) ??
+    (add != null
+      ? nonEmptyTrimmed(add.reschedule_reason) ??
+        nonEmptyTrimmed(add.rescheduleReason) ??
+        nonEmptyTrimmed(asRecord(add.reschedule)?.reason) ??
+        nonEmptyTrimmed(asRecord(add.reschedule_request)?.reason)
+      : null);
+
+  const flatSlotLine = ((): string | null => {
+    const d =
+      nonEmptyTrimmed(rec.reschedule_collection_date) ??
+      nonEmptyTrimmed(rec.reschedule_date) ??
+      nonEmptyTrimmed(rec.new_collection_date);
+    const t =
+      nonEmptyTrimmed(rec.reschedule_collection_slot_time) ??
+      nonEmptyTrimmed(rec.reschedule_slot_time) ??
+      nonEmptyTrimmed(rec.new_slot_time);
+    if (!d && !t) return null;
+    const datePart =
+      d != null && /^\d{4}-\d{2}-\d{2}$/.test(d) ? formatLabInvoiceSubOrderDateHint(d) : d;
+    if (datePart && t) return `${datePart} · ${t}`;
+    return datePart ?? t ?? null;
+  })();
+
+  const nestedSlotLine = fromRescheduleMap(rescheduleMap);
+  const rescheduleSlotChangeDisplay =
+    flatSlotLine != null ? flatSlotLine : nestedSlotLine != null ? nestedSlotLine : null;
+
+  const atRaw =
+    nonEmptyTrimmed(rec.rescheduled_at) ??
+    nonEmptyTrimmed(rec.reschedule_at) ??
+    nonEmptyTrimmed(rec.reschedule_on) ??
+    nonEmptyTrimmed(rec.last_reschedule_at) ??
+    (add != null
+      ? nonEmptyTrimmed(add.rescheduled_at) ??
+        nonEmptyTrimmed(add.reschedule_at) ??
+        nonEmptyTrimmed(add.reschedule_on)
+      : null);
+
+  const rescheduleAtDisplay = atRaw != null ? formatOrderDateTime(atRaw) : null;
+
+  const countRaw =
+    num(rec.reschedule_count) ??
+    num(rec.rescheduleCount) ??
+    (add != null ? num(add.reschedule_count) ?? num(add.rescheduleCount) : null);
+  const rescheduleCountDisplay =
+    countRaw != null && !Number.isNaN(countRaw) && countRaw > 0
+      ? String(Math.trunc(countRaw))
+      : null;
+
+  return {
+    rescheduleReason: reason,
+    rescheduleSlotChangeDisplay,
+    rescheduleAtDisplay,
+    rescheduleCountDisplay,
+  };
+}
+
+function parseLabRescheduleVendorCode(
+  o: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+): string | null {
+  if (info != null) {
+    const fromInfo =
+      str(info.source)?.trim() ??
+      str(info.vendor_code)?.trim() ??
+      str(info.vendorCode)?.trim();
+    if (fromInfo) return fromInfo;
+  }
+  const vd = asRecord(o.vendor_details);
+  if (vd != null) {
+    const c =
+      str(vd.code)?.trim() ??
+      str(vd.vendor_code)?.trim() ??
+      str(vd.vendorCode)?.trim();
+    if (c) return c;
+  }
+  return str(o.source)?.trim() ?? null;
+}
+
+function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | null): readonly LabSubOrderDetailRow[] {
+  const raw = o.orders;
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  const rows: LabSubOrderDetailRow[] = [];
+  for (const item of raw) {
+    const rec = asRecord(item);
+    if (rec == null) continue;
+    const id = str(rec.id)?.trim() ?? "";
+    if (!id) continue;
+    const status = labInvoiceOrderRowStatus(rec.status);
+    const catRaw = str(rec.category)?.trim() ?? "";
+    const categoryLower = catRaw.toLowerCase();
+    const rescheduleCategory: "pathology" | "radiology" =
+      categoryLower === "radiology" ? "radiology" : "pathology";
+    const visitTypeRaw = str(rec.visit_type)?.trim() ?? "";
+    const visitTypeDisplay =
+      visitTypeRaw.length > 0 ? visitTypeRaw.replaceAll("_", " ") : null;
+    const date = str(rec.date)?.trim() || null;
+    const slotTime = str(rec.slot_time)?.trim() ?? "";
+    const dateHint = date != null && date.length > 0 ? formatLabInvoiceSubOrderDateHint(date) : null;
+    const dateSlotLine =
+      dateHint != null
+        ? `Date: ${dateHint}${slotTime.length > 0 ? ` · ${slotTime}` : ""}`
+        : slotTime.length > 0
+          ? `Date: — · ${slotTime}`
+          : null;
+    const hasRescheduleKey = Object.prototype.hasOwnProperty.call(rec, "available_reschedule");
+    const availableReschedule = hasRescheduleKey ? rec.available_reschedule === true : null;
+    const limitRaw = rec.available_reschedule_limit;
+    const limitNum =
+      limitRaw == null
+        ? null
+        : typeof limitRaw === "number" && !Number.isNaN(limitRaw)
+          ? Math.trunc(limitRaw)
+          : (() => {
+              const n = num(limitRaw);
+              return n != null && !Number.isNaN(n) ? Math.trunc(n) : null;
+            })();
+    let reschedulePolicyNote: string | null = null;
+    if (status === 5 && addressId != null && addressId.length > 0 && hasRescheduleKey) {
+      if (availableReschedule === true) {
+        reschedulePolicyNote =
+          limitNum != null
+            ? `Note: You can reschedule only ${limitNum} time(s).`
+            : "You can reschedule this booking.";
+      } else {
+        reschedulePolicyNote =
+          "Note: You have reached the maximum number of reschedules. Please contact support for cancellation.";
+      }
+    }
+    const showRescheduleButton =
+      status === 5 &&
+      (addressId?.length ?? 0) > 0 &&
+      availableReschedule === true &&
+      isLabSubOrderReschedulableNow(date, slotTime);
+    const rs = parseLabSubOrderRescheduleApiFields(rec);
+    rows.push({
+      id,
+      categoryLabel: catRaw.length > 0 ? catRaw : "—",
+      visitTypeDisplay,
+      status,
+      statusLabel: labSubOrderStatusLabelFromCode(status),
+      dateSlotLine,
+      reschedulePolicyNote,
+      showRescheduleButton,
+      rescheduleCategory,
+      rescheduleReason: rs.rescheduleReason,
+      rescheduleSlotChangeDisplay: rs.rescheduleSlotChangeDisplay,
+      rescheduleAtDisplay: rs.rescheduleAtDisplay,
+      rescheduleCountDisplay: rs.rescheduleCountDisplay,
+    });
+  }
+  return rows;
+}
+
 /** Lab home / registered address from `info.address` when present (sample collection / communication). */
 function parseLabOrderLocationCardUi(
   _o: Record<string, unknown>,
@@ -2211,6 +2495,13 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const labSubOrdersAllPendingPayment =
     categoryKey === "lab" && labInvoiceSubOrdersAllPaymentPendingStatus(o);
 
+  const labCollectionAddressId =
+    categoryKey === "lab" ? parseLabCollectionAddressId(infoForStatus) : null;
+  const labRescheduleVendorCode =
+    categoryKey === "lab" ? parseLabRescheduleVendorCode(o, infoForStatus) : null;
+  const labSubOrders =
+    categoryKey === "lab" ? parseLabSubOrderRows(o, labCollectionAddressId) : [];
+
   const wellnessSessionCancelAllowed = computeWellnessSessionCancelAllowed(
     categoryKey,
     serviceInfoStatus,
@@ -2253,6 +2544,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     pharmacyAwaitingDetailConfirmation,
     pharmacyPreferredSlotDisplay,
     labBookingRequestedDisplay,
+    labSubOrders,
+    labCollectionAddressId,
+    labRescheduleVendorCode,
     pharmacyConfirmCenter,
     infoDetailsAlternatePhone,
     infoDetailsConditions,

@@ -7,6 +7,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { requestForgotOtp, verifyForgotOtp } from "@/api/patientForgot";
+import { getWebFcmToken } from "@/lib/fcmToken";
 import { resetPatientPassword } from "@/api/patientReset";
 import { MIN_PHONE_DIGITS } from "@/constants/auth";
 import { getAuthSession } from "@/lib/authStorage";
@@ -123,10 +124,12 @@ function ForgotPasswordOtpStep({
     setBanner(null);
     setSubmitting(true);
     try {
+      const fcm_token = await getWebFcmToken();
       const { token } = await verifyForgotOtp({
         action: "FORGOT",
         value: phoneDigits,
         code: digits.join(""),
+        fcm_token,
       });
       saveForgotResetToken(token);
       onOtpVerified();

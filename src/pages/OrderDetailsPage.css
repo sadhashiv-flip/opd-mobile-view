@@ -1852,3 +1852,113 @@
   border: 1.5px solid #e0e0e0;
   color: #9e9e9e;
 }
+
+/* Lab invoice `orders[]` — reschedule parity with Flutter lab order detail. */
+.od-lab-sub-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.od-lab-sub-card {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #eee9e4;
+  background: #ffffff;
+}
+
+.od-lab-sub-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.od-lab-sub-card__id {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-lab-sub-card__pill {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #b45309;
+}
+
+.od-lab-sub-card__visit,
+.od-lab-sub-card__status,
+.od-lab-sub-card__slot {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #4a423b;
+}
+
+.od-lab-sub-card__status {
+  color: #6b625b;
+}
+
+.od-lab-sub-card__note {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #6b625b;
+}
+
+.od-lab-sub-card__reschedule-data {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee9e4;
+}
+
+.od-lab-sub-card__subhead {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-lab-sub-card__kv {
+  display: grid;
+  grid-template-columns: minmax(0, 36%) 1fr;
+  gap: 6px 10px;
+  align-items: start;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.od-lab-sub-card__k {
+  color: #6b625b;
+  font-weight: 600;
+}
+
+.od-lab-sub-card__v {
+  color: #111111;
+  word-break: break-word;
+}
+
+.od-lab-sub-card__reschedule {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #ff5224;
+  background: #ffffff;
+  color: #ff5224;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.od-lab-sub-card__reschedule:active {
+  opacity: 0.85;
+}

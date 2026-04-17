@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginPatientWithPassword } from "@/api/patientLoginPassword";
 import { registerPatientLogin } from "@/api/patientRegister";
@@ -8,6 +8,7 @@ import {
   ROUTES,
 } from "@/constants";
 import { useToast } from "@/hooks/useToast";
+import { getWebFcmToken } from "@/lib/fcmToken";
 import { completeAuthAndNavigate } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
 import { digitsOnly, takeDigits } from "@/lib/digits";
@@ -85,18 +86,24 @@ export function useLoginPage(): LoginPageController {
     accepted && contactValid && usePasswordLogin && passwordOk;
   const canProceed = canProceedOtp || canProceedPassword;
 
+  /** Eager FCM token + localStorage persist so POST /register and later /verify send a real `fcm_token` when the browser allows. */
+  useEffect(() => {
+    void getWebFcmToken();
+  }, []);
+
   const handleConfirm = async () => {
     if (!canProceed) return;
     setIsSubmitting(true);
     try {
       const identifier = isEmail ? trimmedContact : phoneDigits;
+      const fcm_token = await getWebFcmToken();
 
       if (usePasswordLogin) {
         const data = await loginPatientWithPassword({
           phone: identifier,
           password: password.trim(),
           corporate: true,
-          fcm_token: "",
+          fcm_token,
           tc_accepted: accepted,
         });
         await saveAuthSession(data);
@@ -109,7 +116,7 @@ export function useLoginPage(): LoginPageController {
         phone: identifier,
         type: "RLOGIN",
         corporate: true,
-        fcm_token: "",
+        fcm_token,
         tc_accepted: accepted,
       });
       toast.success("OTP sent successfully");

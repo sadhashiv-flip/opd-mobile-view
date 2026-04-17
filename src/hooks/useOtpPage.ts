@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { verifyPatientLogin } from "@/api/patientVerify";
 import { DEMO_PHONE, ROUTES } from "@/constants";
+import { getWebFcmToken } from "@/lib/fcmToken";
 import { completeAuthAndNavigate } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
 import type { OtpLocationState } from "@/types/navigation";
@@ -31,6 +32,11 @@ export function useOtpPage(): OtpPageController {
   const { resend, ...inputRest } = input;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  /** Refresh or reuse stored FCM token before POST /verify (covers deep links to OTP). */
+  useEffect(() => {
+    void getWebFcmToken();
+  }, []);
+
   const handleEdit = () => {
     navigate(ROUTES.login);
   };
@@ -40,11 +46,12 @@ export function useOtpPage(): OtpPageController {
     const code = input.digits.join("");
     setIsSubmitting(true);
     try {
+      const fcm_token = await getWebFcmToken();
       const data = await verifyPatientLogin({
         action: "RLOGIN",
         value: phone.trim(),
         code,
-        fcm_token: "",
+        fcm_token,
       });
       await saveAuthSession(data);
       toast.success(data.message?.trim() || "Login successful");

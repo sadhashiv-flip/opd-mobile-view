@@ -9,6 +9,7 @@ export type VerifyForgotPayload = Readonly<{
   action: "FORGOT";
   value: string;
   code: string;
+  fcm_token: string;
 }>;
 
 export type VerifyForgotSuccess = Readonly<{

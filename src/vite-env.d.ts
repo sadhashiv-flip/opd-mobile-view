@@ -53,6 +53,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID?: string;
   /** Google Analytics / Firebase Analytics (optional). */
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
+  /** Web Push certificates key pair — Firebase Console → Project settings → Cloud Messaging → Web configuration. */
+  readonly VITE_FIREBASE_VAPID_KEY?: string;
 }
 
 interface ImportMeta {
