@@ -12,6 +12,15 @@ export type GymOverviewBeneficiarySnapshot = Readonly<{
   planId: string;
 }>;
 
+/** Amounts from POST `gym/optIn` (quote/confirm) when available — preferred over client-side GST math. */
+export type GymOverviewServerPayment = Readonly<{
+  opt_in_amount: number | null;
+  opd_paid_amount: number | null;
+  opd_wallet_available: number | null;
+  pending_amount: number | null;
+  message?: string | null;
+}>;
+
 export type GymOverviewSnapshot = Readonly<{
   planId: string;
   /** Logged-in account holder (self row) — overview "Primary User" block. */
@@ -23,6 +32,11 @@ export type GymOverviewSnapshot = Readonly<{
   showSecondary: boolean;
   primary: GymOverviewBeneficiarySnapshot;
   secondary: GymOverviewBeneficiarySnapshot | null;
+  /** Set after confirm completes without Razorpay or after payment_verify succeeds. */
+  registrationComplete?: boolean;
+  serverPayment?: GymOverviewServerPayment | null;
+  /** Invoice id from Phase B confirm — used to deep-link to `/order/gym/:id` when payment rows aren’t in snapshot. */
+  gymInvoiceId?: string | null;
 }>;
 
 /** Raw JSON may omit newer fields; parsers migrate. */
@@ -90,12 +104,32 @@ export function parseGymOverviewSnapshot(raw: string): GymOverviewSnapshot | nul
             phone: typeof primary.phone === "string" ? primary.phone : "—",
           };
 
+    const serverPaymentRaw = (o as Partial<GymOverviewSnapshot>).serverPayment;
+    const serverPayment =
+      serverPaymentRaw &&
+      typeof serverPaymentRaw === "object" &&
+      !Array.isArray(serverPaymentRaw)
+        ? (serverPaymentRaw as GymOverviewServerPayment)
+        : undefined;
+
+    const registrationComplete =
+      (o as Partial<GymOverviewSnapshot>).registrationComplete === true;
+
+    const gymInvoiceIdRaw = (o as Partial<GymOverviewSnapshot>).gymInvoiceId;
+    const gymInvoiceId =
+      typeof gymInvoiceIdRaw === "string" && gymInvoiceIdRaw.trim()
+        ? gymInvoiceIdRaw.trim()
+        : undefined;
+
     return {
       planId: o.planId,
       accountPrimaryUser,
       showSecondary: Boolean(o.showSecondary),
       primary: migrateBeneficiary(primary, primary.role === "primary"),
       secondary: secondary ? migrateBeneficiary(secondary, false) : null,
+      ...(registrationComplete ? { registrationComplete: true as const } : {}),
+      ...(serverPayment ? { serverPayment } : {}),
+      ...(gymInvoiceId ? { gymInvoiceId } : {}),
     };
   } catch {
     return null;

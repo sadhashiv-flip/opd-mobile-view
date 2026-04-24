@@ -1,6 +1,7 @@
 import { patientFetch, patientFetchChecked, patientJson, patientJsonList } from "@/api/patientHttp";
 import type { ListPaginationOpts } from "@/api/listPagination";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
+import { claimStatusBadge } from "@/constants/claimStatus";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v)
@@ -689,6 +690,15 @@ export type ReimbursementAttachmentRow = Readonly<{
   id: string;
   label: string;
   openUrl: string | null;
+  /** API row `status` — with claim `reimbursement_status` 3, `0` ⇒ missing doc (Flutter parity). */
+  rowStatus?: number | null;
+  /** Raw `path` from API when present — used when rebuilding checklist PATCH payloads. */
+  path?: string | null;
+  documentType?: string | null;
+  refType?: string | null;
+  fileType?: string | null;
+  /** Parsed `service_types` for checklist rows (upload / PATCH). */
+  checklistServiceTypes?: readonly ReimbursementCreateClaimServiceType[];
 }>;
 
 export type ReimbursementBillDetail = Readonly<{
@@ -707,11 +717,16 @@ export type ReimbursementBillDetail = Readonly<{
   files: readonly ReimbursementAttachmentRow[];
   /** Rows for `PATCH /patient/reimbursement/bill/:id` (ids required; other fields from API when present). */
   billFileRecords: readonly ReimbursementUploadFileRecord[];
+  /** Bill row `status` from API — see Flutter `claim_detail_screen` missing/invalid checks. */
+  billDocumentStatus?: number | null;
+  /** Bill row `verify_status` — `3` + `billDocumentStatus===1` ⇒ invalid bill. */
+  billVerifyStatus?: number | null;
 }>;
 
-/** Whether the patient may edit bill text / scans (server may still reject by status). */
+/** Whether the patient may edit bill text / scans (Dart-aligned: pending / review / action / waiting approval). */
 export function canPatientEditClaimBillDetails(statusCode: number | null): boolean {
-  return statusCode === 0 || statusCode === 1 || statusCode === 3;
+  const c = statusCode;
+  return c === 0 || c === 3 || c === 4 || c === 6;
 }
 
 export type ReimbursementBankDetail = Readonly<{
@@ -720,11 +735,21 @@ export type ReimbursementBankDetail = Readonly<{
   accountNumber: string | null;
   branch: string | null;
   ifscCode: string | null;
+  /** Saved bank row id — navigate to edit when `verifyStatus===2`. */
+  id?: string | null;
+  /** `2` ⇒ bank rejected / must update (Flutter `verify_status == 2`). */
+  verifyStatus?: number | null;
+  /** Server message when verification failed (`verify_reason`). */
+  verifyReason?: string | null;
 }>;
 
 export type ReimbursementHistoryStep = Readonly<{
   title: string;
   at: string | null;
+  /** From step `reimbursement_status` when present — drives canonical status label. */
+  statusCode?: number | null;
+  /** Optional reason / note from API (shown under title when present). */
+  note?: string | null;
 }>;
 
 export type ReimbursementDetail = Readonly<{
@@ -744,6 +769,8 @@ export type ReimbursementDetail = Readonly<{
   paymentReceiptFiles: readonly ReimbursementAttachmentRow[];
   reportFiles: readonly ReimbursementAttachmentRow[];
   otherFiles: readonly ReimbursementAttachmentRow[];
+  /** When true, patient may dispute (typically after denial). */
+  canDispute?: boolean;
 }>;
 
 function unwrapDataObject(body: unknown): Record<string, unknown> | null {
@@ -751,6 +778,28 @@ function unwrapDataObject(body: unknown): Record<string, unknown> | null {
   if (!root) return null;
   const d = asRecord(root.data);
   return d ?? root;
+}
+
+function parseReimbursementServiceTypesArray(raw: unknown): ReimbursementCreateClaimServiceType[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReimbursementCreateClaimServiceType[] = [];
+  for (const item of raw) {
+    const o = asRecord(item);
+    if (!o) continue;
+    const key = str(o.key) || str(o.type) || str(o.service_key) || str(o.serviceKey) || "";
+    const value = str(o.value) || str(o.name) || str(o.label) || str(o.title) || key;
+    const idRaw = o.id;
+    const idNum = typeof idRaw === "number" && Number.isFinite(idRaw) ? idRaw : Number(idRaw);
+    const type = str(o.type) || key;
+    if (!key && !value) continue;
+    out.push({
+      key: key || `st_${out.length}`,
+      value: value || key,
+      id: Number.isFinite(idNum) && !Number.isNaN(idNum) ? idNum : 0,
+      type: type || key,
+    });
+  }
+  return out;
 }
 
 function attachmentRowFromRecord(r: Record<string, unknown>, fallbackLabel: string): ReimbursementAttachmentRow | null {
@@ -782,7 +831,23 @@ function attachmentRowFromRecord(r: Record<string, unknown>, fallbackLabel: stri
   if (urlRaw && /^https?:\/\//i.test(urlRaw)) openUrl = urlRaw;
   else if (urlRaw) openUrl = resolveProfileImageUrl(urlRaw);
   else if (pathRaw) openUrl = resolveProfileImageUrl(pathRaw);
-  return { id, label: label.trim() || fallbackLabel, openUrl };
+  const rs = typeof r.status === "number" ? r.status : Number(r.status);
+  const rowStatus = Number.isFinite(rs) ? rs : null;
+  const documentType = str(r.document_type) || str(r.documentType) || null;
+  const refType = str(r.ref_type) || str(r.refType) || null;
+  const fileType = str(r.file_type) || str(r.fileType) || null;
+  const checklistServiceTypes = parseReimbursementServiceTypesArray(r.service_types ?? r.serviceTypes);
+  return {
+    id,
+    label: label.trim() || fallbackLabel,
+    openUrl,
+    rowStatus,
+    path: pathRaw || null,
+    documentType: documentType || null,
+    refType: refType || null,
+    fileType: fileType || null,
+    checklistServiceTypes: checklistServiceTypes.length > 0 ? checklistServiceTypes : undefined,
+  };
 }
 
 function pushServiceKey(out: string[], raw: unknown): void {
@@ -917,12 +982,26 @@ function mapBillFileRecords(raw: unknown): readonly ReimbursementUploadFileRecor
 function normalizeBankDetail(v: unknown): ReimbursementBankDetail | null {
   const o = asRecord(v);
   if (!o) return null;
+  const vs = typeof o.verify_status === "number" ? o.verify_status : Number(o.verify_status);
   return {
     accountHolderName: str(o.account_holder_name) || str(o.accountHolderName) || null,
     bankName: str(o.bank_name) || str(o.bankName) || null,
     accountNumber: str(o.account_number) || str(o.accountNumber) || null,
     branch: str(o.branch) || null,
     ifscCode: str(o.ifsc_code) || str(o.ifscCode) || null,
+    id:
+      typeof o.id === "number" && Number.isFinite(o.id)
+        ? String(o.id)
+        : str(o.id).length > 0
+          ? str(o.id)
+          : null,
+    verifyStatus: Number.isFinite(vs) ? vs : null,
+    verifyReason:
+      str(o.verify_reason) ||
+      str(o.verifyReason) ||
+      str(o.rejection_reason) ||
+      str(o.rejectionReason) ||
+      null,
   };
 }
 
@@ -1001,6 +1080,8 @@ export function parseReimbursementDetailResponse(body: unknown): ReimbursementDe
         }));
       }
       const billAmt = num(b.bill_amount) ?? num(b.billAmount);
+      const docStatus = typeof b.status === "number" ? b.status : Number(b.status);
+      const verStatus = typeof b.verify_status === "number" ? b.verify_status : Number(b.verify_status);
       bills.push({
         billId,
         billNumber: str(b.bill_number) || str(b.billNumber) || "—",
@@ -1015,6 +1096,8 @@ export function parseReimbursementDetailResponse(body: unknown): ReimbursementDe
         serviceKeys: extractServiceKeysFromBill(b),
         files,
         billFileRecords,
+        billDocumentStatus: Number.isFinite(docStatus) ? docStatus : null,
+        billVerifyStatus: Number.isFinite(verStatus) ? verStatus : null,
       });
     }
   }
@@ -1048,6 +1131,8 @@ export function parseReimbursementDetailResponse(body: unknown): ReimbursementDe
   const billKeys = bills.flatMap((b) => [...b.serviceKeys]);
   const serviceTypeKeys = [...new Set([...rootKeys, ...billKeys].map((x) => x.trim()).filter(Boolean))];
 
+  const canDispute = d.can_dispute === true || d.can_dispute === 1 || str(d.can_dispute) === "1";
+
   return {
     id,
     claimAmount,
@@ -1064,7 +1149,42 @@ export function parseReimbursementDetailResponse(body: unknown): ReimbursementDe
     paymentReceiptFiles,
     reportFiles,
     otherFiles,
+    canDispute,
   };
+}
+
+/**
+ * Timeline embedded in `GET /patient/reimbursement/:id` as `status_steps` (Flutter `ClaimDetailBundle`).
+ */
+export function parseStatusStepsFromReimbursementDetailBody(body: unknown): readonly ReimbursementHistoryStep[] {
+  const root = asRecord(body);
+  if (!root) return [];
+  const raw = root.status_steps ?? root.statusSteps;
+  if (!Array.isArray(raw)) return [];
+  return parseReimbursementStepsResponse({ data: raw });
+}
+
+/** PATCH `/patient/reimbursement/status/:id` — dispute (`status`: 7) or other lifecycle updates. */
+export async function patchReimbursementClaimStatus(
+  claimId: string,
+  payload: Readonly<{ status: number; reason: string }>,
+): Promise<void> {
+  const res = await patientFetchChecked(`reimbursement/status/${encodeURIComponent(claimId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  if (!text.trim()) return;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    const o = asRecord(parsed);
+    if (o && o.status === false) {
+      throw new Error(str(o.message) || "Request failed");
+    }
+  } catch (e) {
+    if (e instanceof SyntaxError) return;
+    throw e;
+  }
 }
 
 /** Parses `GET /patient/reimbursement/steps/:id` into timeline rows (best-effort). */
@@ -1092,15 +1212,26 @@ export function parseReimbursementStepsResponse(body: unknown): readonly Reimbur
   for (const raw of rows) {
     const o = asRecord(raw);
     if (!o) continue;
-    const title =
+    const rsRaw = o.reimbursement_status ?? o.reimbursementStatus;
+    const statusNum =
+      typeof rsRaw === "number" && Number.isFinite(rsRaw)
+        ? rsRaw
+        : typeof rsRaw === "string" && rsRaw.trim() !== ""
+          ? Number(rsRaw)
+          : NaN;
+    const hasStatusCode = Number.isFinite(statusNum) && !Number.isNaN(statusNum);
+
+    const rawReason = str(o.reimbursement_status_reason) || str(o.status_label) || str(o.statusLabel);
+    const fallbackTitle =
       str(o.title) ||
-      str(o.status_label) ||
-      str(o.statusLabel) ||
-      str(o.reimbursement_status_reason) ||
       str(o.name) ||
       str(o.step) ||
       str(o.message) ||
+      (rawReason && rawReason.trim()) ||
       "Update";
+
+    const title = hasStatusCode ? claimStatusBadge(statusNum, null).text : fallbackTitle.trim() || "Update";
+
     const at =
       str(o.createdAt) ||
       str(o.created_at) ||
@@ -1109,7 +1240,17 @@ export function parseReimbursementStepsResponse(body: unknown): readonly Reimbur
       str(o.updatedAt) ||
       str(o.updated_at) ||
       null;
-    if (title.trim()) out.push({ title: title.trim(), at: at?.trim() || null });
+
+    let note: string | null = null;
+    const reasonTrim = rawReason?.trim() ?? "";
+    if (reasonTrim && reasonTrim !== title) note = reasonTrim;
+
+    out.push({
+      title: title.trim(),
+      at: at?.trim() || null,
+      statusCode: hasStatusCode ? statusNum : null,
+      note,
+    });
   }
   return out;
 }
@@ -1142,4 +1283,147 @@ export async function updateReimbursementBill(
   } catch {
     return text;
   }
+}
+
+function inferChecklistFileTypeLabel(fileName: string): string {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".pdf")) return "PDF";
+  return "IMG";
+}
+
+/** Checklist section keys aligned with {@link uploadReimbursementChecklistDocumentId} categories. */
+export type ClaimChecklistSectionKey = "payment" | "report" | "other";
+
+const CLAIM_CHECKLIST_DEFAULTS: Record<
+  ClaimChecklistSectionKey,
+  Readonly<{ document_type: string; ref_type: string }>
+> = {
+  payment: { document_type: "payments", ref_type: "PAYMENT" },
+  report: { document_type: "report", ref_type: "REPORT" },
+  other: { document_type: "OTHER", ref_type: "OTHER" },
+};
+
+/** Builds `service_types` for checklist PATCH when the row omits them, using claim-level keys + catalog. */
+export function buildFallbackChecklistServiceTypesFromClaimKeys(
+  catalog: readonly ReimbursementServiceType[] | null | undefined,
+  keys: readonly string[],
+): readonly ReimbursementCreateClaimServiceType[] {
+  if (!catalog?.length || !keys.length) return [];
+  const map = new Map(catalog.map((t) => [t.key.trim(), t]));
+  const out: ReimbursementCreateClaimServiceType[] = [];
+  const seen = new Set<number>();
+  for (const k of keys) {
+    const t = map.get(k.trim());
+    if (t && !seen.has(t.id)) {
+      seen.add(t.id);
+      out.push(toReimbursementCreateClaimServiceType(t));
+    }
+  }
+  return out;
+}
+
+function attachmentRowToChecklistCreateRow(
+  row: ReimbursementAttachmentRow,
+  defaults: Readonly<{ document_type: string; ref_type: string }>,
+  fallbackServiceTypes: readonly ReimbursementCreateClaimServiceType[],
+): ReimbursementCreateBillFileWithServices {
+  const svc =
+    row.checklistServiceTypes && row.checklistServiceTypes.length > 0
+      ? [...row.checklistServiceTypes]
+      : [...fallbackServiceTypes];
+  return {
+    id: row.id,
+    path: row.path ?? "",
+    file_type: row.fileType || inferChecklistFileTypeLabel(row.label),
+    document_type: row.documentType || defaults.document_type,
+    ref_type: row.refType || defaults.ref_type,
+    service_types: svc,
+  };
+}
+
+/**
+ * Rebuilds one checklist section after a successful `/upload` so it can be sent on
+ * `PATCH /patient/reimbursement/:claimId` with the full section array.
+ */
+export function mergeChecklistRowsAfterUpload(
+  section: ClaimChecklistSectionKey,
+  rows: readonly ReimbursementAttachmentRow[],
+  targetRowId: string,
+  upload: ReimbursementUploadFileRecord,
+  fallbackServiceTypes: readonly ReimbursementCreateClaimServiceType[],
+): readonly ReturnType<typeof toReimbursementChecklistFileApiRow>[] {
+  const target = targetRowId.trim();
+  const slotFound = rows.some((row) => String(row.id).trim() === target);
+  if (!target || !slotFound) {
+    throw new Error("Document slot not found. Refresh the page and try again.");
+  }
+
+  const defaults = CLAIM_CHECKLIST_DEFAULTS[section];
+  const merged: ReimbursementCreateBillFileWithServices[] = rows.map((row) => {
+    const svc =
+      row.checklistServiceTypes && row.checklistServiceTypes.length > 0
+        ? [...row.checklistServiceTypes]
+        : [...fallbackServiceTypes];
+    if (String(row.id).trim() === target) {
+      return { ...upload, service_types: svc };
+    }
+    return attachmentRowToChecklistCreateRow(row, defaults, fallbackServiceTypes);
+  });
+  return merged.map(toReimbursementChecklistFileApiRow);
+}
+
+export type PatchReimbursementClaimChecklistsPayload = Readonly<{
+  reimbursement_bill_payment_files?: readonly ReturnType<typeof toReimbursementChecklistFileApiRow>[];
+  reimbursement_report_files?: readonly ReturnType<typeof toReimbursementChecklistFileApiRow>[];
+  reimbursement_other_files?: readonly ReturnType<typeof toReimbursementChecklistFileApiRow>[];
+}>;
+
+/**
+ * Updates payment / report / supporting checklist files on an existing claim.
+ * `PATCH /patient/reimbursement/:claimId` — body shape mirrors create-claim checklist arrays.
+ */
+export async function patchReimbursementClaimChecklistSections(
+  claimId: string,
+  payload: PatchReimbursementClaimChecklistsPayload,
+): Promise<unknown> {
+  const id = claimId.trim();
+  if (!id) throw new Error("Missing claim id");
+  const body: Record<string, unknown> = {};
+  if (payload.reimbursement_bill_payment_files?.length)
+    body.reimbursement_bill_payment_files = payload.reimbursement_bill_payment_files;
+  if (payload.reimbursement_report_files?.length) body.reimbursement_report_files = payload.reimbursement_report_files;
+  if (payload.reimbursement_other_files?.length) body.reimbursement_other_files = payload.reimbursement_other_files;
+  if (Object.keys(body).length === 0) throw new Error("Nothing to update");
+
+  const res = await patientFetchChecked(`reimbursement/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  if (!text.trim()) return null;
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    throwIfPatientMutationEnvelopeRejected(parsed);
+    return parsed;
+  } catch (e) {
+    if (e instanceof SyntaxError) return null;
+    throw e;
+  }
+}
+
+/**
+ * Mirrors Flutter `ClaimsRepository.patchReimbursementClaimChecklists`: if JSON includes `status` and it is
+ * explicitly `false`, treat as failure. Also checks nested `data` (common API envelopes).
+ */
+function throwIfPatientMutationEnvelopeRejected(parsed: unknown): void {
+  const root = asRecord(parsed);
+  if (!root) return;
+  const check = (o: Record<string, unknown>) => {
+    if ("status" in o && o.status === false) {
+      throw new Error(str(o.message) || "Update failed");
+    }
+  };
+  check(root);
+  const inner = asRecord(root.data);
+  if (inner) check(inner);
 }

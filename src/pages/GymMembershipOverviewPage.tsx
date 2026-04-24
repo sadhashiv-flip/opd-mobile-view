@@ -1,5 +1,6 @@
 import { ROUTES } from "@/constants";
-import { readGymCheckSnapshot } from "@/constants/gymCheckStorage";
+import { getGymCheck } from "@/api/patientGym";
+import { readGymCheckSnapshot, writeGymCheckSnapshot } from "@/constants/gymCheckStorage";
 import {
   GYM_OVERVIEW_SNAPSHOT_KEY,
   parseGymOverviewSnapshot,
@@ -8,20 +9,8 @@ import {
 } from "@/constants/gymOverviewStorage";
 import { GymRemoveMemberConfirmModal } from "@/components/gym/GymRemoveMemberConfirmModal";
 import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
-import {
-  confirmGymPaymentFree,
-  initGymPayment,
-  patchGymPaymentConfirm,
-} from "@/api/patientGymPayment";
-import { useGymPaymentVerify } from "@/hooks/useGymPaymentVerify";
-import {
-  isPaymentCancelledMessage,
-  loadRazorpayScript,
-  openRazorpayCheckout,
-} from "@/lib/gymMembershipRazorpayPay";
-import { useToast } from "@/hooks/useToast";
-import { Link, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, generatePath } from "react-router-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import "./GymMembershipOverviewPage.css";
 
 function readSnapshot(): GymOverviewSnapshot | null {
@@ -48,6 +37,19 @@ function formatRupee(n: number): string {
 function gstAmountFromInclusiveTotal(totalInclGst: number): number {
   if (totalInclGst <= 0) return 0;
   return Math.round((totalInclGst * 18) / 118);
+}
+
+/** Overview can show stored opt-in totals; otherwise send the user to `/order/gym/:invoiceId`. */
+function gymOverviewHasServerPaymentRows(sp: GymOverviewSnapshot["serverPayment"]): boolean {
+  if (!sp || typeof sp !== "object") return false;
+  return (
+    [
+      sp.opt_in_amount,
+      sp.pending_amount,
+      sp.opd_paid_amount,
+      sp.opd_wallet_available,
+    ].some((x) => x != null && typeof x === "number" && Number.isFinite(x))
+  );
 }
 
 function PersonIcon({ className }: Readonly<{ className?: string }>) {
@@ -207,49 +209,52 @@ function BeneficiaryCard({ b, gymCheck, onRemove, onEditCity, onEdit }: Benefici
 
 export function GymMembershipOverviewPage() {
   const navigate = useNavigate();
-  const toast = useToast();
   const [data, setData] = useState<GymOverviewSnapshot | null>(() => readSnapshot());
   const [removeTarget, setRemoveTarget] = useState<"primary" | "secondary" | null>(null);
-  const [payBusy, setPayBusy] = useState(false);
-  const gymCheck = useMemo(() => readGymCheckSnapshot(), []);
+  const [liveGymCheck, setLiveGymCheck] = useState(() => readGymCheckSnapshot());
+
+  useEffect(() => {
+    let cancelled = false;
+    void getGymCheck()
+      .then((next) => {
+        writeGymCheckSnapshot(next);
+        if (!cancelled) setLiveGymCheck(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const gymCheck = liveGymCheck;
 
   const enableWallet = useMemo(() => {
     if (!data || !gymCheck) return false;
-    const pkg = gymCheck.packages.find(p => p.package_code === data.planId);
+    const pkg = gymCheck.packages.find((p) => p.package_code === data.planId);
     return pkg?.enable_wallet ?? false;
   }, [data, gymCheck]);
-
-  const paymentAvailable = true;
-
-  const invoiceIdForVerifyRef = useRef<string | null>(null);
-  const onPaymentVerifiedRef = useRef<() => void>(() => {});
-  const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
-  const setPayBusyRef = useRef<(busy: boolean) => void>(() => {});
-
-  useEffect(() => {
-    setPayBusyRef.current = setPayBusy;
-    onPaymentVerifiedRef.current = () => {
-      setPayBusy(false);
-      toast.success("Payment successful");
-      navigate(ROUTES.orders);
-    };
-    onPaymentVerifyErrorRef.current = (message: string) => {
-      toast.error(message);
-    };
-  }, [navigate, toast]);
-
-  useGymPaymentVerify({
-    invoiceIdRef: invoiceIdForVerifyRef,
-    onSuccessRef: onPaymentVerifiedRef,
-    onErrorRef: onPaymentVerifyErrorRef,
-    setPayBusyRef,
-  });
 
   useEffect(() => {
     if (data === null) {
       navigate(ROUTES.gymMembershipConfigure, { replace: true });
     }
   }, [data, navigate]);
+
+  /** No stored Phase B amounts but we have an invoice — payment lives on order detail. */
+  useLayoutEffect(() => {
+    if (!data) return;
+    if (data.registrationComplete) return;
+    if (gymOverviewHasServerPaymentRows(data.serverPayment)) return;
+    const invoiceId =
+      data.gymInvoiceId?.trim() ||
+      gymCheck?.order?.invoice_id?.trim() ||
+      "";
+    if (!invoiceId) return;
+    navigate(
+      generatePath(ROUTES.ordersDetail, { orderKind: "gym", invoiceId }),
+      { replace: true },
+    );
+  }, [data, gymCheck?.order?.invoice_id, navigate]);
 
   const persist = useCallback((next: GymOverviewSnapshot) => {
     try {
@@ -261,7 +266,15 @@ export function GymMembershipOverviewPage() {
   }, []);
 
   const payment = useMemo(() => {
-    if (!data) return { totalInclGst: 0, gstIncluded: 0, payable: 0, wallet: 0 };
+    if (!data) return { totalInclGst: 0, gstIncluded: 0, payable: 0, wallet: 0, fromServer: false };
+    const sp = data.serverPayment;
+    if (sp) {
+      const totalInclGst = sp.opt_in_amount ?? 0;
+      const wallet = sp.opd_paid_amount ?? 0;
+      const payable = sp.pending_amount ?? 0;
+      const gstIncluded = gstAmountFromInclusiveTotal(totalInclGst);
+      return { totalInclGst, gstIncluded, payable, wallet, fromServer: true as const };
+    }
     const ids = [data.primary.planId];
     if (data.secondary) ids.push(data.secondary.planId);
     const totalInclGst = ids.reduce((sum, id) => {
@@ -271,72 +284,8 @@ export function GymMembershipOverviewPage() {
     const gstIncluded = gstAmountFromInclusiveTotal(totalInclGst);
     const wallet = enableWallet ? totalInclGst : 0;
     const payable = totalInclGst - wallet;
-    return { totalInclGst, gstIncluded, payable, wallet };
+    return { totalInclGst, gstIncluded, payable, wallet, fromServer: false as const };
   }, [data, gymCheck, enableWallet]);
-
-  const handleGymPay = useCallback(async () => {
-    if (!data || !paymentAvailable || payBusy) return;
-    if (payment.payable <= 0) {
-      toast.error("No amount to pay.");
-      return;
-    }
-    setPayBusy(true);
-    try {
-      const existingInvoice = gymCheck?.order?.invoice_id?.trim() ?? "";
-      const init = existingInvoice
-        ? await patchGymPaymentConfirm(existingInvoice, enableWallet)
-        : await initGymPayment({
-            payable_rupees: payment.payable,
-            amount_paise: Math.max(100, Math.round(payment.payable * 100)),
-            plan_id: data.planId,
-            primary_plan_id: data.primary.planId,
-            secondary_plan_id: data.secondary?.planId ?? null,
-            subscription_id: gymCheck?.subscription_id ?? null,
-            gym_invoice_id: gymCheck?.order?.invoice_id ?? null,
-            show_secondary: Boolean(data.secondary),
-          });
-
-      invoiceIdForVerifyRef.current = init.invoice_id ?? init.order_id ?? null;
-
-      if (!init.payment_required) {
-        const confirmId = init.invoice_id ?? init.order_id;
-        if (!confirmId) {
-          throw new Error("Missing invoice or order id for confirmation");
-        }
-        if (!existingInvoice) {
-          await confirmGymPaymentFree({
-            invoice_id: confirmId,
-            order_id: init.order_id,
-            use_wallet: enableWallet,
-          });
-        }
-        toast.success("Membership confirmed");
-        navigate(ROUTES.orders);
-        setPayBusy(false);
-        return;
-      }
-
-      if (!init.razorpay_payload || Object.keys(init.razorpay_payload).length === 0) {
-        throw new Error("Payment required but server sent no Razorpay payload");
-      }
-
-      await loadRazorpayScript();
-      if (!window.Razorpay) {
-        throw new Error("Razorpay Checkout could not load. Check your network or ad blocker.");
-      }
-
-      openRazorpayCheckout(init.razorpay_payload, (failMsg) => {
-        setPayBusy(false);
-        if (!isPaymentCancelledMessage(failMsg)) {
-          toast.error(failMsg);
-        }
-      });
-    } catch (e) {
-      setPayBusy(false);
-      const msg = e instanceof Error ? e.message : "Payment could not start";
-      toast.error(msg);
-    }
-  }, [data, gymCheck, enableWallet, payBusy, payment.payable, navigate, toast]);
 
   const goConfigure = useCallback(() => {
     if (!data) return;
@@ -447,7 +396,9 @@ export function GymMembershipOverviewPage() {
           <span className="gmo-pay-value">{formatRupee(payment.totalInclGst)}</span>
         </div>
         <div className="gmo-pay-row gmo-pay-row--muted">
-          <span className="gmo-pay-label">Deducted Amount (from wallet)</span>
+          <span className="gmo-pay-label">
+            {payment.fromServer ? "Wallet applied (OPD)" : "Deducted Amount (from wallet)"}
+          </span>
           <span className="gmo-pay-value gmo-pay-value--wallet">{formatRupee(payment.wallet)}</span>
         </div>
         <div className="gmo-pay-row">
@@ -464,24 +415,18 @@ export function GymMembershipOverviewPage() {
           <strong>Remarks :</strong> Order cannot be cancelled once confirmed
         </div>
 
-        { !paymentAvailable ? (
-          <p className="gmo-payment-gate">
-            Online payment is not available for this membership. Please contact support or use the channel
-            advised by your employer.
+        {data.registrationComplete ? (
+          <p className="gmo-payment-gate" role="status">
+            Payment for this enrolment was completed during checkout. Activation is processed per your employer&apos;s
+            timeline.
           </p>
         ) : null}
       </main>
 
       <footer className="gmo-footer">
-        <button
-          type="button"
-          className="gmo-pay-btn"
-          disabled={!paymentAvailable || payBusy}
-          aria-busy={payBusy}
-          onClick={() => void handleGymPay()}
-        >
-          {payBusy ? "Processing…" : "Click to Pay"}
-        </button>
+        <Link to={ROUTES.orders} className="gmo-pay-btn">
+          View my orders
+        </Link>
       </footer>
 
       <GymRemoveMemberConfirmModal

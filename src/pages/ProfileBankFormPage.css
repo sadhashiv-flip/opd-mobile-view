@@ -209,3 +209,30 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+.pbf-patch-notice {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  line-height: 1.45;
+}
+
+.pbf-patch-notice code {
+  font-size: 0.92em;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.pbf-patch-notice--rejected {
+  border: 1px solid rgba(255, 152, 0, 0.45);
+  background: #fff8e1;
+  color: #5d4037;
+}
+
+.pbf-patch-notice--blocked {
+  border: 1px solid rgba(211, 47, 47, 0.35);
+  background: #ffebee;
+  color: #5d4037;
+}

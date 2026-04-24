@@ -65,6 +65,7 @@ export function GymMembershipPage() {
   const canContinue = checkedPlanId !== null;
 
   const blockedByModule = gymCheck !== null && !gymCheck.gym_module;
+  const hasExistingOrder = Boolean(gymCheck?.order);
   const noPackages =
     gymCheck !== null && gymCheck.gym_module && gymCheck.packages.length === 0 && !loading;
 
@@ -119,11 +120,17 @@ export function GymMembershipPage() {
           <p className="gym-membership-empty">Gym membership is not available for your account.</p>
         ) : null}
 
+        {!loading && !blockedByModule && hasExistingOrder ? (
+          <p className="gym-membership-empty" role="status">
+            You already have a gym enrolment order. Check My Orders or wait for activation instructions.
+          </p>
+        ) : null}
+
         {!loading && noPackages ? (
           <p className="gym-membership-empty">No membership packages are available right now.</p>
         ) : null}
 
-        {!loading && !blockedByModule && !noPackages ? (
+        {!loading && !blockedByModule && !hasExistingOrder && !noPackages ? (
           <div className="gym-plan-list">
             {displayPlans.map((plan) => {
               const isChecked = checkedPlanId === plan.id;
@@ -194,9 +201,9 @@ export function GymMembershipPage() {
       <footer className="gym-continue-footer">
         <button
           type="button"
-          className={`gym-continue-button${canContinue && !blockedByModule && !noPackages ? "" : " gym-continue-button--disabled"}`}
+          className={`gym-continue-button${canContinue && !blockedByModule && !hasExistingOrder && !noPackages ? "" : " gym-continue-button--disabled"}`}
           onClick={() => {
-            if (!canContinue || !selectedPlan || blockedByModule || noPackages) return;
+            if (!canContinue || !selectedPlan || blockedByModule || hasExistingOrder || noPackages) return;
             try {
               localStorage.setItem("opd-mobile-view.gym-membership.planId", selectedPlan.id);
             } catch {
@@ -204,7 +211,7 @@ export function GymMembershipPage() {
             }
             navigate(ROUTES.gymMembershipSelectPeople, { state: { planId: selectedPlan.id } });
           }}
-          disabled={!canContinue || blockedByModule || noPackages || loading}
+          disabled={!canContinue || blockedByModule || hasExistingOrder || noPackages || loading}
         >
           Continue
         </button>

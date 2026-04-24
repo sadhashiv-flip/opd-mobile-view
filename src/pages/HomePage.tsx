@@ -23,6 +23,7 @@ import { useHomeDashboard } from "@/hooks/useHomeDashboard";
 import { useEffect, useState, type ReactNode } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
+import "./DigitalDiaryPages.css";
 import "./ServicesHubPage.css";
 
 const PLACEHOLDER_ADDRESS = "Street, 7th floor, Building A…";
@@ -59,7 +60,7 @@ function ongoingSlideBackgroundUrl(type: string, orderType: string): string {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { apiBanners, notificationCount, primaryAddressLine, ongoing } = useHomeDashboard();
+  const { apiBanners, notificationCount, primaryAddressLine, ongoing, ahc } = useHomeDashboard();
   const ongoingCount = ongoing.length;
   const apiBannerCount = apiBanners.length;
   const homeCarouselCount = apiBannerCount + ongoingCount;
@@ -271,6 +272,37 @@ export function HomePage() {
             Medical services
           </h2>
 
+          {ahc ? (
+            <button
+              type="button"
+              className="home-ahc-card"
+              aria-label="Annual Health Checkup — Book your sponsored health checkup"
+              onClick={() =>
+                navigate(
+                  `${generatePath(ROUTES.diagnosticsSelectPeople, {
+                    type: "health-checkups",
+                  })}?sponsored=1&ahc=1`,
+                )
+              }
+            >
+              <div className="home-ahc-card__copy">
+                <h3 className="home-ahc-card__title">Annual Health Checkup</h3>
+                <p className="home-ahc-card__subtitle">Book your sponsored health checkup</p>
+              </div>
+              <span className="home-ahc-card__chev" aria-hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 6l6 6-6 6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </button>
+          ) : null}
+
           <button
             type="button"
             className="home-card home-card--featured home-card--clickable home-card--btn"
@@ -451,6 +483,42 @@ export function HomePage() {
               </button>
             </div>
           </div>
+
+          <Link to={ROUTES.digitalDiary} className="home-digital-diary">
+            <div className="home-digital-diary__inner">
+              <div className="home-digital-diary__copy">
+                <h3 className="home-digital-diary__title">Your digital diary</h3>
+                <p className="home-digital-diary__desc">
+                  Jot down vitals, water, workouts, mood, and medicines—your day-to-day health story,
+                  organised in one place.
+                </p>
+                <span className="home-digital-diary__cta">
+                  Open diary
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M9 6l6 6-6 6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </div>
+              <div className="home-digital-diary__art" aria-hidden>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M8 6h13v13H8z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M6 8H5a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-1" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M11 11h6M11 14h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+          </Link>
 
           <Link to={ROUTES.services} className="home-view-more">
             VIEW MORE

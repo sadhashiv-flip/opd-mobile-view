@@ -524,6 +524,59 @@
   margin: 8px 0;
 }
 
+/* `GET /patient/dashboard` → `ahc: true` (Flutter `showAhcDashboardCard`) */
+.home-ahc-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 16px;
+  text-align: left;
+  border: 1px solid rgba(255, 82, 36, 0.25);
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 82, 36, 0.12) 0%,
+    rgba(255, 82, 36, 0.04) 100%
+  );
+  box-shadow: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-ahc-card:active {
+  transform: scale(0.99);
+}
+
+.home-ahc-card__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-ahc-card__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.home-ahc-card__subtitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.home-ahc-card__chev {
+  flex-shrink: 0;
+  display: flex;
+  color: #ff5224;
+  margin-left: 8px;
+}
+
 /* Figma: radius 15px, hairline #6C6C6C, shadow 2 / 2 / 4 @ 10% black */
 .home-card {
   border: none;

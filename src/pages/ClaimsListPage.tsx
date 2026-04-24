@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { generatePath, useLocation, useNavigate } from "react-router-dom";
 import { fetchReimbursementsPage, type ReimbursementClaimSummary } from "@/api/patientReimbursement";
+import { CLAIM_STATUS, CLAIM_STATUS_FILTERS, claimStatusBadge } from "@/constants/claimStatus";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
 import "./ClaimsPages.css";
@@ -39,17 +40,6 @@ function avatarInitial(name: string | null): string {
   return first ? first.toUpperCase() : "?";
 }
 
-type BadgeVariant = "submitted" | "review" | "approved" | "rejected" | "muted";
-
-function statusBadge(row: ReimbursementClaimSummary): { text: string; variant: BadgeVariant } {
-  const c = row.statusCode;
-  if (c === 0) return { text: "Submitted", variant: "submitted" };
-  if (c === 1) return { text: "In review", variant: "review" };
-  if (c === 2) return { text: "Approved", variant: "approved" };
-  if (c === 3) return { text: "Rejected", variant: "rejected" };
-  if (c != null) return { text: `Status ${c}`, variant: "muted" };
-  return { text: "Submitted", variant: "submitted" };
-}
 
 function DocumentBadgeIcon() {
   return (
@@ -70,7 +60,7 @@ function ClaimCard({
   row,
   onOpen,
 }: Readonly<{ row: ReimbursementClaimSummary; onOpen: (row: ReimbursementClaimSummary) => void }>) {
-  const badge = statusBadge(row);
+  const badge = claimStatusBadge(row.statusCode, row.statusLabel);
   const displayName = row.patientName?.trim() || "Member";
   const initial = avatarInitial(row.patientName);
 
@@ -117,6 +107,24 @@ export function ClaimsListPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [filterIndex, setFilterIndex] = useState(0);
+  const activeFilterChipRef = useRef<HTMLButtonElement | null>(null);
+
+  const filtersVisible = !loading && !error && items.length > 0;
+
+  useLayoutEffect(() => {
+    if (!filtersVisible) return;
+    const el = activeFilterChipRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+  }, [filterIndex, filtersVisible]);
+
+  const filteredItems = useMemo(() => {
+    const f = CLAIM_STATUS_FILTERS[filterIndex];
+    if (!f || f.status === CLAIM_STATUS.ALL) return items;
+    const code = f.status;
+    return items.filter((r) => r.statusCode === code);
+  }, [items, filterIndex]);
 
   const load = useCallback(async (nextPage: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -171,6 +179,25 @@ export function ClaimsListPage() {
       </header>
 
       <main className="claims-page__main">
+        {!loading && !error && items.length > 0 ? (
+          <div className="claims-status-filters" role="tablist" aria-label="Filter by status">
+            {CLAIM_STATUS_FILTERS.map((tab, idx) => (
+              <button
+                key={tab.label}
+                ref={filterIndex === idx ? activeFilterChipRef : undefined}
+                type="button"
+                role="tab"
+                aria-selected={filterIndex === idx}
+                className={`claims-status-filters__chip${filterIndex === idx ? " claims-status-filters__chip--on" : ""}`}
+                style={{ "--chip-accent": tab.color } as CSSProperties}
+                onClick={() => setFilterIndex(idx)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         {loading ? <p className="claims-row__meta">Loading…</p> : null}
         {!loading && error ? (
           <div className="claims-empty">
@@ -198,14 +225,18 @@ export function ClaimsListPage() {
           </div>
         ) : null}
 
-        {!loading && !error && items.length > 0 ? (
+        {!loading && !error && filteredItems.length > 0 ? (
           <ul className="claims-list">
-            {items.map((row) => (
+            {filteredItems.map((row) => (
               <li key={row.id}>
                 <ClaimCard row={row} onOpen={openClaim} />
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {!loading && !error && items.length > 0 && filteredItems.length === 0 ? (
+          <p className="claims-row__meta">No claims in this status.</p>
         ) : null}
 
         {!loading && !error && hasMore ? (

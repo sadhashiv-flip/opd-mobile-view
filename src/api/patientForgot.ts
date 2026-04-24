@@ -3,6 +3,7 @@ import { patientFetchChecked, patientJson } from "@/api/patientHttp";
 export type ForgotOtpPayload = Readonly<{
   phone: string;
   type: "FORGOT";
+  fcm_token: string;
 }>;
 
 export type VerifyForgotPayload = Readonly<{

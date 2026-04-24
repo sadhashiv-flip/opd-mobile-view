@@ -2,6 +2,7 @@ import {
   readAppointmentPaymentLayer,
   readAppointmentResponseMessage,
 } from "@/api/appointmentBook";
+import type { InvoiceDetailModel } from "@/api/patientInvoices";
 import { patientJson } from "@/api/patientHttp";
 
 function num(v: unknown): number | null {
@@ -33,15 +34,48 @@ export type OfflineBookingPaymentSheetModel = Readonly<{
   totalPayable: number;
   totalPayableFormatted: string;
   showWalletSection: boolean;
+  /** When false, hide “Using from OPD wallet” (e.g. only balance/limit from preview). */
+  showWalletDebitRow: boolean;
   walletHeading: string;
 }>;
 
 /**
  * Maps preview PATCH JSON (e.g. `price`, `pending_amount`, `opdWallet`) to booking confirmation UI.
+ * Also supports gym-style flat fields (`opt_in_amount`, `opd_paid_amount`, `opd_wallet_available`) from `PATCH gym/payment/...`.
  */
+/**
+ * Gym order pay sheet: totals from {@link InvoiceDetailModel} (`GET /invoice/:id`) — avoids an extra `PATCH gym/payment/:id?useWallet=` preview call.
+ * Payment continues with {@link patchGymPaymentConfirm} (`status=confirm`) then Razorpay / verify.
+ */
+export function mapGymInvoiceDetailToBookingSheetModel(detail: InvoiceDetailModel): OfflineBookingPaymentSheetModel {
+  const pending = Math.max(0, Math.floor(Number(detail.netPayAmount)) || 0);
+  const walletAmt = Math.max(0, Math.floor(detail.walletDebitAmount ?? 0));
+  const price = walletAmt > 0 ? pending + walletAmt : pending;
+  const debitAmount = walletAmt;
+  const showWalletDebitRow = debitAmount > 0;
+
+  return {
+    totalAmountFormatted: formatInr(price),
+    walletDebitLineFormatted: `- ${formatInr(debitAmount)}`,
+    limitAvailableFormatted: null,
+    totalPayable: pending,
+    totalPayableFormatted: formatInr(pending),
+    showWalletSection: showWalletDebitRow,
+    showWalletDebitRow,
+    walletHeading: "OPD Wallet",
+  };
+}
+
 export function mapOfflinePaymentPreviewToSheetModel(body: unknown): OfflineBookingPaymentSheetModel {
   const layer = readAppointmentPaymentLayer(body);
-  const price = Math.max(0, Math.floor(num(layer.price) ?? 0));
+  const priceRaw =
+    num(layer.price) ??
+    num(layer.opt_in_amount) ??
+    num(layer.optInAmount) ??
+    num(layer.total_amount) ??
+    num(layer.totalAmount) ??
+    0;
+  const price = Math.max(0, Math.floor(priceRaw));
   const pending = Math.max(0, Math.floor(num(layer.pending_amount) ?? num(layer.pendingAmount) ?? 0));
   const opd = asRecord(layer.opdWallet) ?? asRecord(layer.opd_wallet);
   const usedOpdRaw =
@@ -49,6 +83,10 @@ export function mapOfflinePaymentPreviewToSheetModel(body: unknown): OfflineBook
       ? num(opd.used_amount) ?? num(opd.usedAmount) ?? num(opd.used) ?? null
       : null;
   const usedOpd = usedOpdRaw != null && Number.isFinite(usedOpdRaw) ? Math.max(0, Math.floor(usedOpdRaw)) : 0;
+  const usedFromFlat = Math.max(
+    0,
+    Math.floor(num(layer.opd_paid_amount) ?? num(layer.opdPaidAmount) ?? 0),
+  );
   const avail =
     opd != null
       ? (num(opd.available) ??
@@ -57,12 +95,25 @@ export function mapOfflinePaymentPreviewToSheetModel(body: unknown): OfflineBook
           num(opd.total) ??
           null)
       : null;
-  const limitInt = avail != null && Number.isFinite(avail) ? Math.max(0, Math.floor(avail)) : null;
+  let limitInt = avail != null && Number.isFinite(avail) ? Math.max(0, Math.floor(avail)) : null;
+  if (limitInt == null) {
+    const flatAvail = num(layer.opd_wallet_available) ?? num(layer.opdWalletAvailable);
+    if (flatAvail != null && Number.isFinite(flatAvail)) {
+      limitInt = Math.max(0, Math.floor(flatAvail));
+    }
+  }
 
   const debitFromMath = price > 0 || pending >= 0 ? Math.max(0, price - pending) : 0;
-  const debitAmount = usedOpd > 0 ? usedOpd : debitFromMath;
+  const debitAmount =
+    usedOpd > 0 ? usedOpd : usedFromFlat > 0 ? usedFromFlat : debitFromMath;
 
-  const showWallet = opd != null;
+  const showWalletDebitRow = debitAmount > 0;
+  const showWallet =
+    opd != null ||
+    usedFromFlat > 0 ||
+    usedOpd > 0 ||
+    debitFromMath > 0 ||
+    (limitInt != null && limitInt > 0);
 
   return {
     totalAmountFormatted: formatInr(price),
@@ -71,6 +122,7 @@ export function mapOfflinePaymentPreviewToSheetModel(body: unknown): OfflineBook
     totalPayable: pending,
     totalPayableFormatted: formatInr(pending),
     showWalletSection: showWallet,
+    showWalletDebitRow,
     walletHeading: "OPD Wallet",
   };
 }

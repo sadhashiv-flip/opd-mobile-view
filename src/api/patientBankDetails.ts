@@ -29,6 +29,21 @@ export type CreateBankDetailsPayload = Readonly<{
   cheque: string;
 }>;
 
+/**
+ * PATCH `/patient/bank_details/:id` — correction after admin rejection only (`verify_status === 2`).
+ * Server resets `verify_status` to pending (e.g. 0) on success.
+ * `cheque` is required — attachment id string from `bank_details[].cheque` when unchanged,
+ * or from `POST /upload` response when the cheque file was replaced.
+ */
+export type UpdateBankDetailsPayload = Readonly<{
+  bank_name: string;
+  branch: string;
+  ifsc_code: string;
+  account_number: string;
+  account_holder_name: string;
+  cheque: string;
+}>;
+
 export type BankTypeOption = Readonly<{
   /** From API `key` — sent as `bank_name` and upload form field `bank` */
   key: string;
@@ -103,6 +118,41 @@ function normalizeChequeAttachment(
   };
 }
 
+/**
+ * Parse saved / uploaded cheque attachment id for PATCH body (`cheque` must be a positive integer).
+ * Returns null if invalid so the UI can prompt before hitting the API.
+ */
+export function parseBankChequeAttachmentId(raw: string): number | null {
+  const t = raw.trim();
+  if (!t) return null;
+  if (!/^\d+$/.test(t)) return null;
+  const n = Number(t);
+  if (!Number.isSafeInteger(n) || n <= 0) return null;
+  return n;
+}
+
+/** Scalar id used for POST/PATCH `cheque` — API may send only nested `cheque_attachment.id`. */
+function extractChequeAttachmentIdScalar(o: Record<string, unknown>): string {
+  const direct = str(o.cheque);
+  if (direct) return direct;
+
+  const alt =
+    str(o.cheque_id) ||
+    str(o.cheque_attachment_id) ||
+    str(o.chequeAttachmentId) ||
+    str(o.attachment_id);
+  if (alt) return alt;
+
+  const nested = o.cheque;
+  if (nested !== null && typeof nested === "object" && !Array.isArray(nested)) {
+    const nid = str((nested as Record<string, unknown>).id);
+    if (nid) return nid;
+  }
+
+  const fromAtt = normalizeChequeAttachment(o.cheque_attachment);
+  return fromAtt?.id ?? "";
+}
+
 function normalizeBankRow(v: unknown): PatientBankRecord | null {
   const o = asRecord(v);
   if (!o) return null;
@@ -113,7 +163,7 @@ function normalizeBankRow(v: unknown): PatientBankRecord | null {
   const accountNumber = str(o.account_number);
   const ifscCode = str(o.ifsc_code) || str(o.ifsc);
   const branch = str(o.branch);
-  const cheque = str(o.cheque);
+  const cheque = extractChequeAttachmentIdScalar(o);
   const verifyStatus =
     typeof o.verify_status === "number" ? o.verify_status : Number(o.verify_status) || 0;
   return {
@@ -268,10 +318,10 @@ export async function createPatientBankDetails(
   await res.text();
 }
 
-/** PATCH /patient/bank_details/:id */
+/** PATCH `/patient/bank_details/:id` — body per API (no `verify_account_number`; `cheque` is attachment id). */
 export async function updatePatientBankDetails(
   id: string,
-  payload: CreateBankDetailsPayload,
+  payload: UpdateBankDetailsPayload,
 ): Promise<void> {
   const res = await patientFetchChecked(`bank_details/${encodeURIComponent(id)}`, {
     method: "PATCH",

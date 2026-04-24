@@ -16,6 +16,14 @@ export type PatientRegisterPayload = Readonly<{
 export async function registerPatientLogin(
   payload: PatientRegisterPayload,
 ): Promise<void> {
+  if (import.meta.env.DEV) {
+    console.log(
+      "[FCM] POST /patient/register payload.fcm_token length:",
+      payload.fcm_token.length,
+      "| preview:",
+      payload.fcm_token ? `${payload.fcm_token.slice(0, 20)}…` : "(empty string)",
+    );
+  }
   const res = await patientFetchChecked("register", {
     method: "POST",
     body: JSON.stringify(payload),

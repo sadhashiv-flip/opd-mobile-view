@@ -1,5 +1,5 @@
 import type { ClipboardEvent, KeyboardEvent, MutableRefObject } from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   requestAccountLinkOtp,
@@ -10,6 +10,7 @@ import { digitsOnly, takeDigits } from "@/lib/digits";
 import { saveAuthSession } from "@/lib/authStorage";
 import type { AccountLinkLocationState } from "@/types/navigation";
 import { useToast } from "@/hooks/useToast";
+import { getWebFcmToken } from "@/lib/fcmToken";
 import { useOtpInput } from "./useOtpInput";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
@@ -58,6 +59,10 @@ export function useAccountLinkPage(): AccountLinkPageController {
   const [sending, setSending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    void getWebFcmToken();
+  }, []);
+
   const setRawInputPhone = useCallback((v: string) => {
     setRawInputState(takeDigits(v, MIN_PHONE_DIGITS));
   }, []);
@@ -81,7 +86,8 @@ export function useAccountLinkPage(): AccountLinkPageController {
     const v = normalizedValue;
     setSending(true);
     try {
-      await requestAccountLinkOtp(v);
+      const fcm_token = await getWebFcmToken();
+      await requestAccountLinkOtp(v, fcm_token);
       setLinkValue(v);
       setStep("otp");
       resetOtpDigits();
@@ -96,7 +102,8 @@ export function useAccountLinkPage(): AccountLinkPageController {
   const handleResend = useCallback(async () => {
     if (!linkValue) return;
     try {
-      await requestAccountLinkOtp(linkValue);
+      const fcm_token = await getWebFcmToken();
+      await requestAccountLinkOtp(linkValue, fcm_token);
       resetOtpDigits();
       toast.success("OTP resent");
     } catch (e) {
@@ -109,10 +116,12 @@ export function useAccountLinkPage(): AccountLinkPageController {
     const code = otp.digits.join("");
     setIsSubmitting(true);
     try {
+      const fcm_token = await getWebFcmToken();
       const data = await verifyAccountLink({
         action: "LINK",
         value: linkValue,
         code,
+        fcm_token,
       });
       await saveAuthSession(data);
       toast.success(data.message?.trim() || "Account linked successfully");

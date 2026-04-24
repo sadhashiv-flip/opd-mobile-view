@@ -11,6 +11,7 @@ import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { useToast } from "@/hooks/useToast";
+import { getWebFcmToken } from "@/lib/fcmToken";
 import "./AddFamilyMemberPage.css";
 
 const MIN_PHONE_LEN = 10;
@@ -194,6 +195,10 @@ export function ProfileMembersAddPage() {
     void loadMember();
   }, [loadMember, memberId]);
 
+  useEffect(() => {
+    void getWebFcmToken();
+  }, []);
+
   const onPhoneChange = (value: string) => {
     setPhone(value);
     const nextDigits = digitsOnlyPhone(value);
@@ -212,7 +217,8 @@ export function ProfileMembersAddPage() {
     }
     setSendingOtp(true);
     try {
-      await requestMemberPhoneOtp(key);
+      const fcm_token = await getWebFcmToken();
+      await requestMemberPhoneOtp(key, fcm_token);
       otpSentForPhoneRef.current = key;
       setOtpUnlocked(true);
       setMemberOtp("");

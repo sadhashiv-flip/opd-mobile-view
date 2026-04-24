@@ -108,6 +108,9 @@ export const ROUTES = {
   walletSubscription: "/wallet/:subscriptionId",
   /** Paginated transactions + filters. */
   walletTransactions: "/wallet/:subscriptionId/transactions",
+  /** Digital diary (patient parameters) — hub + per-activity log; `activityType` matches Flutter API keys (`water`, `GL`, …). */
+  digitalDiary: "/digital-diary",
+  digitalDiaryLog: "/digital-diary/:activityType",
   /**
    * Invoice / order detail — `GET /invoice/:invoiceId`.
    * Singular `order` path; `orderKind` is a segment (`consultation`, `gym`, `lab`, …); see {@link orderDetailKindInUrlFromCategoryKey}.

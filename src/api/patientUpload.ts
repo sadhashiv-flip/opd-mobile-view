@@ -322,20 +322,28 @@ export async function uploadReimbursementBillDocumentId(file: File, billNumber: 
 /**
  * Reimbursement checklist `/upload` — `ref_type` / `document_type` / `document_name` depend on slot kind
  * (payment / prescription / report / support vs legacy BILL slot).
+ *
+ * When replacing an existing checklist row on claim detail, pass {@link attachmentSlotId} so the request hits
+ * `PATCH {uploadBase}/upload/{attachmentSlotId}` (placeholder attachment id from `GET /patient/reimbursement/:id`).
+ * New checklist files without a server row still use `POST {uploadBase}/upload`.
  */
 export async function uploadReimbursementChecklistDocumentId(
   file: File,
   billNumber: string,
   uploadKind: ChecklistUploadKind,
   particularsKey: string,
+  attachmentSlotId?: string,
 ): Promise<ReimbursementUploadFileRecord> {
   const bill = billNumber.trim();
   const key = particularsKey.trim();
+  const slotId = attachmentSlotId?.trim() ?? "";
   if (!bill) throw new Error("Bill number is required before upload");
   if (!key && uploadKind === "legacy") throw new Error("Document slot is required before upload");
 
   const token = await getAccessToken();
   if (!token) throw new Error("Not signed in");
+
+  const uploadPath = slotId ? `upload/${encodeURIComponent(slotId)}` : "upload";
 
   const fd = new FormData();
   fd.append("type", "reimbursement");
@@ -375,8 +383,8 @@ export async function uploadReimbursementChecklistDocumentId(
       ? import.meta.env.VITE_UPLOAD_APP_NAME.trim()
       : "co-flip-health";
 
-  const res = await patientFetchUploadChecked("upload", {
-    method: "POST",
+  const res = await patientFetchUploadChecked(uploadPath, {
+    method: slotId ? "PATCH" : "POST",
     body: fd,
     headers: { app_name: appName },
   });

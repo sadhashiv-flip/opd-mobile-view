@@ -198,7 +198,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     } catch {
       // ignore
     }
-    navigate(generatePath(ROUTES.diagnosticsPlan, { type }));
+    navigate({
+      pathname: generatePath(ROUTES.diagnosticsPlan, { type }),
+      search: location.search,
+    });
   };
 
   return (

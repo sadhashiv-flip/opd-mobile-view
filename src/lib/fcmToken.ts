@@ -1,5 +1,9 @@
 import { getFirebaseApp } from "@/lib/firebase";
 
+function devFcmLog(...args: unknown[]): void {
+  if (import.meta.env.DEV) console.log("[FCM]", ...args);
+}
+
 const FCM_SW_PATH = "/firebase-messaging-sw.js";
 /** Same prefix as other app keys so {@link clearClientStorageOnUnauthorized} removes it. */
 const FCM_REGISTRATION_TOKEN_KEY = "opd-mobile-view.fcm.registrationToken.v1";
@@ -36,43 +40,87 @@ async function registerFcmServiceWorker(): Promise<ServiceWorkerRegistration | n
       type: "classic",
       scope: "/",
     });
-  } catch {
+  } catch (e) {
+    devFcmLog(`registerFcmServiceWorker: failed to register ${FCM_SW_PATH}`, e);
     return null;
   }
 }
 
 async function fetchFreshWebFcmToken(): Promise<string> {
-  if (!globalThis.window) return "";
+  if (!globalThis.window) {
+    devFcmLog("fetchFreshWebFcmToken: no window");
+    return "";
+  }
+  /** Web Push / FCM `getToken` requires a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts): `https://`, or `http://localhost` / `127.0.0.1` — not `http://192.168…`. */
+  if (globalThis.isSecureContext === false) {
+    devFcmLog(
+      "fetchFreshWebFcmToken: insecure origin — browsers only expose Web Push/FCM on secure contexts: https://, or http://localhost (not http://192.168…). Fix: open http://localhost:3000, or remove VITE_DEV_SERVER_HTTPS=false from .env and open https://<your-ip>:3000 (trust the dev cert).",
+    );
+    return "";
+  }
   const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY?.trim();
-  if (!vapidKey) return "";
+  if (!vapidKey) {
+    devFcmLog(
+      "fetchFreshWebFcmToken: empty token — set VITE_FIREBASE_VAPID_KEY in .env (Firebase Console → Cloud Messaging → Web Push certificates)",
+    );
+    return "";
+  }
 
   let messagingMod: typeof import("firebase/messaging");
   try {
     messagingMod = await import("firebase/messaging");
-    if (!(await messagingMod.isSupported())) return "";
-  } catch {
+    if (!(await messagingMod.isSupported())) {
+      devFcmLog("fetchFreshWebFcmToken: Firebase messaging not supported in this browser");
+      return "";
+    }
+  } catch (e) {
+    devFcmLog("fetchFreshWebFcmToken: failed to load firebase/messaging", e);
     return "";
   }
 
   const app = getFirebaseApp();
-  if (!app) return "";
+  if (!app) {
+    devFcmLog(
+      "fetchFreshWebFcmToken: Firebase web app not configured — check VITE_FIREBASE_* env vars",
+    );
+    return "";
+  }
 
   try {
     const { getMessaging, getToken } = messagingMod;
     const messaging = getMessaging(app);
-    if (!("Notification" in globalThis)) return "";
+    if (!("Notification" in globalThis)) {
+      devFcmLog("fetchFreshWebFcmToken: Notifications API unavailable");
+      return "";
+    }
     const current = Notification.permission;
-    if (current === "denied") return "";
+    if (current === "denied") {
+      devFcmLog("fetchFreshWebFcmToken: notification permission denied — enable site notifications and retry");
+      return "";
+    }
     const permission = current === "granted" ? "granted" : await Notification.requestPermission();
-    if (permission !== "granted") return "";
+    if (permission !== "granted") {
+      devFcmLog("fetchFreshWebFcmToken: notification permission not granted:", permission);
+      return "";
+    }
 
     const registration = await registerFcmServiceWorker();
+    if (!registration) {
+      devFcmLog(
+        `fetchFreshWebFcmToken: service worker registration failed for ${FCM_SW_PATH} — check Network tab and that the file is served at origin root`,
+      );
+    }
     const token = await getToken(messaging, {
       vapidKey,
       ...(registration ? { serviceWorkerRegistration: registration } : {}),
     });
-    return typeof token === "string" && token.length > 0 ? token : "";
-  } catch {
+    const ok = typeof token === "string" && token.length > 0 ? token : "";
+    if (!ok) {
+      devFcmLog("fetchFreshWebFcmToken: getToken returned empty — check VAPID key pair matches this Firebase project");
+    }
+    return ok;
+  } catch (e) {
+    devFcmLog("fetchFreshWebFcmToken: getToken error", e);
     return "";
   }
 }
@@ -83,12 +131,22 @@ async function fetchFreshWebFcmToken(): Promise<string> {
  * Returns empty string when messaging is unsupported, env is incomplete, permission denied, or on error.
  */
 export async function getWebFcmToken(): Promise<string> {
-  if (!globalThis.window) return "";
+  if (!globalThis.window) {
+    devFcmLog("getWebFcmToken: no window");
+    return "";
+  }
 
   const stored = readPersistedFcmToken();
-  if (stored) return stored;
+  if (stored) {
+    devFcmLog("getWebFcmToken (persisted registration token):", stored);
+    return stored;
+  }
 
-  if (inFlight) return inFlight;
+  if (inFlight) {
+    const token = await inFlight;
+    devFcmLog("getWebFcmToken (shared in-flight registration token):", token || "(empty)");
+    return token;
+  }
 
   inFlight = (async () => {
     const fresh = await fetchFreshWebFcmToken();
@@ -96,7 +154,9 @@ export async function getWebFcmToken(): Promise<string> {
     return fresh;
   })();
   try {
-    return await inFlight;
+    const token = await inFlight;
+    devFcmLog("getWebFcmToken (after fresh fetch):", token || "(empty — POST /patient/register will send fcm_token as \"\")");
+    return token;
   } finally {
     inFlight = null;
   }

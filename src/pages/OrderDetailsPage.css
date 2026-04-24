@@ -1962,3 +1962,46 @@
 .od-lab-sub-card__reschedule:active {
   opacity: 0.85;
 }
+
+/* Gym membership order (`/order/gym/:id`) */
+.od-card--gym-package .od-row--gym:first-of-type {
+  margin-top: 0;
+}
+
+.od-gym-package__subhead {
+  margin: 16px 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-gym-tnc {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eee9e4;
+}
+
+.od-gym-tnc__summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111111;
+  list-style-position: outside;
+}
+
+.od-gym-tnc__body {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #4a423b;
+}
+
+.od-gym-tnc__body ol,
+.od-gym-tnc__body ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.od-gym-tnc__body li {
+  margin-top: 6px;
+}

@@ -95,6 +95,10 @@ export function ClaimBillEditPage() {
           setError("Bill not found on this claim");
           return;
         }
+        if (bill.billDocumentStatus !== 0) {
+          navigate(generatePath(ROUTES.claimsDetail, { claimId: cid }), { replace: true });
+          return;
+        }
         setBillNumber(bill.billNumber.trim());
         setBillDate(billDateForInput(bill.billDate));
         setBillAmount(formatAmountForInput(bill.billAmount));

@@ -20,7 +20,10 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_MAPS_API_KEY?: string;
   /** Loader `region` bias (e.g. `in`). Defaults to `in`. */
   readonly VITE_GOOGLE_MAPS_REGION?: string;
-  /** POST gym opt-in / enrolment. Default: `gym/optIn`. */
+  /**
+   * POST gym opt-in (under patient base). Default: `gym/optIn` → e.g. `POST /patient/gym/optIn`.
+   * Phase A: no `?status=confirm`. Phase B: append `?status=confirm`.
+   */
   readonly VITE_GYM_OPTIN_PATH?: string;
   /**
    * Gym payment resource base (no trailing slash), e.g. `gym/payment`.

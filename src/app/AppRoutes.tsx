@@ -78,6 +78,8 @@ import { ClaimNewPage } from "@/pages/ClaimNewPage";
 import { ClaimBillChecklistPage } from "@/pages/ClaimBillChecklistPage";
 import { ClaimBillEditPage } from "@/pages/ClaimBillEditPage";
 import { ClaimDetailPage } from "@/pages/ClaimDetailPage";
+import { DigitalDiaryHubPage } from "@/pages/DigitalDiaryHubPage";
+import { DigitalDiaryLogPage } from "@/pages/DigitalDiaryLogPage";
 import { VideoCallPage } from "@/pages/VideoCallPage";
 import {
   LegacyOrdersDetailOneSegmentRedirect,
@@ -98,6 +100,8 @@ export function AppRoutes() {
       <Route path={ROUTES.userDetailsBmiResult} element={<UserDetailsBmiResultPage />} />
       <Route path={ROUTES.accountLink} element={<AccountLinkPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
+      <Route path={ROUTES.digitalDiary} element={<DigitalDiaryHubPage />} />
+      <Route path={ROUTES.digitalDiaryLog} element={<DigitalDiaryLogPage />} />
       <Route path={ROUTES.medicalRecords} element={<MedicalRecordsPage />} />
       <Route path={ROUTES.medicalRecordsConsultationChat} element={<MedicalRecordsConsultationChatPage />} />
       <Route path={ROUTES.medicalRecordsCategory} element={<MedicalRecordsPage />} />

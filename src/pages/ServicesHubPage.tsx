@@ -430,6 +430,10 @@ export function ServicesHubPage() {
                   void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "lab-tests" }));
                 } else if (item.id === "rx") {
                   void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "prescriptions" }));
+                } else if (item.id === "activity") {
+                  void navigate(ROUTES.digitalDiary, {
+                    state: { returnPath: `${ROUTES.services}?tab=medical-records` },
+                  });
                 } else {
                   void navigate(ROUTES.medicalRecords);
                 }

@@ -115,10 +115,12 @@ export function BookingConfirmationBottomSheet({
               {model.showWalletSection ? (
                 <div className="od-bc-wallet">
                   <h3 className="od-bc-wallet__title">{model.walletHeading}</h3>
-                  <div className="od-bc-wallet__row">
-                    <span className="od-bc-wallet__k">Using from OPD wallet</span>
-                    <span className="od-bc-wallet__v">{model.walletDebitLineFormatted}</span>
-                  </div>
+                  {model.showWalletDebitRow ? (
+                    <div className="od-bc-wallet__row">
+                      <span className="od-bc-wallet__k">Using from OPD wallet</span>
+                      <span className="od-bc-wallet__v">{model.walletDebitLineFormatted}</span>
+                    </div>
+                  ) : null}
                   {model.limitAvailableFormatted ? (
                     <p className="od-bc-wallet__limit">
                       Limit available : {model.limitAvailableFormatted}

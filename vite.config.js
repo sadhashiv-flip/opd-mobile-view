@@ -62,6 +62,64 @@ function firebaseMessagingSwPlugin() {
   };
 }
 
+// Some LAN or WebView clients omit Accept: text/html on GET navigations, so Vite's SPA htmlFallbackMiddleware
+// skips and paths like /dashboard return 404. Patch Accept before that runs (dev + preview).
+function spaAcceptPatchMiddleware() {
+  return function spaAcceptPatch(req, _res, next) {
+      if (req.method !== "GET" && req.method !== "HEAD") return next();
+
+      const raw = req.url?.split("?")[0]?.split("#")[0] ?? "";
+      if (
+        raw.startsWith("/@") ||
+        raw.startsWith("/node_modules") ||
+        raw.startsWith("/src") ||
+        raw.startsWith("/assets") ||
+        raw.startsWith("/dev-api") ||
+        raw === "/firebase-messaging-sw.js" ||
+        raw === "/favicon.ico"
+      ) {
+        return next();
+      }
+
+      const accept = req.headers.accept ?? "";
+      const acceptOk =
+        accept === "" ||
+        accept.includes("text/html") ||
+        accept.includes("*/*");
+      if (acceptOk) return next();
+
+      const dest = req.headers["sec-fetch-dest"];
+      const looksLikeDocNavigation = dest === "document" || dest === "iframe";
+
+      /** Root `/` has an empty first segment — must still patch Accept or html-fallback skips and returns 404. */
+      const isRootOrIndex =
+        raw === "/" || raw === "" || raw === "/index.html";
+
+      const firstSeg = raw.replace(/^\//, "").split("/")[0] ?? "";
+      const looksLikeSpaPath =
+        isRootOrIndex ||
+        (firstSeg.length > 0 && !firstSeg.includes("."));
+
+      if (looksLikeDocNavigation || looksLikeSpaPath) {
+        req.headers.accept = `${accept},text/html`;
+      }
+      next();
+    };
+}
+
+function spaNavigationAcceptPatchPlugin() {
+  return {
+    name: "spa-navigation-accept-patch",
+    enforce: "pre",
+    configureServer(server) {
+      server.middlewares.use(spaAcceptPatchMiddleware());
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(spaAcceptPatchMiddleware());
+    },
+  };
+}
+
 /** Optional dev-only proxy to avoid browser CORS when the app and API are on different origins. */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -74,7 +132,8 @@ export default defineConfig(({ mode }) => {
   const devHttps = !devHttpsOff;
 
   return {
-    plugins: [react(), firebaseMessagingSwPlugin()],
+    appType: "spa",
+    plugins: [spaNavigationAcceptPatchPlugin(), react(), firebaseMessagingSwPlugin()],
     resolve: {
       alias: {
         "@": srcDir,
@@ -82,7 +141,10 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      /** Listen on all interfaces so LAN devices can reach this machine (pair with Windows Firewall rule). */
       host: true,
+      /** Allow any Host header (localhost, LAN IP, .local names) — avoids dev-only 403 from host checks. */
+      allowedHosts: true,
       ...(devHttps ? { https: true } : {}),
       ...(proxyTarget
         ? {
@@ -112,6 +174,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 3000,
       host: true,
+      allowedHosts: true,
     },
   };
 });

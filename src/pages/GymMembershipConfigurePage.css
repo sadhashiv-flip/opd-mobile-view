@@ -581,3 +581,137 @@
   color: #ffffff;
   cursor: not-allowed;
 }
+
+.gmc-quote-sheet {
+  position: relative;
+  z-index: 2;
+  width: min(560px, 100%);
+  margin: auto 0 0;
+  max-height: min(92dvh, 640px);
+  border-radius: 14px 14px 0 0;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.gmc-quote-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+}
+
+.gmc-quote-sheet__hint {
+  margin: 0 0 12px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.05px));
+  color: #555555;
+  line-height: 1.45;
+}
+
+.gmc-quote-sheet__hint--success {
+  color: #1a5f1a;
+  font-weight: 600;
+}
+
+.gmc-quote-sheet__pay-line {
+  margin: 0 0 14px;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.05px));
+  color: #333333;
+  line-height: 1.45;
+}
+
+.gmc-quote-sheet__invoice {
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.05px));
+  word-break: break-all;
+}
+
+.gmc-quote-sheet__dl {
+  margin: 0;
+}
+
+.gmc-quote-sheet__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.05px));
+}
+
+.gmc-quote-sheet__row dt {
+  margin: 0;
+  font-weight: 600;
+  color: #444444;
+}
+
+.gmc-quote-sheet__row dd {
+  margin: 0;
+  font-weight: 700;
+  color: #111111;
+}
+
+.gmc-quote-sheet__row--emph {
+  border-bottom: none;
+  padding-top: 12px;
+}
+
+.gmc-quote-sheet__row--emph dd {
+  font-size: clamp(12px, calc(15 * 100cqw / 375), calc(15 * 1.05px));
+}
+
+.gmc-quote-sheet__gate {
+  margin: 12px 0 0;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.05px));
+  color: #333333;
+  line-height: 1.45;
+}
+
+.gmc-quote-sheet__msg {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f7f7;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.05px));
+  color: #333333;
+}
+
+.gmc-quote-sheet__footer {
+  flex-shrink: 0;
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid #f0f0f0;
+  background: #ffffff;
+}
+
+.gmc-quote-sheet__secondary {
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid #cccccc;
+  padding: 14px 12px;
+  background: #ffffff;
+  font-weight: 700;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.05px));
+  cursor: pointer;
+}
+
+.gmc-quote-sheet__primary {
+  flex: 1;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  background: #0b0b0b;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.05px));
+  cursor: pointer;
+}
+
+.gmc-quote-sheet__secondary:disabled,
+.gmc-quote-sheet__primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

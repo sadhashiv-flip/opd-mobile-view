@@ -1,4 +1,6 @@
 :root {
+  /* Used by portaled overlays (bottom sheets) outside `.mobile-app-root`; keep in sync with MobileShell MOBILE_MAX_WIDTH */
+  --mobile-frame-max-width: 430px;
   --color-brand-orange: #ff5224;
   --color-brand-orange-rgb: 255, 82, 36;
   /* Light tint for disabled / secondary fills (e.g. login confirm base) */
@@ -137,4 +139,19 @@ button.ds-location:focus-visible,
 button.hcp-loc:focus-visible {
   outline: 2px solid var(--color-brand-orange);
   outline-offset: 2px;
+}
+
+/**
+ * Hide the scrollbar gutter while keeping scroll (wheel / touch / trackpad).
+ * Apply to overflow scroll containers; Firefox + Safari + Chromium + legacy Edge.
+ */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }

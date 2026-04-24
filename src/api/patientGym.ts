@@ -171,6 +171,10 @@ export async function getGymCheck(): Promise<GymCheckData> {
   return parsed;
 }
 
+/**
+ * Relative path under the patient API base (`VITE_API_BASE_URL`, typically ending with `/patient`).
+ * Default `gym/optIn` → **`POST …/patient/gym/optIn`**.
+ */
 function gymOptInPath(): string {
   const p = import.meta.env.VITE_GYM_OPTIN_PATH?.trim();
   return p && p.length > 0 ? p.replace(/^\//, "") : "gym/optIn";
@@ -211,23 +215,41 @@ export type GymOptInResult = Readonly<{
   order_id: string | null;
   /** Checkout options when the server returns them; `amount` may be set from `pending_amount` (rupees → paise). */
   razorpay_payload: Record<string, unknown> | null;
+  message: string | null;
 }>;
 
-function parseGymOptInResponse(raw: unknown): GymOptInResult {
-  const layer = readAppointmentPaymentLayer(raw);
+function inferPaymentRequired(
+  layer: Record<string, unknown>,
+  pending_amount: number | null,
+): boolean {
   const pr = layer.payment_required ?? layer.paymentRequired;
-  const payment_required = !(pr === false || pr === "false" || pr === 0);
+  if (pr === false || pr === "false" || pr === 0) return false;
+  if (pr === true || pr === "true" || pr === 1) return true;
+  return pending_amount != null && pending_amount > 0;
+}
 
+/** Phase A (quote): no persisted invoice/order/checkout. Phase B (confirm): full payment shape. */
+export type GymOptInPhase = "quote" | "confirm";
+
+function parseGymOptInResponse(raw: unknown, phase: GymOptInPhase): GymOptInResult {
+  const layer = readAppointmentPaymentLayer(raw);
   const pending_amount = numOptIn(layer.pending_amount ?? layer.pendingAmount);
+  const payment_required = inferPaymentRequired(layer, pending_amount);
   const opt_in_amount = numOptIn(layer.opt_in_amount ?? layer.optInAmount);
   const opd_paid_amount = numOptIn(layer.opd_paid_amount ?? layer.opdPaidAmount);
   const opd_wallet_available = numOptIn(layer.opd_wallet_available ?? layer.opdWalletAvailable);
 
-  let razorpay_payload = payment_required
-    ? readRazorpayPayloadFromPaymentEnvelope(layer)
-    : null;
+  let razorpay_payload =
+    phase === "confirm" && payment_required
+      ? readRazorpayPayloadFromPaymentEnvelope(layer)
+      : null;
 
-  if (payment_required && razorpay_payload != null && Object.keys(razorpay_payload).length > 0) {
+  if (
+    phase === "confirm" &&
+    payment_required &&
+    razorpay_payload != null &&
+    Object.keys(razorpay_payload).length > 0
+  ) {
     const next = { ...razorpay_payload };
     if (pending_amount != null && pending_amount > 0) {
       const amountPaise = Math.max(100, Math.round(pending_amount * 100));
@@ -238,20 +260,36 @@ function parseGymOptInResponse(raw: unknown): GymOptInResult {
     razorpay_payload = normalizeRazorpayCheckoutPayload(next);
   }
 
+  const msgRaw = layer.message;
+  const message =
+    typeof msgRaw === "string" && msgRaw.trim() ? msgRaw.trim() : null;
+
+  let invoice_id = strOptIn(layer.invoice_id ?? layer.invoiceId);
+  let order_id = strOptIn(layer.order_id ?? layer.orderId);
+
+  if (phase === "quote") {
+    invoice_id = null;
+    order_id = null;
+    razorpay_payload = null;
+  }
+
   return {
     opd_paid_amount,
     opd_wallet_available,
     opt_in_amount,
     pending_amount,
     payment_required,
-    invoice_id: strOptIn(layer.invoice_id ?? layer.invoiceId),
-    order_id: strOptIn(layer.order_id ?? layer.orderId),
+    invoice_id,
+    order_id,
     razorpay_payload,
+    message,
   };
 }
 
-export async function postGymOptIn(body: GymOptInRequest): Promise<GymOptInResult> {
-  const res = await patientFetch(gymOptInPath(), {
+async function postGymOptInRequest(body: GymOptInRequest, phase: GymOptInPhase): Promise<GymOptInResult> {
+  const base = gymOptInPath();
+  const path = phase === "confirm" ? `${base}?status=confirm` : base;
+  const res = await patientFetch(path, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -260,7 +298,7 @@ export async function postGymOptIn(body: GymOptInRequest): Promise<GymOptInResul
   }
   const text = await res.text();
   if (!text) {
-    return parseGymOptInResponse({});
+    return parseGymOptInResponse({}, phase);
   }
   let raw: unknown;
   try {
@@ -268,5 +306,37 @@ export async function postGymOptIn(body: GymOptInRequest): Promise<GymOptInResul
   } catch {
     throw new Error("Invalid JSON from gym opt-in");
   }
-  return parseGymOptInResponse(raw);
+  return parseGymOptInResponse(raw, phase);
+}
+
+/**
+ * **Phase A – Quote (no persistence).**
+ * `POST /patient/gym/optIn` — **without** `?status=confirm`.
+ *
+ * Expect `data`: `opd_paid_amount`, `opd_wallet_available`, `opt_in_amount`, `pending_amount`, `payment_required`.
+ * Returned model omits `invoice_id`, `order_id`, and `razorpay_payload` so the client never treats a quote as a checkout.
+ */
+export async function postGymOptInQuote(body: GymOptInRequest): Promise<GymOptInResult> {
+  return postGymOptInRequest(body, "quote");
+}
+
+/**
+ * **Phase B – Confirm (creates records).**
+ * `POST /patient/gym/optIn?status=confirm` — same body as Phase A.
+ *
+ * Parse `payment_required`, `invoice_id`, `razorpay_payload` (when gateway pay is required), `message`.
+ */
+export async function postGymOptInConfirm(body: GymOptInRequest): Promise<GymOptInResult> {
+  return postGymOptInRequest(body, "confirm");
+}
+
+/**
+ * Gym opt-in: quote (`confirm` false / omitted) or confirm (`confirm: true`).
+ * Prefer {@link postGymOptInQuote} / {@link postGymOptInConfirm}.
+ */
+export async function postGymOptIn(
+  body: GymOptInRequest,
+  opts?: Readonly<{ confirm?: boolean }>,
+): Promise<GymOptInResult> {
+  return postGymOptInRequest(body, opts?.confirm === true ? "confirm" : "quote");
 }

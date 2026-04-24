@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   createPatientBankDetails,
@@ -15,11 +15,34 @@ import { useToast } from "@/hooks/useToast";
 import "./ProfileManagePage.css";
 import "./ProfileBankFormPage.css";
 
+/** Backend allows PATCH correction only when the saved row is admin-rejected. */
+const BANK_VERIFY_REJECTED = 2;
+
+/** Same-origin path only — used for `returnPath` / `returnTo` from claim detail, new claim, etc. */
+function safeReturnNavigatePath(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const t = raw.trim();
+  if (!t.startsWith("/") || t.startsWith("//")) return null;
+  return t;
+}
+
 export function ProfileBankFormPage() {
   const { bankId } = useParams<{ bankId: string }>();
   const isEdit = Boolean(bankId);
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+
+  /** Prefer explicit `returnPath` (e.g. claim detail), then `returnTo` (e.g. new claim flow). */
+  const resolvedReturnPath = useMemo(() => {
+    const s = location.state as { returnPath?: unknown; returnTo?: unknown } | null | undefined;
+    return safeReturnNavigatePath(s?.returnPath) ?? safeReturnNavigatePath(s?.returnTo);
+  }, [location.state]);
+
+  const navigateAfterBankSave = useMemo(
+    () => resolvedReturnPath ?? ROUTES.profileBank,
+    [resolvedReturnPath],
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialChequeIdRef = useRef<string | null>(null);
 
@@ -40,11 +63,14 @@ export function ProfileBankFormPage() {
   const chequeUploadSeqRef = useRef(0);
   const [loadingInit, setLoadingInit] = useState(isEdit);
   const [loadedServerChequePath, setLoadedServerChequePath] = useState<string | null>(null);
+  /** Loaded row `verify_status`. PATCH corrections are allowed only when this is `2` (admin rejected). */
+  const [bankRecordVerifyStatus, setBankRecordVerifyStatus] = useState<number | null>(null);
 
   useEffect(() => {
     if (!bankId) {
       initialChequeIdRef.current = null;
       setLoadedServerChequePath(null);
+      setBankRecordVerifyStatus(null);
       return;
     }
     let cancelled = false;
@@ -67,6 +93,7 @@ export function ProfileBankFormPage() {
         setVerifyAccountNumber(r.accountNumber);
         setAccountHolderName(r.accountHolderName);
         setLoadedServerChequePath(r.chequeAttachment?.path?.trim() || null);
+        setBankRecordVerifyStatus(r.verifyStatus);
       } catch (e) {
         if (!cancelled) {
           toast.error(e instanceof Error ? e.message : "Could not load bank account");
@@ -120,7 +147,11 @@ export function ProfileBankFormPage() {
   /** When bank + file are set, upload immediately; re-runs if bank or file changes. */
   useEffect(() => {
     if (!bankKey.trim()) {
-      setChequeAttachmentId(null);
+      if (isEdit && initialChequeIdRef.current) {
+        setChequeAttachmentId(initialChequeIdRef.current);
+      } else {
+        setChequeAttachmentId(null);
+      }
       return;
     }
     if (!chequeFile) {
@@ -158,7 +189,7 @@ export function ProfileBankFormPage() {
     return () => {
       cancelled = true;
     };
-  }, [bankKey, chequeFile, toast]);
+  }, [bankKey, chequeFile, isEdit, toast]);
 
   const onFileChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -204,23 +235,28 @@ export function ProfileBankFormPage() {
     return "Choose file";
   }, [bankKey, isEdit]);
 
+  /** PATCH `/bank_details/:id` is validated for `verify_status === 2` only. */
+  const correctionPatchAllowed = !isEdit || bankRecordVerifyStatus === BANK_VERIFY_REJECTED;
+
   const submitButtonLabel = useMemo(() => {
     if (submitting) return "Saving…";
+    if (isEdit && !correctionPatchAllowed) return "Correction not available";
     if (isEdit) return "Update bank account";
     return "Save bank account";
-  }, [submitting, isEdit]);
+  }, [submitting, isEdit, correctionPatchAllowed]);
 
   const canSubmit = useMemo(() => {
-    const chequeReady =
-      Boolean(chequeAttachmentId?.trim()) && !uploadingCheque;
+    const chequeBusyOrInvalid =
+      uploadingCheque || (!isEdit && !chequeAttachmentId?.trim());
     return (
       bankKey.trim().length > 0 &&
       ifscCode.trim().length > 0 &&
       branch.trim().length > 0 &&
       accountsMatch &&
       accountHolderName.trim().length > 0 &&
-      chequeReady &&
-      !submitting
+      !chequeBusyOrInvalid &&
+      !submitting &&
+      correctionPatchAllowed
     );
   }, [
     bankKey,
@@ -231,30 +267,54 @@ export function ProfileBankFormPage() {
     chequeAttachmentId,
     uploadingCheque,
     submitting,
+    correctionPatchAllowed,
+    isEdit,
   ]);
 
   const handleSubmit = useCallback(async () => {
-    const cheque = chequeAttachmentId?.trim();
-    if (!canSubmit || !cheque) return;
+    if (!canSubmit) return;
+    const chequeTrim = chequeAttachmentId?.trim() ?? "";
+    if (!isEdit && !chequeTrim) return;
     setSubmitting(true);
     try {
-      const payload = {
-        bank_name: bankKey.trim(),
-        ifsc_code: ifscCode.trim(),
-        branch: branch.trim(),
-        account_number: accountNumber.trim(),
-        verify_account_number: verifyAccountNumber.trim(),
-        account_holder_name: accountHolderName.trim(),
-        cheque,
-      };
       if (isEdit && bankId) {
-        await updatePatientBankDetails(bankId, payload);
-        toast.success("Bank account updated.");
+        const replacingCheque = Boolean(chequeFile);
+        /** Saved row `cheque` from GET bank_details (same as `data[n].cheque`). */
+        const existingChequeId = initialChequeIdRef.current?.trim() ?? "";
+        const chequeToSend = replacingCheque ? chequeTrim : existingChequeId || chequeTrim;
+        if (!chequeToSend.trim()) {
+          toast.error(
+            replacingCheque
+              ? "Cheque upload did not return an attachment id."
+              : "Cancelled cheque id is missing. Reload the page or upload a new cheque file.",
+          );
+          return;
+        }
+        await updatePatientBankDetails(bankId, {
+          bank_name: bankKey.trim(),
+          branch: branch.trim(),
+          ifsc_code: ifscCode.trim(),
+          account_number: accountNumber.trim(),
+          account_holder_name: accountHolderName.trim(),
+          cheque: chequeToSend.trim(),
+        });
+        toast.success("Bank details updated — pending verification.");
       } else {
-        await createPatientBankDetails(payload);
+        await createPatientBankDetails({
+          bank_name: bankKey.trim(),
+          ifsc_code: ifscCode.trim(),
+          branch: branch.trim(),
+          account_number: accountNumber.trim(),
+          verify_account_number: verifyAccountNumber.trim(),
+          account_holder_name: accountHolderName.trim(),
+          cheque: chequeTrim,
+        });
         toast.success("Bank account added.");
       }
-      navigate(ROUTES.profileBank);
+      navigate(navigateAfterBankSave, {
+        replace: true,
+        state: resolvedReturnPath ? { refreshReimbursementDetail: true } : undefined,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not save bank details");
     } finally {
@@ -268,9 +328,12 @@ export function ProfileBankFormPage() {
     branch,
     canSubmit,
     chequeAttachmentId,
+    chequeFile,
     ifscCode,
     isEdit,
     navigate,
+    navigateAfterBankSave,
+    resolvedReturnPath,
     toast,
     verifyAccountNumber,
   ]);
@@ -279,7 +342,7 @@ export function ProfileBankFormPage() {
     return (
       <div className="profile-manage-page pbf-page">
         <header className="profile-manage-page__top">
-          <Link to={ROUTES.profileBank} className="profile-manage-page__back" aria-label="Back">
+          <Link to={navigateAfterBankSave} className="profile-manage-page__back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -305,9 +368,9 @@ export function ProfileBankFormPage() {
     <div className="profile-manage-page pbf-page">
       <header className="profile-manage-page__top">
         <Link
-          to={ROUTES.profileBank}
+          to={navigateAfterBankSave}
           className="profile-manage-page__back"
-          aria-label="Back to bank list"
+          aria-label={resolvedReturnPath ? "Back to previous page" : "Back to bank list"}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
@@ -319,14 +382,27 @@ export function ProfileBankFormPage() {
             />
           </svg>
         </Link>
-        <h1 className="profile-manage-page__title">Add bank</h1>
+        <h1 className="profile-manage-page__title">{isEdit ? "Edit bank" : "Add bank"}</h1>
         <span className="profile-manage-page__spacer" aria-hidden />
       </header>
 
       <main className="profile-manage-page__main">
+        {isEdit && bankRecordVerifyStatus === BANK_VERIFY_REJECTED ? (
+          <div className="pbf-patch-notice pbf-patch-notice--rejected" role="status">
+            <strong>Bank profile was rejected.</strong> Update your details and save — we’ll verify again
+            (status returns to pending). Use an active bank <strong>type key</strong> for bank name and a new
+            cancelled-cheque upload if needed.
+          </div>
+        ) : null}
+        {isEdit && bankRecordVerifyStatus !== null && bankRecordVerifyStatus !== BANK_VERIFY_REJECTED ? (
+          <div className="pbf-patch-notice pbf-patch-notice--blocked" role="note">
+            Corrections through this form are only accepted after an admin rejection. Your bank row is not
+            in rejected state yet, so this update cannot be submitted here. For help, contact support.
+          </div>
+        ) : null}
         <p className="profile-manage-page__intro">
           {isEdit
-            ? "Update your details. Replacing the cheque uploads a new file to /upload; otherwise the existing cheque id is kept."
+            ? "Bank name, IFSC, branch, account details, and holder name are required. Replacing the cancelled cheque is optional — if you do not pick a new file, your existing cheque attachment id is sent again with the update."
             : "Choose a bank first, then pick a cancelled cheque — it uploads immediately to /upload. Save sends that id as cheque with your account details."}
         </p>
 

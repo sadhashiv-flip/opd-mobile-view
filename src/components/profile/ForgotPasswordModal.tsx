@@ -96,6 +96,10 @@ function ForgotPasswordOtpStep({
   const [resendSec, setResendSec] = useState(RESEND_COOLDOWN_SEC);
 
   useEffect(() => {
+    void getWebFcmToken();
+  }, []);
+
+  useEffect(() => {
     if (resendSec <= 0) return;
     const t = globalThis.setInterval(() => {
       setResendSec((s) => (s <= 1 ? 0 : s - 1));
@@ -107,7 +111,8 @@ function ForgotPasswordOtpStep({
     if (resendSec > 0 || submitting) return;
     setBanner(null);
     try {
-      await requestForgotOtp({ phone: phoneDigits, type: "FORGOT" });
+      const fcm_token = await getWebFcmToken();
+      await requestForgotOtp({ phone: phoneDigits, type: "FORGOT", fcm_token });
       clearOtpDigits();
       setResendSec(RESEND_COOLDOWN_SEC);
       setBanner({ variant: "success", text: "A new OTP has been sent to your number." });
@@ -515,7 +520,8 @@ export function ForgotPasswordModal({ open, onClose, onFlowFinished }: ForgotPas
     setBanner(null);
     setSending(true);
     try {
-      await requestForgotOtp({ phone: digits, type: "FORGOT" });
+      const fcm_token = await getWebFcmToken();
+      await requestForgotOtp({ phone: digits, type: "FORGOT", fcm_token });
       setPhoneDigits(digits);
       setOtpSession((s) => s + 1);
       setStep("otp");

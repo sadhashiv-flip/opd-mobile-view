@@ -1,5 +1,11 @@
-import { getGymCheck, postGymOptIn } from "@/api/patientGym";
-import { initGymPayment, verifyGymPayment } from "@/api/patientGymPayment";
+import {
+  getGymCheck,
+  postGymOptInConfirm,
+  postGymOptInQuote,
+  type GymOptInRequest,
+  type GymOptInResult,
+} from "@/api/patientGym";
+import { verifyGymPayment } from "@/api/patientGymPayment";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
 import { readGymCheckSnapshot, writeGymCheckSnapshot } from "@/constants/gymCheckStorage";
@@ -15,6 +21,7 @@ import {
 } from "@/constants/gymSelectedMemberStorage";
 import {
   GYM_OVERVIEW_SNAPSHOT_KEY,
+  type GymOverviewServerPayment,
   type GymOverviewSnapshot,
 } from "@/constants/gymOverviewStorage";
 import { GymBenefitsModal } from "@/components/gym/GymBenefitsModal";
@@ -37,9 +44,12 @@ import {
   isPaymentCancelledMessage,
   loadRazorpayScript,
 } from "@/lib/gymMembershipRazorpayPay";
-import { openRazorpayCheckoutWithEvent } from "@/lib/razorpayCheckout";
+import {
+  normalizeRazorpayCheckoutPayload,
+  openRazorpayCheckoutWithEvent,
+} from "@/lib/razorpayCheckout";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
 import "./GymMembershipPage.css";
 import "./GymMembershipConfigurePage.css";
@@ -160,6 +170,91 @@ function ShieldIcon({ className }: Readonly<{ className?: string }>) {
 
 function dashField(v: string): string {
   return v.trim() ? v.trim() : "—";
+}
+
+function serverPaymentFromOptIn(r: GymOptInResult): GymOverviewServerPayment {
+  return {
+    opt_in_amount: r.opt_in_amount,
+    opd_paid_amount: r.opd_paid_amount,
+    opd_wallet_available: r.opd_wallet_available,
+    pending_amount: r.pending_amount,
+    message: r.message,
+  };
+}
+
+function formatQuoteRupees(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return `₹${n.toLocaleString("en-IN")}`;
+}
+
+/** Phase A quote: Razorpay needed when server says payment is required and there is still an amount due. */
+function quoteExpectsRazorpayGateway(q: GymOptInResult): boolean {
+  return Boolean(q.payment_required && (q.pending_amount ?? 0) > 0);
+}
+
+/** Razorpay Checkout `amount` is in paise */
+function paiseFromRazorpayPayload(payload: Record<string, unknown>): number | null {
+  const a = payload.amount;
+  if (typeof a === "number" && Number.isFinite(a) && a > 0) return Math.round(a);
+  if (typeof a === "string" && /^\d+$/.test(a.trim())) {
+    const n = Number.parseInt(a.trim(), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  return null;
+}
+
+function formatPaiseAsRupees(paise: number): string {
+  const rupees = paise / 100;
+  return `₹${rupees.toLocaleString("en-IN", { minimumFractionDigits: rupees % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}`;
+}
+
+/** POST payment_verify until server stops returning a fresh Razorpay payload (resume flow). */
+async function verifyGymPaymentWithOptionalGateway(
+  invoiceId: string,
+  firstPaymentId: string,
+  onCheckoutFailed: (message: string) => void,
+): Promise<void> {
+  let paymentId = firstPaymentId;
+  for (;;) {
+    const vr = await verifyGymPayment({
+      invoice_id: invoiceId,
+      payment_id: paymentId,
+    });
+    const rzp = vr.razorpay_payload;
+    if (rzp == null || Object.keys(rzp).length === 0) return;
+
+    await loadRazorpayScript();
+    if (!(globalThis as unknown as { Razorpay?: unknown }).Razorpay) {
+      throw new Error("Razorpay Checkout could not load. Check your network or ad blocker.");
+    }
+
+    paymentId = await new Promise<string>((resolve, reject) => {
+      const onFail = (m: string) => {
+        window.removeEventListener(GYM_PAYMENT_DONE_EVENT, onNext);
+        onCheckoutFailed(m);
+        reject(new Error(m));
+      };
+      const onNext = (e: Event) => {
+        window.removeEventListener(GYM_PAYMENT_DONE_EVENT, onNext);
+        const d = (e as CustomEvent<unknown>).detail;
+        if (
+          d &&
+          typeof d === "object" &&
+          typeof (d as { razorpay_payment_id?: unknown }).razorpay_payment_id === "string"
+        ) {
+          resolve((d as { razorpay_payment_id: string }).razorpay_payment_id);
+          return;
+        }
+        reject(new Error("Invalid payment response"));
+      };
+      window.addEventListener(GYM_PAYMENT_DONE_EVENT, onNext);
+      openRazorpayCheckoutWithEvent(
+        normalizeRazorpayCheckoutPayload({ ...rzp }),
+        GYM_PAYMENT_DONE_EVENT,
+        onFail,
+      );
+    });
+  }
 }
 
 function GymConfigureMemberBlock({
@@ -381,7 +476,21 @@ export function GymMembershipConfigurePage() {
   const [removeConfirmTarget, setRemoveConfirmTarget] = useState<"primary" | "secondary" | null>(
     null,
   );
-  const [optInBusy, setOptInBusy] = useState(false);
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [quoteReviewOpen, setQuoteReviewOpen] = useState(false);
+  const [quoteResult, setQuoteResult] = useState<GymOptInResult | null>(null);
+  const pendingOptInBodyRef = useRef<GymOptInRequest | null>(null);
+  /** After confirm returns Razorpay payload — user taps Pay now (same pattern as diagnostics / bookings). */
+  const [awaitingRazorpayPay, setAwaitingRazorpayPay] = useState<
+    | null
+    | Readonly<{
+        invoiceId: string;
+        razorpayPayload: Record<string, unknown>;
+        confirmResult: GymOptInResult;
+      }>
+  >(null);
+  const [razorpayBusy, setRazorpayBusy] = useState(false);
 
   const [apiMemberRows, setApiMemberRows] = useState<GymMemberListRow[] | null>(null);
   const [apiMembersReady, setApiMembersReady] = useState(false);
@@ -574,25 +683,9 @@ export function GymMembershipConfigurePage() {
 
   const backState = planId ? { planId } : undefined;
 
-  const handleContinueToOverview = useCallback(async () => {
-    if (!primaryResolved || !primaryMemberPlanId) return;
-    if (showSecondary && !secondaryMemberPlanId) return;
-    const loc = primaryCityDisplay.trim();
-    if (!loc) {
-      toast.error("Please choose a location before continuing.");
-      return;
-    }
-    const email =
-      primaryResolved.email?.trim() ||
-      `${primaryResolved.name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`;
-    const phone = primaryResolved.phone?.trim() || "";
-    if (!phone) {
-      toast.error("Phone number is required for gym enrolment.");
-      return;
-    }
-    const sub = gymCheck?.subscription_id?.trim();
-
-    const goOverview = () => {
+  const persistOverviewAndNavigate = useCallback(
+    (payment: GymOptInResult | null, registrationComplete: boolean) => {
+      if (!primaryResolved || !primaryMemberPlanId) return;
       const selfRow = apiMemberRows?.find((r) => r.section === "self");
       const accountPrimaryUser = (() => {
         if (selfRow) {
@@ -641,6 +734,11 @@ export function GymMembershipConfigurePage() {
                 planId: secondaryMemberPlanId,
               }
             : null,
+        registrationComplete,
+        serverPayment: payment ? serverPaymentFromOptIn(payment) : undefined,
+        ...(payment?.invoice_id?.trim()
+          ? { gymInvoiceId: payment.invoice_id.trim() }
+          : {}),
       };
       try {
         sessionStorage.setItem(GYM_OVERVIEW_SNAPSHOT_KEY, JSON.stringify(snapshot));
@@ -648,141 +746,226 @@ export function GymMembershipConfigurePage() {
         // ignore storage errors
       }
       navigate(ROUTES.gymMembershipOverview);
+    },
+    [
+      primaryResolved,
+      primaryMemberPlanId,
+      showSecondary,
+      secondaryMemberPlanId,
+      secondaryResolved,
+      primaryCityConfirmed,
+      secondaryCityConfirmed,
+      gymCheck,
+      apiMemberRows,
+      accountPrimaryMemberId,
+      planId,
+      navigate,
+    ],
+  );
+
+  /** Phase A — quote: `POST /patient/gym/optIn` (no `?status=confirm`; no persistence). */
+  const handleRequestQuote = useCallback(async () => {
+    if (!primaryResolved || !primaryMemberPlanId) return;
+    if (showSecondary && !secondaryMemberPlanId) return;
+    if (!isAccountPrimaryMember(primaryResolved, accountPrimaryMemberId)) {
+      toast.error(
+        "Gym opt-in is only available for the primary employee account. Select your own profile and try again.",
+      );
+      return;
+    }
+    const loc = primaryCityDisplay.trim();
+    if (!loc) {
+      toast.error("Please choose a location before continuing.");
+      return;
+    }
+    const sub = gymCheck?.subscription_id?.trim();
+    const selfRow = apiMemberRows?.find((r) => r.section === "self");
+    let name: string;
+    let phone: string;
+    let email: string;
+    if (selfRow) {
+      const snap = enrichGymMemberSnapshot(
+        buildGymMemberSnapshotFromRow(selfRow, gymCheck),
+        gymCheck,
+      );
+      name = snap.name.trim();
+      phone = snap.phone?.trim() || "";
+      email =
+        snap.email?.trim() || `${name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`;
+    } else {
+      name = primaryResolved.name.trim();
+      phone = primaryResolved.phone?.trim() || "";
+      email =
+        primaryResolved.email?.trim() ||
+        `${name.replaceAll(/\s+/g, "").toLowerCase()}@email.com`;
+    }
+    if (!phone) {
+      toast.error("Phone number is required for gym enrolment.");
+      return;
+    }
+
+    const body: GymOptInRequest = {
+      location: loc,
+      package_code: primaryMemberPlanId,
+      subscription_id: sub && sub.length > 0 ? sub : null,
+      name,
+      phone,
+      email,
+      personal_email: "",
     };
 
-    setOptInBusy(true);
-    let optInResult: Awaited<ReturnType<typeof postGymOptIn>>;
+    setQuoteBusy(true);
     try {
-      optInResult = await postGymOptIn({
-        location: loc,
-        package_code: primaryMemberPlanId,
-        subscription_id: sub && sub.length > 0 ? sub : null,
-        name: primaryResolved.name.trim(),
-        phone,
-        email,
-        personal_email: email,
-      });
+      const quote = await postGymOptInQuote(body);
+      pendingOptInBodyRef.current = body;
+      setAwaitingRazorpayPay(null);
+      setQuoteResult(quote);
+      setQuoteReviewOpen(true);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit gym enrolment");
-      setOptInBusy(false);
-      return;
+      toast.error(e instanceof Error ? e.message : "Could not load price quote");
+    } finally {
+      setQuoteBusy(false);
     }
-
-    let refreshed = await getGymCheck();
-    writeGymCheckSnapshot(refreshed);
-
-    let invoiceId = (optInResult.invoice_id ?? refreshed.order?.invoice_id ?? "").trim();
-
-    let rp = optInResult.razorpay_payload;
-    if (
-      optInResult.payment_required &&
-      (!rp || Object.keys(rp).length === 0) &&
-      optInResult.pending_amount != null &&
-      optInResult.pending_amount > 0
-    ) {
-      try {
-        const init = await initGymPayment({
-          payable_rupees: optInResult.pending_amount,
-          amount_paise: Math.max(100, Math.round(optInResult.pending_amount * 100)),
-          plan_id: primaryMemberPlanId,
-          primary_plan_id: primaryMemberPlanId,
-          secondary_plan_id:
-            showSecondary && secondaryMemberPlanId ? secondaryMemberPlanId : null,
-          subscription_id: gymCheck?.subscription_id ?? null,
-          gym_invoice_id: refreshed.order?.invoice_id ?? null,
-          show_secondary: Boolean(showSecondary),
-        });
-        if (init.razorpay_payload && Object.keys(init.razorpay_payload).length > 0) {
-          rp = init.razorpay_payload;
-        }
-        if (!invoiceId) {
-          invoiceId = (init.invoice_id ?? init.order_id ?? "").trim();
-        }
-      } catch {
-        // leave rp null; user sees error below
-      }
-    }
-
-    if (optInResult.payment_required) {
-      if (!rp || Object.keys(rp).length === 0) {
-        toast.error("Payment is required but checkout options were not returned.");
-        setOptInBusy(false);
-        return;
-      }
-      if (!invoiceId) {
-        toast.error("Missing invoice for payment. Try again from My Orders.");
-        setOptInBusy(false);
-        return;
-      }
-      try {
-        await loadRazorpayScript();
-        if (!(globalThis as unknown as { Razorpay?: unknown }).Razorpay) {
-          throw new Error("Razorpay Checkout could not load. Check your network or ad blocker.");
-        }
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not load Razorpay");
-        setOptInBusy(false);
-        return;
-      }
-
-      const onPaymentFailed = (failMsg: string) => {
-        if (!isPaymentCancelledMessage(failMsg)) {
-          toast.error(failMsg);
-        }
-        setOptInBusy(false);
-      };
-
-      const onDone = async (e: Event) => {
-        const detail = (e as CustomEvent<unknown>).detail;
-        if (!detail || typeof detail !== "object") {
-          toast.error("Invalid payment response");
-          setOptInBusy(false);
-          return;
-        }
-        const o = detail as Record<string, unknown>;
-        const paymentId = o.razorpay_payment_id;
-        if (typeof paymentId !== "string") {
-          toast.error("Invalid payment response");
-          setOptInBusy(false);
-          return;
-        }
-        try {
-          await verifyGymPayment({ invoice_id: invoiceId, payment_id: paymentId });
-          refreshed = await getGymCheck();
-          writeGymCheckSnapshot(refreshed);
-          toast.success("Payment successful");
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Payment verification failed");
-          setOptInBusy(false);
-          return;
-        }
-        setOptInBusy(false);
-        goOverview();
-      };
-
-      globalThis.window.addEventListener(GYM_PAYMENT_DONE_EVENT, onDone, { once: true });
-      openRazorpayCheckoutWithEvent(rp, GYM_PAYMENT_DONE_EVENT, onPaymentFailed);
-      return;
-    }
-
-    setOptInBusy(false);
-    goOverview();
   }, [
     primaryResolved,
     primaryMemberPlanId,
     showSecondary,
     secondaryMemberPlanId,
-    secondaryResolved,
     primaryCityDisplay,
-    primaryCityConfirmed,
-    secondaryCityConfirmed,
     gymCheck,
     toast,
     apiMemberRows,
     accountPrimaryMemberId,
-    planId,
-    navigate,
   ]);
+
+  const closeQuoteReview = useCallback(() => {
+    setAwaitingRazorpayPay(null);
+    setQuoteReviewOpen(false);
+  }, []);
+
+  /** Open Razorpay after user taps Pay now (confirm response already returned payload + invoice). */
+  const handlePayNowRazorpay = useCallback(async () => {
+    const ctx = awaitingRazorpayPay;
+    if (!ctx) return;
+
+    setRazorpayBusy(true);
+    try {
+      await loadRazorpayScript();
+      if (!(globalThis as unknown as { Razorpay?: unknown }).Razorpay) {
+        throw new Error("Razorpay Checkout could not load. Check your network or ad blocker.");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load Razorpay");
+      setRazorpayBusy(false);
+      return;
+    }
+
+    const onPaymentFailed = (failMsg: string) => {
+      if (!isPaymentCancelledMessage(failMsg)) {
+        toast.error(failMsg);
+      }
+      setRazorpayBusy(false);
+    };
+
+    const onDone = async (e: Event) => {
+      const detail = (e as CustomEvent<unknown>).detail;
+      if (!detail || typeof detail !== "object") {
+        toast.error("Invalid payment response");
+        setRazorpayBusy(false);
+        return;
+      }
+      const paymentId = (detail as Record<string, unknown>).razorpay_payment_id;
+      if (typeof paymentId !== "string") {
+        toast.error("Invalid payment response");
+        setRazorpayBusy(false);
+        return;
+      }
+      try {
+        await verifyGymPaymentWithOptionalGateway(ctx.invoiceId, paymentId, onPaymentFailed);
+        const refreshed = await getGymCheck();
+        writeGymCheckSnapshot(refreshed);
+        toast.success("Payment successful");
+        setAwaitingRazorpayPay(null);
+        setQuoteReviewOpen(false);
+        persistOverviewAndNavigate(ctx.confirmResult, true);
+      } catch (err) {
+        if (err instanceof Error && isPaymentCancelledMessage(err.message)) {
+          return;
+        }
+        toast.error(err instanceof Error ? err.message : "Payment verification failed");
+      } finally {
+        setRazorpayBusy(false);
+      }
+    };
+
+    globalThis.window.addEventListener(GYM_PAYMENT_DONE_EVENT, onDone, { once: true });
+    openRazorpayCheckoutWithEvent(
+      normalizeRazorpayCheckoutPayload({ ...ctx.razorpayPayload }),
+      GYM_PAYMENT_DONE_EVENT,
+      onPaymentFailed,
+    );
+  }, [awaitingRazorpayPay, persistOverviewAndNavigate, toast]);
+
+  /** Phase B — confirm: `POST /patient/gym/optIn?status=confirm`, then wallet-only or Pay now + Razorpay. */
+  const handleConfirmQuote = useCallback(async () => {
+    const body = pendingOptInBodyRef.current;
+    if (!body || !quoteResult) return;
+
+    setConfirmBusy(true);
+    try {
+      const confirmed = await postGymOptInConfirm(body);
+      const refreshed = await getGymCheck();
+      writeGymCheckSnapshot(refreshed);
+
+      const invoiceId = (confirmed.invoice_id ?? refreshed.order?.invoice_id ?? "").trim();
+      const rp = confirmed.razorpay_payload;
+      const hasRzp = rp != null && Object.keys(rp).length > 0;
+      /** Backend may omit `pending_amount` when amount is only inside `razorpay_payload.amount` (paise). */
+      const needsGatewayPay = Boolean(confirmed.payment_required && hasRzp);
+
+      if (confirmed.payment_required && !hasRzp) {
+        toast.error("Payment is required but checkout options were not returned.");
+        setConfirmBusy(false);
+        return;
+      }
+
+      if (!needsGatewayPay) {
+        toast.success(
+          confirmed.message?.trim() || "Your gym registration has been submitted.",
+        );
+        setQuoteReviewOpen(false);
+        setConfirmBusy(false);
+        persistOverviewAndNavigate(confirmed, true);
+        return;
+      }
+
+      if (!invoiceId) {
+        toast.error("Missing invoice for payment. Try again from My Orders.");
+        setConfirmBusy(false);
+        return;
+      }
+
+      if (!rp) {
+        toast.error("Checkout options missing.");
+        setConfirmBusy(false);
+        return;
+      }
+
+      setAwaitingRazorpayPay({
+        invoiceId,
+        razorpayPayload: rp,
+        confirmResult: confirmed,
+      });
+      setQuoteResult(confirmed);
+      if (confirmed.message?.trim()) {
+        toast.success(confirmed.message.trim());
+      }
+      setConfirmBusy(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not confirm gym enrolment");
+      setConfirmBusy(false);
+    }
+  }, [quoteResult, persistOverviewAndNavigate, toast]);
 
   const closePackageSheet = useCallback(() => {
     setPackageSheetTarget(null);
@@ -809,13 +992,13 @@ export function GymMembershipConfigurePage() {
   }, [sheetPlanId, packageSheetTarget]);
 
   useEffect(() => {
-    if (!packageSheetTarget) return;
+    if (!packageSheetTarget && !quoteReviewOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prevOverflow;
     };
-  }, [packageSheetTarget]);
+  }, [packageSheetTarget, quoteReviewOpen]);
 
   useEffect(() => {
     if (!packageSheetTarget) return;
@@ -827,6 +1010,17 @@ export function GymMembershipConfigurePage() {
     globalThis.addEventListener("keydown", onKey);
     return () => globalThis.removeEventListener("keydown", onKey);
   }, [packageSheetTarget]);
+
+  useEffect(() => {
+    if (!quoteReviewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !confirmBusy) {
+        setQuoteReviewOpen(false);
+      }
+    };
+    globalThis.addEventListener("keydown", onKey);
+    return () => globalThis.removeEventListener("keydown", onKey);
+  }, [quoteReviewOpen, confirmBusy]);
 
   const onCenterList = useCallback(() => {
     navigate(ROUTES.gymMembershipSelectClinic, { state: backState });
@@ -1001,12 +1195,156 @@ export function GymMembershipConfigurePage() {
         <button
           type="button"
           className="gmc-continue"
-          disabled={!canContinue || optInBusy}
-          onClick={() => void handleContinueToOverview()}
+          disabled={!canContinue || quoteBusy || confirmBusy || razorpayBusy}
+          onClick={() => void handleRequestQuote()}
         >
-          {optInBusy ? "Saving…" : "Continue"}
+          {quoteBusy ? "Getting quote…" : "Continue"}
         </button>
       </footer>
+
+      {quoteReviewOpen && quoteResult ? (
+        <div
+          className="gmc-pkg-sheet-root"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gmc-quote-title"
+        >
+          <button
+            type="button"
+            className="gmc-pkg-sheet-backdrop"
+            aria-label="Close"
+            onClick={closeQuoteReview}
+          />
+          <div className="gmc-quote-sheet">
+            <header className="gmc-pkg-sheet__header">
+              <h2 id="gmc-quote-title" className="gmc-pkg-sheet__title">
+                {awaitingRazorpayPay ? "Complete payment" : "Review payment"}
+              </h2>
+              <button
+                type="button"
+                className="gmc-pkg-sheet__close"
+                onClick={closeQuoteReview}
+                aria-label="Close"
+                disabled={confirmBusy}
+              >
+                ×
+              </button>
+            </header>
+            <div className="gmc-quote-sheet__body">
+              {awaitingRazorpayPay ? (
+                <>
+                  <p className="gmc-quote-sheet__hint gmc-quote-sheet__hint--success">
+                    {awaitingRazorpayPay.confirmResult.message?.trim() ||
+                      "Your enrolment is ready. Complete payment to finish."}
+                  </p>
+                  <p className="gmc-quote-sheet__pay-line">
+                    Pay securely with Razorpay (UPI, card, netbanking).
+                  </p>
+                  <dl className="gmc-quote-sheet__dl">
+                    <div className="gmc-quote-sheet__row gmc-quote-sheet__row--emph">
+                      <dt>Amount to pay</dt>
+                      <dd>
+                        {(() => {
+                          const paise = paiseFromRazorpayPayload(awaitingRazorpayPay.razorpayPayload);
+                          return paise != null
+                            ? formatPaiseAsRupees(paise)
+                            : formatQuoteRupees(awaitingRazorpayPay.confirmResult.pending_amount);
+                        })()}
+                      </dd>
+                    </div>
+                    <div className="gmc-quote-sheet__row">
+                      <dt>Invoice</dt>
+                      <dd className="gmc-quote-sheet__invoice">{awaitingRazorpayPay.invoiceId}</dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <>
+                  <p className="gmc-quote-sheet__hint">
+                    Prices include applicable wallet use per your policy. Confirming creates your invoice and completes
+                    registration when no card payment is due.
+                  </p>
+                  <dl className="gmc-quote-sheet__dl">
+                    <div className="gmc-quote-sheet__row">
+                      <dt>Full opt-in amount</dt>
+                      <dd>{formatQuoteRupees(quoteResult.opt_in_amount)}</dd>
+                    </div>
+                    <div className="gmc-quote-sheet__row">
+                      <dt>Wallet portion (OPD wallet)</dt>
+                      <dd>{formatQuoteRupees(quoteResult.opd_paid_amount)}</dd>
+                    </div>
+                    <div className="gmc-quote-sheet__row">
+                      <dt>OPD wallet balance available</dt>
+                      <dd>{formatQuoteRupees(quoteResult.opd_wallet_available)}</dd>
+                    </div>
+                    <div className="gmc-quote-sheet__row gmc-quote-sheet__row--emph">
+                      <dt>Amount still due</dt>
+                      <dd>{formatQuoteRupees(quoteResult.pending_amount)}</dd>
+                    </div>
+                    <div className="gmc-quote-sheet__row">
+                      <dt>Razorpay needed after confirm</dt>
+                      <dd>{quoteExpectsRazorpayGateway(quoteResult) ? "Yes" : "No"}</dd>
+                    </div>
+                  </dl>
+                  <p className="gmc-quote-sheet__gate" role="status">
+                    {quoteExpectsRazorpayGateway(quoteResult)
+                      ? "After you confirm, you’ll complete any remaining amount via Razorpay (card / UPI / netbanking)."
+                      : "No card payment expected — your OPD wallet or coverage covers this enrolment once confirmed."}
+                  </p>
+                  {quoteResult.message?.trim() ? (
+                    <p className="gmc-quote-sheet__msg">{quoteResult.message.trim()}</p>
+                  ) : null}
+                </>
+              )}
+            </div>
+            <footer className="gmc-quote-sheet__footer">
+              {awaitingRazorpayPay ? (
+                <>
+                  <button
+                    type="button"
+                    className="gmc-quote-sheet__secondary"
+                    onClick={() => setAwaitingRazorpayPay(null)}
+                    disabled={razorpayBusy}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="gmc-quote-sheet__primary"
+                    disabled={razorpayBusy}
+                    onClick={() => void handlePayNowRazorpay()}
+                  >
+                    {razorpayBusy ? "Opening payment…" : "Pay now"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="gmc-quote-sheet__secondary"
+                    onClick={closeQuoteReview}
+                    disabled={confirmBusy}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="gmc-quote-sheet__primary"
+                    disabled={confirmBusy}
+                    onClick={() => void handleConfirmQuote()}
+                  >
+                    {confirmBusy
+                      ? "Processing…"
+                      : quoteExpectsRazorpayGateway(quoteResult)
+                        ? "Confirm & continue"
+                        : "Confirm"}
+                  </button>
+                </>
+              )}
+            </footer>
+          </div>
+        </div>
+      ) : null}
 
       {packageSheetTarget ? (
         <div

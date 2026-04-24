@@ -312,6 +312,7 @@ function displayCategoryLabel(raw: string | null): string {
     vision: "Vision",
     vaccine: "Vaccine",
     gym: "Gym",
+    gymoptin: "Gym",
     mentalwellness: "Mental Wellness",
     nutrition: "Nutrition",
   };
@@ -667,6 +668,32 @@ export type InvoiceDetailLineItem = Readonly<{
 /** One label/value row parsed from a payment’s `refunded` object. */
 export type InvoiceRefundDetailLine = Readonly<{ label: string; value: string }>;
 
+/** Parsed from `info.details` when {@link InvoiceDetailModel.categoryKey} is `gym`. */
+export type InvoiceGymPackageDetails = Readonly<{
+  packageName: string | null;
+  packageCode: string | null;
+  mrpAmount: number | null;
+  payAmount: number | null;
+  packageAmount: number | null;
+  mrpFormatted: string | null;
+  payAmountFormatted: string | null;
+  packageAmountFormatted: string | null;
+  validityValue: number | null;
+  validityUnits: string | null;
+  enableWallet: boolean | null;
+  tncHtml: string | null;
+}>;
+
+export type InvoiceGymOrderDetailBlock = Readonly<{
+  location: string | null;
+  subscriptionId: string | null;
+  package: InvoiceGymPackageDetails | null;
+  enrolleeName: string | null;
+  enrolleePhone: string | null;
+  enrolleeEmail: string | null;
+  personalEmail: string | null;
+}>;
+
 export type InvoicePaymentRow = Readonly<{
   /** Payment method label (e.g. netbanking, SUBSCRIPTION). */
   title: string;
@@ -856,6 +883,8 @@ export type InvoiceDetailModel = Readonly<{
   /** From `additional_info.delivery_charges` when present (e.g. pharmacy home delivery). */
   deliveryChargesFormatted: string | null;
   walletDebitFormatted: string | null;
+  /** INR from wallet toward this invoice (same basis as {@link walletDebitFormatted}); `0` when unused. */
+  walletDebitAmount: number;
   netPayFormatted: string;
   payments: readonly InvoicePaymentRow[];
   /**
@@ -863,6 +892,8 @@ export type InvoiceDetailModel = Readonly<{
    * (same rule as Flutter `WellnessOrderDetailController.canCancel`).
    */
   wellnessSessionCancelAllowed: boolean;
+  /** Gym-only: enrolment location, package meta, enrollee contacts from `info.details`. */
+  gymOrderDetail: InvoiceGymOrderDetailBlock | null;
 }>;
 
 const LINE_ITEM_ARRAY_KEYS = [
@@ -1452,7 +1483,7 @@ function resolveDetailSubtotal(o: Record<string, unknown>, lineSum: number): num
 }
 
 function resolveDetailWallet(o: Record<string, unknown>): number | null {
-  return (
+  const fromRoot =
     num(o.wallet_amount) ??
     num(o.walletAmount) ??
     num(o.from_wallet) ??
@@ -1462,8 +1493,22 @@ function resolveDetailWallet(o: Record<string, unknown>): number | null {
     num(o.paid_from_wallet) ??
     num(o.paidFromWallet) ??
     num(o.discount_wallet) ??
-    null
-  );
+    num(o.opd_paid_amount) ??
+    num(o.opdPaidAmount) ??
+    null;
+  if (fromRoot != null && fromRoot > 0) return fromRoot;
+  const info = readInvoiceInfoObject(o);
+  const add = info ? asRecord(info.additional_info) : null;
+  if (add) {
+    const nested =
+      num(add.wallet_amount) ??
+      num(add.wallet_debit) ??
+      num(add.opd_paid_amount) ??
+      num(add.opdPaidAmount) ??
+      null;
+    if (nested != null && nested > 0) return nested;
+  }
+  return fromRoot;
 }
 
 function resolveDetailNetPay(
@@ -2250,6 +2295,92 @@ function computeWellnessSessionCancelAllowed(
   return t - Date.now() > 60 * 60 * 1000;
 }
 
+function sumRawInvoicePaymentAmounts(o: Record<string, unknown>): number {
+  const arr = o.payments;
+  if (!Array.isArray(arr)) return 0;
+  let s = 0;
+  for (const item of arr) {
+    const r = asRecord(item);
+    if (!r) continue;
+    const amt =
+      num(r.amount) ??
+      num(r.paid_amount) ??
+      num(r.paidAmount) ??
+      num(r.value) ??
+      0;
+    if (amt > 0) s += amt;
+  }
+  return s;
+}
+
+/** Hide placeholder enrollee emails (e.g. `N/A`) from gym order detail. */
+function invoiceGymDisplayEmail(raw: unknown): string | null {
+  const s = nonEmptyTrimmedText(raw);
+  if (!s) return null;
+  const compact = s.replace(/\s+/g, "");
+  if (/^(n\/a|na|null|-)$/i.test(compact)) return null;
+  return s;
+}
+
+function parseInvoiceGymOrderDetail(
+  categoryKey: string,
+  info: Record<string, unknown> | null,
+): InvoiceGymOrderDetailBlock | null {
+  if (categoryKey !== "gym" || info == null) return null;
+  const details = asRecord(info.details);
+  if (!details) return null;
+
+  const location = nonEmptyTrimmedText(details.location);
+  const subscriptionId =
+    nonEmptyTrimmedText(details.subscription_id) ?? nonEmptyTrimmedText(info.subscription_id);
+
+  const pkgRaw = asRecord(details.package_details);
+  let pkg: InvoiceGymPackageDetails | null = null;
+  if (pkgRaw) {
+    const mrp = num(pkgRaw.mrp_amount);
+    const payAmt = num(pkgRaw.pay_amount);
+    const pkgAmt = num(pkgRaw.package_amount);
+    pkg = {
+      packageName: nonEmptyTrimmedText(pkgRaw.package_name),
+      packageCode: nonEmptyTrimmedText(pkgRaw.package_code),
+      mrpAmount: mrp,
+      payAmount: payAmt,
+      packageAmount: pkgAmt,
+      mrpFormatted: mrp != null ? formatInr(mrp) : null,
+      payAmountFormatted: payAmt != null ? formatInr(payAmt) : null,
+      packageAmountFormatted: pkgAmt != null ? formatInr(pkgAmt) : null,
+      validityValue: num(pkgRaw.validity_value),
+      validityUnits: nonEmptyTrimmedText(pkgRaw.validity_units),
+      enableWallet:
+        pkgRaw.enable_wallet === true ? true : pkgRaw.enable_wallet === false ? false : null,
+      tncHtml: typeof pkgRaw.tnc === "string" && pkgRaw.tnc.trim().length ? pkgRaw.tnc : null,
+    };
+  }
+
+  const enrollee = asRecord(details.info);
+  const enrolleeName = enrollee ? nonEmptyTrimmedText(enrollee.name) : null;
+  const enrolleePhone = enrollee ? nonEmptyTrimmedText(enrollee.phone) : null;
+  const enrolleeEmail = enrollee ? invoiceGymDisplayEmail(enrollee.email) : null;
+  const personalEmail = enrollee ? invoiceGymDisplayEmail(enrollee.personal_email) : null;
+
+  const hasAny =
+    Boolean(location) ||
+    Boolean(subscriptionId) ||
+    pkg != null ||
+    Boolean(enrolleeName || enrolleePhone || enrolleeEmail || personalEmail);
+  if (!hasAny) return null;
+
+  return {
+    location,
+    subscriptionId,
+    package: pkg,
+    enrolleeName,
+    enrolleePhone,
+    enrolleeEmail,
+    personalEmail,
+  };
+}
+
 function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel {
   const id =
     str(o.id) ??
@@ -2425,9 +2556,22 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     Object.prototype.hasOwnProperty.call(infoAddForPayment, "payment_required");
   const dataAdditionalInfoPaymentRequired =
     dataAdditionalInfoPaymentRequiredKeyPresent && infoAddForPayment.payment_required === true;
+  let dataAdditionalInfoPaymentRequiredKeyPresentResolved =
+    dataAdditionalInfoPaymentRequiredKeyPresent;
+  let dataAdditionalInfoPaymentRequiredResolved = dataAdditionalInfoPaymentRequired;
+  /** Gym invoices may omit `info.additional_info`; infer gateway pay when balance due (no other categories). */
+  if (categoryKey === "gym" && !dataAdditionalInfoPaymentRequiredKeyPresent) {
+    const paidReported = num(o.paid_amount) ?? 0;
+    const paidFromPayments = sumRawInvoicePaymentAmounts(o);
+    const paidEffective = Math.max(paidReported, paidFromPayments);
+    if (netPayNum > paidEffective && netPayNum > 0) {
+      dataAdditionalInfoPaymentRequiredKeyPresentResolved = true;
+      dataAdditionalInfoPaymentRequiredResolved = true;
+    }
+  }
   const consultationPaymentRequired =
-    isConsultationInvoice && dataAdditionalInfoPaymentRequired;
-  const infoPaymentRequired = dataAdditionalInfoPaymentRequired;
+    isConsultationInvoice && dataAdditionalInfoPaymentRequiredResolved;
+  const infoPaymentRequired = dataAdditionalInfoPaymentRequiredResolved;
   /** Parsed from `o.user` when present — used on consultation and other service order detail UIs. */
   const consultationPatient = parseConsultationOrderPatientUi(o);
   const consultationBooking =
@@ -2508,6 +2652,8 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus,
   );
 
+  const gymOrderDetail = parseInvoiceGymOrderDetail(categoryKey, infoForStatus);
+
   return {
     id,
     bannerTone,
@@ -2523,8 +2669,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationPaymentRequired,
     serviceInfoStatus,
     infoPaymentRequired,
-    dataAdditionalInfoPaymentRequiredKeyPresent,
-    dataAdditionalInfoPaymentRequired,
+    dataAdditionalInfoPaymentRequiredKeyPresent:
+      dataAdditionalInfoPaymentRequiredKeyPresentResolved,
+    dataAdditionalInfoPaymentRequired: dataAdditionalInfoPaymentRequiredResolved,
     labSubOrdersAllPendingPayment,
     netPayAmount: netPayNum,
     isConsultationOrder: isConsultationInvoice,
@@ -2558,9 +2705,12 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     processingFeeFormatted,
     deliveryChargesFormatted,
     walletDebitFormatted,
+    walletDebitAmount:
+      walletNum != null && walletNum > 0 ? Math.max(0, Math.floor(walletNum)) : 0,
     netPayFormatted: formatInr(netPayNum),
     payments,
     wellnessSessionCancelAllowed,
+    gymOrderDetail,
   };
 }
 

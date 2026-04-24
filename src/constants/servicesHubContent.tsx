@@ -264,8 +264,8 @@ export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
   },
   {
     id: "activity",
-    title: "Activities",
-    description: "Check your activities",
+    title: "Digital diary",
+    description: "Vitals, water, mood, medicines—your daily health log",
     iconSrc: helpActivitiesSvg,
   },
 ];

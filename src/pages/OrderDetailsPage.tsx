@@ -46,24 +46,29 @@ import {
   verifyServiceRequestOrderPayment,
 } from "@/api/patientServiceRequestOrderPayment";
 import {
+  mapGymInvoiceDetailToBookingSheetModel,
   mapOfflinePaymentPreviewToSheetModel,
   patchOfflineAppointmentPaymentConfirm,
   patchOfflineAppointmentPaymentPreview,
   type OfflineBookingPaymentSheetModel,
 } from "@/api/patientOfflineAppointmentPayment";
+import { patchGymPaymentConfirm } from "@/api/patientGymPayment";
 import { BookingConfirmationBottomSheet } from "@/components/orders/BookingConfirmationBottomSheet";
 import { LabOrderRescheduleBottomSheet } from "@/components/orders/LabOrderRescheduleBottomSheet";
 import {
   DIAGNOSTICS_PAYMENT_DONE_EVENT,
+  GYM_PAYMENT_DONE_EVENT,
   PAYMENT_DONE_EVENT,
   PHARMACY_PAYMENT_DONE_EVENT,
 } from "@/constants/windowPaymentEvents";
 import { useConsultationPaymentVerify } from "@/hooks/useConsultationPaymentVerify";
 import { useDiagnosticsRazorpayConfirm } from "@/hooks/useDiagnosticsRazorpayConfirm";
+import { useGymPaymentVerify } from "@/hooks/useGymPaymentVerify";
 import { usePharmacyOrderPaymentVerify } from "@/hooks/usePharmacyOrderPaymentVerify";
 import {
   isPaymentCancelledMessage,
   loadRazorpayScript,
+  normalizeRazorpayCheckoutPayload,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
 import { AttachmentFilePreview, type AttachmentFilePreviewViewer } from "@/components/attachments/AttachmentFilePreview";
@@ -306,6 +311,109 @@ function doctorInitial(name: string): string {
   return t.length ? t.charAt(0).toUpperCase() : "?";
 }
 
+function GymOrderPackageSection({
+  gd,
+}: Readonly<{
+  gd: NonNullable<InvoiceDetailModel["gymOrderDetail"]>;
+}>) {
+  const pkg = gd.package;
+  const validityDisplay =
+    pkg &&
+    pkg.validityValue != null &&
+    (pkg.validityUnits?.trim() ?? "").length > 0
+      ? `${pkg.validityValue} ${pkg.validityUnits}`
+      : null;
+
+  return (
+    <section className="od-card od-card--gym-package" aria-label="Membership package">
+      <h3 className="od-card__title">Package details</h3>
+      {gd.location ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Location</span>
+          <span className="od-row__value od-row__value--other">{gd.location}</span>
+        </div>
+      ) : null}
+      {gd.subscriptionId ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Subscription</span>
+          <span className="od-row__value od-row__value--other">{gd.subscriptionId}</span>
+        </div>
+      ) : null}
+      {pkg?.packageName ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Package</span>
+          <span className="od-row__value od-row__value--other">{pkg.packageName}</span>
+        </div>
+      ) : null}
+      {pkg?.packageCode ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Package code</span>
+          <span className="od-row__value od-row__value--other">{pkg.packageCode}</span>
+        </div>
+      ) : null}
+      {validityDisplay ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Validity</span>
+          <span className="od-row__value od-row__value--other">{validityDisplay}</span>
+        </div>
+      ) : null}
+      {pkg?.mrpFormatted ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">MRP</span>
+          <span className="od-row__value od-row__value--other">₹{pkg.mrpFormatted}</span>
+        </div>
+      ) : null}
+      {pkg?.payAmountFormatted ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Pay amount</span>
+          <span className="od-row__value od-row__value--other">₹{pkg.payAmountFormatted}</span>
+        </div>
+      ) : null}
+      {pkg?.enableWallet != null ? (
+        <div className="od-row od-row--gym">
+          <span className="od-row__label">Wallet applicable</span>
+          <span className="od-row__value od-row__value--other">{pkg.enableWallet ? "Yes" : "No"}</span>
+        </div>
+      ) : null}
+      {gd.enrolleeName || gd.enrolleePhone || gd.enrolleeEmail || gd.personalEmail ? (
+        <>
+          <p className="od-gym-package__subhead">Enrolment contact</p>
+          {gd.enrolleeName ? (
+            <div className="od-row od-row--gym">
+              <span className="od-row__label">Name</span>
+              <span className="od-row__value od-row__value--other">{gd.enrolleeName}</span>
+            </div>
+          ) : null}
+          {gd.enrolleePhone ? (
+            <div className="od-row od-row--gym">
+              <span className="od-row__label">Phone</span>
+              <span className="od-row__value od-row__value--other">{gd.enrolleePhone}</span>
+            </div>
+          ) : null}
+          {gd.enrolleeEmail ? (
+            <div className="od-row od-row--gym">
+              <span className="od-row__label">Email</span>
+              <span className="od-row__value od-row__value--other">{gd.enrolleeEmail}</span>
+            </div>
+          ) : null}
+          {gd.personalEmail ? (
+            <div className="od-row od-row--gym">
+              <span className="od-row__label">Personal email</span>
+              <span className="od-row__value od-row__value--other">{gd.personalEmail}</span>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      {pkg?.tncHtml ? (
+        <details className="od-gym-tnc">
+          <summary className="od-gym-tnc__summary">Terms &amp; conditions</summary>
+          <div className="od-gym-tnc__body" dangerouslySetInnerHTML={{ __html: pkg.tncHtml }} />
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
 export function OrderDetailsPage() {
   const { orderKind: orderKindFromUrl, invoiceId } = useParams<{
     orderKind?: string;
@@ -356,6 +464,10 @@ export function OrderDetailsPage() {
    * when present, else route `invoiceId`. Cleared when not a lab order detail.
    */
   const labDiagnosticsPostInvoiceIdRef = useRef<string | null>(null);
+  /** `invoice_id` for `POST gym/payment_verify` after Razorpay on order detail. */
+  const gymPaymentVerifyInvoiceIdRef = useRef<string | null>(null);
+  const gymPaymentVerifySuccessRef = useRef<() => void>(() => {});
+  const gymPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
   const diagnosticsConfirmSuccessRef = useRef<() => void>(() => {});
   const diagnosticsConfirmErrorRef = useRef<(message: string) => void>(() => {});
   const partnerPaymentVerifyRef = useRef<(body: PharmacyOrderPaymentVerifyBody) => Promise<void>>(
@@ -680,6 +792,15 @@ export function OrderDetailsPage() {
 
   const useWalletForOfflinePayment = false;
 
+  /** Gym `PATCH gym/payment` — ask server to apply OPD wallet when package allows it (`package_details.enable_wallet`). */
+  const gymPaymentUseWallet = useMemo(
+    () =>
+      Boolean(
+        detail?.categoryKey === "gym" && detail.gymOrderDetail?.package?.enableWallet === true,
+      ),
+    [detail?.categoryKey, detail?.gymOrderDetail?.package?.enableWallet],
+  );
+
   const onPayConfirmBooking = useCallback(() => {
     const id = invoiceId?.trim();
     if (!id) return;
@@ -689,6 +810,10 @@ export function OrderDetailsPage() {
     setBookingPreviewLoading(true);
     void (async () => {
       try {
+        if (detail != null && detail.categoryKey === "gym") {
+          setOfflinePaymentPreview(mapGymInvoiceDetailToBookingSheetModel(detail));
+          return;
+        }
         const partnerPayId = detail?.consultationInfoId?.trim();
         const raw =
           detail != null &&
@@ -708,7 +833,7 @@ export function OrderDetailsPage() {
         setBookingPreviewLoading(false);
       }
     })();
-  }, [detail?.categoryKey, detail?.consultationInfoId, invoiceId, toast]);
+  }, [detail, detail?.categoryKey, detail?.consultationInfoId, invoiceId, toast]);
 
   const onPaymentVerifiedRef = useRef<() => void>(() => {});
   const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
@@ -761,6 +886,18 @@ export function OrderDetailsPage() {
       toast.error(message);
       setBookingProceedBusy(false);
     };
+    gymPaymentVerifySuccessRef.current = () => {
+      setBookingSheetOpen(false);
+      setOfflinePaymentPreview(null);
+      setBookingProceedBusy(false);
+      gymPaymentVerifyInvoiceIdRef.current = null;
+      toast.success("Payment successful");
+      void load();
+    };
+    gymPaymentVerifyErrorRef.current = (message: string) => {
+      toast.error(message);
+      setBookingProceedBusy(false);
+    };
   }, [
     detail,
     load,
@@ -768,6 +905,13 @@ export function OrderDetailsPage() {
     pharmacyPayReturnPath,
     toast,
   ]);
+
+  useGymPaymentVerify({
+    invoiceIdRef: gymPaymentVerifyInvoiceIdRef,
+    onSuccessRef: gymPaymentVerifySuccessRef,
+    onErrorRef: gymPaymentVerifyErrorRef,
+    setPayBusyRef: setBookingProceedBusyRef,
+  });
 
   useConsultationPaymentVerify({
     onSuccessRef: onPaymentVerifiedRef,
@@ -795,6 +939,47 @@ export function OrderDetailsPage() {
     if (!id) return;
     setBookingProceedBusy(true);
     try {
+      if (detail?.categoryKey === "gym") {
+        const res = await patchGymPaymentConfirm(id, gymPaymentUseWallet);
+        const payInvoice = (res.invoice_id ?? id).trim();
+        gymPaymentVerifyInvoiceIdRef.current = payInvoice;
+        const rzp = res.razorpay_payload;
+        if (rzp != null && Object.keys(rzp).length > 0) {
+          await loadRazorpayScript();
+          if (!window.Razorpay) {
+            toast.error("Razorpay Checkout could not load. Check your network or ad blocker.");
+            setBookingProceedBusy(false);
+            gymPaymentVerifyInvoiceIdRef.current = null;
+            return;
+          }
+          openRazorpayCheckoutWithEvent(
+            normalizeRazorpayCheckoutPayload({ ...rzp }),
+            GYM_PAYMENT_DONE_EVENT,
+            (failMsg) => {
+              if (!isPaymentCancelledMessage(failMsg)) {
+                toast.error(failMsg);
+              }
+              setBookingProceedBusy(false);
+              gymPaymentVerifyInvoiceIdRef.current = null;
+            },
+          );
+          return;
+        }
+        if (!res.payment_required) {
+          setBookingSheetOpen(false);
+          setOfflinePaymentPreview(null);
+          setBookingProceedBusy(false);
+          gymPaymentVerifyInvoiceIdRef.current = null;
+          toast.success("Payment successful");
+          void load();
+          return;
+        }
+        toast.error("Payment could not be started");
+        setBookingProceedBusy(false);
+        gymPaymentVerifyInvoiceIdRef.current = null;
+        return;
+      }
+
       const partnerOrderId = detail?.consultationInfoId?.trim();
       if (
         detail != null &&
@@ -897,6 +1082,7 @@ export function OrderDetailsPage() {
     }
   }, [
     detail,
+    gymPaymentUseWallet,
     invoiceId,
     load,
     navigate,
@@ -955,7 +1141,9 @@ export function OrderDetailsPage() {
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
 
   /**
-   * Pay footer: `netPayAmount > 0`, **`info.status === 4`**, **`info.additional_info.payment_required`** present and `true`.
+   * Pay footer: `netPayAmount > 0`, **`info.additional_info.payment_required`** present and `true`.
+   * Default: **`info.status === 4`** (pending payment).
+   * **Gym:** same wallet / net pay gates; status may differ from consultation/lab — do not require `status === 4`.
    * Lab only: also requires non-empty `data.orders` with every row `status === 4` ({@link InvoiceDetailModel.labSubOrdersAllPendingPayment}).
    */
   const showPayConfirmBooking = useMemo(() => {
@@ -963,6 +1151,7 @@ export function OrderDetailsPage() {
     if (detail.netPayAmount <= 0) return false;
     if (!detail.dataAdditionalInfoPaymentRequiredKeyPresent) return false;
     if (!detail.dataAdditionalInfoPaymentRequired) return false;
+    if (detail.categoryKey === "gym") return true;
     if (detail.serviceInfoStatus !== 4) return false;
     if (detail.categoryKey === "lab" && !detail.labSubOrdersAllPendingPayment) return false;
     return true;
@@ -1271,6 +1460,10 @@ export function OrderDetailsPage() {
                     alternatePhone={detail.infoDetailsAlternatePhone}
                     userAddress={detail.pharmacyOrderLocation}
                   />
+                ) : null}
+
+                {detail.categoryKey === "gym" && detail.gymOrderDetail ? (
+                  <GymOrderPackageSection gd={detail.gymOrderDetail} />
                 ) : null}
 
                 {showPartnerOrderDetailSections ? (

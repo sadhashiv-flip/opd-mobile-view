@@ -1,7 +1,10 @@
 import { readAppointmentPaymentLayer } from "@/api/appointmentBook";
 import { readPatientApiError } from "@/api/patientClient";
 import { patientFetch, patientJson } from "@/api/patientHttp";
-import { readRazorpayPayloadFromPaymentEnvelope } from "@/lib/razorpayCheckout";
+import {
+  normalizeRazorpayCheckoutPayload,
+  readRazorpayPayloadFromPaymentEnvelope,
+} from "@/lib/razorpayCheckout";
 
 function gymPaymentResourceBase(): string {
   const p = import.meta.env.VITE_GYM_PAYMENT_PATH?.trim();
@@ -91,6 +94,7 @@ export type GymPaymentInitResult = Readonly<{
 
 /**
  * Preview totals / wallet — `PATCH gym/payment/:invoice_id?useWallet=` (parity with offline appointment payment).
+ * Order detail pay (`/order/gym/:id`) does **not** call this; it builds the sheet from `GET /invoice/:id` (`mapGymInvoiceDetailToBookingSheetModel`) then uses {@link patchGymPaymentConfirm}.
  */
 export async function patchGymPaymentPreview(invoiceId: string, useWallet: boolean): Promise<unknown> {
   const path = gymPaymentPath(invoiceId, { useWallet });
@@ -145,7 +149,37 @@ export type GymPaymentVerifyRequest = Readonly<{
   payment_id: string;
 }>;
 
-export async function verifyGymPayment(body: GymPaymentVerifyRequest): Promise<void> {
+/** Success body may include a fresh `razorpay_payload` to resume checkout. */
+export type GymPaymentVerifyResult = Readonly<{
+  razorpay_payload: Record<string, unknown> | null;
+  message: string | null;
+}>;
+
+function parseVerifyResponse(text: string): GymPaymentVerifyResult {
+  if (!text.trim()) {
+    return { razorpay_payload: null, message: null };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text) as unknown;
+  } catch {
+    return { razorpay_payload: null, message: null };
+  }
+  const layer = readAppointmentPaymentLayer(raw) as Record<string, unknown>;
+  const msgRaw = layer.message;
+  const message =
+    typeof msgRaw === "string" && msgRaw.trim() ? msgRaw.trim() : null;
+  const rawRzp = readRazorpayPayloadFromPaymentEnvelope(layer);
+  const razorpay_payload =
+    rawRzp != null && Object.keys(rawRzp).length > 0
+      ? normalizeRazorpayCheckoutPayload({ ...rawRzp })
+      : null;
+  return { razorpay_payload, message };
+}
+
+export async function verifyGymPayment(
+  body: GymPaymentVerifyRequest,
+): Promise<GymPaymentVerifyResult> {
   const res = await patientFetch(verifyPath(), {
     method: "POST",
     body: JSON.stringify({
@@ -153,9 +187,15 @@ export async function verifyGymPayment(body: GymPaymentVerifyRequest): Promise<v
       payment_id: body.payment_id,
     }),
   });
+  const text = await res.text();
   if (!res.ok) {
-    throw new Error(await readPatientApiError(res));
+    throw new Error(
+      await readPatientApiError(
+        new Response(text, { status: res.status, statusText: res.statusText }),
+      ),
+    );
   }
+  return parseVerifyResponse(text);
 }
 
 export type GymPaymentConfirmFreeRequest = Readonly<{
