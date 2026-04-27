@@ -3,15 +3,17 @@ import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddre
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
-import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
+import {
+  readSelectedAddress,
+  subscribeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
 import {
   readPharmacyFlowState,
-  resolvePharmacyOrderAddressId,
   writePharmacyFlowState,
   type PharmacyFlowState,
 } from "@/constants/pharmacyFlowStorage";
-import { postMedicineOrder } from "@/api/pharmacy";
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
+import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -20,6 +22,32 @@ import "./PharmacyPages.css";
 import "@/components/vaccination/VaccinationAddressBar.css";
 
 type NavState = Readonly<{ returnPath?: string }>;
+
+/** Copy aligned with Flutter `AppString` / `PharmacyMainScreen`. */
+const MAIN_COPY = {
+  heroPill: "Delivery in 24-48 hours",
+  heroTitle: "Medicines, delivered to your door",
+  heroNote: "Medicines will be delivered within 24-48 hours of placing order",
+  disclaimer:
+    "Medicine delivery timelines vary depending on factors like location, type of medication, order timing, and quantity ordered.",
+  orderMedsTitle: "Order your medicines",
+  orderMedsSub: "Choose how you'd like to share your prescription",
+  uploadTitle: "Upload Prescription",
+  uploadSub: "Image or File",
+  flipTitle: "Fliphealth Prescription",
+  flipSub: "Use a prescription from your consultations",
+  safeNote: "Your prescription is safe with us",
+  otcSectionTitle: "Need OTC products?",
+  otcSectionSub: "No prescription needed",
+  otcTitle: "Request OTC Products",
+  otcSub: "No prescription needed",
+} as const;
+
+const BENEFITS: readonly { readonly id: string; readonly label: string }[] = [
+  { id: "ship", label: "Secure home delivery" },
+  { id: "clock", label: "Delivery in 24-48 hours" },
+  { id: "shield", label: "Contactless delivery" },
+] as const;
 
 const FAQS = [
   {
@@ -35,6 +63,42 @@ const FAQS = [
     a: "Once the order is confirmed, our medicine partner will share the price details with you before delivery.",
   },
 ] as const;
+
+function PharmacyBenefitIcon({ id }: Readonly<{ id: string }>) {
+  if (id === "ship") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M1 3h8l1 4h10v8H1V3zM1 11h20M5 19a2 2 0 100-4 2 2 0 000 4zm12 0a2 2 0 100-4 2 2 0 000 4z"
+          stroke="#ff541e"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (id === "clock") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="9" stroke="#ff541e" strokeWidth="1.5" />
+        <path d="M12 7v5l3 2" stroke="#ff541e" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3l7 4v5c0 5-3 9-7 11-4-2-7-6-7-11V7l7-4z"
+        stroke="#ff541e"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M9 12l2 2 4-4" stroke="#ff541e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function flowWithSyncedAddress(cur: PharmacyFlowState): PharmacyFlowState {
   const sel = readSelectedAddress()?.id?.trim();
@@ -56,8 +120,6 @@ export function PharmacyDeliveryPage() {
   const [members, setMembers] = useState<GymMemberListRow[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);
-  const [otcOpen, setOtcOpen] = useState(false);
-  const [otcBusy, setOtcBusy] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
 
   const passState = useMemo(() => ({ returnPath: hubReturn } satisfies NavState), [hubReturn]);
@@ -161,38 +223,20 @@ export function PharmacyDeliveryPage() {
     [toast],
   );
 
-  const confirmOtc = useCallback(async () => {
+  const goToOtcReview = useCallback(() => {
     const cur = readPharmacyFlowState();
     if (!cur) {
       toast.error("Select who you are ordering for.");
       return;
     }
-    await ensureDefaultSelectedAddressIfNeeded();
-    const addressId = resolvePharmacyOrderAddressId(readPharmacyFlowState());
-    if (!addressId) {
-      toast.error("Choose a delivery address.");
-      return;
-    }
-    setOtcBusy(true);
-    try {
-      await postMedicineOrder({
-        address_id: addressId,
-        prescriptions: [],
-        patient_id: cur.patientId,
-      });
-      setOtcOpen(false);
-      void navigate(ROUTES.pharmacyOrderSuccess, { state: passState });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not place order");
-    } finally {
-      setOtcBusy(false);
-    }
+    writePharmacyReviewDraft({ kind: "OTC" });
+    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "OTC" as const } });
   }, [navigate, passState, toast]);
 
   return (
     <div className="ph-page">
-      <header className="ph-top-wrap">
-        <div className="ph-top">
+      <header className="ph-top-wrap ph-top-wrap--dart-main">
+        <div className="ph-top ph-top--dart-main">
           <Link to={hubReturn} className="ph-back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -204,18 +248,13 @@ export function PharmacyDeliveryPage() {
               />
             </svg>
           </Link>
-          <h1 className="ph-title">Pharmacy Delivery</h1>
-          <span className="ph-top__spacer" aria-hidden />
+          <div className="ph-top-loc">
+            <VaccinationAddressBar />
+          </div>
         </div>
       </header>
 
-      <div className="ph-strip">
-        <div className="ph-strip__inner">
-          <VaccinationAddressBar />
-        </div>
-      </div>
-
-      <main className="ph-page__main">
+      <main className="ph-page__main ph-page__main--dart-main">
         {loadingMembers ? <div className="ph-loading">Loading…</div> : null}
         {!loadingMembers && !flow ? (
           <div className="ph-error">
@@ -230,7 +269,7 @@ export function PharmacyDeliveryPage() {
           <>
             <button
               type="button"
-              className="ph-member-card"
+              className="ph-member-card ph-member-card--dart-main"
               onClick={() => setMemberSheetOpen(true)}
               aria-label="Change who this order is for"
             >
@@ -251,100 +290,180 @@ export function PharmacyDeliveryPage() {
               </span>
             </button>
 
-            <section className="ph-hero" aria-labelledby="ph-hero-title">
-              <div className="ph-hero__row">
-                <div className="ph-hero__copy">
-                  <h2 id="ph-hero-title" className="ph-hero__title">
-                    Flip Health Delivery
+            <section className="ph-main-hero" aria-labelledby="ph-main-hero-title">
+              <div className="ph-main-hero__inner">
+                <div className="ph-main-hero__copy">
+                  <div className="ph-main-hero__pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"
+                        fill="currentColor"
+                        stroke="currentColor"
+                        strokeWidth="1"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>{MAIN_COPY.heroPill}</span>
+                  </div>
+                  <h2 id="ph-main-hero-title" className="ph-main-hero__title">
+                    {MAIN_COPY.heroTitle}
                   </h2>
-                  <ul className="ph-hero__list">
-                    <li>Secure home delivery</li>
-                    <li>Delivery in 24 hours</li>
-                    <li>Contactless delivery</li>
-                  </ul>
+                  <p className="ph-main-hero__note">{MAIN_COPY.heroNote}</p>
                 </div>
-                <div className="ph-hero__art" aria-hidden>
-                  <img src={PHARMACY_IMAGES.medicineDelivery} alt="" />
+                <div className="ph-main-hero__art" aria-hidden>
+                  <img src={PHARMACY_IMAGES.medicineDelivery} alt="" width={110} height={110} />
                 </div>
               </div>
             </section>
 
-            <p className="ph-note">Medicines will be delivered within 24-48 hours of placing order</p>
+            <ul className="ph-main-benefits">
+              {BENEFITS.map((b) => (
+                <li key={b.id} className="ph-main-benefits__chip">
+                  <PharmacyBenefitIcon id={b.id} />
+                  <span>{b.label}</span>
+                </li>
+              ))}
+            </ul>
 
-            <section className="ph-upload-section" aria-labelledby="ph-upload-heading">
-              <h2 id="ph-upload-heading" className="ph-section-title ph-section-title--in-pink">
-                Upload Prescription
-              </h2>
-              <p className="ph-section-sub">Your prescription is safe with us</p>
+            <p className="ph-main-disclaimer">{MAIN_COPY.disclaimer}</p>
 
-              <div className="ph-two-col">
-                <div className="ph-opt-card">
-                  <div className="ph-opt-card__art" aria-hidden>
-                    <img src={PHARMACY_IMAGES.uploadPrescription} alt="" />
-                  </div>
-                  <p className="ph-opt-card__label">Image or File</p>
-                  <button
-                    type="button"
-                    className="ph-btn-orange"
-                    onClick={() => void navigate(ROUTES.pharmacyUpload, { state: passState })}
-                  >
-                    Upload 
-                  </button>
-                </div>
-                <div className="ph-opt-card">
-                  <div className="ph-opt-card__art" aria-hidden>
-                    <img src={PHARMACY_IMAGES.flipHealthPrescription} alt="" />
-                  </div>
-                  <p className="ph-opt-card__label">Fliphealth Prescription</p>
-                  <button
-                    type="button"
-                    className="ph-btn-orange"
-                    onClick={() => void navigate(ROUTES.pharmacySelectPrescription, { state: passState })}
-                  >
-                    Select 
-                  </button>
-                </div>
-              </div>
-            </section>
+            <header className="ph-main-section-head">
+              <h2 className="ph-main-section-head__title">{MAIN_COPY.orderMedsTitle}</h2>
+              <p className="ph-main-section-head__sub">{MAIN_COPY.orderMedsSub}</p>
+            </header>
 
-            <div className="ph-otc-card">
-              <div className="ph-otc-card__row">
-                <div className="ph-otc-card__art" aria-hidden>
-                  <img src={PHARMACY_IMAGES.otcProducts} alt="" />
-                </div>
-                <div className="ph-otc-card__copy">
-                  <h2 className="ph-otc-card__title">Request OTC Products</h2>
-                  <p className="ph-otc-card__sub">No prescription needed</p>
-                  <button type="button" className="ph-btn-orange ph-btn-orange--otc" onClick={() => setOtcOpen(true)}>
-                    Order Now
-                  </button>
-                </div>
+            <div className="ph-main-options">
+              <button
+                type="button"
+                className="ph-main-opt-tile"
+                onClick={() => void navigate(ROUTES.pharmacyUpload, { state: passState })}
+              >
+                <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+                      stroke="#ff541e"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M14 2v6h6M12 18v-6M9 15l3 3 3-3" stroke="#ff541e" strokeWidth="1.75" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span className="ph-main-opt-tile__text">
+                  <span className="ph-main-opt-tile__title">{MAIN_COPY.uploadTitle}</span>
+                  <span className="ph-main-opt-tile__sub">{MAIN_COPY.uploadSub}</span>
+                </span>
+                <span className="ph-main-opt-tile__arrow" aria-hidden>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                className="ph-main-opt-tile"
+                onClick={() => void navigate(ROUTES.pharmacySelectPrescription, { state: passState })}
+              >
+                <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 4v4m6 2v6a6 6 0 01-12 0V10m12 0a6 6 0 10-12 0"
+                      stroke="#ff541e"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                    <path d="M10 14h4" stroke="#ff541e" strokeWidth="1.75" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span className="ph-main-opt-tile__text">
+                  <span className="ph-main-opt-tile__title">{MAIN_COPY.flipTitle}</span>
+                  <span className="ph-main-opt-tile__sub">{MAIN_COPY.flipSub}</span>
+                </span>
+                <span className="ph-main-opt-tile__arrow" aria-hidden>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 18l6-6-6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </button>
+
+              <div className="ph-main-safe">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 2l8 4v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V6l8-4z"
+                    stroke="#1976d2"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <p>{MAIN_COPY.safeNote}</p>
               </div>
             </div>
 
-            <section className="ph-faq" aria-labelledby="ph-faq-title">
-              <h2 id="ph-faq-title" className="ph-section-title">
-                FAQ
-              </h2>
-              {FAQS.map((item, i) => {
-                const open = faqOpen === i;
-                return (
-                  <div key={item.q} className="ph-faq__item">
-                    <button
-                      type="button"
-                      className="ph-faq__q"
-                      onClick={() => setFaqOpen(open ? null : i)}
-                      aria-expanded={open}
-                    >
-                      {item.q}
-                      <span className={`ph-faq__chev${open ? " ph-faq__chev--open" : ""}`} aria-hidden>
-                        ⌄
-                      </span>
-                    </button>
-                    {open ? <p className="ph-faq__a">{item.a}</p> : null}
-                  </div>
-                );
-              })}
+            <header className="ph-main-section-head ph-main-section-head--otc">
+              <h2 className="ph-main-section-head__title">{MAIN_COPY.otcSectionTitle}</h2>
+              <p className="ph-main-section-head__sub">{MAIN_COPY.otcSectionSub}</p>
+            </header>
+
+            <button type="button" className="ph-main-otc-tile" onClick={() => goToOtcReview()}>
+              <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 11V7a3 3 0 016 0v4M5 9h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V9z"
+                    stroke="#ff541e"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <span className="ph-main-opt-tile__text">
+                <span className="ph-main-opt-tile__title">{MAIN_COPY.otcTitle}</span>
+                <span className="ph-main-opt-tile__sub">{MAIN_COPY.otcSub}</span>
+              </span>
+              <span className="ph-main-opt-tile__arrow" aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 18l6-6-6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </button>
+
+            <section className="ph-main-faq" aria-labelledby="ph-main-faq-title">
+              <div className="ph-main-faq__head">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 22a10 10 0 100-20 10 10 0 000 20zm0-17v2m0 12v-6"
+                    stroke="#ff541e"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="12" cy="16" r="0.75" fill="#ff541e" />
+                </svg>
+                <h2 id="ph-main-faq-title" className="ph-main-faq__title">
+                  FAQ
+                </h2>
+              </div>
+              <div className="ph-main-faq__card">
+                {FAQS.map((item, i) => {
+                  const open = faqOpen === i;
+                  return (
+                    <div key={item.q} className="ph-main-faq__block">
+                      <button
+                        type="button"
+                        className={`ph-main-faq__q${open ? " ph-main-faq__q--open" : ""}`}
+                        onClick={() => setFaqOpen(open ? null : i)}
+                        aria-expanded={open}
+                      >
+                        <span className="ph-main-faq__q-text">{item.q}</span>
+                        <span className={`ph-main-faq__chev${open ? " ph-main-faq__chev--open" : ""}`} aria-hidden>
+                          ⌄
+                        </span>
+                      </button>
+                      {open ? <p className="ph-main-faq__a">{item.a}</p> : null}
+                    </div>
+                  );
+                })}
+              </div>
             </section>
           </>
         ) : null}
@@ -361,35 +480,6 @@ export function PharmacyDeliveryPage() {
         />
       ) : null}
 
-      {otcOpen ? (
-        <div className="ph-modal-overlay" role="presentation" onClick={() => !otcBusy && setOtcOpen(false)}>
-          <div
-            className="ph-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ph-otc-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="ph-modal__art" aria-hidden>
-              <img src={PHARMACY_IMAGES.dialogConfirm} alt="" />
-            </div>
-            <h2 id="ph-otc-title" className="ph-modal__title">
-              Request OTC Products
-            </h2>
-            <p className="ph-modal__text">
-              Place an order for OTC products? Our team will contact you to confirm.
-            </p>
-            <div className="ph-modal__actions">
-              <button type="button" className="ph-btn-grey" disabled={otcBusy} onClick={() => setOtcOpen(false)}>
-                Cancel
-              </button>
-              <button type="button" className="ph-btn-orange" disabled={otcBusy} onClick={() => void confirmOtc()}>
-                {otcBusy ? "…" : "Place Order"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -26,11 +26,42 @@ function formatInr(amount: number): string {
   }).format(amount);
 }
 
+/** Server may send post-deduction balances — avoids subtracting twice if `available` is already net of this order. */
+function readOverallWalletAfterDeductionExplicit(opd: Record<string, unknown>): number | null {
+  const ex =
+    num(opd.remaining_balance) ??
+    num(opd.remainingBalance) ??
+    num(opd.wallet_remaining) ??
+    num(opd.walletRemaining) ??
+    num(opd.balance_after) ??
+    num(opd.balanceAfter) ??
+    num(opd.available_after) ??
+    num(opd.availableAfter);
+  if (ex != null && Number.isFinite(ex)) return Math.max(0, Math.floor(ex));
+  return null;
+}
+
+function readModuleLimitAfterDeductionExplicit(opd: Record<string, unknown>): number | null {
+  const ex =
+    num(opd.module_remaining) ??
+    num(opd.moduleRemaining) ??
+    num(opd.remaining_module_available) ??
+    num(opd.remaining_module_limit) ??
+    num(opd.remainingModuleAvailable);
+  if (ex != null && Number.isFinite(ex)) return Math.max(0, Math.floor(ex));
+  return null;
+}
+
 /** Bottom sheet row model built from `PATCH /offline/appointment/payment/:id?useWallet=`. */
 export type OfflineBookingPaymentSheetModel = Readonly<{
   totalAmountFormatted: string;
   walletDebitLineFormatted: string;
+  /** INR — from `opd_wallet.module_available` (this module), not overall `available`. */
   limitAvailableFormatted: string | null;
+  /** Overall OPD wallet left after this booking’s wallet debit — API fields first, else `available − debit`. */
+  walletRemainingAfterDeductionFormatted: string | null;
+  /** Module budget left after this debit — API fields first, else `module_available − debit`. */
+  moduleLimitRemainingAfterDeductionFormatted: string | null;
   totalPayable: number;
   totalPayableFormatted: string;
   showWalletSection: boolean;
@@ -58,6 +89,8 @@ export function mapGymInvoiceDetailToBookingSheetModel(detail: InvoiceDetailMode
     totalAmountFormatted: formatInr(price),
     walletDebitLineFormatted: `- ${formatInr(debitAmount)}`,
     limitAvailableFormatted: null,
+    walletRemainingAfterDeductionFormatted: null,
+    moduleLimitRemainingAfterDeductionFormatted: null,
     totalPayable: pending,
     totalPayableFormatted: formatInr(pending),
     showWalletSection: showWalletDebitRow,
@@ -87,19 +120,21 @@ export function mapOfflinePaymentPreviewToSheetModel(body: unknown): OfflineBook
     0,
     Math.floor(num(layer.opd_paid_amount) ?? num(layer.opdPaidAmount) ?? 0),
   );
-  const avail =
-    opd != null
-      ? (num(opd.available) ??
-          num(opd.module_available) ??
-          num(opd.moduleAvailable) ??
-          num(opd.total) ??
-          null)
+  /** Per-module ceiling for this booking — prefer `module_available`, not overall wallet `available`. */
+  const moduleAvailNested =
+    opd != null ? (num(opd.module_available) ?? num(opd.moduleAvailable)) : null;
+  let limitInt =
+    moduleAvailNested != null && Number.isFinite(moduleAvailNested)
+      ? Math.max(0, Math.floor(moduleAvailNested))
       : null;
-  let limitInt = avail != null && Number.isFinite(avail) ? Math.max(0, Math.floor(avail)) : null;
   if (limitInt == null) {
-    const flatAvail = num(layer.opd_wallet_available) ?? num(layer.opdWalletAvailable);
-    if (flatAvail != null && Number.isFinite(flatAvail)) {
-      limitInt = Math.max(0, Math.floor(flatAvail));
+    const flatModule =
+      num(layer.module_available) ??
+      num(layer.moduleAvailable) ??
+      num(layer.opd_module_available) ??
+      num(layer.opdModuleAvailable);
+    if (flatModule != null && Number.isFinite(flatModule)) {
+      limitInt = Math.max(0, Math.floor(flatModule));
     }
   }
 
@@ -115,10 +150,38 @@ export function mapOfflinePaymentPreviewToSheetModel(body: unknown): OfflineBook
     debitFromMath > 0 ||
     (limitInt != null && limitInt > 0);
 
+  let walletRemainingAfterInt: number | null = null;
+  let moduleRemainingAfterInt: number | null = null;
+  if (opd != null) {
+    walletRemainingAfterInt = readOverallWalletAfterDeductionExplicit(opd);
+    moduleRemainingAfterInt = readModuleLimitAfterDeductionExplicit(opd);
+  }
+  if (walletRemainingAfterInt == null) {
+    const overallBefore =
+      opd != null ? (num(opd.available) ?? num(opd.balance)) : null;
+    const flatOverall = num(layer.opd_wallet_available) ?? num(layer.opdWalletAvailable);
+    const overallBase =
+      overallBefore != null && Number.isFinite(overallBefore)
+        ? Math.max(0, Math.floor(overallBefore))
+        : flatOverall != null && Number.isFinite(flatOverall)
+          ? Math.max(0, Math.floor(flatOverall))
+          : null;
+    if (overallBase != null) {
+      walletRemainingAfterInt = Math.max(0, overallBase - debitAmount);
+    }
+  }
+  if (moduleRemainingAfterInt == null && limitInt != null) {
+    moduleRemainingAfterInt = Math.max(0, limitInt - debitAmount);
+  }
+
   return {
     totalAmountFormatted: formatInr(price),
     walletDebitLineFormatted: `- ${formatInr(debitAmount)}`,
     limitAvailableFormatted: limitInt != null ? formatInr(limitInt) : null,
+    walletRemainingAfterDeductionFormatted:
+      walletRemainingAfterInt != null ? formatInr(walletRemainingAfterInt) : null,
+    moduleLimitRemainingAfterDeductionFormatted:
+      moduleRemainingAfterInt != null ? formatInr(moduleRemainingAfterInt) : null,
     totalPayable: pending,
     totalPayableFormatted: formatInr(pending),
     showWalletSection: showWallet,

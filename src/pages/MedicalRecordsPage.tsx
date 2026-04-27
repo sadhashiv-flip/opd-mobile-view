@@ -117,6 +117,17 @@ export function MedicalRecordsPage() {
 
   const reportUrl = selected ? pickStr(selected.reportUrl, selected.report_url) : "";
   const invoiceId = selected ? pickStr(selected.invoice_id, selected.invoiceId) : "";
+  const labOrderDetailId = selected
+    ? pickStr(
+        asRecord(selected.info)?.id,
+        selected.consultation_info_id,
+        selected.consultationInfoId,
+        selected.service_id,
+        selected.serviceId,
+        selected.invoice_id,
+        selected.invoiceId,
+      )
+    : "";
 
   return (
     <div className="page medical-records-page">
@@ -219,11 +230,11 @@ export function MedicalRecordsPage() {
                   </Link>
                 </p>
               ) : null}
-              {category.slug === "lab-tests" && invoiceId ? (
+              {category.slug === "lab-tests" && labOrderDetailId ? (
                 <p className="mr-dialog__actions">
                   <Link
                     className="mr-link"
-                    to={pathToOrderDetail("lab", invoiceId)}
+                    to={pathToOrderDetail("lab", labOrderDetailId)}
                     onClick={() => setSelected(null)}
                   >
                     View lab order

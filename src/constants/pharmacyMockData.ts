@@ -126,3 +126,10 @@ export function findMockPrescription(prescriptionId: string): PharmacyMockPrescr
   const id = prescriptionId.trim();
   return PHARMACY_MOCK_PRESCRIPTIONS.find((p) => p.prescriptionId === id) ?? null;
 }
+
+/** Stable id for multi-select + `POST /medicine` — Flutter uses `appointmentId`. */
+export function pharmacyFlipRxSelectionKey(rx: PharmacyMockPrescription): string {
+  const a = rx.appointmentId?.trim();
+  if (a) return a;
+  return rx.prescriptionId.trim();
+}

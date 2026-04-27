@@ -1,17 +1,16 @@
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
-import { postMedicineOrder } from "@/api/pharmacy";
 import {
   findMockPrescription,
   type PharmacyMedicineSchedule,
   type PharmacyMockPrescription,
 } from "@/constants/pharmacyMockData";
 import { readCachedPharmacyPrescription } from "@/constants/pharmacyPrescriptionsCache";
-import { readPharmacyFlowState, resolvePharmacyOrderAddressId } from "@/constants/pharmacyFlowStorage";
+import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
+import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
 import { ROUTES } from "@/constants";
-import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import "./PharmacyPages.css";
 
 type NavState = Readonly<{ returnPath?: string; prescription?: PharmacyMockPrescription }>;
@@ -75,8 +74,6 @@ export function PharmacyPrescriptionDetailPage() {
   const { prescriptionId: prescriptionIdParam } = useParams<{ prescriptionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const toast = useToast();
-
   const hubReturn = (location.state as NavState | null)?.returnPath ?? ROUTES.dashboard;
   const passState: NavState = { returnPath: hubReturn };
 
@@ -93,39 +90,28 @@ export function PharmacyPrescriptionDetailPage() {
     }
     return findMockPrescription(prescriptionId);
   }, [flow, prescriptionId, location.state]);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void ensureDefaultSelectedAddressIfNeeded();
   }, []);
 
-  const placeOrder = useCallback(async () => {
+  const continueToReview = useCallback(() => {
     if (!rx || !flow) return;
-    await ensureDefaultSelectedAddressIfNeeded();
-    const addressId = resolvePharmacyOrderAddressId(flow);
-    if (!addressId) {
-      toast.error("Choose a delivery address.");
-      return;
-    }
-    setBusy(true);
-    try {
-      await postMedicineOrder({
-        address_id: addressId,
-        prescriptions: [
-          {
-            type: "FLIPHEALTH",
-            prescription_id: (rx.appointmentId?.trim() || rx.prescriptionId).trim(),
-          },
-        ],
-        patient_id: flow.patientId,
-      });
-      void navigate(ROUTES.pharmacyOrderSuccess, { state: passState });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not place order");
-    } finally {
-      setBusy(false);
-    }
-  }, [flow, navigate, passState, rx, toast]);
+    const rawName = rx.doctorName.trim();
+    const doctorLabel = /^dr\.?/i.test(rawName) ? rx.doctorName : `Dr. ${rawName}`;
+    writePharmacyReviewDraft({
+      kind: "FLIPHEALTH",
+      prescriptions: [
+        {
+          apiPrescriptionId: (rx.appointmentId?.trim() || rx.prescriptionId).trim(),
+          doctorLabel,
+          dateLabel: rx.dateLabel,
+          medicineCount: rx.medicineCount,
+        },
+      ],
+    });
+    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "FLIPHEALTH" as const } });
+  }, [flow, navigate, passState, rx]);
 
   if (!rx || !flow) {
     return (
@@ -279,8 +265,8 @@ export function PharmacyPrescriptionDetailPage() {
       </main>
 
       <div className="ph-footer-btn">
-        <button type="button" className="ph-footer-btn__inner" disabled={busy} onClick={() => void placeOrder()}>
-          {busy ? "Placing…" : "Select & Place Order"}
+        <button type="button" className="ph-footer-btn__inner" onClick={() => continueToReview()}>
+          Review order
         </button>
       </div>
     </div>

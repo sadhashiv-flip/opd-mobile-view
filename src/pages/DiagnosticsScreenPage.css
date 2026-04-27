@@ -126,7 +126,7 @@
 }
 
 .ds-vendor-card--selected {
-  border-color: #ff541e;
+  border-color: #111111;
 }
 
 .ds-vendor-card__top {
@@ -273,7 +273,7 @@
 }
 
 .ds-vendor-card__footer--home {
-  background: #ff541e;
+  background: #0b0b0b;
 }
 
 .ds-footer {
@@ -383,7 +383,7 @@ button.ds-lab-card {
 }
 
 button.ds-lab-card.ds-lab-card--selected {
-  border-color: #ff541e;
+  border-color: #111111;
 }
 
 .ds-lab-card--wrap {
@@ -404,12 +404,12 @@ button.ds-lab-card.ds-lab-card--selected {
 }
 
 .ds-lab-card:focus-visible {
-  outline: 2px solid rgba(255, 84, 30, 0.45);
+  outline: 2px solid rgba(0, 0, 0, 0.35);
   outline-offset: 2px;
 }
 
 .ds-lab-card--selected {
-  border-color: #ff541e;
+  border-color: #111111;
 }
 
 .ds-lab-card__top {
@@ -468,11 +468,11 @@ button.ds-lab-card.ds-lab-card--selected {
 }
 
 .ds-lab-line--charge {
-  color: #ff541e;
+  color: #111111;
 }
 
 .ds-lab-line--charge .ds-lab-line__price {
-  color: #ff541e;
+  color: #111111;
 }
 
 .ds-lab-line--total {
@@ -536,7 +536,7 @@ button.ds-lab-card.ds-lab-card--selected {
 }
 
 .ds-lab-card__footer--orange {
-  background: #ff541e;
+  background: #0b0b0b;
 }
 
 .ds-lab-card__footer-ic {
@@ -627,8 +627,8 @@ button.ds-lab-card.ds-lab-card--selected {
 }
 
 .ds-sellab-check--on {
-  border-color: #ff541e;
-  background: #ff541e;
+  border-color: #0b0b0b;
+  background: #0b0b0b;
   color: #ffffff;
 }
 

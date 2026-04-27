@@ -13,8 +13,10 @@ import {
   DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS,
   DEFAULT_CONSULT_SUCCESS_TITLE,
   isBookingSuccessLocationState,
+  mergeGenericBookingSuccessState,
   resolveDiagnosticsBookingSuccessCardCopy,
 } from "@/constants/bookingSuccessNavigation";
+import { BookingSuccessWithSummary } from "@/components/booking/BookingSuccessWithSummary";
 import successLottie from "@/assets/lotties/success.json";
 import "./BookingSuccessPage.css";
 
@@ -29,11 +31,17 @@ function isConsultSuccessPath(pathname: string): boolean {
   );
 }
 
-function useConsultLayout(pathname: string, rawState: unknown): boolean {
-  if (isConsultSuccessPath(pathname)) return true;
-  if (pathname !== ROUTES.bookingSuccess) return false;
+/** Lottie + Alright — dedicated consult/dental/vision success URLs only (not `/services/booking-success`). */
+function useConsultLayout(pathname: string): boolean {
+  return isConsultSuccessPath(pathname);
+}
+
+/** Appointment summary card (paid or unpaid) — when `location.state` carries summary rows. */
+function useSummaryLayout(rawState: unknown): boolean {
   const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
-  return s?.layout === "consult";
+  if (!s) return false;
+  if ((s.summaryRows?.length ?? 0) > 0) return true;
+  return s.layout === "summary";
 }
 
 function resolveConsultCopy(
@@ -73,7 +81,9 @@ export function BookingSuccessPage() {
     visionType?: string;
     type?: string;
   }>();
-  const consultLayout = useConsultLayout(pathname, rawState);
+  const consultLayout = useConsultLayout(pathname);
+  const summaryLayout = useSummaryLayout(rawState);
+
   const consultCopy = useMemo(
     () => resolveConsultCopy(pathname, rawState, visionTypeParam),
     [pathname, rawState, visionTypeParam],
@@ -99,13 +109,28 @@ export function BookingSuccessPage() {
     };
   }, [diagnosticsTypeParam, pathname, rawState]);
 
+  /** Summary UI: `/services/booking-success` always; diagnostics path when state includes rows / layout summary. */
+  const summaryScreenState = useMemo(() => {
+    if (pathname === ROUTES.bookingSuccess) {
+      return mergeGenericBookingSuccessState(rawState, cardCopy);
+    }
+    if (summaryLayout && isBookingSuccessLocationState(rawState)) {
+      return rawState;
+    }
+    return null;
+  }, [pathname, rawState, cardCopy, summaryLayout]);
+
   useEffect(() => {
-    if (consultLayout) return;
+    if (consultLayout || summaryScreenState != null) return;
     const id = globalThis.setTimeout(() => {
       navigate(ROUTES.orders, { replace: true });
     }, BOOKING_SUCCESS_REDIRECT_MS);
     return () => globalThis.clearTimeout(id);
-  }, [consultLayout, navigate]);
+  }, [consultLayout, summaryScreenState, navigate]);
+
+  if (summaryScreenState != null) {
+    return <BookingSuccessWithSummary state={summaryScreenState} />;
+  }
 
   if (consultLayout) {
     return (

@@ -161,6 +161,19 @@
   color: #757575;
 }
 
+.od-bc-wallet__remaining {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #2e7d32;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-bc-wallet__remaining--muted {
+  font-weight: 500;
+  color: #616161;
+}
+
 .od-bc-payable {
   display: flex;
   align-items: center;

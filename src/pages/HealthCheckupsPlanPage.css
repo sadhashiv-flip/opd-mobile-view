@@ -108,7 +108,7 @@
 .lt-search__mic {
   border: none;
   background: transparent;
-  color: var(--color-brand-orange);
+  color: #111111;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -156,9 +156,9 @@
 .lt-card {
   flex: 0 0 100%;
   scroll-snap-align: start;
-  border: 1.5px solid var(--color-brand-orange);
+  border: 1px solid #ececec;
   border-radius: 18px;
-  padding: 16px 16px 0;
+  padding: 16px 16px 10px;
   background: #ffffff;
   overflow: hidden;
 }
@@ -210,7 +210,7 @@
 .lt-card__footer {
   margin: 0 -16px;
   height: 38px;
-  background: var(--color-brand-orange);
+  background: #0b0b0b;
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -310,7 +310,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--color-brand-orange);
+  color: #111111;
 }
 
 .lt-trust__ic--ok {
@@ -356,7 +356,7 @@
 
 .lt-cart-footer__ic {
   display: inline-flex;
-  color: var(--color-brand-orange);
+  color: #ffffff;
 }
 
 .hcp-loc {
@@ -405,7 +405,7 @@
 
 .hcp-card {
   margin-top: 16px;
-  border: 1.5px solid #ff541e;
+  border: 1.5px solid #111111;
   border-radius: 20px;
   padding: 14px 14px 0;
   background: #ffffff;
@@ -609,7 +609,7 @@
   margin-top: 8px;
   margin-left: -14px;
   margin-right: -14px;
-  background: var(--color-brand-orange);
+  background: #0b0b0b;
   color: #ffffff;
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 800;
@@ -766,9 +766,9 @@
 }
 
 .hcp-member-tab--active {
-  border-color: #ff541e;
-  color: #ff541e;
-  background: rgba(255, 84, 30, 0.06);
+  border-color: #111111;
+  color: #111111;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .hcp-plan-stack {
@@ -786,7 +786,7 @@
   display: inline-block;
   margin-top: 10px;
   font-weight: 700;
-  color: #ff541e;
+  color: #111111;
   text-decoration: none;
 }
 

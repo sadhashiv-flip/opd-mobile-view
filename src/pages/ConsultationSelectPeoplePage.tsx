@@ -18,10 +18,16 @@ import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberD
 import { useToast } from "@/hooks/useToast";
 import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 
 export type SelectPeopleFlowKind = "consultation" | "diagnostics" | "dental" | "vision";
+
+/** Lab tests — patient_app `LabTestMemberSelectionScreen` uses `CommonMemberSelectionScreen(allowMultiSelect: true)`. */
+function isLabTestsDiagnosticsFlow(flow: SelectPeopleFlowKind, diagnosticsType: string): boolean {
+  return flow === "diagnostics" && diagnosticsType === "lab-tests";
+}
 
 function defaultSelection(rows: GymMemberListRow[]): string[] {
   const primary = rows.find((r) => r.section === "self");
@@ -73,6 +79,8 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const visionModeLabel =
     visionOption === "eye-checkup" ? "Eye Checkup" : visionOption === "glasses-lens" ? "Glasses/Lens" : null;
 
+  const labTestsMulti = isLabTestsDiagnosticsFlow(flow, type);
+
   if (flow === "vision" && visionOption == null) {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
@@ -112,7 +120,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     };
   }, [toast, location.key]);
 
-  const maxSelectable = 1;
+  const maxSelectable = labTestsMulti ? Number.POSITIVE_INFINITY : 1;
 
   useEffect(() => {
     if (rows.length === 0) {
@@ -124,10 +132,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       if (next.length === 0) {
         next = defaultSelection(rows);
       }
-      if (next.length > maxSelectable) next = next.slice(0, maxSelectable);
+      if (Number.isFinite(maxSelectable) && next.length > maxSelectable) {
+        next = next.slice(0, maxSelectable);
+      }
       return next;
     });
-  }, [rows]);
+  }, [rows, labTestsMulti, maxSelectable]);
 
   const selfMembers = useMemo(() => rows.filter((m) => m.section === "self"), [rows]);
   const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
@@ -135,7 +145,14 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const canContinue = selectedIds.length > 0 && !loading && !fetchError && rows.length > 0;
 
   const toggleMember = (memberId: string) => {
-    setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
+    setSelectedIds((prev) => {
+      if (labTestsMulti) {
+        return prev.includes(memberId)
+          ? prev.filter((id) => id !== memberId)
+          : [...prev, memberId];
+      }
+      return prev.includes(memberId) ? prev : [memberId];
+    });
   };
 
   const renderTrailing = (member: GymMemberListRow) => {
@@ -156,12 +173,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
   const onContinue = () => {
     if (selectedIds.length === 0) return;
-    const selected = selectedIds[0];
-    if (!selected) return;
-    const row = rows.find((r) => r.id === selected) ?? null;
-    if (!row) return;
 
     if (flow === "consultation") {
+      const selected = selectedIds[0];
+      if (!selected) return;
+      const row = rows.find((r) => r.id === selected) ?? null;
+      if (!row) return;
       writeConsultSelectedPersonIds([selected]);
       writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
       navigate(generatePath(ROUTES.consultationSpecialties, { type }));
@@ -169,6 +186,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     }
 
     if (flow === "dental") {
+      const selected = selectedIds[0];
+      if (!selected) return;
+      const row = rows.find((r) => r.id === selected) ?? null;
+      if (!row) return;
       writeDiagnosticsSelectedPersonIds([selected]);
       writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
       navigate(ROUTES.dentalNetworkList);
@@ -177,6 +198,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
     if (flow === "vision") {
       if (!visionOption) return;
+      const selected = selectedIds[0];
+      if (!selected) return;
+      const row = rows.find((r) => r.id === selected) ?? null;
+      if (!row) return;
       writeDiagnosticsSelectedPersonIds([selected]);
       writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
       try {
@@ -191,10 +216,16 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       return;
     }
 
-    writeDiagnosticsSelectedPersonIds([selected]);
-    writeDiagnosticsSelectedMembersSnapshots([buildDiagnosticsMemberSnapshotFromRow(row)]);
+    const snapshots = selectedIds
+      .map((id) => rows.find((r) => r.id === id))
+      .filter((r): r is GymMemberListRow => r != null)
+      .map(buildDiagnosticsMemberSnapshotFromRow);
+    if (snapshots.length === 0) return;
+
+    writeDiagnosticsSelectedPersonIds(selectedIds);
+    writeDiagnosticsSelectedMembersSnapshots(snapshots);
     try {
-      localStorage.setItem("opd-mobile-view.health-checkups.selectedPersonId", selected);
+      localStorage.setItem("opd-mobile-view.health-checkups.selectedPersonId", selectedIds[0] ?? "");
     } catch {
       // ignore
     }
@@ -279,6 +310,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
         {!loading && !fetchError && rows.length > 0 ? (
           <>
+            {labTestsMulti ? (
+              <p className="hc-block__subhint">
+                Select one or more members for this lab booking. Tap again to remove someone from the list.
+              </p>
+            ) : null}
             <section className="hc-block">
               <h2 className="hc-block__title">For you</h2>
               {selfMembers.map((member) => (
@@ -341,7 +377,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
       <footer className="hc-footer">
         <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
-          Continue
+          {labTestsMulti && selectedIds.length > 0
+            ? `Continue (${selectedIds.length})`
+            : "Continue"}
         </button>
       </footer>
     </div>

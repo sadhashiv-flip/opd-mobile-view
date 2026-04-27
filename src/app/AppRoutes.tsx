@@ -58,9 +58,13 @@ import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
 import { ConsultationTypePage } from "../pages/ConsultationTypePage";
 import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalResultsPage";
 import { WellnessSessionPage } from "@/pages/WellnessSessionPage";
+import { HealthClubDetailPage } from "@/pages/HealthClubDetailPage";
+import { HealthClubListPage } from "@/pages/HealthClubListPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
 import { OrderDetailsPage } from "@/pages/OrderDetailsPage";
+import { DevLabOrderDetailEntryPage } from "@/pages/DevLabOrderDetailEntryPage";
+import { DevLabOrderDetailRedirectPage } from "@/pages/DevLabOrderDetailRedirectPage";
 import { VaccinationSelectPeoplePage } from "@/pages/VaccinationSelectPeoplePage";
 import { VaccinationChooseTypePage } from "@/pages/VaccinationChooseTypePage";
 import { VaccinationSlotsPage } from "@/pages/VaccinationSlotsPage";
@@ -69,6 +73,7 @@ import { PharmacyDeliveryPage } from "@/pages/PharmacyDeliveryPage";
 import { PharmacyUploadPage } from "@/pages/PharmacyUploadPage";
 import { PharmacySelectPrescriptionPage } from "@/pages/PharmacySelectPrescriptionPage";
 import { PharmacyPrescriptionDetailPage } from "@/pages/PharmacyPrescriptionDetailPage";
+import { PharmacyOrderReviewPage } from "@/pages/PharmacyOrderReviewPage";
 import { PharmacyOrderSuccessPage } from "@/pages/PharmacyOrderSuccessPage";
 import { WalletRedirectPage } from "@/pages/WalletRedirectPage";
 import { WalletPage } from "@/pages/WalletPage";
@@ -85,6 +90,7 @@ import {
   LegacyOrdersDetailOneSegmentRedirect,
   LegacyOrdersDetailTwoSegmentRedirect,
 } from "@/app/LegacyOrdersDetailRedirects";
+import { BookingSuccessCanonicalRedirect } from "@/app/BookingSuccessCanonicalRedirect";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -100,6 +106,8 @@ export function AppRoutes() {
       <Route path={ROUTES.userDetailsBmiResult} element={<UserDetailsBmiResultPage />} />
       <Route path={ROUTES.accountLink} element={<AccountLinkPage />} />
       <Route path={ROUTES.dashboard} element={<HomePage />} />
+      <Route path={ROUTES.healthClub} element={<HealthClubListPage />} />
+      <Route path={ROUTES.healthClubDetail} element={<HealthClubDetailPage />} />
       <Route path={ROUTES.digitalDiary} element={<DigitalDiaryHubPage />} />
       <Route path={ROUTES.digitalDiaryLog} element={<DigitalDiaryLogPage />} />
       <Route path={ROUTES.medicalRecords} element={<MedicalRecordsPage />} />
@@ -162,8 +170,8 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
-      <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessPage />} />
-      <Route path={ROUTES.consultationVirtualBookingSuccess} element={<BookingSuccessPage />} />
+      <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessCanonicalRedirect />} />
+      <Route path={ROUTES.consultationVirtualBookingSuccess} element={<BookingSuccessCanonicalRedirect />} />
       <Route path={ROUTES.dentalSelectPeople} element={<DentalSelectPeoplePage />} />
       <Route path={ROUTES.visionSelectPeople} element={<VisionSelectPeoplePage />} />
       <Route path={ROUTES.visionNetworkList} element={<VisionNetworkListPage />} />
@@ -190,7 +198,11 @@ export function AppRoutes() {
       <Route path={ROUTES.pharmacyUpload} element={<PharmacyUploadPage />} />
       <Route path={ROUTES.pharmacySelectPrescription} element={<PharmacySelectPrescriptionPage />} />
       <Route path={ROUTES.pharmacyPrescriptionDetail} element={<PharmacyPrescriptionDetailPage />} />
+      <Route path={ROUTES.pharmacyReview} element={<PharmacyOrderReviewPage />} />
       <Route path={ROUTES.pharmacyOrderSuccess} element={<PharmacyOrderSuccessPage />} />
+      {/* Dev / QA — lab invoice detail testing only */}
+      <Route path={ROUTES.devLabOrderDetailOpen} element={<DevLabOrderDetailRedirectPage />} />
+      <Route path={ROUTES.devLabOrderDetail} element={<DevLabOrderDetailEntryPage />} />
       <Route path={ROUTES.ordersDetail} element={<OrderDetailsPage />} />
       <Route path={ROUTES.ordersDetailLegacy} element={<OrderDetailsPage />} />
       <Route path="/orders/:orderKind/:invoiceId" element={<LegacyOrdersDetailTwoSegmentRedirect />} />

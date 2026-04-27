@@ -17,9 +17,12 @@ import {
   bookAppointment,
   bookAppointmentConfirm,
   isAppointmentPaymentRequired,
+  readAppointmentInfoOrderId,
+  readAppointmentInvoiceIdForOrderDetail,
   readAppointmentResponseMessage,
   readRazorpayPayloadFromAppointmentResponse,
 } from "@/api/appointmentBook";
+import { buildInlineConsultationBookingSuccessState } from "@/lib/bookingSuccessFromInvoice";
 import { PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import { useConsultationPaymentVerify } from "@/hooks/useConsultationPaymentVerify";
 import {
@@ -99,6 +102,21 @@ function readVirtualSlotKeyFromStorage(): string {
   }
 }
 
+const VIRTUAL_SLOTS_META_PREFIX = "opd-mobile-view.virtualSlots.";
+
+/** Same session key as {@link ConsultationVirtualSlotsPage} — issue title for success summary. */
+function readVirtualIssueTitle(issueId: string): string {
+  if (!issueId.trim()) return "";
+  try {
+    const raw = sessionStorage.getItem(`${VIRTUAL_SLOTS_META_PREFIX}${issueId}`);
+    if (!raw) return "";
+    const p = JSON.parse(raw) as Partial<{ issueTitle: string }>;
+    return typeof p.issueTitle === "string" ? p.issueTitle.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 export function ConsultationVirtualAppointmentOverviewPage() {
   const params = useParams();
   const issueId = typeof params.issueId === "string" ? params.issueId : "";
@@ -133,9 +151,13 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
 
   const paymentSuccessToastRef = useRef<string | undefined>(undefined);
+  /** Last `bookAppointmentConfirm` response — needed after Razorpay to build summary (`info.id`, invoice id). */
+  const lastVirtualBookingApiResponseRef = useRef<unknown>(null);
   const onPaymentVerifiedRef = useRef<() => void>(() => {});
   const onPaymentVerifyErrorRef = useRef<(message: string) => void>(() => {});
   const setBookingBusyRef = useRef<(busy: boolean) => void>(() => {});
+
+  const issueTitle = useMemo(() => readVirtualIssueTitle(issueId), [issueId]);
 
   useEffect(() => {
     setBookingBusyRef.current = setBookingLoading;
@@ -145,13 +167,29 @@ export function ConsultationVirtualAppointmentOverviewPage() {
       paymentSuccessToastRef.current = undefined;
       setBookingLoading(false);
       clearVirtualFollowUpAppointmentId();
-      navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
+      const apiRes = lastVirtualBookingApiResponseRef.current;
+      lastVirtualBookingApiResponseRef.current = null;
+      const infoId = readAppointmentInfoOrderId(apiRes, "online");
+      const invId = readAppointmentInvoiceIdForOrderDetail(apiRes);
+      const serviceLine = issueTitle || "Virtual consultation";
+      const locationValue = issueTitle ? `Online\n${issueTitle}` : "Online";
+      navigate(ROUTES.bookingSuccess, {
+        replace: true,
+        state: buildInlineConsultationBookingSuccessState({
+          infoOrderId: infoId,
+          invoiceIdForOrderDetail: invId,
+          bookedForName: patientLabel,
+          serviceLine,
+          locationValue,
+          scheduleDisplay: dateTimeDisplay,
+        }),
+      });
     };
     onPaymentVerifyErrorRef.current = (message: string) => {
       toast.error(message);
       setBookingLoading(false);
     };
-  }, [navigate, toast]);
+  }, [navigate, toast, issueTitle, patientLabel, dateTimeDisplay]);
 
   useConsultationPaymentVerify({
     onSuccessRef: onPaymentVerifiedRef,
@@ -388,11 +426,28 @@ export function ConsultationVirtualAppointmentOverviewPage() {
                     toast.success(messageToShow);
                   }
                   clearVirtualFollowUpAppointmentId();
-                  navigate(ROUTES.consultationVirtualBookingSuccess, { replace: true });
+                  {
+                    const infoId = readAppointmentInfoOrderId(confirmRes, "online");
+                    const invId = readAppointmentInvoiceIdForOrderDetail(confirmRes);
+                    const serviceLine = issueTitle || "Virtual consultation";
+                    const locationValue = issueTitle ? `Online\n${issueTitle}` : "Online";
+                    navigate(ROUTES.bookingSuccess, {
+                      replace: true,
+                      state: buildInlineConsultationBookingSuccessState({
+                        infoOrderId: infoId,
+                        invoiceIdForOrderDetail: invId,
+                        bookedForName: patientLabel,
+                        serviceLine,
+                        locationValue,
+                        scheduleDisplay: dateTimeDisplay,
+                      }),
+                    });
+                  }
                   return;
                 }
 
                 const confirmRes = await bookAppointmentConfirm(payload);
+                lastVirtualBookingApiResponseRef.current = confirmRes;
                 const rzpPayload = readRazorpayPayloadFromAppointmentResponse(confirmRes);
                 if (!rzpPayload || Object.keys(rzpPayload).length === 0) {
                   toast.error(

@@ -35,6 +35,11 @@ export type InvoiceOrderListStatusTone =
 
 export type InvoiceOrderRow = Readonly<{
   id: string;
+  /**
+   * `data.info.id` when present — canonical **`GET /invoice/:id`** lookup for lab partner orders (same as
+   * {@link InvoiceDetailModel.consultationInfoId}); null when absent. Use for `/order/lab/:id` links.
+   */
+  infoId: string | null;
   categoryLabel: string;
   categoryKey: string;
   /** `#` + `data.info.id` when present; otherwise empty (no label). */
@@ -588,8 +593,11 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
   }
   const metaLine = metaLines.length > 0 ? metaLines.join("\n") : "—";
 
+  const infoIdTrimmed = infoListId?.trim() ?? null;
+
   return {
     id,
+    infoId: infoIdTrimmed && infoIdTrimmed.length > 0 ? infoIdTrimmed : null,
     categoryLabel,
     categoryKey,
     orderIdLine,
@@ -778,6 +786,23 @@ export type LabSubOrderDetailRow = Readonly<{
   rescheduleAtDisplay: string | null;
   /** Optional count from API (`reschedule_count`, etc.). */
   rescheduleCountDisplay: string | null;
+  /** Self-visit center from `orders[].additional_info.center` when applicable. */
+  subOrderCenter: PharmacyOrderConfirmCenterUi | null;
+  /** Extra line under center: collection date/time from sub-order `additional_info`. */
+  subOrderCenterBookingTimeLine: string | null;
+  /** `status === 3` and center present — confirm via `PATCH lab/order/confirm/:subOrderId`. */
+  showConfirmSubOrderCenterButton: boolean;
+  /** Pending requested slot change copy when `status === 3` and `requested` map exists. */
+  requestedUpdateDisplay: string | null;
+  riderName: string | null;
+  riderContact: string | null;
+}>;
+
+/** Invoice line items grouped by `details[].user.id` — patient_app “Tests by patient”. */
+export type LabPatientLineGroupUi = Readonly<{
+  displayName: string;
+  subtitle: string;
+  lines: ReadonlyArray<Readonly<{ productName: string; priceDisplay: string }>>;
 }>;
 
 export type InvoiceDetailModel = Readonly<{
@@ -840,6 +865,11 @@ export type InvoiceDetailModel = Readonly<{
   statusLabel: string;
   statusValueTone: InvoiceOrderRow["statusTone"];
   patientName: string;
+  /**
+   * Member/patient the service was booked for — prefers `info` / nested booking patient fields over account `user_name`.
+   * Use for success screens & “Booked for” copy.
+   */
+  bookedForName: string;
   vendorName: string;
   /** Pharmacy pickup/delivery; vision/dental/vaccine **HOME_VISIT** user address from `info.details.address`. */
   pharmacyOrderLocation: PharmacyOrderLocationCardUi | null;
@@ -865,6 +895,25 @@ export type InvoiceDetailModel = Readonly<{
   labCollectionAddressId: string | null;
   /** `info.source` (or fallbacks) — vendor code for diagnostics slots when rescheduling. */
   labRescheduleVendorCode: string | null;
+  /** `#` + invoice id for “Order summary” (Flutter lab overview). */
+  labInvoiceReferenceDisplay: string | null;
+  /** `#` + `additional_info.lab_booking_id` when present. */
+  labBookingReferenceDisplay: string | null;
+  /** Optional `info.statusText` / `status_text` from API. */
+  labInfoStatusTextLine: string | null;
+  labTrackingUrl: string | null;
+  labReportUrl: string | null;
+  /** Shown on status banner when status is cancelled (Flutter). */
+  labCancellationReason: string | null;
+  /**
+   * Home / pickup collection address — only when visit type is not self-visit-at-center-only.
+   * Patient_app shows this as “Collection address”, separate from patient demographics.
+   */
+  labCollectionAddressCard: PharmacyOrderLocationCardUi | null;
+  /** Non-empty when invoice `details` lines include per-member `user` — “Tests by patient”. */
+  labPatientTestsByMember: readonly LabPatientLineGroupUi[];
+  /** Uploaded prescription files from `info.additional_info.prescriptions`. */
+  labUploadedPrescriptions: readonly ConsultationAttachmentRow[];
   /** Pharmacy: `info.additional_info.center`; vision/dental/vaccine: `info.details.center`. */
   pharmacyConfirmCenter: PharmacyOrderConfirmCenterUi | null;
   /** `info.details.alternate_phone` / `alternatePhone` when present (any order type with an `info` block). */
@@ -1276,6 +1325,27 @@ function detailPatientName(o: Record<string, unknown>): string {
   return (
     str(info.patient_name) ?? str(info.patientName) ?? str(info.name) ?? "—"
   );
+}
+
+/** Member/patient the booking is for — prefers `info.patient_name` / `info.name` before invoice root `user_name`. */
+function bookedForNameFromInvoice(o: Record<string, unknown>, patientNameFallback: string): string {
+  const info = asRecord(o.info);
+  const fromInfo =
+    info != null
+      ? str(info.patient_name) ??
+        str(info.patientName) ??
+        str(info.member_name) ??
+        str(info.memberName) ??
+        str(info.name)
+      : null;
+  if (fromInfo?.trim()) return fromInfo.trim();
+  const add = info != null ? asRecord(info.additional_info) : null;
+  const booking = add != null ? asRecord(add.booking_details) : null;
+  const fromNested =
+    (booking != null ? str(booking.patient_name) ?? str(booking.member_name) : null) ??
+    (add != null ? str(add.patient_name) ?? str(add.member_name) : null);
+  if (fromNested?.trim()) return fromNested.trim();
+  return patientNameFallback.trim() || "—";
 }
 
 function detailVendorName(o: Record<string, unknown>): string {
@@ -1906,7 +1976,8 @@ function formatLabInvoiceSubOrderDateHint(raw: string): string {
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function labSubOrderStatusLabelFromCode(status: number): string {
+/** Lab `info.status` / sub-order `status` — matches patient_app `lab_order_detail_screen.dart`. */
+export function labBookingStatusLabelFromCode(status: number): string {
   const map: Record<number, string> = {
     0: "Waiting for confirmation",
     1: "Completed",
@@ -1920,6 +1991,52 @@ function labSubOrderStatusLabelFromCode(status: number): string {
     9: "Expired",
   };
   return map[status] ?? "In progress";
+}
+
+function labInvoiceInfoStatusTone(status: number): InvoiceOrderRow["statusTone"] {
+  switch (status) {
+    case 1:
+    case 6:
+      return "completed";
+    case 2:
+    case 9:
+      return "cancelled";
+    case 4:
+      return "paymentPending";
+    case 5:
+      return "upcoming";
+    case 3:
+      return "confirmPending";
+    default:
+      return "processing";
+  }
+}
+
+function labBannerSubtitleForBookingStatus(status: number): string {
+  switch (status) {
+    case 0:
+      return "We're confirming your booking with the lab partner";
+    case 1:
+      return "Your lab booking is complete";
+    case 2:
+      return "This booking was cancelled";
+    case 3:
+      return "Please review and confirm the assigned center or slot";
+    case 4:
+      return "Complete payment to continue with this booking";
+    case 5:
+      return "Your collection slot is booked";
+    case 6:
+      return "A phlebotomist has been assigned";
+    case 7:
+      return "Sample has been collected";
+    case 8:
+      return "We're preparing your reports";
+    case 9:
+      return "This booking is no longer active";
+    default:
+      return "We're updating this booking";
+  }
 }
 
 function labInvoiceOrderRowStatus(raw: unknown): number {
@@ -2076,6 +2193,148 @@ function parseLabRescheduleVendorCode(
   return str(o.source)?.trim() ?? null;
 }
 
+function parseLabSubOrderCenterFromRow(
+  add: Record<string, unknown> | null,
+  status: number,
+  visitTypeRaw: string,
+): PharmacyOrderConfirmCenterUi | null {
+  if (status === 0) return null;
+  const v = visitTypeRaw.trim().toUpperCase();
+  if (v !== "SELF_VISIT") return null;
+  const center = add != null ? asRecord(add.center) : null;
+  if (!center || Object.keys(center).length === 0) {
+    return { centerName: null, centerAddress: null, centerPhone: null, mapsUrl: null };
+  }
+  const display = str(center.display_address)?.trim();
+  const centerName = str(center.name)?.trim() || null;
+  const centerAddress =
+    display != null && display.length > 0 ? display : formatStructuredAddressFromCenter(center);
+  const centerPhone = str(center.phone)?.trim() || str(center.mobile)?.trim() || null;
+  const mapsUrl = mapsUrlFromCenterOrNested(center);
+  return { centerName, centerAddress, centerPhone, mapsUrl };
+}
+
+function subOrderCenterBookingTimeFromAdd(add: Record<string, unknown> | null): string | null {
+  if (!add) return null;
+  const cd = nonEmptyTrimmed(add.collection_date);
+  const ct = nonEmptyTrimmed(add.collection_slot_time);
+  if (!cd?.length && !ct?.length) return null;
+  const datePart =
+    cd != null && cd.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(cd)
+      ? formatLabInvoiceSubOrderDateHint(cd)
+      : cd ?? "";
+  return `Booking time: ${datePart || "—"} ${ct ?? ""}`.trim();
+}
+
+function formatLabRequestedUpdateLine(
+  requested: Record<string, unknown>,
+  add: Record<string, unknown> | null,
+): string | null {
+  const d =
+    nonEmptyTrimmed(requested.collection_date) ??
+    (add != null ? nonEmptyTrimmed(add.collection_date) : null) ??
+    "";
+  const t =
+    nonEmptyTrimmed(requested.collection_slot_time) ??
+    (add != null ? nonEmptyTrimmed(add.collection_slot_time) : null) ??
+    "";
+  if (!d.length && !t.length) return null;
+  const dp = d.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(d) ? formatLabInvoiceSubOrderDateHint(d) : d;
+  return `${dp.length ? dp : "—"}  ·  ${t}`.trim();
+}
+
+function parseLabSubOrderRiderFromRow(
+  rec: Record<string, unknown>,
+  status: number,
+  visitTypeRaw: string,
+): { name: string; contact: string } | null {
+  if ([0, 1, 2, 3, 4].includes(status)) return null;
+  if (visitTypeRaw.trim().toUpperCase() !== "HOME_PICKUP") return null;
+  const rider = asRecord(rec.rider_info) ?? asRecord(rec.rider);
+  if (!rider) return null;
+  const name = str(rider.name)?.trim() ?? "";
+  if (!name.length) return null;
+  const contact =
+    str(rider.contact)?.trim() ||
+    str(rider.phone)?.trim() ||
+    str(rider.mobile)?.trim() ||
+    "";
+  return { name, contact };
+}
+
+function buildLabPatientLineGroups(o: Record<string, unknown>): readonly LabPatientLineGroupUi[] {
+  const rawLines = collectLineItemArrays(o);
+  type Acc = {
+    lines: Array<{ productName: string; priceDisplay: string }>;
+    userMap: Record<string, unknown> | null;
+  };
+  const byUser = new Map<number, Acc>();
+  for (let i = 0; i < rawLines.length; i++) {
+    const raw = rawLines[i];
+    const row = asRecord(raw);
+    if (!row) continue;
+    const u = asRecord(row.user);
+    let uid = 0;
+    if (u) {
+      const idRaw = u.id;
+      uid =
+        typeof idRaw === "number" && !Number.isNaN(idRaw)
+          ? Math.trunc(idRaw)
+          : num(idRaw) != null
+            ? Math.trunc(num(idRaw)!)
+            : 0;
+    }
+    const pl = parseDetailLineItem(raw, i);
+    if (!pl) continue;
+    const priceDisplay =
+      pl.lineTotal != null
+        ? formatInr(pl.lineTotal)
+        : pl.unitPrice != null
+          ? formatInr(pl.unitPrice)
+          : "—";
+    const acc = byUser.get(uid) ?? { lines: [], userMap: u };
+    if (!acc.userMap && u) acc.userMap = u;
+    acc.lines.push({ productName: pl.productName, priceDisplay });
+    byUser.set(uid, acc);
+  }
+  const keys = [...byUser.keys()].sort((a, b) => a - b);
+  return keys.map((k) => {
+    const acc = byUser.get(k)!;
+    const u = acc.userMap;
+    const displayName =
+      u != null
+        ? str(u.name)?.trim() || str(u.full_name)?.trim() || str(u.fullName)?.trim() || "Patient"
+        : "Patient";
+    const subtitleParts: string[] = [];
+    if (u != null) {
+      const age = num(u.age);
+      if (age != null && !Number.isNaN(age)) subtitleParts.push(String(Math.floor(age)));
+      const g = str(u.gender)?.trim();
+      if (g) subtitleParts.push(g);
+    }
+    return {
+      displayName,
+      subtitle: subtitleParts.join(" · "),
+      lines: acc.lines,
+    };
+  });
+}
+
+function parseLabUploadedPrescriptions(info: Record<string, unknown> | null): ConsultationAttachmentRow[] {
+  if (info == null) return [];
+  const add = asRecord(info.additional_info);
+  const raw = add != null && Array.isArray(add.prescriptions) ? add.prescriptions : null;
+  if (raw == null) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    if (r.path == null && r.url == null) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Prescription ${i + 1}`));
+  }
+  return out;
+}
+
 function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | null): readonly LabSubOrderDetailRow[] {
   const raw = o.orders;
   if (!Array.isArray(raw) || raw.length === 0) return [];
@@ -2132,12 +2391,22 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
       availableReschedule === true &&
       isLabSubOrderReschedulableNow(date, slotTime);
     const rs = parseLabSubOrderRescheduleApiFields(rec);
+    const addRec = asRecord(rec.additional_info);
+    const subOrderCenter = parseLabSubOrderCenterFromRow(addRec, status, visitTypeRaw);
+    const subOrderCenterBookingTimeLine = subOrderCenterBookingTimeFromAdd(addRec);
+    const requestedMap =
+      status === 3 && addRec != null ? asRecord(addRec.requested) : null;
+    const requestedUpdateDisplay =
+      requestedMap != null ? formatLabRequestedUpdateLine(requestedMap, addRec) : null;
+    const riderPair = parseLabSubOrderRiderFromRow(rec, status, visitTypeRaw);
+    const showConfirmSubOrderCenterButton =
+      status === 3 && pharmacyOrderConfirmCenterUiHasContent(subOrderCenter);
     rows.push({
       id,
       categoryLabel: catRaw.length > 0 ? catRaw : "—",
       visitTypeDisplay,
       status,
-      statusLabel: labSubOrderStatusLabelFromCode(status),
+      statusLabel: labBookingStatusLabelFromCode(status),
       dateSlotLine,
       reschedulePolicyNote,
       showRescheduleButton,
@@ -2146,6 +2415,12 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
       rescheduleSlotChangeDisplay: rs.rescheduleSlotChangeDisplay,
       rescheduleAtDisplay: rs.rescheduleAtDisplay,
       rescheduleCountDisplay: rs.rescheduleCountDisplay,
+      subOrderCenter,
+      subOrderCenterBookingTimeLine,
+      showConfirmSubOrderCenterButton,
+      requestedUpdateDisplay,
+      riderName: riderPair?.name ?? null,
+      riderContact: riderPair?.contact ?? null,
     });
   }
   return rows;
@@ -2456,7 +2731,10 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const consultationPlaceTag: InvoiceOrderRow["consultationPlaceTag"] =
     isConsultationInvoice && infoForStatus != null ? (isOnline ? "virtual" : "inPerson") : null;
 
-  const consultationInfoIdRaw = infoForStatus != null ? str(infoForStatus.id)?.trim() : null;
+  const dataPayload = readInvoiceDataObject(o);
+  const consultationInfoIdRaw =
+    (infoForStatus != null ? str(infoForStatus.id)?.trim() : null) ??
+    (isConsultationInvoice && dataPayload ? str(dataPayload.id)?.trim() : null);
   const consultationInfoId =
     consultationInfoIdRaw != null && consultationInfoIdRaw.length > 0
       ? consultationInfoIdRaw
@@ -2497,6 +2775,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   if (isExpiredVirtual) {
     statusLabel = "Expired";
     statusValueTone = "expired";
+  } else if (categoryKey === "lab" && infoForStatus != null && infoStatusTrunc !== null) {
+    statusLabel = labBookingStatusLabelFromCode(infoStatusTrunc);
+    statusValueTone = labInvoiceInfoStatusTone(infoStatusTrunc);
   } else if (infoForStatus != null && infoStatusTrunc !== null) {
     statusLabel = invoiceListStatusLabelFromInfoStatus(
       infoForStatus.status,
@@ -2513,13 +2794,16 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const bannerTitle = statusLabel;
   const bannerSubtitle = isExpiredVirtual
     ? "This virtual consultation time slot has ended"
-    : infoForStatus != null && infoStatusTrunc !== null
-      ? consultationInfoStatusBannerCopy(infoForStatus.status, {
-          isVisionOrder: isVisionInvoiceDetail,
-        }).subtitle
-      : bannerCopy(bannerTone).subtitle;
+    : categoryKey === "lab" && infoForStatus != null && infoStatusTrunc !== null
+      ? labBannerSubtitleForBookingStatus(infoStatusTrunc)
+      : infoForStatus != null && infoStatusTrunc !== null
+        ? consultationInfoStatusBannerCopy(infoForStatus.status, {
+            isVisionOrder: isVisionInvoiceDetail,
+          }).subtitle
+        : bannerCopy(bannerTone).subtitle;
 
   const patientName = detailPatientName(o);
+  const bookedForName = bookedForNameFromInvoice(o, patientName);
   const vendorName = detailVendorName(o);
   const { lineItems, lineSum } = buildDetailLineItems(o);
   const itemsGrossTotal = resolveDetailSubtotal(o, lineSum);
@@ -2585,10 +2869,21 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus != null ? parseConsultationAttachments(infoForStatus) : [];
   const consultationReports =
     isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
+  const labLocParsed =
+    categoryKey === "lab" ? parseLabOrderLocationCardUi(o, infoForStatus, categoryKey) : null;
+  const labVisitNormForCard = (visitTypeRaw ?? visitTypeFallback ?? "").trim().toUpperCase();
+  const labCollectionAddressCard =
+    categoryKey === "lab" &&
+    labLocParsed != null &&
+    labVisitNormForCard !== "SELF_VISIT" &&
+    labVisitNormForCard !== "AT_CENTER"
+      ? { ...labLocParsed, cardTitle: "Collection address" }
+      : null;
+
   const pharmacyOrderLocation =
     parsePharmacyOrderLocationCardUi(o, infoForStatus, categoryKey) ??
     parseVisionOrderLocationCardUi(o, infoForStatus, categoryKey) ??
-    parseLabOrderLocationCardUi(o, infoForStatus, categoryKey);
+    (categoryKey !== "lab" ? labLocParsed : null);
 
   const pharmacyPreferredSlotDisplay =
     categoryKey === "pharmacy" && infoForStatus != null
@@ -2646,6 +2941,42 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const labSubOrders =
     categoryKey === "lab" ? parseLabSubOrderRows(o, labCollectionAddressId) : [];
 
+  const invoiceRootId = str(o.invoice_id) ?? str(o.invoiceId) ?? id;
+  const labInvoiceReferenceDisplay =
+    categoryKey === "lab" && invoiceRootId !== "—"
+      ? `#${invoiceRootId.replace(/^#/, "")}`
+      : null;
+  const infoAddForLab = infoForStatus != null ? asRecord(infoForStatus.additional_info) : null;
+  const labBookingRefRaw =
+    categoryKey === "lab" && infoAddForLab != null
+      ? str(infoAddForLab.lab_booking_id) ?? str(infoAddForLab.labBookingId)
+      : null;
+  const labBookingReferenceDisplay =
+    labBookingRefRaw != null && labBookingRefRaw.trim().length > 0
+      ? `#${labBookingRefRaw.replace(/^#/, "")}`
+      : null;
+  const labInfoStatusTextLine =
+    categoryKey === "lab" && infoForStatus != null
+      ? nonEmptyTrimmed(infoForStatus.statusText) ?? nonEmptyTrimmed(infoForStatus.status_text)
+      : null;
+  const labTrackingUrl =
+    categoryKey === "lab" && infoForStatus != null
+      ? nonEmptyTrimmed(infoForStatus.tracking_url) ?? nonEmptyTrimmed(infoForStatus.trackingUrl)
+      : null;
+  const labReportUrl =
+    categoryKey === "lab" && infoForStatus != null
+      ? nonEmptyTrimmed(infoForStatus.report_url) ?? nonEmptyTrimmed(infoForStatus.reportUrl)
+      : null;
+  const labCancellationReason =
+    categoryKey === "lab" && infoForStatus != null
+      ? nonEmptyTrimmed(infoForStatus.cancellation_reason) ??
+        nonEmptyTrimmed(infoForStatus.cancellationReason)
+      : null;
+  const labPatientTestsByMember =
+    categoryKey === "lab" ? buildLabPatientLineGroups(o) : [];
+  const labUploadedPrescriptions =
+    categoryKey === "lab" ? parseLabUploadedPrescriptions(infoForStatus) : [];
+
   const wellnessSessionCancelAllowed = computeWellnessSessionCancelAllowed(
     categoryKey,
     serviceInfoStatus,
@@ -2686,6 +3017,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     statusLabel,
     statusValueTone,
     patientName,
+    bookedForName,
     vendorName,
     pharmacyOrderLocation,
     pharmacyAwaitingDetailConfirmation,
@@ -2694,6 +3026,15 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     labSubOrders,
     labCollectionAddressId,
     labRescheduleVendorCode,
+    labInvoiceReferenceDisplay,
+    labBookingReferenceDisplay,
+    labInfoStatusTextLine,
+    labTrackingUrl,
+    labReportUrl,
+    labCancellationReason,
+    labCollectionAddressCard,
+    labPatientTestsByMember,
+    labUploadedPrescriptions,
     pharmacyConfirmCenter,
     infoDetailsAlternatePhone,
     infoDetailsConditions,

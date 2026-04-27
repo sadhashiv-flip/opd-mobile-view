@@ -1,0 +1,129 @@
+.hc-list-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #111111;
+}
+
+.hc-list-page__header .dd-screen-header__title {
+  text-align: center;
+}
+
+.hc-list-page__refresh {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #111111;
+  cursor: pointer;
+}
+
+.hc-list-page__refresh:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.hc-list-page__main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px var(--page-pad-x, 16px) 88px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hc-list-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #fafafa;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+
+.hc-list-row:active {
+  opacity: 0.93;
+}
+
+.hc-list-row__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hc-list-row__title {
+  font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.06px));
+  font-weight: 600;
+  color: #111111;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.hc-list-row__sub {
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.06px));
+  color: rgba(17, 17, 17, 0.52);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.hc-list-row__meta {
+  margin-top: 4px;
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.06px));
+  color: rgba(17, 17, 17, 0.42);
+}
+
+.hc-list-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.hc-list-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 82, 36, 0.25);
+  border-top-color: #ff5224;
+  animation: hc-spin 0.85s linear infinite;
+}
+
+@keyframes hc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hc-list-empty {
+  margin: 32px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(17, 17, 17, 0.55);
+  line-height: 1.45;
+}

@@ -183,3 +183,17 @@ export async function patientJsonList<T>(
     method: init.method ?? "GET",
   });
 }
+
+/**
+ * Paginated GET on {@link getPatientApiRootBase} — e.g. `GET /blogs?page=&limit=` (not under `/patient`).
+ */
+export async function patientJsonListRoot<T>(
+  path: string,
+  init: PatientHttpInit = {},
+  pagination?: ListPaginationOpts,
+): Promise<T> {
+  return patientJsonRoot<T>(applyListPaginationToPath(path, pagination), {
+    ...init,
+    method: init.method ?? "GET",
+  });
+}

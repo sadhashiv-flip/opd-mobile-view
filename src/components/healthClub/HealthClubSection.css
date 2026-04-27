@@ -1,0 +1,222 @@
+.hc-section {
+  margin-top: 18px;
+  margin-bottom: 4px;
+}
+
+.hc-section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hc-section__title {
+  margin: 0;
+  font-size: clamp(15px, calc(16 * 100cqw / 375), calc(16 * 1.08px));
+  font-weight: 600;
+  color: #111111;
+}
+
+.hc-section__cta {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.06px));
+  font-weight: 600;
+  color: #ff5224;
+  cursor: pointer;
+}
+
+.hc-section__cta:active {
+  opacity: 0.85;
+}
+
+.hc-section__subtitle {
+  margin: 4px 0 0;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.06px));
+  color: rgba(17, 17, 17, 0.55);
+  line-height: 1.35;
+}
+
+.hc-section__skeletons {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hc-skel-row {
+  height: 96px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fafafa;
+}
+
+.hc-empty-card {
+  margin-top: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fafafa;
+}
+
+.hc-empty-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(255, 82, 36, 0.08);
+  color: #ff5224;
+}
+
+.hc-empty-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hc-empty-card__title {
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.06px));
+  font-weight: 600;
+  color: #111111;
+}
+
+.hc-empty-card__sub {
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.06px));
+  color: rgba(17, 17, 17, 0.55);
+  line-height: 1.35;
+}
+
+.hc-dash-tiles {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hc-dash-tile {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 8px;
+  text-align: left;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #fafafa;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.hc-dash-tile:active {
+  opacity: 0.92;
+}
+
+.hc-dash-tile__thumb {
+  flex: 3;
+  min-width: 0;
+  height: 84px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hc-dash-tile__text {
+  flex: 7;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 84px;
+}
+
+.hc-dash-tile__title {
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.06px));
+  font-weight: 500;
+  color: #111111;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.hc-dash-tile__sub {
+  font-size: clamp(9px, calc(10 * 100cqw / 375), calc(10 * 1.06px));
+  color: rgba(17, 17, 17, 0.52);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.hc-dash-tile__meta {
+  margin-top: auto;
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.06px));
+  font-weight: 500;
+  color: rgba(17, 17, 17, 0.45);
+}
+
+.hc-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hc-cover-img--dashboard {
+  min-height: 84px;
+}
+
+.hc-cover-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  color: rgba(255, 82, 36, 0.75);
+}
+
+.hc-cover-fallback--dashboard {
+  min-height: 84px;
+}
+
+.hc-cover-fallback--list {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+.hc-cover-img--list {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+.hc-cover-fallback--detail {
+  width: 100%;
+  height: 200px;
+  border-radius: 16px;
+}
+
+.hc-cover-img--detail {
+  width: 100%;
+  height: 200px;
+  border-radius: 16px;
+  object-fit: cover;
+}

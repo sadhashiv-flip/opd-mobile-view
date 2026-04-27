@@ -73,14 +73,14 @@
 }
 
 .dslot-item--selected {
-  border-color: #ff541e;
+  border-color: #111111;
 }
 
 .dslot-dot {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid #ff541e;
+  border: 2px solid #111111;
   position: relative;
   flex-shrink: 0;
 }
@@ -90,7 +90,7 @@
   position: absolute;
   inset: 3px;
   border-radius: 50%;
-  background: #ff541e;
+  background: #111111;
 }
 
 .dslot-label {

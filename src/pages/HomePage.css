@@ -9,7 +9,7 @@
   --service-hub-card-height: min(115px, 31cqw);
 }
 
-/* Location + search stay fixed while the main column scrolls (app-style chrome). */
+/* Header + search scroll with the page; browser scrollbar stays on the outer gray frame. */
 .home-page__chrome {
   flex-shrink: 0;
   padding: 0 var(--page-pad-x);
@@ -20,11 +20,7 @@
 }
 
 .home-page__main {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  flex: 1 0 auto;
   padding: 10px var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
 }
 

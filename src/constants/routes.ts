@@ -100,8 +100,17 @@ export const ROUTES = {
   pharmacyUpload: "/pharmacy/upload",
   pharmacySelectPrescription: "/pharmacy/select-prescription",
   pharmacyPrescriptionDetail: "/pharmacy/prescription/:prescriptionId",
+  /** Review before confirm — pass `location.state.orderKind` + {@link writePharmacyReviewDraft}. */
+  pharmacyReview: "/pharmacy/review",
   pharmacyOrderSuccess: "/pharmacy/order-success",
   orders: "/orders",
+  /**
+   * Dev / QA only — enter an invoice id and navigate to {@link ROUTES.ordersDetail} with `lab`.
+   * Does not replace going through Orders list; use for faster lab-detail UI checks.
+   */
+  devLabOrderDetail: "/dev/lab-order",
+  /** Dev / QA — bookmark `/dev/lab-order/open/:invoiceId` → canonical `/order/lab/:invoiceId`. */
+  devLabOrderDetailOpen: "/dev/lab-order/open/:invoiceId",
   /** OPD wallet: resolves subscription then redirects to {@link ROUTES.walletSubscription}. */
   wallet: "/wallet",
   /** Wallet home: balance, module breakup, recent transactions. */
@@ -140,6 +149,9 @@ export const ROUTES = {
   cartOverview: "/cart-overview",
   /** In-app notification list; loads `GET /notification`. */
   notifications: "/notifications",
+  /** Health Club articles — `GET /patient/blog` (Flutter “Health Club”). */
+  healthClub: "/health-club",
+  healthClubDetail: "/health-club/:blogId",
   /** OPD reimbursement claims list (`GET /patient/reimbursement`). */
   claims: "/claims",
   /** Multi-step new claim flow (`POST /patient/reimbursement`). */

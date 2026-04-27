@@ -13,6 +13,7 @@ import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
 import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
+import { HealthClubSection } from "@/components/healthClub/HealthClubSection";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import { HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
@@ -519,6 +520,8 @@ export function HomePage() {
               </div>
             </div>
           </Link>
+
+          <HealthClubSection />
 
           <Link to={ROUTES.services} className="home-view-more">
             VIEW MORE

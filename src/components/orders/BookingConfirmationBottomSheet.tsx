@@ -123,7 +123,18 @@ export function BookingConfirmationBottomSheet({
                   ) : null}
                   {model.limitAvailableFormatted ? (
                     <p className="od-bc-wallet__limit">
-                      Limit available : {model.limitAvailableFormatted}
+                      Module limit available : {model.limitAvailableFormatted}
+                    </p>
+                  ) : null}
+                  {model.walletRemainingAfterDeductionFormatted ? (
+                    <p className="od-bc-wallet__remaining">
+                      Wallet balance after deduction : {model.walletRemainingAfterDeductionFormatted}
+                    </p>
+                  ) : null}
+                  {model.moduleLimitRemainingAfterDeductionFormatted ? (
+                    <p className="od-bc-wallet__remaining od-bc-wallet__remaining--muted">
+                      Module limit remaining after deduction :{" "}
+                      {model.moduleLimitRemainingAfterDeductionFormatted}
                     </p>
                   ) : null}
                 </div>

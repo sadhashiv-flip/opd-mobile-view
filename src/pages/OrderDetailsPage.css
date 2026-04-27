@@ -2005,3 +2005,254 @@
 .od-gym-tnc__body li {
   margin-top: 6px;
 }
+
+/* --- Lab order detail (patient_app parity) --- */
+.od-banner__cancel-reason {
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: inherit;
+  opacity: 0.95;
+}
+
+.od-banner__cancel-reason-label {
+  font-weight: 600;
+}
+
+.od-muted {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #6b6560;
+}
+
+.od-lab-coll__tag {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.od-lab-coll__text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #4a423b;
+  white-space: pre-line;
+}
+
+.od-lab-coll__phone {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  color: #4a423b;
+}
+
+.od-lab-coll__dir {
+  margin-top: 12px;
+}
+
+.od-lab-sub-card__requested {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-lab-sub-card__requested-text {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: #4a423b;
+}
+
+.od-lab-sub-card__center {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-lab-sub-card__center-name {
+  margin: 4px 0 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #5c4a3a;
+}
+
+.od-lab-sub-card__center-addr-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.od-lab-sub-card__center-addr {
+  margin: 0;
+  flex: 1;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #4a423b;
+}
+
+.od-lab-sub-card__dir {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #5c4a3a;
+  color: #ffffff;
+}
+
+.od-lab-sub-card__center-phone {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: #4a423b;
+}
+
+.od-lab-sub-card__booking-time {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: #8a827a;
+}
+
+.od-lab-sub-card__confirm-center {
+  margin-top: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: #5c4a3a;
+  cursor: pointer;
+}
+
+.od-lab-sub-card__confirm-center:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.od-lab-sub-card__rider {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-lab-sub-card__rider-name {
+  margin: 4px 0 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.od-lab-sub-card__rider-phone {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #5c4a3a;
+  text-decoration: none;
+}
+
+.od-lab-tests-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.od-lab-tests-group {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #ebe7e2;
+  background: #faf8f6;
+}
+
+.od-lab-tests-group__name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.od-lab-tests-group__sub {
+  margin: 2px 0 8px;
+  font-size: 0.75rem;
+  color: #6b6560;
+}
+
+.od-lab-tests-group__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.od-lab-tests-group__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.8125rem;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-lab-tests-group__line:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.od-lab-tests-group__product {
+  flex: 1;
+  min-width: 0;
+}
+
+.od-lab-tests-group__price {
+  font-weight: 600;
+  color: #111111;
+}
+
+.od-lab-rx-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.od-lab-rx-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 72px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #ebe7e2;
+  background: #faf8f6;
+  font-size: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  color: #5c4a3a;
+}
+
+.od-btn-outline-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #d8d2cb;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111111;
+  text-decoration: none;
+}
+
+.od-btn-outline-row:first-child {
+  margin-top: 0;
+}
+
+.od-lab-ext-links {
+  display: flex;
+  flex-direction: column;
+}

@@ -1,5 +1,10 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { networkBookAppointment } from "@/api/appointmentNetworkBook";
+import {
+  readAppointmentInfoOrderId,
+  readAppointmentInvoiceIdForOrderDetail,
+} from "@/api/appointmentBook";
+import { buildInlineConsultationBookingSuccessState } from "@/lib/bookingSuccessFromInvoice";
 import { SelectPeopleBottomSheet } from "@/components/select-people/SelectPeopleBottomSheet";
 import { HospitalAppointmentSlotBottomSheet } from "@/components/consultation/HospitalAppointmentSlotBottomSheet";
 import { ROUTES } from "@/constants";
@@ -153,7 +158,7 @@ export function ConsultationAppointmentOverviewPage() {
 
     setSubmitting(true);
     try {
-      await networkBookAppointment({
+      const bookRes = await networkBookAppointment({
         doctor_id: String(doctorId),
         network_id: networkId.trim(),
         time_slot: timeSlotApi,
@@ -161,7 +166,25 @@ export function ConsultationAppointmentOverviewPage() {
         address_id: addr.id.trim(),
         patient_id: patientId,
       });
-      navigate(ROUTES.consultationHospitalBookingSuccess);
+      const infoId = readAppointmentInfoOrderId(bookRes, "offline");
+      const invId = readAppointmentInvoiceIdForOrderDetail(bookRes);
+      const tag = addr.tag?.trim() || "Home";
+      const head =
+        networkName.trim() && doctorName.trim()
+          ? `${doctorName.trim()} · ${networkName.trim()}`
+          : doctorName.trim() || networkName.trim();
+      const locationLines = [head, `${tag}\n${addr.displayLine}`].filter((s) => s.trim().length > 0).join("\n");
+      navigate(ROUTES.bookingSuccess, {
+        replace: true,
+        state: buildInlineConsultationBookingSuccessState({
+          infoOrderId: infoId,
+          invoiceIdForOrderDetail: invId,
+          bookedForName: patientLabel,
+          serviceLine: specialtyLabel,
+          locationValue: locationLines.length > 0 ? locationLines : "—",
+          scheduleDisplay: slotDisplay.combined,
+        }),
+      });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Could not book appointment");
     } finally {

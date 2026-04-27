@@ -1,8 +1,8 @@
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { uploadPrescriptionFile, type PrescriptionUploadResult } from "@/api/patientUpload";
-import { postMedicineOrder } from "@/api/pharmacy";
-import { readPharmacyFlowState, resolvePharmacyOrderAddressId } from "@/constants/pharmacyFlowStorage";
+import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
+import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -13,15 +13,18 @@ const PHARMACY_PRESCRIPTION_FILE_INPUT_ID = "pharmacy-prescription-file-input";
 
 type NavState = Readonly<{ returnPath?: string }>;
 
-/** One picked file + `/upload` result used for `POST /medicine` (`prescription_id`). */
+/** One picked file + `/upload` result — aligned with Flutter `UploadedFile` / `_buildFileCard`. */
 type UploadedPrescriptionItem = Readonly<{
   clientId: string;
   fileName: string;
+  sourceFile: File;
   /** Local preview (`URL.createObjectURL`); revoked on remove / unmount. */
   previewUrl: string;
   isImage: boolean;
   /** Populated when `POST /upload` succeeds; drives payload. */
   uploadResult: PrescriptionUploadResult | null;
+  /** True after a failed upload; user can retry (Dart `retryUpload`). */
+  uploadFailed?: boolean;
 }>;
 
 function revokeItemPreview(item: UploadedPrescriptionItem) {
@@ -42,7 +45,6 @@ export function PharmacyUploadPage() {
 
   const flow = readPharmacyFlowState();
   const [files, setFiles] = useState<UploadedPrescriptionItem[]>([]);
-  const [busy, setBusy] = useState(false);
   const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
   const filesRef = useRef(files);
   filesRef.current = files;
@@ -70,11 +72,27 @@ export function PharmacyUploadPage() {
     return () => globalThis.removeEventListener("keydown", onKey, true);
   }, [removeTargetId]);
 
+  const runUploadForItem = useCallback((clientId: string, file: File) => {
+    void uploadPrescriptionFile(file)
+      .then((uploadResult) => {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.clientId === clientId ? { ...f, uploadResult, uploadFailed: false } : f,
+          ),
+        );
+      })
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        toast.error(msg);
+        setFiles((prev) =>
+          prev.map((f) => (f.clientId === clientId ? { ...f, uploadFailed: true, uploadResult: null } : f)),
+        );
+      });
+  }, [toast]);
+
   const onInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const input = e.target;
-      // Copy before clearing: `FileList` is live — resetting `value` empties it in many browsers,
-      // so uploads would never run.
       const chosen = input.files?.length ? Array.from(input.files) : [];
       input.value = "";
       if (chosen.length === 0) return;
@@ -85,27 +103,33 @@ export function PharmacyUploadPage() {
         const isImage = file.type.startsWith("image/");
         setFiles((prev) => [
           ...prev,
-          { clientId, fileName: file.name, previewUrl, isImage, uploadResult: null },
+          {
+            clientId,
+            fileName: file.name,
+            sourceFile: file,
+            previewUrl,
+            isImage,
+            uploadResult: null,
+            uploadFailed: false,
+          },
         ]);
 
-        void uploadPrescriptionFile(file)
-          .then((uploadResult) => {
-            setFiles((prev) =>
-              prev.map((f) => (f.clientId === clientId ? { ...f, uploadResult } : f)),
-            );
-          })
-          .catch((err) => {
-            const msg = err instanceof Error ? err.message : "Upload failed";
-            toast.error(msg);
-            setFiles((prev) => {
-              const victim = prev.find((f) => f.clientId === clientId);
-              if (victim) revokeItemPreview(victim);
-              return prev.filter((f) => f.clientId !== clientId);
-            });
-          });
+        runUploadForItem(clientId, file);
       }
     },
-    [toast],
+    [runUploadForItem],
+  );
+
+  const retryUpload = useCallback(
+    (clientId: string) => {
+      const entry = files.find((f) => f.clientId === clientId);
+      if (!entry?.uploadFailed) return;
+      setFiles((prev) =>
+        prev.map((f) => (f.clientId === clientId ? { ...f, uploadFailed: false, uploadResult: null } : f)),
+      );
+      runUploadForItem(clientId, entry.sourceFile);
+    },
+    [files, runUploadForItem],
   );
 
   const confirmRemoveFile = useCallback(() => {
@@ -120,16 +144,10 @@ export function PharmacyUploadPage() {
 
   const removeTarget = removeTargetId ? files.find((f) => f.clientId === removeTargetId) : undefined;
 
-  const placeOrder = useCallback(async () => {
+  const continueToReview = useCallback(() => {
     if (!flow) {
       toast.error("Session expired. Open pharmacy again.");
       void navigate(ROUTES.pharmacy, { state: passState, replace: true });
-      return;
-    }
-    await ensureDefaultSelectedAddressIfNeeded();
-    const addressId = resolvePharmacyOrderAddressId(flow);
-    if (!addressId) {
-      toast.error("Choose a delivery address.");
       return;
     }
     const ready = files.filter((f) => f.uploadResult?.prescriptionId);
@@ -141,23 +159,16 @@ export function PharmacyUploadPage() {
       toast.error("Wait for uploads to finish.");
       return;
     }
-
-    setBusy(true);
-    try {
-      await postMedicineOrder({
-        address_id: addressId,
-        prescriptions: ready.map((f) => ({
-          type: "OTHER",
-          prescription_id: f.uploadResult!.prescriptionId,
-        })),
-        patient_id: flow.patientId,
-      });
-      void navigate(ROUTES.pharmacyOrderSuccess, { state: passState });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not place order");
-    } finally {
-      setBusy(false);
-    }
+    writePharmacyReviewDraft({
+      kind: "UPLOAD",
+      files: ready.map((f) => ({
+        fileName: f.fileName,
+        isImage: f.isImage,
+        isPdf: /\.pdf$/i.test(f.fileName),
+        prescriptionId: f.uploadResult!.prescriptionId.trim(),
+      })),
+    });
+    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "UPLOAD" as const } });
   }, [files, flow, navigate, passState, toast]);
 
   if (!flow) {
@@ -192,8 +203,11 @@ export function PharmacyUploadPage() {
     );
   }
 
+  const canReview =
+    files.length > 0 && files.every((f) => Boolean(f.uploadResult?.prescriptionId) && !f.uploadFailed);
+
   return (
-    <div className="ph-page">
+    <div className="ph-page ph-page--dart-upload">
       <header className="ph-top-wrap">
         <div className="ph-top">
           <Link to={ROUTES.pharmacy} state={passState} className="ph-back" aria-label="Back">
@@ -212,22 +226,22 @@ export function PharmacyUploadPage() {
         </div>
       </header>
 
-      <main className="ph-page__main">
-        <div className="ph-member-card ph-member-card--static ph-member-card--upload">
-          <span className="ph-member-card__avatar" aria-hidden>
+      <main className="ph-page__main ph-page__main--dart-upload">
+        <div className="ph-dart-upload-member">
+          <span className="ph-dart-upload-member__ic" aria-hidden>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path
                 d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0"
-                stroke="currentColor"
+                stroke="#ff541e"
                 strokeWidth="2"
                 strokeLinecap="round"
               />
             </svg>
           </span>
-          <span className="ph-member-card__text">
-            <span className="ph-member-card__label">Ordering for</span>
-            <span className="ph-member-card__name">{flow.patientName}</span>
-          </span>
+          <div className="ph-dart-upload-member__text">
+            <span className="ph-dart-upload-member__label">Ordering for</span>
+            <span className="ph-dart-upload-member__name">{flow.patientName}</span>
+          </div>
         </div>
 
         <input
@@ -240,44 +254,78 @@ export function PharmacyUploadPage() {
           onChange={onInputChange}
         />
 
-        <label className="ph-upload-zone" htmlFor={PHARMACY_PRESCRIPTION_FILE_INPUT_ID}>
-          <div className="ph-upload-zone__illu" aria-hidden>
+        <section className="ph-dart-upload-hero" aria-labelledby="ph-dart-upload-safe">
+          <div className="ph-dart-upload-hero__illu" aria-hidden>
             <img src={PHARMACY_IMAGES.uploadPrescription} alt="" />
           </div>
-          <p className="ph-upload-zone__title">Tap to upload prescription</p>
-          <p className="ph-upload-zone__sub">Your prescription is safe with us</p>
-        </label>
+          <p id="ph-dart-upload-safe" className="ph-dart-upload-hero__safe">
+            Your prescription is safe with us
+          </p>
+        </section>
 
-        <label className="ph-btn-outline" htmlFor={PHARMACY_PRESCRIPTION_FILE_INPUT_ID}>
-          <span className="ph-btn-outline__icon" aria-hidden>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <label className="ph-dart-upload-add" htmlFor={PHARMACY_PRESCRIPTION_FILE_INPUT_ID}>
+          <span className="ph-dart-upload-add__ic" aria-hidden>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
             </svg>
-          </span>{" "}
+          </span>
           Add Prescription
         </label>
 
-        <h2 className="ph-files-title">Selected Files</h2>
+        <h2 className="ph-dart-upload-files-title">Selected Files</h2>
         {files.length === 0 ? (
-          <div className="ph-empty-files">No files selected</div>
+          <div className="ph-dart-upload-empty">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden className="ph-dart-upload-empty__ic">
+              <path
+                d="M21 19V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2zM8.5 10.5L12 14l7-7"
+                stroke="#e0e0e0"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <p>No files selected</p>
+          </div>
         ) : (
-          <div className="ph-files-grid">
+          <div className="ph-files-grid ph-files-grid--dart">
             {files.map((f) => {
               const ready = Boolean(f.uploadResult?.prescriptionId);
+              const loading = !ready && !f.uploadFailed;
               return (
-                <div key={f.clientId} className="ph-file-thumb">
+                <div
+                  key={f.clientId}
+                  className={`ph-file-thumb${ready ? " ph-file-thumb--ok" : ""}${f.uploadFailed ? " ph-file-thumb--fail" : ""}${loading ? " ph-file-thumb--busy" : ""}`}
+                >
                   <div className="ph-file-thumb__inner">
                     {f.isImage ? (
                       <img className="ph-file-thumb__img" src={f.previewUrl} alt="" />
                     ) : (
                       <span className="ph-file-thumb__pdf">PDF</span>
                     )}
-                    {ready ? null : (
+                    {loading ? (
                       <div className="ph-file-thumb__loading" role="status" aria-live="polite">
                         <span className="ph-file-thumb__spinner" aria-hidden />
                         <span className="ph-sr-only">Uploading…</span>
                       </div>
-                    )}
+                    ) : null}
+                    {f.uploadFailed ? (
+                      <button
+                        type="button"
+                        className="ph-file-thumb__retry"
+                        aria-label={`Retry upload ${f.fileName}`}
+                        onClick={() => retryUpload(f.clientId)}
+                      >
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <path
+                            d="M4 12a8 8 0 018-8V2m0 6l3-3m1 13a8 8 0 01-8 8v2m0-6l-3 3"
+                            stroke="#fff"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span>Retry</span>
+                      </button>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -314,11 +362,13 @@ export function PharmacyUploadPage() {
         )}
       </main>
 
-      <div className="ph-footer-btn">
-        <button type="button" className="ph-footer-btn__inner" disabled={busy} onClick={() => void placeOrder()}>
-          {busy ? "Placing…" : "Place Order"}
-        </button>
-      </div>
+      {canReview ? (
+        <div className="ph-footer-btn">
+          <button type="button" className="ph-footer-btn__inner ph-footer-btn__inner--review" onClick={() => continueToReview()}>
+            Review order
+          </button>
+        </div>
+      ) : null}
 
       {removeTargetId ? (
         <div

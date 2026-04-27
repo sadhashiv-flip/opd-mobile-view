@@ -13,6 +13,12 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
+function nonEmptyStr(v: unknown): string | null {
+  if (typeof v === "string" && v.trim()) return v.trim();
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  return null;
+}
+
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
@@ -426,18 +432,47 @@ export async function postDiagnosticsHealthBooking(
   });
 }
 
+/** One line item from `POST …/diagnostics/order/booking?overview=yes` — aligns with Flutter `BookingItem`. */
+export type DiagnosticsOverviewLineItem = Readonly<{
+  name: string;
+  lineTotal: number;
+  qty: number;
+  category: string;
+  free: boolean;
+  savedLine: number;
+  vendorName: string | null;
+  vendorLogo: string | null;
+  userId: number | null;
+  userName: string | null;
+  userGender: string | null;
+}>;
+
 export type NormalizedBookingOverview = Readonly<{
-  items: readonly { name: string; lineTotal: number; qty: number }[];
+  items: readonly DiagnosticsOverviewLineItem[];
   totalGross: number;
   collectionCharges: number;
   netAmount: number;
   amountToPay: number;
+  /** Discount row — `pricing_details.saved` (Flutter `BookingPricingDetails.saved`). */
+  pricingSaved: number;
   walletPaid: number | null;
   walletModuleAvailable: number | null;
+  /** `opd_wallet.available` — Flip wallet balance line. */
+  walletAvailable: number | null;
   userName: string;
   userPhone: string;
+  userEmail: string | null;
   addressLine: string;
+  /** `address.tag` when present (Flutter collection address chip). */
+  addressTag: string | null;
   vendorName: string | null;
+  /** `data.slot` / pathology / radiology slot — formatted like Flutter `BookingSlotInfo`. */
+  formattedSlotDate: string | null;
+  formattedSlotTimeRange: string | null;
+  /** `data.info.id`, else `data.id` — canonical order reference for success UI (not `invoice_id`). */
+  infoOrderId: string | null;
+  /** Patient/member the booking is for — prefers `info` name fields, else primary user display name. */
+  bookedForName: string;
 }>;
 
 function pickLinePrice(pricing: Record<string, unknown> | null): number {
@@ -448,6 +483,64 @@ function pickLinePrice(pricing: Record<string, unknown> | null): number {
   return b2c ?? 0;
 }
 
+function parseBookingOverviewSlot(d: Record<string, unknown>): {
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+} | null {
+  const pathology = asRecord(d.pathology_slot);
+  const radiology = asRecord(d.radiology_slot);
+  const slot = asRecord(d.slot);
+  const src = pathology ?? radiology ?? slot;
+  if (!src) return null;
+  const slot_date = str(src.slot_date).trim();
+  const start_time = str(src.start_time).trim();
+  const end_time = str(src.end_time).trim();
+  if (!slot_date && !start_time && !end_time) return null;
+  return { slot_date, start_time, end_time };
+}
+
+/** Match Flutter `BookingSlotInfo` display helpers on the overview response. */
+function formatOverviewSlotLabels(slot: {
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+}): { formattedSlotDate: string | null; formattedSlotTimeRange: string | null } {
+  const rawDate = slot.slot_date.trim();
+  let formattedSlotDate: string | null = null;
+  if (rawDate) {
+    const d = new Date(rawDate.includes("T") ? rawDate : `${rawDate}T12:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      formattedSlotDate = d.toLocaleDateString(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } else {
+      formattedSlotDate = rawDate;
+    }
+  }
+  const st = slot.start_time.trim();
+  const et = slot.end_time.trim();
+  let formattedSlotTimeRange: string | null = null;
+  if (st || et) {
+    const to12 = (t: string) => {
+      const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(t.trim());
+      if (!m) return t.trim();
+      let h = Number(m[1]);
+      const min = m[2];
+      const ampm = h >= 12 ? "PM" : "AM";
+      if (h > 12) h -= 12;
+      if (h === 0) h = 12;
+      return `${String(h)}:${min} ${ampm}`;
+    };
+    if (st && et) formattedSlotTimeRange = `${to12(st)} - ${to12(et)}`;
+    else formattedSlotTimeRange = to12(st || et);
+  }
+  return { formattedSlotDate, formattedSlotTimeRange };
+}
+
 export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBookingOverview | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const root = raw as Record<string, unknown>;
@@ -456,19 +549,64 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
   const d = data as Record<string, unknown>;
 
   const itemsRaw = d.items;
-  const items: { name: string; lineTotal: number; qty: number }[] = [];
+  const items: DiagnosticsOverviewLineItem[] = [];
   if (Array.isArray(itemsRaw)) {
     for (const row of itemsRaw) {
       if (!row || typeof row !== "object" || Array.isArray(row)) continue;
       const o = row as Record<string, unknown>;
-      const name = str(o.name) || "Test";
-      const qty = num(o.qty) ?? 1;
       const pricing =
         o.pricing && typeof o.pricing === "object" && !Array.isArray(o.pricing)
           ? (o.pricing as Record<string, unknown>)
           : null;
+      const qtyRaw = num(o.qty);
+      const qty = qtyRaw != null && qtyRaw > 0 ? Math.round(qtyRaw) : 1;
       const unit = pickLinePrice(pricing);
-      items.push({ name, lineTotal: unit * qty, qty });
+      const lineDirect = num(o.line_total) ?? num(o.total);
+      const lineTotal = lineDirect != null ? lineDirect : unit * qty;
+      const savedLine = pricing != null ? num(pricing.saved) ?? 0 : 0;
+      const vendorRec =
+        pricing?.vendor && typeof pricing.vendor === "object" && !Array.isArray(pricing.vendor)
+          ? (pricing.vendor as Record<string, unknown>)
+          : null;
+      let lineVendorName =
+        vendorRec != null ? str(vendorRec.name).trim() || null : null;
+      if (!lineVendorName) {
+        lineVendorName =
+          str(o.vendor_name).trim() || str(o.vendorName).trim() || null;
+      }
+      const vendorLogoRaw =
+        vendorRec != null && typeof vendorRec.logo === "string" ? vendorRec.logo.trim() : "";
+      const userRec =
+        o.user && typeof o.user === "object" && !Array.isArray(o.user)
+          ? (o.user as Record<string, unknown>)
+          : null;
+      const uidRaw = userRec != null ? num(userRec.id) : null;
+      const userId =
+        uidRaw != null && !Number.isNaN(uidRaw) ? Math.round(uidRaw) : null;
+      const userName =
+        userRec != null
+          ? str(userRec.display_name).trim() ||
+            str(userRec.displayName).trim() ||
+            str(userRec.name).trim() ||
+            null
+          : null;
+      const userGender =
+        userRec != null ? str(userRec.gender).trim() || null : null;
+      const name = str(o.name).trim() || "Test";
+
+      items.push({
+        name,
+        lineTotal,
+        qty,
+        category: str(o.category).trim(),
+        free: Boolean(o.free),
+        savedLine: Number.isNaN(savedLine) ? 0 : savedLine,
+        vendorName: lineVendorName,
+        vendorLogo: vendorLogoRaw ? vendorLogoRaw : null,
+        userId,
+        userName,
+        userGender,
+      });
     }
   }
 
@@ -480,31 +618,60 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
   const collectionCharges = pricingDetails ? num(pricingDetails.collection_charges) ?? 0 : 0;
   const netAmount = pricingDetails ? num(pricingDetails.netAmount) ?? 0 : 0;
   const amountToPay = pricingDetails ? num(pricingDetails.amount_to_pay) ?? 0 : 0;
+  const pricingSavedRaw = pricingDetails
+    ? num(pricingDetails.saved) ?? num(pricingDetails.discount) ?? 0
+    : 0;
+  const pricingSaved = Number.isNaN(pricingSavedRaw) ? 0 : pricingSavedRaw;
 
   let walletPaid: number | null = null;
   let walletModuleAvailable: number | null = null;
+  let walletAvailable: number | null = null;
   const w = pricingDetails?.opd_wallet;
   if (w && typeof w === "object" && !Array.isArray(w)) {
     const wr = w as Record<string, unknown>;
     walletPaid = num(wr.paid_amount);
     walletModuleAvailable = num(wr.module_available);
+    walletAvailable = num(wr.available) ?? num(wr.balance);
   }
 
-  const user = d.user && typeof d.user === "object" && !Array.isArray(d.user) ? (d.user as Record<string, unknown>) : null;
-  const userName = user ? str(user.user_name) || str(user.name) : "";
-  const userPhoneRaw = user ? user.user_phone ?? user.phone : null;
+  const user =
+    d.user && typeof d.user === "object" && !Array.isArray(d.user)
+      ? (d.user as Record<string, unknown>)
+      : null;
+  const userName =
+    user != null
+      ? str(user.user_name).trim() ||
+        str(user.display_name).trim() ||
+        str(user.displayName).trim() ||
+        str(user.name).trim()
+      : "";
+  const userPhoneRaw = user != null ? user.user_phone ?? user.phone : null;
   const userPhone =
     typeof userPhoneRaw === "number" && Number.isFinite(userPhoneRaw)
       ? String(userPhoneRaw)
       : str(userPhoneRaw);
 
-  const addr = d.address && typeof d.address === "object" && !Array.isArray(d.address) ? (d.address as Record<string, unknown>) : null;
-  const addressLine = addr ? str(addr.display_address) : "";
+  const userEmail =
+    user != null
+      ? str(user.user_email).trim() || str(user.email).trim() || null
+      : null;
+
+  const addr =
+    d.address && typeof d.address === "object" && !Array.isArray(d.address)
+      ? (d.address as Record<string, unknown>)
+      : null;
+  const addressLine = addr ? str(addr.display_address).trim() : "";
+  const addressTag = addr ? str(addr.tag).trim() || null : null;
 
   let vendorName: string | null = null;
-  const first = itemsRaw && Array.isArray(itemsRaw) && itemsRaw[0] && typeof itemsRaw[0] === "object" && !Array.isArray(itemsRaw[0])
-    ? (itemsRaw[0] as Record<string, unknown>)
-    : null;
+  const first =
+    itemsRaw &&
+    Array.isArray(itemsRaw) &&
+    itemsRaw[0] &&
+    typeof itemsRaw[0] === "object" &&
+    !Array.isArray(itemsRaw[0])
+      ? (itemsRaw[0] as Record<string, unknown>)
+      : null;
   const fp = first?.pricing;
   if (fp && typeof fp === "object" && !Array.isArray(fp)) {
     const vend = (fp as Record<string, unknown>).vendor;
@@ -512,6 +679,35 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
       vendorName = str((vend as Record<string, unknown>).name) || null;
     }
   }
+  if (!vendorName) {
+    vendorName =
+      str(d.vendor_name).trim() ||
+      str(d.vendorName).trim() ||
+      (asRecord(d.vendor) != null ? str(asRecord(d.vendor)!.name).trim() || null : null);
+  }
+  if (!vendorName && items.length > 0) {
+    vendorName = items.find((it) => it.vendorName)?.vendorName ?? null;
+  }
+
+  const info =
+    d.info != null && typeof d.info === "object" && !Array.isArray(d.info)
+      ? (d.info as Record<string, unknown>)
+      : null;
+  const infoOrderId =
+    (info != null ? nonEmptyStr(info.id) : null) ?? nonEmptyStr(d.id);
+  const bookedFromInfo =
+    info != null
+      ? nonEmptyStr(info.patient_name) ??
+        nonEmptyStr(info.patientName) ??
+        nonEmptyStr(info.member_name) ??
+        nonEmptyStr(info.name)
+      : null;
+  const bookedForName = bookedFromInfo ?? (userName.trim() || "—");
+
+  const slotParsed = parseBookingOverviewSlot(d);
+  const slotLabels = slotParsed
+    ? formatOverviewSlotLabels(slotParsed)
+    : { formattedSlotDate: null as string | null, formattedSlotTimeRange: null as string | null };
 
   return {
     items,
@@ -519,12 +715,21 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
     collectionCharges,
     netAmount,
     amountToPay,
+    pricingSaved,
     walletPaid,
     walletModuleAvailable,
+    walletAvailable:
+      walletAvailable === null || Number.isNaN(walletAvailable) ? null : walletAvailable,
     userName,
     userPhone,
+    userEmail,
     addressLine,
+    addressTag,
     vendorName,
+    formattedSlotDate: slotLabels.formattedSlotDate,
+    formattedSlotTimeRange: slotLabels.formattedSlotTimeRange,
+    infoOrderId,
+    bookedForName,
   };
 }
 

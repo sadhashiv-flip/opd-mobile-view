@@ -35,10 +35,10 @@
   margin-left: auto;
   font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 800;
-  color: #ff541e;
+  color: #111111;
   padding: 6px 10px;
-  border: 1px solid #ffe2d8;
-  background: #fff7f3;
+  border: 1px solid #e8e8e8;
+  background: #f6f6f6;
   border-radius: 999px;
 }
 
@@ -192,8 +192,8 @@
   justify-content: center;
   padding: 5px 10px;
   border-radius: 5px;
-  border: 1.5px solid #ff541e;
-  color: #ff541e;
+  border: 1.5px solid #111111;
+  color: #111111;
   font-size: max(7px, calc(10 * 100cqw / 375));
   font-weight: 700;
   line-height: 1;
@@ -223,8 +223,8 @@
 .hc-add-family {
   margin-top: 12px;
   width: 100%;
-  border: 2px solid #ff541e;
-  color: #ff541e;
+  border: 2px solid #111111;
+  color: #111111;
   background: #ffffff;
   border-radius: 14px;
   padding: 14px 12px;
