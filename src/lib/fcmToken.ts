@@ -47,78 +47,37 @@ async function registerFcmServiceWorker(): Promise<ServiceWorkerRegistration | n
 }
 
 async function fetchFreshWebFcmToken(): Promise<string> {
-  if (!globalThis.window) {
-    devFcmLog("fetchFreshWebFcmToken: no window");
-    return "";
-  }
-  /** Web Push / FCM `getToken` requires a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts): `https://`, or `http://localhost` / `127.0.0.1` — not `http://192.168…`. */
-  if (globalThis.isSecureContext === false) {
-    devFcmLog(
-      "fetchFreshWebFcmToken: insecure origin — browsers only expose Web Push/FCM on secure contexts: https://, or http://localhost (not http://192.168…). Fix: open http://localhost:3000, or remove VITE_DEV_SERVER_HTTPS=false from .env and open https://<your-ip>:3000 (trust the dev cert).",
-    );
-    return "";
-  }
-  const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY?.trim();
-  if (!vapidKey) {
-    devFcmLog(
-      "fetchFreshWebFcmToken: empty token — set VITE_FIREBASE_VAPID_KEY in .env (Firebase Console → Cloud Messaging → Web Push certificates)",
-    );
-    return "";
-  }
+  if (!globalThis.window) return "";
 
   let messagingMod: typeof import("firebase/messaging");
   try {
     messagingMod = await import("firebase/messaging");
-    if (!(await messagingMod.isSupported())) {
-      devFcmLog("fetchFreshWebFcmToken: Firebase messaging not supported in this browser");
-      return "";
-    }
   } catch (e) {
     devFcmLog("fetchFreshWebFcmToken: failed to load firebase/messaging", e);
     return "";
   }
 
   const app = getFirebaseApp();
-  if (!app) {
-    devFcmLog(
-      "fetchFreshWebFcmToken: Firebase web app not configured — check VITE_FIREBASE_* env vars",
-    );
-    return "";
-  }
+  if (!app) return "";
 
   try {
-    const { getMessaging, getToken } = messagingMod;
-    const messaging = getMessaging(app);
-    if (!("Notification" in globalThis)) {
-      devFcmLog("fetchFreshWebFcmToken: Notifications API unavailable");
-      return "";
-    }
-    const current = Notification.permission;
-    if (current === "denied") {
-      devFcmLog("fetchFreshWebFcmToken: notification permission denied — enable site notifications and retry");
-      return "";
-    }
-    const permission = current === "granted" ? "granted" : await Notification.requestPermission();
-    if (permission !== "granted") {
-      devFcmLog("fetchFreshWebFcmToken: notification permission not granted:", permission);
+    /** Avoid `getMessaging` on unsupported browsers — it throws `messaging/unsupported-browser` and can throw `addEventListener` on undefined internally. */
+    if (!(await messagingMod.isSupported())) {
+      devFcmLog(
+        "fetchFreshWebFcmToken: Firebase messaging not supported (use Chrome/Edge/Firefox on https:// or http://localhost)",
+      );
       return "";
     }
 
+    const { getMessaging, getToken } = messagingMod;
+    const messaging = getMessaging(app);
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY?.trim() ?? "";
     const registration = await registerFcmServiceWorker();
-    if (!registration) {
-      devFcmLog(
-        `fetchFreshWebFcmToken: service worker registration failed for ${FCM_SW_PATH} — check Network tab and that the file is served at origin root`,
-      );
-    }
     const token = await getToken(messaging, {
       vapidKey,
       ...(registration ? { serviceWorkerRegistration: registration } : {}),
     });
-    const ok = typeof token === "string" && token.length > 0 ? token : "";
-    if (!ok) {
-      devFcmLog("fetchFreshWebFcmToken: getToken returned empty — check VAPID key pair matches this Firebase project");
-    }
-    return ok;
+    return typeof token === "string" && token.length > 0 ? token : "";
   } catch (e) {
     devFcmLog("fetchFreshWebFcmToken: getToken error", e);
     return "";
@@ -128,25 +87,14 @@ async function fetchFreshWebFcmToken(): Promise<string> {
 /**
  * Web FCM registration token for the patient API (`fcm_token` on POST /register, /verify, etc.).
  * Reads from {@link FCM_REGISTRATION_TOKEN_KEY} first; only calls Firebase when nothing is stored yet.
- * Returns empty string when messaging is unsupported, env is incomplete, permission denied, or on error.
  */
 export async function getWebFcmToken(): Promise<string> {
-  if (!globalThis.window) {
-    devFcmLog("getWebFcmToken: no window");
-    return "";
-  }
+  if (!globalThis.window) return "";
 
   const stored = readPersistedFcmToken();
-  if (stored) {
-    devFcmLog("getWebFcmToken (persisted registration token):", stored);
-    return stored;
-  }
+  if (stored) return stored;
 
-  if (inFlight) {
-    const token = await inFlight;
-    devFcmLog("getWebFcmToken (shared in-flight registration token):", token || "(empty)");
-    return token;
-  }
+  if (inFlight) return inFlight;
 
   inFlight = (async () => {
     const fresh = await fetchFreshWebFcmToken();
@@ -154,9 +102,7 @@ export async function getWebFcmToken(): Promise<string> {
     return fresh;
   })();
   try {
-    const token = await inFlight;
-    devFcmLog("getWebFcmToken (after fresh fetch):", token || "(empty — POST /patient/register will send fcm_token as \"\")");
-    return token;
+    return await inFlight;
   } finally {
     inFlight = null;
   }
@@ -168,14 +114,7 @@ export function clearWebFcmTokenCache(): void {
   writePersistedFcmToken("");
 }
 
-/**
- * If notification permission is already granted, obtain a token in the background (no prompt)
- * and persist it for later register/verify.
- */
+/** Starts an FCM token fetch in the background for later register/verify payloads. */
 export function prefetchWebFcmTokenSilent(): void {
-  void (async () => {
-    if (!import.meta.env.VITE_FIREBASE_VAPID_KEY?.trim()) return;
-    if (!("Notification" in globalThis) || Notification.permission !== "granted") return;
-    await getWebFcmToken();
-  })();
+  void getWebFcmToken();
 }

@@ -8,8 +8,23 @@ import {
 import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
 import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { generatePath, Link, useParams } from "react-router-dom";
+import { generatePath, Link, useNavigate, useParams } from "react-router-dom";
+import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
+import { MobileFilterChip, MobileFilterSheet } from "@/components/mobileFilter/MobileFilterSheet";
+import { medicalRecordSlugIconSrc } from "@/components/mobileFilter/medicalRecordFilterIcons";
+import familyAccountsSvg from "@/assets/icons/AccountManagement/FamilyAccounts.svg";
+import profileSvg from "@/assets/icons/AccountManagement/Profile.svg";
 import "./MedicalRecordsPage.css";
+
+const MR_USER_FILTER_KEY = "opd-mobile-view.medical-records.userFilter";
+
+function readStoredUserFilter(): string {
+  try {
+    return sessionStorage.getItem(MR_USER_FILTER_KEY)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+}
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -65,6 +80,7 @@ function recordSubtitle(category: MedicalRecordCategoryDef, row: Record<string, 
 
 export function MedicalRecordsPage() {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
+  const navigate = useNavigate();
   const category = useMemo(() => medicalRecordCategoryFromSlug(categorySlug), [categorySlug]);
 
   const emptyBookNowPath = useMemo(() => {
@@ -85,20 +101,53 @@ export function MedicalRecordsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [members, setMembers] = useState<readonly MemberDisplay[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [userFilterId, setUserFilterId] = useState(readStoredUserFilter);
 
-  const load = useCallback(async (c: MedicalRecordCategoryDef) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const raw = await fetchMedicalHistoryByType(c.apiSegment);
-      const list = raw.filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x));
-      setRows(list);
-    } catch (e) {
-      setRows([]);
-      setError(e instanceof Error ? e.message : "Could not load records");
-    } finally {
-      setLoading(false);
-    }
+  /** Dot when a family member is selected or category is not the default (Consultations). */
+  const showFilterDot =
+    userFilterId.trim().length > 0 ||
+    (category != null && category.slug !== MEDICAL_RECORD_CATEGORIES[0]?.slug);
+
+  const load = useCallback(
+    async (c: MedicalRecordCategoryDef) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const uid = userFilterId.trim();
+        const raw = await fetchMedicalHistoryByType(c.apiSegment, {
+          userId: uid.length > 0 ? uid : null,
+        });
+        const list = raw.filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x));
+        setRows(list);
+      } catch (e) {
+        setRows([]);
+        setError(e instanceof Error ? e.message : "Could not load records");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userFilterId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setMembersLoading(true);
+      try {
+        const m = await fetchAllPatientMembers();
+        if (!cancelled) setMembers(m);
+      } catch {
+        if (!cancelled) setMembers([]);
+      } finally {
+        if (!cancelled) setMembersLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -115,6 +164,16 @@ export function MedicalRecordsPage() {
     setSelected(null);
   }, [categorySlug]);
 
+  const persistUserFilter = (id: string) => {
+    const v = id.trim();
+    setUserFilterId(v);
+    try {
+      sessionStorage.setItem(MR_USER_FILTER_KEY, v);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const reportUrl = selected ? pickStr(selected.reportUrl, selected.report_url) : "";
   const invoiceId = selected ? pickStr(selected.invoice_id, selected.invoiceId) : "";
   const labOrderDetailId = selected
@@ -128,6 +187,11 @@ export function MedicalRecordsPage() {
         selected.invoiceId,
       )
     : "";
+
+  const emptyLine =
+    category && rows.length === 0 && !loading && !error
+      ? `No ${category.label.toLowerCase()} found.`
+      : "No records found.";
 
   return (
     <div className="page medical-records-page">
@@ -144,7 +208,87 @@ export function MedicalRecordsPage() {
           </svg>
         </Link>
         <h1 className="mr-title">{category ? category.label : "Medical records"}</h1>
+        <button
+          type="button"
+          className="mr-filter-btn"
+          aria-label="Filter medical records"
+          title="Filter medical records"
+          onClick={() => setSheetOpen(true)}
+        >
+          <span className="mr-filter-btn__icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M4 6h4.5M10 6h10M14 18h6M4 18h7M9 12h11M4 12h3"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <circle cx="9" cy="18" r="2" stroke="currentColor" strokeWidth="2" />
+              <circle cx="15" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
+              <circle cx="7" cy="6" r="2" stroke="currentColor" strokeWidth="2" />
+            </svg>
+            {showFilterDot ? <span className="mr-filter-btn__dot" aria-hidden /> : null}
+          </span>
+        </button>
       </header>
+
+      <MobileFilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title="Filter medical records"
+        subtitle="Choose a record type and optionally a family member"
+      >
+        <div className="mobile-filter-sheet__divider" />
+        <div className="mobile-filter-sheet__section">
+          <div className="mobile-filter-sheet__wrap">
+            {MEDICAL_RECORD_CATEGORIES.map((c) => (
+              <MobileFilterChip
+                key={c.slug}
+                label={c.label}
+                icon={<img src={medicalRecordSlugIconSrc(c.slug)} alt="" width={18} height={18} />}
+                selected={category?.slug === c.slug}
+                onClick={() => {
+                  setSheetOpen(false);
+                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: c.slug }));
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="mobile-filter-sheet__divider" />
+        <div className="mobile-filter-sheet__section-label">Family member</div>
+        <div className="mobile-filter-sheet__section">
+          {membersLoading ? (
+            <div className="mobile-filter-sheet__members-loading">
+              <p className="mr-status">Loading…</p>
+            </div>
+          ) : (
+            <div className="mobile-filter-sheet__wrap">
+              <MobileFilterChip
+                label="All members"
+                icon={<img src={familyAccountsSvg} alt="" width={18} height={18} />}
+                selected={userFilterId.trim().length === 0}
+                onClick={() => {
+                  persistUserFilter("");
+                  setSheetOpen(false);
+                }}
+              />
+              {members.map((m) => (
+                <MobileFilterChip
+                  key={m.id}
+                  label={m.name.trim().length > 0 ? m.name : m.id}
+                  icon={<img src={profileSvg} alt="" width={18} height={18} />}
+                  selected={userFilterId === m.id}
+                  onClick={() => {
+                    persistUserFilter(m.id);
+                    setSheetOpen(false);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </MobileFilterSheet>
 
       {!category ? (
         <main className="mr-main">
@@ -173,7 +317,7 @@ export function MedicalRecordsPage() {
           ) : null}
           {!loading && !error && rows.length === 0 ? (
             <div className="mr-empty-cta">
-              <p className="mr-status">No records found.</p>
+              <p className="mr-status">{emptyLine}</p>
               {emptyBookNowPath ? (
                 <Link className="mr-book-now" to={emptyBookNowPath}>
                   Book now

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   fetchAllPatientAddresses,
@@ -77,7 +78,7 @@ export function AddressBottomSheet({ open, onClose, onSelectionChange }: Address
 
   if (!open) return null;
 
-  return (
+  const dialog = (
     <dialog
       className="addr-sheet-dialog"
       open
@@ -178,4 +179,10 @@ export function AddressBottomSheet({ open, onClose, onSelectionChange }: Address
       </section>
     </dialog>
   );
+
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(dialog, document.body);
 }

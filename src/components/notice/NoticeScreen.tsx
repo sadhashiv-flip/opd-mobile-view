@@ -6,10 +6,9 @@ import "./NoticeScreen.css";
 export type NoticeScreenProps = Readonly<{
   notice: ActivePreLoginNotice;
   onContinueToLogin?: () => void;
-  onSkipToLogin?: () => void;
 }>;
 
-export function NoticeScreen({ notice, onContinueToLogin, onSkipToLogin }: NoticeScreenProps) {
+export function NoticeScreen({ notice, onContinueToLogin }: NoticeScreenProps) {
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
@@ -22,21 +21,10 @@ export function NoticeScreen({ notice, onContinueToLogin, onSkipToLogin }: Notic
       className={`notice-screen${entered ? " notice-screen--entered" : ""}`}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={notice.title ? "prelogin-notice-title" : undefined}
-      aria-label={notice.title ? undefined : "Important notice"}
+      aria-label="Notice board"
     >
-      <div className="notice-screen__backdrop" aria-hidden />
-      <div className="notice-screen__center">
-        <div className="notice-screen__card-wrap">
-          <NoticeCard
-            imageUrl={notice.imageUrl}
-            title={notice.title}
-            note={notice.note}
-            blockLogin={notice.blockLogin}
-            onContinueToLogin={onContinueToLogin}
-            onSkipToLogin={onSkipToLogin}
-          />
-        </div>
+      <div className="notice-screen__shell">
+        <NoticeCard notice={notice} entered={entered} onContinue={onContinueToLogin} />
       </div>
     </div>
   );

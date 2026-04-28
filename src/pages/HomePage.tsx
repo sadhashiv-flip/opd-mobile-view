@@ -1,12 +1,6 @@
-import {
-  HomeChevronDownIcon,
-  HomeLocationPinIcon,
-  HomeNotificationIcon,
-  HomeProfileIcon,
-  HomeVoiceRecordIcon,
-  HomeSearchIcon,
-  HomeWalletIcon,
-} from "@/assets/icons/react";
+import { HomeNotificationIcon, HomeProfileIcon, HomeVoiceRecordIcon, HomeSearchIcon, HomeWalletIcon } from "@/assets/icons/react";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
 import atCenterSvg from "@/assets/icons/Dashboard/AtCenter.svg";
 import wpfOnlineSvg from "@/assets/icons/Dashboard/wpf_online.svg";
 import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
@@ -15,13 +9,14 @@ import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { HealthClubSection } from "@/components/healthClub/HealthClubSection";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import { HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { cssBackgroundUrl } from "@/lib/cssBackgroundUrl";
 import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useHomeDashboard } from "@/hooks/useHomeDashboard";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "./HomePage.css";
 import "./DigitalDiaryPages.css";
@@ -29,42 +24,42 @@ import "./ServicesHubPage.css";
 
 const PLACEHOLDER_ADDRESS = "Street, 7th floor, Building A…";
 
+/** Status chip tint — mirrors Flutter `DashboardUpcomingOrdersSection._statusFg/_statusBg`. */
+function ongoingStatusBadgeClass(label: string): string {
+  const s = label.toLowerCase();
+  if (s.includes("completed")) return "home-ongoing-dash-card__status--completed";
+  if (s.includes("cancel") || s.includes("expired")) return "home-ongoing-dash-card__status--danger";
+  if (s.includes("payment pending")) return "home-ongoing-dash-card__status--warning";
+  if (s.includes("upcoming") || s.includes("session")) return "home-ongoing-dash-card__status--info";
+  if (
+    s.includes("pending") ||
+    s.includes("processing") ||
+    s.includes("progress") ||
+    s.includes("waiting")
+  ) {
+    return "home-ongoing-dash-card__status--warning";
+  }
+  return "home-ongoing-dash-card__status--neutral";
+}
+
 /** Dots for slide counts 2–7; at 8+ use compact progress + prev/next (too many dots otherwise). */
 const HOME_CAROUSEL_DOT_MAX = 7;
 
-/** Home card artwork by ongoing `type` / `order_type` from dashboard API. */
-function ongoingSlideBackgroundUrl(type: string, orderType: string): string {
-  const u = `${type} ${orderType}`.toLowerCase().replaceAll("_", "");
-  if (u.includes("vaccine")) return HOME_IMAGE_URLS.vaccine;
-  if (u.includes("nutrition") || u.includes("diet")) return HOME_IMAGE_URLS.nutrition;
-  if (
-    u.includes("mental") ||
-    u.includes("mentalwellness") ||
-    (u.includes("wellness") && !u.includes("nutrition"))
-  ) {
-    return HOME_IMAGE_URLS.mentalhealth;
-  }
-  if (u.includes("dental")) return HOME_IMAGE_URLS.dental;
-  if (u.includes("vision")) return HOME_IMAGE_URLS.vision;
-  if (u.includes("pharmacy")) return HOME_IMAGE_URLS.pharmacy;
-  if (
-    u.includes("consult") ||
-    u.includes("virtual") ||
-    u.includes("appointment") ||
-    u.includes("athospital") ||
-    u.includes("at-hospital")
-  ) {
-    return HOME_IMAGE_URLS.doctorConsultation;
-  }
-  return HOME_IMAGE_URLS.diagnostics;
-}
-
 export function HomePage() {
   const navigate = useNavigate();
-  const { apiBanners, notificationCount, primaryAddressLine, ongoing, ahc } = useHomeDashboard();
+  const {
+    apiBanners,
+    ahcBanners,
+    notificationCount,
+    primaryAddressLine,
+    ongoing,
+    ahc,
+  } = useHomeDashboard();
+  const addressLine = useSelectedAddressLine(primaryAddressLine ?? PLACEHOLDER_ADDRESS);
+  const addressTag = useSelectedAddressTag("HOME");
   const ongoingCount = ongoing.length;
   const apiBannerCount = apiBanners.length;
-  const homeCarouselCount = apiBannerCount + ongoingCount;
+  const homeCarouselCount = apiBannerCount;
   const {
     activeIndex: activeHomeCarousel,
     goTo: goToHomeCarousel,
@@ -75,17 +70,58 @@ export function HomePage() {
   const [isDiagnosticsSheetOpen, setIsDiagnosticsSheetOpen] = useState(false);
   const [isConsultationSheetOpen, setIsConsultationSheetOpen] = useState(false);
   const [isVisionSheetOpen, setIsVisionSheetOpen] = useState(false);
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const ongoingCarouselRef = useRef<HTMLDivElement>(null);
+  const ahcBannerScrollRef = useRef<HTMLDivElement>(null);
+  const ahcBannerSlideCount = ahcBanners.length;
+
+  /** AHC banner strip: auto-advance when multiple API slides. */
+  useEffect(() => {
+    if (!ahc || ahcBannerSlideCount <= 1) return;
+    const id = window.setInterval(() => {
+      const el = ahcBannerScrollRef.current;
+      if (!el) return;
+      const slides = el.querySelectorAll<HTMLElement>("[data-ahc-banner-slide]");
+      if (slides.length === 0) return;
+      const gap = 12;
+      const w = slides[0].offsetWidth;
+      const cur = Math.max(0, Math.round(el.scrollLeft / Math.max(1, w + gap)));
+      const next = (cur + 1) % slides.length;
+      el.scrollTo({ left: next * (w + gap), behavior: "smooth" });
+    }, 3000);
+    return () => clearInterval(id);
+  }, [ahc, ahcBannerSlideCount]);
+
+  /** Match Flutter dashboard: auto-advance `PageView` every 3s. */
+  useEffect(() => {
+    if (ongoingCount <= 1) return;
+    const id = window.setInterval(() => {
+      const el = ongoingCarouselRef.current;
+      if (!el) return;
+      const slides = el.querySelectorAll<HTMLElement>("[data-ongoing-slide]");
+      if (slides.length === 0) return;
+      const gap = 12;
+      const w = slides[0].offsetWidth;
+      const cur = Math.max(
+        0,
+        Math.round(el.scrollLeft / Math.max(1, w + gap)),
+      );
+      const next = (cur + 1) % slides.length;
+      el.scrollTo({ left: next * (w + gap), behavior: "smooth" });
+    }, 3000);
+    return () => clearInterval(id);
+  }, [ongoingCount]);
 
   useEffect(() => {
     const isAnySheetOpen =
-      isDiagnosticsSheetOpen || isConsultationSheetOpen || isVisionSheetOpen;
+      isDiagnosticsSheetOpen || isConsultationSheetOpen || isVisionSheetOpen || addrSheetOpen;
     if (!isAnySheetOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prevOverflow;
     };
-  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen]);
+  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen, addrSheetOpen]);
 
   let homeCarouselPagination: ReactNode = null;
   if (homeCarouselCount > 1) {
@@ -107,20 +143,6 @@ export function HomePage() {
               onClick={() => goToHomeCarousel(index)}
             />
           ))}
-          {ongoing.map((item, i) => {
-            const index = apiBannerCount + i;
-            return (
-              <button
-                key={`dot-ongoing-${item.id}`}
-                type="button"
-                role="tab"
-                aria-selected={index === activeHomeCarousel}
-                aria-label={`${item.title}, ongoing slide ${index + 1} of ${homeCarouselCount}`}
-                className={`home-banner__dot${index === activeHomeCarousel ? " home-banner__dot--active" : ""}`}
-                onClick={() => goToHomeCarousel(index)}
-              />
-            );
-          })}
         </div>
       );
     } else {
@@ -184,23 +206,40 @@ export function HomePage() {
     <div className="home-page">
       <div className="home-page__chrome">
         <header className="home-top">
-          <div className="home-location">
-            <span className="home-location__pin" aria-hidden="true">
-              <HomeLocationPinIcon />
-            </span>
-            <div className="home-location__text">
-              <button type="button" className="home-location__title">
-                Home
-                <HomeChevronDownIcon
-                  className="home-location__chev"
-                  aria-hidden="true"
+          <button
+            type="button"
+            className="home-loc"
+            aria-label="Choose address"
+            onClick={() => setAddrSheetOpen(true)}
+          >
+            <span className="home-loc__pin" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
+                  fill="#FF541E"
                 />
-              </button>
-              <p className="home-location__addr">
-                {primaryAddressLine ?? PLACEHOLDER_ADDRESS}
-              </p>
+                <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
+              </svg>
+            </span>
+            <div className="home-loc__body">
+              <span className="home-loc__title">{addressTag}</span>
+              <span className="home-loc__sep" aria-hidden="true">
+                |
+              </span>
+              <span className="home-loc__addr">{addressLine}</span>
             </div>
-          </div>
+            <span className="home-loc__chev" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
           <div className="home-top__actions">
             <button
               type="button"
@@ -238,6 +277,8 @@ export function HomePage() {
           </div>
         </header>
 
+        <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+
         <div className="home-search">
           <span className="home-search__search-ic" aria-hidden="true">
             <HomeSearchIcon />
@@ -273,6 +314,60 @@ export function HomePage() {
             Medical services
           </h2>
 
+          {homeCarouselCount > 0 ? (
+            <section
+              className={`home-banner home-banner--mixed${homeCarouselCount > HOME_CAROUSEL_DOT_MAX ? " home-banner--many-slides" : ""}`}
+              aria-label="Promotional banners"
+              aria-roledescription="carousel"
+            >
+              <div
+                className="home-banner__viewport"
+                onTouchStart={onHomeCarouselTouchStart}
+                onTouchEnd={onHomeCarouselTouchEnd}
+              >
+                <div
+                  className="home-banner__track"
+                  style={{
+                    width: `${homeCarouselCount * 100}%`,
+                    transform: `translateX(-${(activeHomeCarousel * 100) / homeCarouselCount}%)`,
+                  }}
+                >
+                  {apiBanners.map((slide, index) => (
+                    <div
+                      key={slide.id ?? `banner-${slide.image}-${index}`}
+                      className="home-banner__slide home-banner__slide--api"
+                      style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
+                      aria-hidden={index !== activeHomeCarousel}
+                    >
+                      {slide.link ? (
+                        <a
+                          href={slide.link}
+                          className="home-banner__api-hit"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="Open promotion"
+                        >
+                          <div
+                            className="home-banner__bg"
+                            style={{ backgroundImage: cssBackgroundUrl(slide.image) }}
+                          />
+                        </a>
+                      ) : (
+                        <div className="home-banner__api-hit">
+                          <div
+                            className="home-banner__bg"
+                            style={{ backgroundImage: cssBackgroundUrl(slide.image) }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {homeCarouselPagination}
+            </section>
+          ) : null}
+
           {ahc ? (
             <button
               type="button"
@@ -286,22 +381,178 @@ export function HomePage() {
                 )
               }
             >
-              <div className="home-ahc-card__copy">
-                <h3 className="home-ahc-card__title">Annual Health Checkup</h3>
-                <p className="home-ahc-card__subtitle">Book your sponsored health checkup</p>
+              <div className="home-ahc-card__stack">
+                <div className="home-ahc-card__bg" aria-hidden>
+                  {ahcBanners.length > 0 ? (
+                    <div
+                      className="home-ahc-card__banner-scroll"
+                      ref={ahcBannerScrollRef}
+                    >
+                      {ahcBanners.map((slide, index) => (
+                        <div
+                          key={slide.id ?? `ahc-${slide.image}-${index}`}
+                          className="home-ahc-card__banner-slide"
+                          data-ahc-banner-slide
+                          style={{
+                            backgroundImage: cssBackgroundUrl(slide.image),
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="home-ahc-card__banner-slide home-ahc-card__banner-slide--fallback"
+                      style={{
+                        backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.diagnostics),
+                      }}
+                    />
+                  )}
+                </div>
+                <div className="home-ahc-card__scrim" aria-hidden />
+                <div className="home-ahc-card__content">
+                  <div className="home-ahc-card__copy">
+                    <h3 className="home-ahc-card__title">Annual Health Checkup</h3>
+                    <p className="home-ahc-card__subtitle">Book your sponsored health checkup</p>
+                  </div>
+                  <span className="home-ahc-card__chev" aria-hidden>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M9 6l6 6-6 6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
               </div>
-              <span className="home-ahc-card__chev" aria-hidden>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M9 6l6 6-6 6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
             </button>
+          ) : null}
+
+          {ongoingCount > 0 ? (
+            <section className="home-ongoing-section" aria-labelledby="ongoing-orders-heading">
+              <div className="home-ongoing-section__header">
+                <h2 id="ongoing-orders-heading" className="home-ongoing-section__title">
+                  Ongoing orders
+                </h2>
+                <button
+                  type="button"
+                  className="home-ongoing-section__view-all"
+                  onClick={() => navigate(ROUTES.orders)}
+                >
+                  View all
+                </button>
+              </div>
+              <div className="home-ongoing-section__body">
+                <div
+                  className="home-ongoing-carousel"
+                  ref={ongoingCarouselRef}
+                  aria-label="Ongoing orders, swipe sideways"
+                >
+                  {ongoing.map((item) => (
+                    <div
+                      key={item.id}
+                      className="home-ongoing-carousel__slide"
+                      data-ongoing-slide
+                    >
+                      <div className="home-ongoing-dash-card">
+                        <button
+                          type="button"
+                          className="home-ongoing-dash-card__main"
+                          onClick={() =>
+                            navigate(
+                              generatePath(ROUTES.ordersDetail, {
+                                orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
+                                invoiceId: item.invoiceId,
+                              }),
+                            )
+                          }
+                        >
+                          <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
+                            <OrderCategoryIcon
+                              categoryKey={item.orderCategoryIconKey}
+                              width={18}
+                              height={18}
+                            />
+                          </span>
+                          <span className="home-ongoing-dash-card__content">
+                            <span className="home-ongoing-dash-card__row1">
+                              <span className="home-ongoing-dash-card__category">
+                                {item.displayCategory}
+                              </span>
+                              <span
+                                className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClass(item.statusLabel)}`}
+                              >
+                                {item.statusLabel}
+                              </span>
+                            </span>
+                            <span className="home-ongoing-dash-card__row2">
+                              <span className="home-ongoing-dash-card__patient">
+                                {item.patientLine}
+                              </span>
+                              {item.memberCount > 1 ? (
+                                <span className="home-ongoing-dash-card__members">
+                                  +{item.memberCount - 1} members
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
+                            {item.visitTypeLabel ? (
+                              <span className="home-ongoing-dash-card__visit-type">
+                                {item.visitTypeLabel}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="home-ongoing-dash-card__chev" aria-hidden>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                              <path
+                                d="M9 6l6 6-6 6"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        </button>
+                        {item.canJoinVideoCall ? (
+                          <button
+                            type="button"
+                            className="home-ongoing-dash-card__join-call"
+                            onClick={() =>
+                              navigate(
+                                generatePath(ROUTES.videoCall, { appointmentId: item.id }),
+                              )
+                            }
+                          >
+                            Join video call
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {ongoingCount > 1 ? (
+                  <button
+                    type="button"
+                    className="home-ongoing-more-link"
+                    onClick={() => navigate(ROUTES.orders)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    +{ongoingCount - 1} more ongoing
+                  </button>
+                ) : null}
+              </div>
+            </section>
           ) : null}
 
           <button
@@ -527,133 +778,6 @@ export function HomePage() {
             VIEW MORE
           </Link>
         </section>
-
-        {homeCarouselCount > 0 ? (
-          <section
-            className={`home-banner home-banner--mixed${homeCarouselCount > HOME_CAROUSEL_DOT_MAX ? " home-banner--many-slides" : ""}`}
-            aria-label="Promotions and ongoing orders"
-            aria-roledescription="carousel"
-          >
-            <div
-              className="home-banner__viewport"
-              onTouchStart={onHomeCarouselTouchStart}
-              onTouchEnd={onHomeCarouselTouchEnd}
-            >
-              <div
-                className="home-banner__track"
-                style={{
-                  width: `${homeCarouselCount * 100}%`,
-                  transform: `translateX(-${(activeHomeCarousel * 100) / homeCarouselCount}%)`,
-                }}
-              >
-                {apiBanners.map((slide, index) => (
-                  <div
-                    key={slide.id ?? `banner-${slide.image}-${index}`}
-                    className="home-banner__slide home-banner__slide--api"
-                    style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
-                    aria-hidden={index !== activeHomeCarousel}
-                  >
-                    {slide.link ? (
-                      <a
-                        href={slide.link}
-                        className="home-banner__api-hit"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Open promotion"
-                      >
-                        <div
-                          className="home-banner__bg"
-                          style={{ backgroundImage: cssBackgroundUrl(slide.image) }}
-                        />
-                      </a>
-                    ) : (
-                      <div className="home-banner__api-hit">
-                        <div
-                          className="home-banner__bg"
-                          style={{ backgroundImage: cssBackgroundUrl(slide.image) }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {ongoing.map((item, i) => {
-                  const index = apiBannerCount + i;
-                  const bgUrl = ongoingSlideBackgroundUrl(item.type, item.orderType);
-                  return (
-                    <div
-                      key={item.id}
-                      className="home-banner__slide home-banner__slide--ongoing"
-                      style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
-                      aria-hidden={index !== activeHomeCarousel}
-                    >
-                      <div
-                        className={`home-ongoing-slide${item.canJoinVideoCall ? " home-ongoing-slide--video" : ""}`}
-                      >
-                        <div
-                          className="home-ongoing-slide__bg"
-                          style={{ backgroundImage: cssBackgroundUrl(bgUrl) }}
-                          aria-hidden
-                        />
-                        <div className="home-ongoing-slide__scrim" aria-hidden />
-                        <div className="home-ongoing-slide__body">
-                          <span className="home-ongoing-slide__kicker">Ongoing</span>
-                          <span className="home-ongoing-slide__title">{item.title}</span>
-                          {item.meta ? (
-                            <span className="home-ongoing-slide__meta">{item.meta}</span>
-                          ) : null}
-                          {item.canJoinVideoCall ? (
-                            <button
-                              type="button"
-                              className="home-ongoing-slide__join-call"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(
-                                  generatePath(ROUTES.videoCall, { appointmentId: item.id }),
-                                );
-                              }}
-                            >
-                              Join call
-                            </button>
-                          ) : null}
-                        </div>
-                        <button
-                          type="button"
-                          className="home-ongoing-slide__action"
-                          aria-label={`View order: ${item.title}`}
-                          onClick={() =>
-                            navigate(
-                              generatePath(ROUTES.ordersDetail, {
-                                orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
-                                invoiceId: item.invoiceId,
-                              }),
-                            )
-                          }
-                        >
-                          <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            aria-hidden
-                          >
-                            <path
-                              d="M9 6l6 6-6 6"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            {homeCarouselPagination}
-          </section>
-        ) : null}
       </main>
 
       {isDiagnosticsSheetOpen ? (

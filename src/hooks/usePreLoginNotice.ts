@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchActivePreLoginNotice } from "@/api/patientNoticeBanners";
-import {
-  readPreLoginNoticeBoardSession,
-  writePreLoginNoticeBoardSession,
-} from "@/constants/preLoginNoticeBoardSession";
+import { isNoticeBoardContinueAcknowledged } from "@/constants/noticeBoardSession";
 import type { ActivePreLoginNotice } from "@/lib/noticeBoard";
 
 export type PreLoginNoticePhase = "loading" | "ready";
@@ -14,31 +11,30 @@ export type UsePreLoginNoticeResult = Readonly<{
 }>;
 
 /**
- * Single in-flight fetch before login; aborted on unmount / Strict Mode remount.
+ * Loads the notice board from `GET /notice-board` on mount unless
+ * {@link isNoticeBoardContinueAcknowledged} is set (user already tapped Continue this session).
+ * The API response is not stored — only the continue flag in sessionStorage.
  */
 export function usePreLoginNotice(): UsePreLoginNoticeResult {
-  const [phase, setPhase] = useState<PreLoginNoticePhase>("loading");
+  const [phase, setPhase] = useState<PreLoginNoticePhase>(() =>
+    isNoticeBoardContinueAcknowledged() ? "ready" : "loading",
+  );
   const [activeNotice, setActiveNotice] = useState<ActivePreLoginNotice | null>(null);
 
   useEffect(() => {
-    const cached = readPreLoginNoticeBoardSession();
-    if (!cached.shouldFetch) {
-      setActiveNotice(cached.notice);
-      setPhase("ready");
+    if (isNoticeBoardContinueAcknowledged()) {
+      setActiveNotice(null);
       return;
     }
 
     const ac = new AbortController();
-
     (async () => {
       try {
         const notice = await fetchActivePreLoginNotice(new Date(), { signal: ac.signal });
         if (ac.signal.aborted) return;
-        writePreLoginNoticeBoardSession(notice);
         setActiveNotice(notice);
       } catch {
         if (ac.signal.aborted) return;
-        writePreLoginNoticeBoardSession(null);
         setActiveNotice(null);
       } finally {
         if (!ac.signal.aborted) {
@@ -46,7 +42,6 @@ export function usePreLoginNotice(): UsePreLoginNoticeResult {
         }
       }
     })();
-
     return () => ac.abort();
   }, []);
 

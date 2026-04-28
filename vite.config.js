@@ -24,7 +24,101 @@ function buildFirebaseMessagingSwBody(env) {
   return `importScripts('https://www.gstatic.com/firebasejs/${FIREBASE_JS_VERSION}/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/${FIREBASE_JS_VERSION}/firebase-messaging-compat.js');
 firebase.initializeApp(${JSON.stringify(config)});
-firebase.messaging();
+var messaging = firebase.messaging();
+
+function mergeFcmDetails(d) {
+  var out = {};
+  if (!d || typeof d !== "object") return out;
+  for (var k in d) {
+    if (Object.prototype.hasOwnProperty.call(d, k) && d[k] != null) out[k] = String(d[k]);
+  }
+  var detailsStr = d.details;
+  if (detailsStr && typeof detailsStr === "string") {
+    try {
+      var parsed = JSON.parse(detailsStr);
+      if (parsed && typeof parsed === "object") {
+        for (var k2 in parsed) {
+          if (Object.prototype.hasOwnProperty.call(parsed, k2) && out[k2] === undefined) {
+            out[k2] = String(parsed[k2]);
+          }
+        }
+      }
+    } catch (e) {}
+  }
+  return out;
+}
+
+function fcmSupportTicketPath(d) {
+  var m = mergeFcmDetails(d || {});
+  var p = (m.path || m.link || m.url || "").trim();
+  var prefix = "/services/support/ticket/";
+  if (p.indexOf(prefix) === 0) return p.split("?")[0].split("#")[0];
+  try {
+    if (p.indexOf("http") === 0) {
+      var u = new URL(p);
+      if (u.pathname.indexOf(prefix) === 0) return u.pathname;
+    }
+  } catch (e) {}
+  var tid = (m.ticket_id || m.ticketId || "").trim();
+  var tl = (m.type || "").toLowerCase();
+  if (!tid && (tl.indexOf("support") >= 0 || tl.indexOf("ticket") >= 0 || tl.indexOf("help") >= 0)) {
+    tid = (m.id || "").trim();
+  }
+  if (tid) return prefix + encodeURIComponent(tid);
+  return "";
+}
+
+messaging.onBackgroundMessage(function (payload) {
+  console.log("[FCM] background push received", {
+    messageId: payload.messageId,
+    from: payload.from,
+    collapseKey: payload.collapseKey,
+    notification: payload.notification,
+    data: payload.data,
+  });
+  var path = fcmSupportTicketPath(payload.data || {});
+  var data = payload.data || {};
+  var title =
+    (payload.notification && payload.notification.title) ||
+    data.title ||
+    "Notification";
+  var body =
+    (payload.notification && payload.notification.body) || data.body || "";
+  if (path) console.log("[FCM] resolved ticket path from background payload", path);
+  if (!payload.notification && path && self.registration.showNotification) {
+    return self.registration.showNotification(title, {
+      body: body,
+      icon: "/favicon.ico",
+      data: Object.assign({}, data, { path: path }),
+    });
+  }
+});
+
+self.addEventListener("notificationclick", function (event) {
+  console.log("[FCM] notification click", {
+    title: event.notification.title,
+    data: event.notification.data,
+  });
+  event.notification.close();
+  var nd = event.notification.data || {};
+  var path = nd.path || fcmSupportTicketPath(nd);
+  if (path) console.log("[FCM] notification click → path", path);
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var c = clientList[i];
+        if (c.url.indexOf(self.location.origin) === 0 && "focus" in c) {
+          if (path) c.postMessage({ type: "FCM_NAVIGATE", path: path });
+          return c.focus();
+        }
+      }
+      if (clients.openWindow) {
+        var target = path ? self.location.origin + path : self.location.origin + "/";
+        return clients.openWindow(target);
+      }
+    }),
+  );
+});
 `;
 }
 

@@ -16,11 +16,21 @@ export function unwrapHistoryResults(root: unknown): unknown[] {
 }
 
 /**
- * `GET /patient/history/type/{apiSegment}` — same paths as Flutter `MedicalRecordsRepository`.
+ * `GET /patient/history/type/{apiSegment}?user_id=` — same as Flutter `MedicalRecordsRepository`.
  */
-export async function fetchMedicalHistoryByType(apiSegment: string): Promise<unknown[]> {
+export async function fetchMedicalHistoryByType(
+  apiSegment: string,
+  opts?: { userId?: string | null },
+): Promise<unknown[]> {
   const seg = apiSegment.trim().replace(/^\/+|\/+$/g, "");
   if (!seg) return [];
-  const raw = await patientJson<unknown>(`history/type/${seg}`, { method: "GET" });
+  const q = new URLSearchParams();
+  const uid = opts?.userId?.trim();
+  if (uid) {
+    q.set("user_id", uid);
+  }
+  const qs = q.toString();
+  const path = qs ? `history/type/${seg}?${qs}` : `history/type/${seg}`;
+  const raw = await patientJson<unknown>(path, { method: "GET" });
   return unwrapHistoryResults(raw);
 }

@@ -1,3 +1,4 @@
+import subscriptionsSvg from "@/assets/icons/AccountManagement/Subscriptions.svg";
 import bookConsultationSvg from "@/assets/icons/Services/BookConsultation.svg";
 import bookDiagnosticSvg from "@/assets/icons/Services/BookDiagnostic.svg";
 import dentalServicesSvg from "@/assets/icons/Services/DentalServices.svg";
@@ -29,6 +30,10 @@ export function orderCategoryIconSrc(categoryKey: string): string {
       return mentalWellnessSvg;
     case "nutrition":
       return nutritionServicesSvg;
+    case "subscriptions":
+      return subscriptionsSvg;
+    case "orders_all":
+      return viewServicesSvg;
     default:
       return viewServicesSvg;
   }

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import { NoticeScreen } from "@/components/notice/NoticeScreen";
-import { markPreLoginNoticeBoardUiComplete } from "@/constants/preLoginNoticeBoardSession";
+import { setNoticeBoardContinueAcknowledged } from "@/constants/noticeBoardSession";
 import { usePreLoginNotice } from "@/hooks/usePreLoginNotice";
 import "@/pages/PreLoginNoticeGate.css";
 
@@ -20,15 +20,15 @@ type NoticeBoardBlockingLayerProps = Readonly<{
 }>;
 
 /**
- * Resolves the pre-login notice board (`sessionStorage` keys in `preLoginNoticeBoardSession.ts`),
- * shows {@link NoticeScreen} when needed, then renders `resolved`.
+ * Fetches the notice board when needed, shows {@link NoticeScreen}, then renders `resolved`.
+ * Continue sets sessionStorage so `GET /notice-board` is skipped until the tab session ends.
  */
 export function NoticeBoardBlockingLayer({ resolved }: NoticeBoardBlockingLayerProps) {
   const { phase, activeNotice } = usePreLoginNotice();
   const [noticeDismissed, setNoticeDismissed] = useState(false);
 
   const dismiss = useCallback(() => {
-    markPreLoginNoticeBoardUiComplete();
+    setNoticeBoardContinueAcknowledged();
     setNoticeDismissed(true);
   }, []);
 
@@ -41,7 +41,6 @@ export function NoticeBoardBlockingLayer({ resolved }: NoticeBoardBlockingLayerP
       <NoticeScreen
         notice={activeNotice}
         onContinueToLogin={activeNotice.blockLogin ? undefined : dismiss}
-        onSkipToLogin={activeNotice.blockLogin ? undefined : dismiss}
       />
     );
   }

@@ -7,17 +7,19 @@ import { resolveProfileImageUrl } from "@/api/patientProfile";
  * Query `type` for `GET /invoice` — align with backend `transaction_type` filters
  * (response uses values like `VACCINE`, `NUTRITION`, `MENTALWELLNESS`).
  */
+/** Values sent as `type=` on `GET /invoice` — aligned with Flutter `OrdersController._categoryToApiType`. */
 export const INVOICE_FILTER_TYPES = {
   all: null,
-  consultation: "consultation",
-  labTest: "labtest",
-  pharmacy: "pharmacy",
-  dental: "dental",
-  vision: "vision",
-  vaccine: "vaccine",
-  gym: "gym",
-  mentalWellness: "mentalwellness",
-  nutrition: "nutrition",
+  consultation: "CONSULTATION",
+  labTest: "LABTEST",
+  subscriptions: "PLAN",
+  pharmacy: "PHARMACY",
+  dental: "DENTAL",
+  vision: "VISION",
+  vaccine: "VACCINE",
+  gym: "GYM",
+  mentalWellness: "MENTALWELLNESS",
+  nutrition: "NUTRITION",
 } as const;
 
 export type InvoiceFilterId = keyof typeof INVOICE_FILTER_TYPES;
@@ -616,12 +618,17 @@ function buildInvoicePath(
   type: string | null | undefined,
   page: number,
   limit: number,
+  userId?: string | null,
 ): string {
   const q = new URLSearchParams();
   q.set("limit", String(limit));
   q.set("page", String(page));
   if (type != null && type.length > 0) {
     q.set("type", type);
+  }
+  const uid = userId?.trim();
+  if (uid) {
+    q.set("user_id", uid);
   }
   return `invoice?${q.toString()}`;
 }
@@ -633,10 +640,12 @@ export async function fetchInvoicesPage(opts: {
   type?: string | null;
   page?: number;
   limit?: number;
+  /** When set, scopes invoices to this family member (`user_id` query) — same as Flutter orders. */
+  userId?: string | null;
 }): Promise<InvoicesPageResult> {
   const page = opts.page ?? 1;
   const limit = opts.limit ?? 20;
-  const path = buildInvoicePath(opts.type ?? null, page, limit);
+  const path = buildInvoicePath(opts.type ?? null, page, limit, opts.userId ?? null);
   const body = await patientJson<unknown>(path, { skipGlobalLoading: true });
 
   const items = extractArray(body)

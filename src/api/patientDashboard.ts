@@ -1,4 +1,14 @@
 import { patientJson } from "@/api/patientHttp";
+import {
+  displayCategoryFromTx,
+  friendlyWhenLine,
+  mapOngoingStatusLabel,
+  memberCountFromRow,
+  orderCategoryKeyFromDisplayCategory,
+  patientNameFromRow,
+  transactionTypeFromRow,
+  visitTypeLabelFromRow,
+} from "@/lib/dashboardOngoingDisplay";
 
 /** GET /patient/dashboard (Bearer). Banners come from {@link fetchPatientBanners} (`GET /banners`). */
 
@@ -54,6 +64,15 @@ export type DashboardOngoingItem = Readonly<{
   status: number;
   /** True when `order_type` is APPOINTMENT and `communication` is ONLINE (video consult). */
   canJoinVideoCall: boolean;
+  /** Dashboard tile — same idea as Flutter `Order.type`. */
+  displayCategory: string;
+  /** Human-readable status chip (Flutter `_mapStatus`). */
+  statusLabel: string;
+  patientLine: string;
+  memberCount: number;
+  whenLine: string;
+  visitTypeLabel: string | null;
+  orderCategoryIconKey: string;
 }>;
 
 export type DashboardGymState = Readonly<{
@@ -65,14 +84,37 @@ export type DashboardGymState = Readonly<{
   dependents: readonly string[];
 }>;
 
-function normalizeNotificationCount(raw: unknown): number {
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
-  return Math.max(0, Math.floor(raw));
+function normalizeBoolean(raw: unknown): boolean {
+  if (raw === true) return true;
+  if (raw === false || raw == null) return false;
+  if (typeof raw === "number") return raw !== 0;
+  if (typeof raw !== "string") return false;
+  const text = raw.trim().toLowerCase();
+  return text === "true" || text === "1" || text === "yes";
 }
 
 function normalizeNonNegNumber(raw: unknown): number {
-  if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
-  return Math.max(0, raw);
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.max(0, raw);
+  if (typeof raw === "string") {
+    const parsed = Number(raw.trim());
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+  return 0;
+}
+
+function normalizeNonNegInteger(raw: unknown): number {
+  const value = normalizeNonNegNumber(raw);
+  return Math.floor(value);
+}
+
+function normalizeString(raw: unknown): string {
+  if (typeof raw === "string") return raw.trim();
+  if (typeof raw === "number" && Number.isFinite(raw)) return String(raw).trim();
+  return "";
+}
+
+function normalizeNotificationCount(raw: unknown): number {
+  return normalizeNonNegInteger(raw);
 }
 
 function formatPincode(raw: unknown): string {
@@ -116,7 +158,7 @@ function truncateMetaSegment(s: string, maxLen: number): string {
 }
 
 /** Virtual / clinic consultation rows: `order_type` APPOINTMENT, `doctor`, `purpose`, `additional_info.booking_details`. */
-function consultationTitleAndMeta(row: Record<string, unknown>): { title: string; meta: string } {
+function consultationNameFields(row: Record<string, unknown>): { doctorName: string; specialityName: string } {
   const doc = row.doctor;
   let doctorName = "";
   let specialityName = "";
@@ -129,7 +171,48 @@ function consultationTitleAndMeta(row: Record<string, unknown>): { title: string
       specialityName = typeof n === "string" ? n.trim() : "";
     }
   }
+  return { doctorName, specialityName };
+}
 
+function consultationSlotTime(row: Record<string, unknown>): string {
+  const add = row.additional_info;
+  if (add && typeof add === "object") {
+    const bd = (add as Record<string, unknown>).booking_details;
+    if (bd && typeof bd === "object") {
+      const ts = (bd as Record<string, unknown>).time_slot;
+      if (typeof ts === "string" && ts.trim()) return ts.trim();
+    }
+  }
+
+  const d = typeof row.date === "string" ? row.date.trim() : "";
+  const t = typeof row.time === "string" ? row.time.trim() : "";
+  return d && t ? `${d} ${t}` : d || t;
+}
+
+function consultationSpecialtiesLabel(row: Record<string, unknown>): string {
+  const add = row.additional_info;
+  if (add && typeof add === "object") {
+    const bd = (add as Record<string, unknown>).booking_details;
+    if (bd && typeof bd === "object") {
+      const specs = (bd as Record<string, unknown>).specialties;
+      if (Array.isArray(specs)) {
+        const names = specs.filter((x): x is string => typeof x === "string" && x.trim() !== "");
+        return names.join(", ");
+      }
+    }
+  }
+  return "";
+}
+
+function consultationBookingMeta(row: Record<string, unknown>): { timeSlot: string; specialtiesLabel: string } {
+  return {
+    timeSlot: consultationSlotTime(row),
+    specialtiesLabel: consultationSpecialtiesLabel(row),
+  };
+}
+
+function consultationTitleAndMeta(row: Record<string, unknown>): { title: string; meta: string } {
+  const { doctorName, specialityName } = consultationNameFields(row);
   const title =
     doctorName ||
     specialityName ||
@@ -137,28 +220,7 @@ function consultationTitleAndMeta(row: Record<string, unknown>): { title: string
       ? "Online consultation"
       : "Consultation");
 
-  const add = row.additional_info;
-  let timeSlot = "";
-  let specialtiesLabel = "";
-  if (add && typeof add === "object") {
-    const bd = (add as Record<string, unknown>).booking_details;
-    if (bd && typeof bd === "object") {
-      const b = bd as Record<string, unknown>;
-      const ts = b.time_slot;
-      if (typeof ts === "string" && ts.trim()) timeSlot = ts.trim();
-      const specs = b.specialties;
-      if (Array.isArray(specs)) {
-        const names = specs.filter((x): x is string => typeof x === "string" && x.trim() !== "");
-        specialtiesLabel = names.join(", ");
-      }
-    }
-  }
-  if (!timeSlot) {
-    const d = typeof row.date === "string" ? row.date.trim() : "";
-    const t = typeof row.time === "string" ? row.time.trim() : "";
-    timeSlot = d && t ? `${d} ${t}` : d || t;
-  }
-
+  const { timeSlot, specialtiesLabel } = consultationBookingMeta(row);
   const purposeRaw = typeof row.purpose === "string" ? row.purpose.trim() : "";
   const purpose =
     purposeRaw.length > 0 ? truncateMetaSegment(purposeRaw, CONSULTATION_META_PURPOSE_MAX) : "";
@@ -210,17 +272,26 @@ function ongoingTitleAndMeta(
   };
 }
 
+function parseStringOrRawField(row: Record<string, unknown>, keys: Array<string | number>): string {
+  for (const key of keys) {
+    const value = row[key as keyof typeof row];
+    const normalized = normalizeString(value);
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
 function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
   if (!item || typeof item !== "object") return null;
   const row = item as Record<string, unknown>;
-  const id = typeof row.id === "string" ? row.id.trim() : "";
-  const invoiceId = typeof row.invoice_id === "string" ? row.invoice_id.trim() : "";
+  const id = parseStringOrRawField(row, ["id"]);
+  const invoiceId = parseStringOrRawField(row, ["invoice_id", "invoiceId", "id"]);
   if (!id || !invoiceId) return null;
-  const type = typeof row.type === "string" ? row.type : "";
-  const orderType = typeof row.order_type === "string" ? row.order_type : "";
-  const status = typeof row.status === "number" && Number.isFinite(row.status) ? row.status : -1;
-  const comm =
-    typeof row.communication === "string" ? row.communication.trim().toUpperCase() : "";
+  const type = parseStringOrRawField(row, ["type", "transaction_type", "transactionType", "service_type", "serviceType", "category"]);
+  const orderType = parseStringOrRawField(row, ["order_type", "transaction_type", "transactionType", "service_type", "serviceType"]);
+  const statusRaw = row.status;
+  const status = typeof statusRaw === "number" && Number.isFinite(statusRaw) ? statusRaw : -1;
+  const comm = parseStringOrRawField(row, ["communication"]).toUpperCase();
   const canJoinVideoCall = orderType.toUpperCase() === "APPOINTMENT" && comm === "ONLINE";
   const details =
     row.details && typeof row.details === "object"
@@ -231,7 +302,39 @@ function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
     ot === "APPOINTMENT"
       ? consultationTitleAndMeta(row)
       : ongoingTitleAndMeta(type, orderType, details);
-  return { id, invoiceId, type, orderType, title, meta, status, canJoinVideoCall };
+
+  const rawInfo =
+    row.info && typeof row.info === "object"
+      ? (row.info as Record<string, unknown>)
+      : row.invoice && typeof row.invoice === "object"
+        ? (row.invoice as Record<string, unknown>)
+        : {};
+  const tx = transactionTypeFromRow(row);
+  const displayCategory = displayCategoryFromTx(tx);
+  const statusLabel = mapOngoingStatusLabel(row, rawInfo, tx);
+  const memberCount = Math.max(1, memberCountFromRow(row, rawInfo));
+  const patientName = patientNameFromRow(row, rawInfo, memberCount);
+  const patientLine = `For ${patientName}`;
+  const whenLine = friendlyWhenLine(row, rawInfo);
+  const visitTypeLabel = visitTypeLabelFromRow(row);
+
+  return {
+    id,
+    invoiceId,
+    type,
+    orderType,
+    title,
+    meta,
+    status,
+    canJoinVideoCall,
+    displayCategory,
+    statusLabel,
+    patientLine,
+    memberCount,
+    whenLine,
+    visitTypeLabel,
+    orderCategoryIconKey: orderCategoryKeyFromDisplayCategory(displayCategory),
+  };
 }
 
 export function normalizeDashboardOngoing(raw: unknown): DashboardOngoingItem[] {
@@ -266,15 +369,12 @@ function firstGymPackageName(packages: unknown): string | null {
 export function normalizeDashboardGym(raw: unknown): DashboardGymState | null {
   if (!raw || typeof raw !== "object") return null;
   const g = raw as Record<string, unknown>;
-  const membership = typeof g.membership === "string" ? g.membership : "";
-  const subscriptionId =
-    typeof g.subscription_id === "string" && g.subscription_id.trim()
-      ? g.subscription_id.trim()
-      : null;
+  const membership = normalizeString(g.membership);
+  const subscriptionId = normalizeString(g.subscription_id) || null;
   return {
     membership,
-    gymModule: g.gym_module === true,
-    paymentAvailable: g.payment_available === true,
+    gymModule: normalizeBoolean(g.gym_module),
+    paymentAvailable: normalizeBoolean(g.payment_available),
     packageName: firstGymPackageName(g.packages),
     subscriptionId,
     dependents: gymDependentsList(g.dependents),
@@ -294,7 +394,10 @@ export function dashboardNotificationCount(data: PatientDashboardResponse): numb
 
 /** Normalized fields for home / dashboard UI. */
 export type PatientDashboardHomeModel = Readonly<{
+  /** Home carousel — promo banners only (see `normalizePatientBannersPayload`). */
   apiBanners: DashboardBannerSlide[];
+  /** Annual Health Checkup card strip — from AHC-tagged / dedicated banner lists. */
+  ahcBanners: DashboardBannerSlide[];
   notificationCount: number;
   primaryAddressLine: string | null;
   ahc: boolean;
@@ -312,14 +415,15 @@ export function toDashboardHomeModel(data: PatientDashboardResponse): PatientDas
   const jm = data.jm_token;
   return {
     apiBanners: [],
+    ahcBanners: [],
     notificationCount: dashboardNotificationCount(data),
     primaryAddressLine: primaryAddressLineFromOngoing(ongoingRaw),
-    ahc: data.ahc === true,
+    ahc: normalizeBoolean(data.ahc),
     ongoing: normalizeDashboardOngoing(ongoingRaw),
     mood: normalizeNonNegNumber(data.mood),
     waterConsumed: normalizeNonNegNumber(data.water_consumed),
     caloriesBurnt: normalizeNonNegNumber(data.calories_burnt),
     gym: normalizeDashboardGym(data.gym),
-    jmToken: typeof jm === "string" && jm.trim() ? jm.trim() : null,
+    jmToken: normalizeString(jm) || null,
   };
 }

@@ -7,9 +7,9 @@ import {
 import { getAuthSession } from "@/lib/authStorage";
 
 /**
- * For routes with a stored auth session: resolves the notice board before {@link Outlet} mounts,
- * so hooks such as {@link useHomeDashboard} do not run authenticated APIs until the notice step
- * has completed (same session keys as {@link PreLoginNoticeGate}).
+ * For routes with a stored auth session: fetches the notice board from the API before
+ * {@link Outlet} mounts, so hooks such as {@link useHomeDashboard} do not run authenticated APIs
+ * until the notice step has completed.
  */
 export function SessionNoticeGateLayout() {
   const [authPhase, setAuthPhase] = useState<"checking" | "ready">("checking");

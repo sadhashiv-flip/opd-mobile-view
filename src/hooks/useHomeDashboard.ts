@@ -1,6 +1,6 @@
 import {
   fetchPatientBanners,
-  normalizePatientBannersList,
+  normalizePatientBannersPayload,
 } from "@/api/patientBanners";
 import {
   fetchPatientDashboard,
@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 const EMPTY: PatientDashboardHomeModel = {
   apiBanners: [],
+  ahcBanners: [],
   notificationCount: 0,
   primaryAddressLine: null,
   ahc: false,
@@ -26,7 +27,7 @@ export type UseHomeDashboardResult = PatientDashboardHomeModel;
 
 /**
  * Loads `GET /patient/dashboard` and `GET /patient/banners` on mount (in parallel).
- * Banner images for the home carousel come only from the banners API.
+ * Promo + AHC banner strips come from `GET /patient/banners` (split in {@link normalizePatientBannersPayload}).
  */
 export function useHomeDashboard(): UseHomeDashboardResult {
   const [model, setModel] = useState<PatientDashboardHomeModel>(EMPTY);
@@ -41,10 +42,10 @@ export function useHomeDashboard(): UseHomeDashboardResult {
         const bannersBody =
           results[1].status === "fulfilled" ? results[1].value : null;
         const base = dash ? toDashboardHomeModel(dash) : EMPTY;
-        const apiBanners = bannersBody
-          ? normalizePatientBannersList(bannersBody.banners)
-          : [];
-        setModel({ ...base, apiBanners });
+        const split = bannersBody ? normalizePatientBannersPayload(bannersBody) : null;
+        const apiBanners = split?.promoBanners ?? [];
+        const ahcBanners = split?.ahcBanners ?? [];
+        setModel({ ...base, apiBanners, ahcBanners });
       },
     );
     return () => {
