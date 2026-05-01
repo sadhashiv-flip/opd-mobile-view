@@ -34,6 +34,11 @@ function defaultGymSelection(rows: GymMemberListRow[]): string[] {
 
 export function GymMembershipSelectPeoplePage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate(ROUTES.gymMembership, { replace: true });
+  }, [navigate]);
+
   const location = useLocation();
   const toast = useToast();
   const statePlanId =

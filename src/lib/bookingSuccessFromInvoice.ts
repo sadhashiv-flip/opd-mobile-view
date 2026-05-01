@@ -1,5 +1,17 @@
 import type { InvoiceDetailModel } from "@/api/patientInvoices";
-import type { BookingSuccessLocationState } from "@/constants/bookingSuccessNavigation";
+import type {
+  BookingSuccessLocationState,
+  BookingSuccessSummaryRow,
+} from "@/constants/bookingSuccessNavigation";
+
+const GYM_SUCCESS_NEXT_STEPS =
+  "Activation is typically within 72 hours. Track status in My Orders.";
+
+function prettyGymLocation(key: string): string {
+  const t = key.trim();
+  if (!t) return "—";
+  return t[0].toUpperCase() + t.slice(1);
+}
 
 const DEFAULT_SUB =
   "your request is successfully submitted,\nour executive will contact you shortly.";
@@ -152,5 +164,67 @@ export function buildConsultationBookingSuccessFromInvoice(
     ],
     orderDetailCategoryKey: "consultation",
     orderDetailInvoiceId: inv || undefined,
+  };
+}
+
+/** Gym order from invoice detail (My Orders payment / verify). */
+export function buildGymBookingSuccessFromInvoice(detail: InvoiceDetailModel): BookingSuccessLocationState {
+  const inv = detail.id.trim();
+  const g = detail.gymOrderDetail;
+  const rows: BookingSuccessSummaryRow[] = [{ label: "Invoice ID", value: inv || "—" }];
+  const pkgName = g?.package?.packageName?.trim();
+  if (pkgName) rows.push({ label: "Package", value: pkgName });
+  const member = g?.enrolleeName?.trim();
+  if (member) rows.push({ label: "Member", value: member });
+  const loc = g?.location?.trim();
+  if (loc) rows.push({ label: "Center / location", value: loc });
+  rows.push({ label: "What's next", value: GYM_SUCCESS_NEXT_STEPS });
+  return {
+    layout: "summary",
+    title: "Payment successful",
+    description: "Your gym membership payment was received.",
+    summaryCardTitle: "Membership details",
+    summaryRows: rows,
+    orderDetailCategoryKey: "gym",
+    orderDetailInvoiceId: inv || undefined,
+  };
+}
+
+/** After gym overview confirm/pay when only opt-in response lines exist (no full invoice model yet). */
+export function buildGymMembershipPaymentSuccessState(args: {
+  readonly invoiceId: string;
+  readonly contactRows?: readonly Readonly<{
+    packageDisplayName: string;
+    memberDisplayName: string;
+    locationLabel: string;
+  }>[];
+}): BookingSuccessLocationState {
+  const invRaw = args.invoiceId.trim();
+  const inv = invRaw.length > 0 ? invRaw : "—";
+  const rows: BookingSuccessSummaryRow[] = [{ label: "Invoice ID", value: inv }];
+  const crs = args.contactRows ?? [];
+  if (crs.length === 1) {
+    const r = crs[0];
+    const pkg = r.packageDisplayName.trim();
+    if (pkg) rows.push({ label: "Package", value: pkg });
+    const mem = r.memberDisplayName.trim();
+    if (mem) rows.push({ label: "Member", value: mem });
+    const city = prettyGymLocation(r.locationLabel);
+    if (city !== "—") rows.push({ label: "Center / city", value: city });
+  } else if (crs.length > 1) {
+    rows.push({
+      label: "Members",
+      value: crs.map((r) => `${r.memberDisplayName.trim()} (${r.packageDisplayName.trim()})`).join("\n"),
+    });
+  }
+  rows.push({ label: "What's next", value: GYM_SUCCESS_NEXT_STEPS });
+  return {
+    layout: "summary",
+    title: "Payment successful",
+    description: "Your gym membership payment was received.",
+    summaryCardTitle: "Membership details",
+    summaryRows: rows,
+    orderDetailCategoryKey: "gym",
+    orderDetailInvoiceId: inv === "—" ? undefined : inv,
   };
 }

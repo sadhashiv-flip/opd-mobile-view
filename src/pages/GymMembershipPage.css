@@ -411,3 +411,364 @@
   width: 100%;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
 }
+
+/* --- Subscription flow (parity with patient-app GymMembershipScreen) --- */
+
+.gym-membership-empty-wrap {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.gym-sub-retry {
+  margin-top: 12px;
+  border: none;
+  background: transparent;
+  color: var(--primary, #2563eb);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gym-sub-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.gym-sub-picker__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.gym-sub-picker__select {
+  width: 100%;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.gym-sub-linear-wrap {
+  margin-bottom: 12px;
+}
+
+.gym-sub-linear {
+  height: 3px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--primary, #2563eb), transparent);
+  animation: gym-sub-linear-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes gym-sub-linear-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.gym-sub-banner {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.gym-sub-banner--warn {
+  background: color-mix(in srgb, var(--warning, #f59e0b) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warning, #f59e0b) 35%, transparent);
+}
+
+.gym-sub-banner--info {
+  background: color-mix(in srgb, var(--info, #0ea5e9) 10%, transparent);
+}
+
+.gym-sub-banner__text {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.gym-sub-fail {
+  margin-bottom: 12px;
+}
+
+.gym-sub-retry-inline {
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: var(--primary, #2563eb);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gym-sub-packages {
+  padding-bottom: 8px;
+}
+
+.gym-sub-section-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.gym-sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gym-sub-footer-spacer {
+  height: 88px;
+}
+
+.gym-continue-placeholder {
+  display: block;
+  height: 52px;
+}
+
+.gym-pkg-tile {
+  border-radius: 14px;
+}
+
+.gym-pkg-tile--selected .gym-pkg-tile__main {
+  border-color: var(--primary, #2563eb);
+  border-width: 1.5px;
+}
+
+.gym-pkg-tile__main {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #eef0f4;
+  background: #fff;
+  cursor: pointer;
+}
+
+.gym-pkg-tile__main:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gym-pkg-tile__check {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.gym-pkg-tile__check--on {
+  border-color: var(--primary, #2563eb);
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gym-pkg-tile__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gym-pkg-tile__title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.gym-pkg-tile__meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.gym-pkg-tile__divider {
+  height: 1px;
+  background: #eef0f4;
+  margin: 4px 0;
+}
+
+.gym-pkg-tile__member {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gym-pkg-tile__hint {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.gym-pkg-tile__hint--link {
+  color: var(--primary, #2563eb);
+  font-weight: 600;
+}
+
+.gym-pkg-tile__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gym-pkg-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--info, #0ea5e9) 14%, transparent);
+  color: #0369a1;
+}
+
+.gym-pkg-tile__coverage {
+  margin-top: 4px;
+}
+
+.gym-pkg-wallet {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 9px 10px;
+  border-radius: 8px;
+}
+
+.gym-pkg-wallet--free {
+  background: color-mix(in srgb, #22c55e 16%, transparent);
+  color: #15803d;
+}
+
+.gym-pkg-wallet--pay {
+  background: color-mix(in srgb, var(--primary, #2563eb) 12%, transparent);
+  color: #1d4ed8;
+}
+
+/* Portaled under `.mobile-frame` — scope overlay to phone column */
+.gym-dep-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gym-dep-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.gym-dep-modal__sheet {
+  position: relative;
+  width: 100%;
+  max-height: 85vh;
+  overflow: auto;
+  background: #fff;
+  border-radius: 18px 18px 0 0;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  z-index: 1;
+}
+
+.gym-dep-modal__handle {
+  width: 34px;
+  height: 4px;
+  border-radius: 10px;
+  background: #e5e7eb;
+  margin: 0 auto 12px;
+}
+
+.gym-dep-modal__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.gym-dep-modal__pkg {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.gym-dep-modal__list {
+  max-height: 44vh;
+  overflow: auto;
+}
+
+.gym-dep-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.gym-dep-row--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.gym-dep-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gym-dep-row__name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gym-dep-row__sub {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.gym-dep-modal__wait {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.gym-dep-modal__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.gym-dep-btn {
+  padding: 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gym-dep-btn--outline {
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+
+.gym-dep-btn--primary {
+  border: none;
+  background: #000;
+  color: #fff;
+}
+
+.gym-dep-btn--primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

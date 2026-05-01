@@ -10,11 +10,16 @@ import {
   writeDiagnosticsSelectedMembersSnapshots,
   writeDiagnosticsSelectedPersonIds,
 } from "@/constants/diagnosticsSelectedMemberStorage";
+import { writeHealthSponsoredFlag } from "@/constants/diagnosticsHealthFlowStorage";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
 import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
 import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -33,6 +38,28 @@ function defaultSelection(rows: GymMemberListRow[]): string[] {
   const primary = rows.find((r) => r.section === "self");
   if (primary) return [primary.id];
   return rows[0] ? [rows[0].id] : [];
+}
+
+function parseBoolSearchParam(sp: URLSearchParams, key: string): boolean {
+  const v = sp.get(key)?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+/** Health-checkups only — mutual exclusion between sponsored-eligible and other members (patient_app). */
+function healthCheckupsMemberPickDisabled(
+  member: GymMemberListRow,
+  selectedIds: readonly string[],
+  allRows: readonly GymMemberListRow[],
+): boolean {
+  const selected = selectedIds
+    .map((id) => allRows.find((r) => r.id === id))
+    .filter((r): r is GymMemberListRow => r != null);
+  if (selected.length === 0) return false;
+  const anyAhc = selected.some((s) => s.ahcAvailable);
+  const anyNonAhc = selected.some((s) => !s.ahcAvailable);
+  if (anyAhc && !member.ahcAvailable) return true;
+  if (anyNonAhc && member.ahcAvailable) return true;
+  return false;
 }
 
 type SelectPeopleFlowPageProps = Readonly<{ flow: SelectPeopleFlowKind }>;
@@ -80,15 +107,29 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     visionOption === "eye-checkup" ? "Eye Checkup" : visionOption === "glasses-lens" ? "Glasses/Lens" : null;
 
   const labTestsMulti = isLabTestsDiagnosticsFlow(flow, type);
+  const isHealthCheckupsDiagnostics = flow === "diagnostics" && type === "health-checkups";
+  /** Lab tests and health checkups allow multiple members (health keeps sponsored / non-sponsored exclusion). */
+  const diagnosticsMultiMember = labTestsMulti || isHealthCheckupsDiagnostics;
 
-  if (flow === "vision" && visionOption == null) {
-    return <Navigate to={ROUTES.dashboard} replace />;
-  }
+  const filterAhcDashboardEntry = useMemo(() => {
+    if (!isHealthCheckupsDiagnostics) return false;
+    const sp = new URLSearchParams(location.search);
+    return parseBoolSearchParam(sp, "sponsored") || parseBoolSearchParam(sp, "ahc");
+  }, [isHealthCheckupsDiagnostics, location.search]);
 
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const hcLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const hcLocAddrTag = useSelectedAddressTag("HOME");
+
+  const selectionBasisRows = useMemo(() => {
+    if (!isHealthCheckupsDiagnostics) return rows;
+    if (!filterAhcDashboardEntry) return rows;
+    return rows.filter((r) => r.ahcAvailable);
+  }, [rows, isHealthCheckupsDiagnostics, filterAhcDashboardEntry]);
 
   const loadMembers = async () => {
     const list = await fetchAllPatientMembers();
@@ -120,29 +161,41 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     };
   }, [toast, location.key]);
 
-  const maxSelectable = labTestsMulti ? Number.POSITIVE_INFINITY : 1;
+  useEffect(() => {
+    if (!isHealthCheckupsDiagnostics) return;
+    void ensureDefaultSelectedAddressIfNeeded();
+  }, [isHealthCheckupsDiagnostics]);
+
+  const maxSelectable = diagnosticsMultiMember ? Number.POSITIVE_INFINITY : 1;
 
   useEffect(() => {
-    if (rows.length === 0) {
+    if (selectionBasisRows.length === 0) {
       setSelectedIds([]);
       return;
     }
     setSelectedIds((prev) => {
-      let next = prev.filter((id) => rows.some((r) => r.id === id));
-      if (next.length === 0) {
-        next = defaultSelection(rows);
+      let next = prev.filter((id) => selectionBasisRows.some((r) => r.id === id));
+      if (next.length === 0 && !isHealthCheckupsDiagnostics) {
+        next = defaultSelection(selectionBasisRows);
       }
       if (Number.isFinite(maxSelectable) && next.length > maxSelectable) {
         next = next.slice(0, maxSelectable);
       }
       return next;
     });
-  }, [rows, labTestsMulti, maxSelectable]);
+  }, [selectionBasisRows, maxSelectable, isHealthCheckupsDiagnostics]);
 
-  const selfMembers = useMemo(() => rows.filter((m) => m.section === "self"), [rows]);
-  const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
+  const selfMembers = useMemo(
+    () => selectionBasisRows.filter((m) => m.section === "self"),
+    [selectionBasisRows],
+  );
+  const familyMembersList = useMemo(
+    () => selectionBasisRows.filter((m) => m.section === "family"),
+    [selectionBasisRows],
+  );
 
-  const canContinue = selectedIds.length > 0 && !loading && !fetchError && rows.length > 0;
+  const canContinue =
+    selectedIds.length > 0 && !loading && !fetchError && selectionBasisRows.length > 0;
 
   const toggleMember = (memberId: string) => {
     setSelectedIds((prev) => {
@@ -151,11 +204,24 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
           ? prev.filter((id) => id !== memberId)
           : [...prev, memberId];
       }
+      if (isHealthCheckupsDiagnostics) {
+        const row = rows.find((r) => r.id === memberId);
+        if (!row) return prev;
+        if (
+          !prev.includes(memberId) &&
+          healthCheckupsMemberPickDisabled(row, prev, rows)
+        ) {
+          return prev;
+        }
+        return prev.includes(memberId)
+          ? prev.filter((id) => id !== memberId)
+          : [...prev, memberId];
+      }
       return prev.includes(memberId) ? prev : [memberId];
     });
   };
 
-  const renderTrailing = (member: GymMemberListRow) => {
+  const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
     const isSelected = selectedIds.includes(member.id);
     if (isSelected) {
       return (
@@ -165,7 +231,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       );
     }
     return (
-      <span className="hc-person__cta" aria-hidden="true">
+      <span
+        className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
+        aria-hidden="true"
+      >
         Add
       </span>
     );
@@ -224,6 +293,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
     writeDiagnosticsSelectedPersonIds(selectedIds);
     writeDiagnosticsSelectedMembersSnapshots(snapshots);
+    if (type === "health-checkups") {
+      const pickedRows = selectedIds
+        .map((id) => rows.find((r) => r.id === id))
+        .filter((r): r is GymMemberListRow => r != null);
+      writeHealthSponsoredFlag(pickedRows.some((r) => r.ahcAvailable));
+    }
     try {
       localStorage.setItem("opd-mobile-view.health-checkups.selectedPersonId", selectedIds[0] ?? "");
     } catch {
@@ -234,6 +309,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       search: location.search,
     });
   };
+
+  if (flow === "vision" && visionOption == null) {
+    return <Navigate to={ROUTES.dashboard} replace />;
+  }
 
   return (
     <div className="hc-page">
@@ -271,6 +350,43 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       </header>
 
       <main className="hc-main">
+        {isHealthCheckupsDiagnostics ? (
+          <div className="hc-loc-wrap">
+            <button
+              type="button"
+              className="hc-select-loc"
+              aria-label="Choose address"
+              onClick={() => setAddrSheetOpen(true)}
+            >
+              <span className="hc-select-loc__pin" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
+                    fill="#FF541E"
+                  />
+                  <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
+                </svg>
+              </span>
+              <span className="hc-select-loc__title">{hcLocAddrTag}</span>
+              <span className="hc-select-loc__sep" aria-hidden="true">
+                |
+              </span>
+              <span className="hc-select-loc__addr">{hcLocAddrLine}</span>
+              <span className="hc-select-loc__chev" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </button>
+          </div>
+        ) : null}
+
         {loading ? (
           <p className="hc-member-loading" aria-busy="true">
             Loading members…
@@ -308,68 +424,115 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
           <p className="hc-member-empty">No members on your account. Add a family member to continue.</p>
         ) : null}
 
-        {!loading && !fetchError && rows.length > 0 ? (
+        {!loading && !fetchError && rows.length > 0 && selectionBasisRows.length === 0 && isHealthCheckupsDiagnostics && filterAhcDashboardEntry ? (
+          <p className="hc-member-empty" role="alert">
+            No members are eligible for the sponsored health checkup yet.
+          </p>
+        ) : null}
+
+        {!loading && !fetchError && selectionBasisRows.length > 0 ? (
           <>
-            {labTestsMulti ? (
+            {diagnosticsMultiMember ? (
               <p className="hc-block__subhint">
-                Select one or more members for this lab booking. Tap again to remove someone from the list.
+                {labTestsMulti
+                  ? "Select one or more members for this lab booking. Tap again to remove someone from the list."
+                  : "Select one or more members for this health checkup. Sponsored-eligible and other members cannot be mixed — tap again to remove someone from the list."}
               </p>
+            ) : null}
+            {isHealthCheckupsDiagnostics ? (
+              <div
+                className={`hc-selection-hint${filterAhcDashboardEntry ? " hc-selection-hint--sponsored" : ""}`}
+                role="note"
+              >
+                <span className="hc-selection-hint__ic" aria-hidden>
+                  {filterAhcDashboardEntry ? "✓" : "i"}
+                </span>
+                <p className="hc-selection-hint__text">
+                  {filterAhcDashboardEntry
+                    ? "Sponsored checkup is available for eligible members."
+                    : "Members eligible for a sponsored checkup are labeled below. You cannot combine sponsored-eligible and other members — pick one group."}
+                </p>
+              </div>
             ) : null}
             <section className="hc-block">
               <h2 className="hc-block__title">For you</h2>
-              {selfMembers.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
-                  onClick={() => toggleMember(member.id)}
-                >
-                  <span className="hc-person__avatar" aria-hidden="true">
-                    <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                  </span>
-                  <span className="hc-person__info">
-                    <span className="hc-person__name">{member.name}</span>
-                    <span className="hc-person__sub">{member.subtitle}</span>
-                  </span>
-                  {renderTrailing(member)}
-                </button>
-              ))}
+              {selfMembers.map((member) => {
+                const rowDisabled =
+                  isHealthCheckupsDiagnostics &&
+                  healthCheckupsMemberPickDisabled(member, selectedIds, rows);
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    disabled={rowDisabled}
+                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
+                    onClick={() => toggleMember(member.id)}
+                  >
+                    <span className="hc-person__avatar" aria-hidden="true">
+                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
+                    </span>
+                    <span className="hc-person__info">
+                      <span className="hc-person__name">{member.name}</span>
+                      {isHealthCheckupsDiagnostics && member.ahcAvailable ? (
+                        <span className="hc-person__tag hc-person__tag--sponsored">Sponsored</span>
+                      ) : null}
+                      <span className="hc-person__sub">{member.subtitle}</span>
+                    </span>
+                    {renderTrailing(member, rowDisabled)}
+                  </button>
+                );
+              })}
             </section>
 
             <section className="hc-block">
-              <h2 className="hc-block__title">For your family</h2>
-              {familyMembersList.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
-                  onClick={() => toggleMember(member.id)}
-                >
-                  <span className="hc-person__avatar" aria-hidden="true">
-                    <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                  </span>
-                  <span className="hc-person__info">
-                    <span className="hc-person__name">{member.name}</span>
-                    <span className="hc-person__sub">{member.subtitle}</span>
-                  </span>
-                  {renderTrailing(member)}
-                </button>
-              ))}
+              {familyMembersList.length > 0 ? (
+                <>
+                  <h2 className="hc-block__title">For your family</h2>
+                  {familyMembersList.map((member) => {
+                    const rowDisabled =
+                      isHealthCheckupsDiagnostics &&
+                      healthCheckupsMemberPickDisabled(member, selectedIds, rows);
+                    return (
+                      <button
+                        key={member.id}
+                        type="button"
+                        disabled={rowDisabled}
+                        className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
+                        onClick={() => toggleMember(member.id)}
+                      >
+                        <span className="hc-person__avatar" aria-hidden="true">
+                          <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
+                        </span>
+                        <span className="hc-person__info">
+                          <span className="hc-person__name">{member.name}</span>
+                          {isHealthCheckupsDiagnostics && member.ahcAvailable ? (
+                            <span className="hc-person__tag hc-person__tag--sponsored">Sponsored</span>
+                          ) : null}
+                          <span className="hc-person__sub">{member.subtitle}</span>
+                        </span>
+                        {renderTrailing(member, rowDisabled)}
+                      </button>
+                    );
+                  })}
+                </>
+              ) : null}
 
-              <button
-                type="button"
-                className="hc-add-family"
-                onClick={() =>
-                  navigate(ROUTES.profileMembersAdd, {
-                    state: { returnPath: `${location.pathname}${location.search}` },
-                  })
-                }
-              >
-                <span className="hc-add-family__ic" aria-hidden="true">
-                  +
-                </span>
-                <span> Add new family member</span>
-              </button>
+              {!(isHealthCheckupsDiagnostics && filterAhcDashboardEntry) ? (
+                <button
+                  type="button"
+                  className="hc-add-family"
+                  onClick={() =>
+                    navigate(ROUTES.profileMembersAdd, {
+                      state: { returnPath: `${location.pathname}${location.search}` },
+                    })
+                  }
+                >
+                  <span className="hc-add-family__ic" aria-hidden="true">
+                    +
+                  </span>
+                  <span> Add new family member</span>
+                </button>
+              ) : null}
             </section>
           </>
         ) : null}
@@ -377,11 +540,15 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
       <footer className="hc-footer">
         <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
-          {labTestsMulti && selectedIds.length > 0
+          {diagnosticsMultiMember && selectedIds.length > 0
             ? `Continue (${selectedIds.length})`
             : "Continue"}
         </button>
       </footer>
+
+      {isHealthCheckupsDiagnostics ? (
+        <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+      ) : null}
     </div>
   );
 }

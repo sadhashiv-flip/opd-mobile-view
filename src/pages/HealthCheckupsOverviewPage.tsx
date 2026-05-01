@@ -1,5 +1,4 @@
 import { ROUTES } from "@/constants";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { DIAG_LAB_SLOT_PAYLOAD_KEY } from "@/constants/diagnosticsLabFlowStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
@@ -8,12 +7,15 @@ import {
   readSelectedAddress,
   subscribeSelectedAddress,
 } from "@/constants/selectedAddressStorage";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
 import { useDiagnosticsRazorpayConfirm } from "@/hooks/useDiagnosticsRazorpayConfirm";
 import { confirmDiagnosticsOrder } from "@/api/patientDiagnosticsOrderConfirm";
 import {
+  formatDiagnosticSlotPickLabels,
   normalizeBookingOverviewPayload,
+  overviewHideItemLinePrices,
+  overviewOmitPaymentSection,
   parseBookingInvoiceId,
   parseDiagnosticsFinalizeResponse,
   postDiagnosticsBooking,
@@ -116,19 +118,30 @@ function LtCard(props: Readonly<{
   icon: ReactNode;
   title: string;
   subtitle?: string;
+  /** Tinted icon chip like Flutter `HealthCheckupOverviewScreen._buildCard`. */
+  accentIcon?: boolean;
+  compact?: boolean;
   children: ReactNode;
 }>) {
   return (
-    <section className="lt-card">
+    <section className={`lt-card${props.compact ? " lt-card--compact" : ""}`}>
       <div className="lt-card__head">
-        <div className="lt-card__icon" aria-hidden>
+        <div
+          className={`lt-card__icon${props.accentIcon ? " lt-card__icon--accent" : ""}`}
+          aria-hidden
+        >
           {props.icon}
         </div>
         <div className="lt-card__titles">
-          <h2 className="lt-card__title">{props.title}</h2>
+          <h2
+            className={`lt-card__title${props.accentIcon ? " lt-card__title--emphasis" : ""}${props.compact ? " lt-card__title--compact" : ""}`}
+          >
+            {props.title}
+          </h2>
           {props.subtitle ? <p className="lt-card__subtitle">{props.subtitle}</p> : null}
         </div>
       </div>
+      <div className="lt-card__rule" aria-hidden />
       <div className="lt-card__body">{props.children}</div>
     </section>
   );
@@ -154,6 +167,45 @@ function LabVendorLogo(props: Readonly<{ name: string | null; logoPath: string |
 function labConfirmPrimaryLabel(o: NormalizedBookingOverview): string {
   if (o.amountToPay <= 0) return "Confirm booking";
   return `Pay ₹${formatInr(o.amountToPay)}`;
+}
+
+function HealthBookingItemRow(props: Readonly<{ item: DiagnosticsOverviewLineItem }>) {
+  const { item } = props;
+  const memberName = (item.userName ?? "").trim() || "Member";
+  const initial = memberName.length > 0 ? memberName[0]!.toUpperCase() : "?";
+  const hidePrices = overviewHideItemLinePrices(item);
+  const mainPrice = item.free ? "Free" : !hidePrices ? `₹${formatInr(item.offerPrice)}` : "—";
+  const showMrp =
+    !hidePrices && !item.free && item.b2cPrice > 0 && item.b2cPrice > item.offerPrice;
+  const showRightCol = !hidePrices || item.free;
+
+  return (
+    <div className="lt-booking-row">
+      <div className="lt-booking-row__avatar" aria-hidden>
+        {initial}
+      </div>
+      <div className="lt-booking-row__mid">
+        <div className="lt-booking-row__member">{memberName}</div>
+        <div className="lt-booking-row__pkg">{item.name}</div>
+        {item.category.trim() ? (
+          <div className="lt-booking-row__cat">{capitalizeWord(item.category)}</div>
+        ) : null}
+      </div>
+      {showRightCol ? (
+        <div className="lt-booking-row__price">
+          {showMrp ? <div className="lt-booking-row__mrp">₹{formatInr(item.b2cPrice)}</div> : null}
+          <div
+            className={`lt-booking-row__offer${item.free ? " lt-booking-row__offer--free" : ""}`}
+          >
+            {mainPrice}
+          </div>
+          {!item.free && !hidePrices && item.savedLine > 0 ? (
+            <div className="lt-booking-row__save">Save ₹{formatInr(item.savedLine)}</div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function LtPricingSummary(props: Readonly<{ overview: NormalizedBookingOverview }>) {
@@ -253,6 +305,23 @@ const LT_IC_CLOCK = (
     <path d="M12 7v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
+const LT_IC_PEOPLE = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path
+      d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+const LT_IC_EVENT = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+    <path d="M16 3v4M8 3v4M3 11h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 const LT_IC_FLASK = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path
@@ -316,20 +385,13 @@ export function HealthCheckupsOverviewPage() {
   const locAddrLine = useSelectedAddressLine(
     isLabTests ? LAB_OVERVIEW_ADDRESS : DEFAULT_LOCATION_ADDRESS_LINE,
   );
+  const fallbackAddrTag = useSelectedAddressTag("HOME");
 
   const selectedAddressId = useSyncExternalStore(
     subscribeSelectedAddress,
     () => readSelectedAddress()?.id?.trim() ?? "",
     () => "",
   );
-
-  const vendorId = useMemo(() => {
-    try {
-      return localStorage.getItem("opd-mobile-view.diagnostics.vendorId") ?? "";
-    } catch {
-      return "";
-    }
-  }, []);
 
   const slotLabel = useMemo(() => {
     try {
@@ -356,6 +418,10 @@ export function HealthCheckupsOverviewPage() {
   const [labSubmitting, setLabSubmitting] = useState(false);
   const [labPaySheetOpen, setLabPaySheetOpen] = useState(false);
   const [useLabWallet, setUseLabWallet] = useState(false);
+  const [healthPaySheetOpen, setHealthPaySheetOpen] = useState(false);
+  const [useHealthWallet, setUseHealthWallet] = useState(false);
+  /** In-app dialog when payment section is omitted — replaces `window.confirm` (Flutter `CommonDialog.confirm`). */
+  const [healthBookingConfirmOpen, setHealthBookingConfirmOpen] = useState(false);
 
   const loadLabOverview = useCallback(async () => {
     if (!isLabTests) return;
@@ -402,6 +468,31 @@ export function HealthCheckupsOverviewPage() {
   useEffect(() => {
     if (labOverview) setUseLabWallet(false);
   }, [labOverview]);
+
+  useEffect(() => {
+    if (!isLabTests && labOverview) setUseHealthWallet(false);
+  }, [isLabTests, labOverview]);
+
+  useEffect(() => {
+    if (!healthBookingConfirmOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [healthBookingConfirmOpen]);
+
+  useEffect(() => {
+    if (!healthBookingConfirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (labSubmitting) return;
+      e.preventDefault();
+      setHealthBookingConfirmOpen(false);
+    };
+    globalThis.addEventListener("keydown", onKey, true);
+    return () => globalThis.removeEventListener("keydown", onKey, true);
+  }, [healthBookingConfirmOpen, labSubmitting]);
 
   useEffect(() => {
     if (!isLabTests) return;
@@ -601,7 +692,56 @@ export function HealthCheckupsOverviewPage() {
     });
   };
 
-  const addedItemsCount = Math.max(1, labOverview?.items.length ?? 1);
+  const healthOmitPayment =
+    !isLabTests && labOverview != null && overviewOmitPaymentSection(labOverview);
+
+  const healthScheduleRows = useMemo((): { cat: string | null; date: string; time: string }[] => {
+    if (isLabTests || !labOverview) return [];
+    const path = parseStoredHealthSlot(readHealthPathologySlotJson());
+    const rad = parseStoredHealthSlot(readHealthRadiologySlotJson());
+    const fmt = (p: DiagnosticSlotPick) => {
+      const x = formatDiagnosticSlotPickLabels(p);
+      return {
+        date: x.formattedSlotDate ?? "—",
+        time: x.formattedSlotTimeRange ?? "—",
+      };
+    };
+    if (path && rad) {
+      const a = fmt(path);
+      const b = fmt(rad);
+      return [
+        { cat: "Pathology", date: a.date, time: a.time },
+        { cat: "Radiology", date: b.date, time: b.time },
+      ];
+    }
+    if (path) {
+      const a = fmt(path);
+      return [{ cat: null, date: a.date, time: a.time }];
+    }
+    if (rad) {
+      const a = fmt(rad);
+      return [{ cat: null, date: a.date, time: a.time }];
+    }
+    if (labOverview.formattedSlotDate || labOverview.formattedSlotTimeRange) {
+      return [
+        {
+          cat: null,
+          date: labOverview.formattedSlotDate ?? "—",
+          time: labOverview.formattedSlotTimeRange ?? "—",
+        },
+      ];
+    }
+    return [];
+  }, [isLabTests, labOverview]);
+
+  const handleHealthContinueTap = () => {
+    if (!labOverview || labSubmitting) return;
+    if (healthOmitPayment) {
+      setHealthBookingConfirmOpen(true);
+      return;
+    }
+    setHealthPaySheetOpen(true);
+  };
 
   const runLabPlaceOrder = async (wallet: boolean) => {
     if (!isLabTests || labSubmitting) return;
@@ -639,7 +779,7 @@ export function HealthCheckupsOverviewPage() {
     }
   };
 
-  const onHealthConfirm = async () => {
+  const onHealthConfirm = async (useAppWallet: boolean) => {
     if (isLabTests || labSubmitting) return;
     const body = buildHealthBookingBody();
     if (!body) {
@@ -649,7 +789,7 @@ export function HealthCheckupsOverviewPage() {
     setLabSubmitting(true);
     let keepSubmitting = false;
     try {
-      const raw = await postDiagnosticsHealthBooking(false, body, false);
+      const raw = await postDiagnosticsHealthBooking(false, body, useAppWallet);
       const r = await finalizeDiagnosticsCheckout(raw);
       if (r === "razorpay") keepSubmitting = true;
     } catch (e) {
@@ -664,7 +804,7 @@ export function HealthCheckupsOverviewPage() {
     labItemGroups.some((g) => g.userKey >= 0 && (g.userName ?? "").trim().length > 0);
 
   return (
-    <div className={`hco-page ${isLabTests ? "hco-page--lab-review" : "hco-page--lab"}`}>
+    <div className={`hco-page ${isLabTests ? "hco-page--lab-review" : "hco-page--ahc-overview"}`}>
       <header className="hco-top">
         <Link
           to={isLabTests ? ROUTES.orders : generatePath(ROUTES.diagnosticsSlots, { type })}
@@ -682,59 +822,13 @@ export function HealthCheckupsOverviewPage() {
             />
           </svg>
         </Link>
-        <h1 className="hco-title">{isLabTests ? "Review Booking" : "Booking summary"}</h1>
-        {isLabTests ? (
-          <span className="hco-top__balance" aria-hidden="true" />
-        ) : (
-          <Link to={ROUTES.orders} className="hco-orders">
-            <span className="hco-orders__ic" aria-hidden="true">
-              <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-            </span>
-            <span>My Orders</span>
-          </Link>
-        )}
+        <h1 className="hco-title">{isLabTests ? "Review Booking" : "Booking Overview"}</h1>
+        <span className="hco-top__balance" aria-hidden="true" />
       </header>
-
-      {!isLabTests ? (
-        <button
-          type="button"
-          className="hco-loc"
-          aria-label="Choose delivery address"
-          onClick={() => setAddrSheetOpen(true)}
-        >
-          <span className="hco-loc__pin" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
-                fill="#FF541E"
-              />
-              <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
-            </svg>
-          </span>
-          <div className="hco-loc__body">
-            <span className="hco-loc__title">Home</span>
-            <span className="hco-loc__sep" aria-hidden="true">
-              |
-            </span>
-            <span className="hco-loc__addr">{locAddrLine}</span>
-          </div>
-          <span className="hco-loc__chev" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 9l6 6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-        </button>
-      ) : null}
 
       <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
-      <main className={`hco-main ${isLabTests ? "hco-main--lab-review" : ""}`}>
+      <main className={`hco-main ${isLabTests ? "hco-main--lab-review" : "hco-main--ahc-overview"}`}>
         {isLabTests ? (
           <>
             {labOverviewLoading ? (
@@ -890,7 +984,9 @@ export function HealthCheckupsOverviewPage() {
                                       <div className="lt-saved">Saved ₹{formatInr(it.savedLine)}</div>
                                     ) : null}
                                   </div>
-                                  <div className="lt-test-line__price">₹{formatInr(it.lineTotal)}</div>
+                                  <div className="lt-test-line__price">
+                                    {overviewHideItemLinePrices(it) ? "—" : `₹${formatInr(it.lineTotal)}`}
+                                  </div>
                                 </div>
                               </div>
                             ))}
@@ -929,149 +1025,113 @@ export function HealthCheckupsOverviewPage() {
             ) : null}
           </>
         ) : (
-          <div className="hco-main__inner">
-            <div className="hco-main__content">
-              <div className="hco-subhead">
-                <span className="hco-subhead__title">Added Items({addedItemsCount})</span>
+          <>
+            {labOverviewLoading ? (
+              <div className="lt-overview lt-overview--loading">
+                <output className="lt-overview__spinner" aria-live="polite">
+                  Loading…
+                </output>
               </div>
+            ) : null}
 
-              {labOverviewLoading ? <p className="hco-help">Loading booking summary…</p> : null}
-              {labOverviewError ? (
-                <p className="hco-help" role="alert">
-                  {labOverviewError}
+            {!labOverviewLoading && labOverviewError && !labOverview ? (
+              <div className="lt-overview lt-overview--error">
+                <p className="lt-overview__err" role="alert">
+                  {(labOverviewError ?? "").trim() || "Could not load booking details"}
                 </p>
-              ) : null}
-
-              {labOverview?.items.map((it, idx) => (
-                <section key={`${it.name}-${String(idx)}`} className="hco-item">
-                  <div className="hco-item__row">
-                    <div className="hco-item__text">
-                      <div className="hco-item__name">{it.name}</div>
-                      <div className="hco-item__meta">
-                        {labOverview?.vendorName || vendorId || "Diagnostics partner"}
-                        {it.qty > 1 ? ` · Qty ${it.qty}` : ""}
-                      </div>
-                    </div>
-                    <div className="hco-item__price">₹ {formatInr(it.lineTotal)}</div>
-                  </div>
-                </section>
-              ))}
-
-              <section className="hco-block">
-                <div className="hco-label">
-                  Phone number
-                  {labOverview?.userPhone ? ` : +91 ${labOverview.userPhone}` : " : +91 —"}
-                </div>
-                <div className="hco-help">Booking related updates will be sent on this number</div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Alternate Phone number</div>
-                <div className="hco-alt">
-                  <span className="hco-alt__cc">+91</span>
-                  <input
-                    className="hco-alt__input"
-                    placeholder="Enter your alternate number here"
-                    value={altPhone}
-                    onChange={(e) => setAltPhone(e.target.value)}
-                  />
-                </div>
-              </section>
-
-              <section className="hco-block">
-                <div className="hco-label">Date and time</div>
-                <div className="hco-dt">
-                  <span className="hco-dt__value">{dateTimeDisplay}</span>
-                </div>
-              </section>
-
-              <section className="hco-lab-vendor" aria-label="Price breakdown">
-                <div className="hco-lab-vendor__head">
-                  <span className="hco-lab-vendor__logo">
-                    {labOverview?.vendorName || "Diagnostics"}
-                  </span>
-                  <span className="hco-lab-vendor__rating" aria-hidden="true">
-                    ★ 4.5
-                  </span>
-                </div>
-                <div className="hco-lab-vendor__lines">
-                  {(labOverview?.items ?? []).map((it, idx) => (
-                    <div key={`${it.name}-v-${String(idx)}`} className="hco-lab-vendor__line">
-                      <span className="hco-lab-vendor__name">{it.name}</span>
-                      <span className="hco-lab-vendor__price">₹ {formatInr(it.lineTotal)}</span>
-                    </div>
-                  ))}
-                  <div className="hco-lab-vendor__line hco-lab-vendor__line--charge">
-                    <span>Home Collection Charges</span>
-                    <span className="hco-lab-vendor__price hco-lab-vendor__price--orange">
-                      ₹ {formatInr(labOverview?.collectionCharges ?? 0)}
-                    </span>
-                  </div>
-                </div>
-                <div className="hco-lab-vendor__card-total">
-                  ₹ {formatInr(labOverview?.netAmount ?? 0)}
-                </div>
-              </section>
-
-              <section className="hco-totals hco-totals--lab">
-                <div className="hco-totals__row">
-                  <span className="hco-totals__k">Total MRP</span>
-                  <span className="hco-totals__v">₹ {formatInr(labOverview?.totalGross ?? 0)}</span>
-                </div>
-                <div className="hco-wallet hco-wallet--lab">
-                  <div className="hco-wallet__left">
-                    <div className="hco-wallet__k">From Wallet</div>
-                    <div className="hco-wallet__sub">
-                      Wallet limit
-                      {labOverview?.walletModuleAvailable != null
-                        ? `: ₹ ${formatInr(labOverview.walletModuleAvailable)}`
-                        : ""}
-                    </div>
-                  </div>
-                  <div className="hco-wallet__v">
-                    ₹ {formatInr(labOverview?.walletPaid ?? labOverview?.netAmount ?? 0)}
-                  </div>
-                </div>
-                <div className="hco-net hco-net--lab">
-                  <span className="hco-net__k">Net Pay</span>
-                  <span className="hco-net__v">₹ {formatInr(labOverview?.amountToPay ?? 0)}</span>
-                </div>
-              </section>
-
-              <section className="hco-coins hco-coins--lab" aria-label="Rewards">
-                <span className="hco-coins__text">Flip Coins to be earned (1%):</span>
-                <span className="hco-coins__pill hco-coins__pill--lab">
-                  <span className="hco-coins__coin hco-coins__coin--gold" aria-hidden="true">
-                    ●
-                  </span>
-                  <span>—</span>
-                  <span className="hco-coins__worth"> </span>
-                </span>
-              </section>
-
-              <p className="hco-coins__note">
-                Note : Flip Coins will be credited after order completion
-              </p>
-
-              <div className="hco-remarks">
-                <div className="hco-remarks__k">Remarks :</div>
-                <div className="hco-remarks__v">Order cannot be cancelled once confirmed</div>
+                <button type="button" className="lt-overview__retry" onClick={() => void loadHealthOverview()}>
+                  Retry
+                </button>
               </div>
-            </div>
+            ) : null}
 
-            <footer className="hco-paybar">
-              <button
-                type="button"
-                className="hco-paybar__btn hco-paybar__btn--lab"
-                disabled={labSubmitting || labOverviewLoading || !labOverview}
-                onClick={() => void onHealthConfirm()}
-              >
-                <span className="hco-paybar__lab-label">
-                  {labSubmitting ? "Confirming…" : "Confirm and pay"}
-                </span>
-              </button>
-            </footer>
-          </div>
+            {!labOverviewLoading && labOverview ? (
+              <div className="lt-overview">
+                <LtCard icon={LT_IC_PIN} title="Address" accentIcon>
+                  <div className="lt-addr-plain">
+                    <div className="lt-addr-plain__tag">
+                      {labOverview.addressTag?.trim() || fallbackAddrTag}
+                    </div>
+                    <p className="lt-addr-plain__lines">
+                      {labOverview.addressLine.trim() || locAddrLine.trim()}
+                    </p>
+                  </div>
+                </LtCard>
+
+                <LtCard icon={LT_IC_PEOPLE} title="Members & Packages" accentIcon>
+                  <div className="lt-health-members">
+                    {labOverview.items.length > 0 ? (
+                      labOverview.items.map((it, idx) => (
+                        <HealthBookingItemRow key={`${it.name}-${String(idx)}`} item={it} />
+                      ))
+                    ) : (
+                      <p className="lt-muted">No packages in this preview.</p>
+                    )}
+                  </div>
+                </LtCard>
+
+                <LtCard icon={LT_IC_CLOCK} title="Scheduled Slots" accentIcon>
+                  <div className="lt-health-slots">
+                    {healthScheduleRows.length > 0 ? (
+                      healthScheduleRows.map((row, idx) => (
+                        <div key={`${String(idx)}-${row.date}-${row.time}`} className="lt-slot-row">
+                          <span className="lt-slot-row__ic" aria-hidden>
+                            {LT_IC_EVENT}
+                          </span>
+                          <div className="lt-slot-row__body">
+                            {row.cat ? <div className="lt-slot-row__cat">{row.cat}</div> : null}
+                            <div className="lt-slot-row__date">{row.date}</div>
+                            <div className="lt-slot-row__time">{row.time}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="lt-muted">No slots selected</p>
+                    )}
+                  </div>
+                </LtCard>
+
+                <LtCard
+                  icon={LT_IC_PHONE}
+                  title="Alternative phone (optional)"
+                  accentIcon
+                  compact
+                >
+                  <div className="hco-alt lt-alt lt-alt--compact">
+                    <span className="hco-alt__cc">+91</span>
+                    <input
+                      className="hco-alt__input"
+                      placeholder="Alternate contact number"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      maxLength={10}
+                      value={altPhone}
+                      onChange={(e) => setAltPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    />
+                  </div>
+                </LtCard>
+
+                {!healthOmitPayment ? (
+                  <LtCard icon={LT_IC_PAY} title="Payment" accentIcon>
+                    <LtPricingSummary overview={labOverview} />
+                  </LtCard>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!labOverviewLoading && labOverview ? (
+              <footer className="lt-footer">
+                <button
+                  type="button"
+                  className="lt-footer__btn"
+                  disabled={labSubmitting || labOverviewLoading || !labOverview}
+                  onClick={() => handleHealthContinueTap()}
+                >
+                  {labSubmitting ? "Confirming…" : "Continue"}
+                </button>
+              </footer>
+            ) : null}
+          </>
         )}
       </main>
 
@@ -1125,6 +1185,114 @@ export function HealthCheckupsOverviewPage() {
             >
               {labSubmitting ? "Confirming…" : labConfirmPrimaryLabel(labOverview)}
             </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!isLabTests && healthPaySheetOpen && labOverview ? (
+        <div
+          className="lt-sheet-backdrop"
+          role="presentation"
+          onClick={() => !labSubmitting && setHealthPaySheetOpen(false)}
+        >
+          <div
+            className="lt-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lt-sheet-title-health"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="lt-sheet__head">
+              <h2 id="lt-sheet-title-health" className="lt-sheet__title">
+                Confirm booking
+              </h2>
+              <button
+                type="button"
+                className="lt-sheet__close"
+                aria-label="Close"
+                disabled={labSubmitting}
+                onClick={() => setHealthPaySheetOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <LtPricingSummary overview={labOverview} />
+            {labOverview.amountToPay > 0 ? (
+              <label className="lt-sheet__wallet">
+                <span>Use Flip wallet (OPD)</span>
+                <input
+                  type="checkbox"
+                  className="lt-sheet__switch"
+                  checked={useHealthWallet}
+                  onChange={(e) => setUseHealthWallet(e.target.checked)}
+                />
+              </label>
+            ) : null}
+            <button
+              type="button"
+              className="lt-sheet__cta"
+              disabled={labSubmitting}
+              onClick={() => {
+                setHealthPaySheetOpen(false);
+                void onHealthConfirm(useHealthWallet);
+              }}
+            >
+              {labSubmitting ? "Confirming…" : labConfirmPrimaryLabel(labOverview)}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!isLabTests && healthBookingConfirmOpen ? (
+        <div
+          className="hco-booking-confirm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="hco-booking-confirm-title"
+          aria-describedby="hco-booking-confirm-desc"
+        >
+          <button
+            type="button"
+            className="hco-booking-confirm__backdrop"
+            aria-label="Dismiss"
+            disabled={labSubmitting}
+            onClick={() => !labSubmitting && setHealthBookingConfirmOpen(false)}
+          />
+          <div className="hco-booking-confirm__panel">
+            <div className="hco-booking-confirm__header">
+              <span className="hco-booking-confirm__info" aria-hidden="true">
+                i
+              </span>
+              <h2 id="hco-booking-confirm-title" className="hco-booking-confirm__title">
+                Confirm booking
+              </h2>
+            </div>
+            <div className="hco-booking-confirm__body">
+              <p id="hco-booking-confirm-desc" className="hco-booking-confirm__message">
+                Would you like to confirm this health checkup booking?
+              </p>
+            </div>
+            <div className="hco-booking-confirm__actions">
+              <button
+                type="button"
+                className="hco-booking-confirm__btn hco-booking-confirm__btn--no"
+                disabled={labSubmitting}
+                onClick={() => setHealthBookingConfirmOpen(false)}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="hco-booking-confirm__btn hco-booking-confirm__btn--yes"
+                disabled={labSubmitting}
+                onClick={() => {
+                  setHealthBookingConfirmOpen(false);
+                  void onHealthConfirm(false);
+                }}
+              >
+                Yes
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

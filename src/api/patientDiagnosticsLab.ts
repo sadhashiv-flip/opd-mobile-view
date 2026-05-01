@@ -441,7 +441,11 @@ export type DiagnosticsOverviewLineItem = Readonly<{
   free: boolean;
   savedLine: number;
   vendorName: string | null;
+  /** From `pricing.vendor.code` — used for unknown-vendor overview UX (patient_app). */
+  vendorCode: string | null;
   vendorLogo: string | null;
+  offerPrice: number;
+  b2cPrice: number;
   userId: number | null;
   userName: string | null;
   userGender: string | null;
@@ -474,6 +478,44 @@ export type NormalizedBookingOverview = Readonly<{
   /** Patient/member the booking is for — prefers `info` name fields, else primary user display name. */
   bookedForName: string;
 }>;
+
+/** Matches Flutter `_overviewIsUnknownVendor` on `BookingItem.pricing.vendor.code`. */
+export function overviewVendorCodeIsUnknown(code: string | null | undefined): boolean {
+  const c = (code ?? "").trim().toLowerCase();
+  return c.length === 0 || c === "unknown";
+}
+
+/** Matches Flutter `_overviewHideItemLinePrices`. */
+export function overviewHideItemLinePrices(item: DiagnosticsOverviewLineItem): boolean {
+  if (item.free) return false;
+  if (overviewVendorCodeIsUnknown(item.vendorCode)) return true;
+  if (item.offerPrice <= 0 && item.b2cPrice <= 0) return true;
+  return false;
+}
+
+/** Matches Flutter `_overviewItemsBillablePricingAbsent`. */
+export function overviewItemsBillablePricingAbsent(items: readonly DiagnosticsOverviewLineItem[]): boolean {
+  let anyNonFree = false;
+  for (const item of items) {
+    if (item.free) continue;
+    anyNonFree = true;
+    if (overviewVendorCodeIsUnknown(item.vendorCode)) continue;
+    if (item.offerPrice > 0 || item.b2cPrice > 0) return false;
+  }
+  return anyNonFree;
+}
+
+/**
+ * When true, Flutter shows a confirm dialog instead of the payment sheet (`_overviewOmitPaymentSection`).
+ * Razorpay/finalize still follows API `razorpay_payload` / `payment_required`.
+ */
+export function overviewOmitPaymentSection(o: NormalizedBookingOverview): boolean {
+  const summaryEmpty =
+    o.amountToPay <= 0 && o.totalGross <= 0 && o.collectionCharges <= 0;
+  if (summaryEmpty) return true;
+  if (o.items.length > 0 && overviewItemsBillablePricingAbsent(o.items)) return true;
+  return false;
+}
 
 function pickLinePrice(pricing: Record<string, unknown> | null): number {
   if (!pricing) return 0;
@@ -541,6 +583,18 @@ function formatOverviewSlotLabels(slot: {
   return { formattedSlotDate, formattedSlotTimeRange };
 }
 
+/** Display labels for a stored slot payload — mirrors Flutter `AhcSlot` / `BookingSlotInfo` formatting. */
+export function formatDiagnosticSlotPickLabels(p: DiagnosticSlotPick): {
+  formattedSlotDate: string | null;
+  formattedSlotTimeRange: string | null;
+} {
+  return formatOverviewSlotLabels({
+    slot_date: p.slot_date,
+    start_time: p.start_time,
+    end_time: p.end_time,
+  });
+}
+
 export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBookingOverview | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const root = raw as Record<string, unknown>;
@@ -593,6 +647,10 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
       const userGender =
         userRec != null ? str(userRec.gender).trim() || null : null;
       const name = str(o.name).trim() || "Test";
+      const offerPx = pricing != null ? num(pricing.offer_price) : null;
+      const b2cPx = pricing != null ? num(pricing.b2c_price) : null;
+      const vendorCode =
+        vendorRec != null ? str(vendorRec.code).trim() || null : null;
 
       items.push({
         name,
@@ -602,7 +660,10 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
         free: Boolean(o.free),
         savedLine: Number.isNaN(savedLine) ? 0 : savedLine,
         vendorName: lineVendorName,
+        vendorCode,
         vendorLogo: vendorLogoRaw ? vendorLogoRaw : null,
+        offerPrice: offerPx != null && !Number.isNaN(offerPx) ? offerPx : 0,
+        b2cPrice: b2cPx != null && !Number.isNaN(b2cPx) ? b2cPx : 0,
         userId,
         userName,
         userGender,

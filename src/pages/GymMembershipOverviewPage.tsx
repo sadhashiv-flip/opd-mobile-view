@@ -1,4 +1,6 @@
 import { ROUTES } from "@/constants";
+import { GymMembershipOverviewFlowV2 } from "@/components/gym/GymMembershipOverviewFlowV2";
+import { readGymFlowV2Overview } from "@/constants/gymFlowV2Storage";
 import { getGymCheck } from "@/api/patientGym";
 import { readGymCheckSnapshot, writeGymCheckSnapshot } from "@/constants/gymCheckStorage";
 import {
@@ -209,6 +211,7 @@ function BeneficiaryCard({ b, gymCheck, onRemove, onEditCity, onEdit }: Benefici
 
 export function GymMembershipOverviewPage() {
   const navigate = useNavigate();
+  const gymFlowV2 = useMemo(() => readGymFlowV2Overview(), []);
   const [data, setData] = useState<GymOverviewSnapshot | null>(() => readSnapshot());
   const [removeTarget, setRemoveTarget] = useState<"primary" | "secondary" | null>(null);
   const [liveGymCheck, setLiveGymCheck] = useState(() => readGymCheckSnapshot());
@@ -235,13 +238,15 @@ export function GymMembershipOverviewPage() {
   }, [data, gymCheck]);
 
   useEffect(() => {
+    if (gymFlowV2) return;
     if (data === null) {
-      navigate(ROUTES.gymMembershipConfigure, { replace: true });
+      navigate(ROUTES.gymMembership, { replace: true });
     }
-  }, [data, navigate]);
+  }, [data, navigate, gymFlowV2]);
 
   /** No stored Phase B amounts but we have an invoice — payment lives on order detail. */
   useLayoutEffect(() => {
+    if (gymFlowV2) return;
     if (!data) return;
     if (data.registrationComplete) return;
     if (gymOverviewHasServerPaymentRows(data.serverPayment)) return;
@@ -254,7 +259,7 @@ export function GymMembershipOverviewPage() {
       generatePath(ROUTES.ordersDetail, { orderKind: "gym", invoiceId }),
       { replace: true },
     );
-  }, [data, gymCheck?.order?.invoice_id, navigate]);
+  }, [data, gymCheck?.order?.invoice_id, navigate, gymFlowV2]);
 
   const persist = useCallback((next: GymOverviewSnapshot) => {
     try {
@@ -289,7 +294,7 @@ export function GymMembershipOverviewPage() {
 
   const goConfigure = useCallback(() => {
     if (!data) return;
-    navigate(ROUTES.gymMembershipConfigure, { state: { planId: data.planId } });
+    navigate(ROUTES.gymMembership, { state: { planId: data.planId } });
   }, [data, navigate]);
 
   const confirmRemove = useCallback(() => {
@@ -300,7 +305,7 @@ export function GymMembershipOverviewPage() {
       } catch {
         // ignore
       }
-      navigate(ROUTES.gymMembershipConfigure, { state: { planId: data.planId } });
+      navigate(ROUTES.gymMembership, { state: { planId: data.planId } });
     } else {
       const next: GymOverviewSnapshot = {
         ...data,
@@ -312,6 +317,10 @@ export function GymMembershipOverviewPage() {
     setRemoveTarget(null);
   }, [data, removeTarget, navigate, persist]);
 
+  if (gymFlowV2) {
+    return <GymMembershipOverviewFlowV2 />;
+  }
+
   if (!data) {
     return null;
   }
@@ -322,7 +331,7 @@ export function GymMembershipOverviewPage() {
     <div className="gmo-page">
       <header className="gmo-header">
         <Link
-          to={ROUTES.gymMembershipConfigure}
+          to={ROUTES.gymMembership}
           state={backState}
           className="gmo-back"
           aria-label="Back"

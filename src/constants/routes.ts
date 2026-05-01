@@ -130,6 +130,8 @@ export const ROUTES = {
   /** Legacy path; AppRoutes redirects to `servicesHelpTab`. */
   help: "/help",
   gymMembership: "/services/gym-membership",
+  /** Location & contact per member — aligns with Flutter `GymLineContactScreen`. */
+  gymMembershipContact: "/services/gym-membership/location-contact",
   gymMembershipSelectPeople: "/services/gym-membership/select-people",
   gymMembershipConfigure: "/services/gym-membership/configure",
   gymMembershipOverview: "/services/gym-membership/overview",

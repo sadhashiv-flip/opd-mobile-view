@@ -88,6 +88,7 @@ import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { DEFAULT_CONSULT_SUCCESS_TITLE } from "@/constants/bookingSuccessNavigation";
 import {
   buildConsultationBookingSuccessFromInvoice,
+  buildGymBookingSuccessFromInvoice,
   buildLabBookingSuccessFromInvoice,
 } from "@/lib/bookingSuccessFromInvoice";
 import {
@@ -144,6 +145,12 @@ function navigatePartnerOrderPaymentSuccess(
       navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), { replace: true });
       return;
     }
+    case "gym":
+      navigate(ROUTES.bookingSuccess, {
+        replace: true,
+        state: buildGymBookingSuccessFromInvoice(detail),
+      });
+      return;
     default:
       navigate(ROUTES.bookingSuccess, {
         replace: true,
@@ -941,6 +948,13 @@ export function OrderDetailsPage() {
       setOfflinePaymentPreview(null);
       setBookingProceedBusy(false);
       gymPaymentVerifyInvoiceIdRef.current = null;
+      if (detail?.categoryKey === "gym") {
+        navigate(ROUTES.bookingSuccess, {
+          replace: true,
+          state: buildGymBookingSuccessFromInvoice(detail),
+        });
+        return;
+      }
       toast.success("Payment successful");
       void load();
     };
@@ -1020,6 +1034,13 @@ export function OrderDetailsPage() {
           setOfflinePaymentPreview(null);
           setBookingProceedBusy(false);
           gymPaymentVerifyInvoiceIdRef.current = null;
+          if (detail != null && detail.categoryKey === "gym") {
+            navigate(ROUTES.bookingSuccess, {
+              replace: true,
+              state: buildGymBookingSuccessFromInvoice(detail),
+            });
+            return;
+          }
           toast.success("Payment successful");
           void load();
           return;

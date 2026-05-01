@@ -22,6 +22,8 @@ export type MemberDisplay = Readonly<{
   /** Numeric id for booking payloads when API provides `patient_id` or numeric `id`. */
   patientNumericId: number | null;
   email: string | null;
+  /** From members API `AHCAvailable` — eligible for sponsored annual health checkup (patient_app). */
+  ahcAvailable: boolean;
 }>;
 
 function str(v: unknown): string | null {
@@ -210,6 +212,7 @@ function normalizeMember(
       coerceFiniteNumber(o.patientId) ??
       coerceFiniteNumber(id),
     email: str(o.email) ?? str(o.email_id),
+    ahcAvailable: o.AHCAvailable === true || o.ahcAvailable === true,
   };
 }
 

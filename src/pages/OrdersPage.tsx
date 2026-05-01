@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   fetchInvoicesPage,
   INVOICE_FILTER_TYPES,
@@ -12,8 +12,12 @@ import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ROUTES } from "@/constants";
 import familyAccountsSvg from "@/assets/icons/AccountManagement/FamilyAccounts.svg";
 import profileSvg from "@/assets/icons/AccountManagement/Profile.svg";
+import {
+  invoiceOrderRowsFromDashboardOngoing,
+  type OrdersPageLocationState,
+} from "@/lib/dashboardOngoingToInvoiceRow";
 import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
-import { generatePath, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { generatePath, Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import "./OrdersPage.css";
 
 const ORDERS_TAB_STORAGE_KEY = "opd-mobile-view.orders.filterTab";
@@ -106,9 +110,12 @@ function OrderCard({ row }: Readonly<{ row: InvoiceOrderRow }>) {
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tabSynced, setTabSynced] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  /** When set, list shows dashboard GET `/patient/dashboard` ongoing rows only (no `GET /invoice` list). */
+  const [dashboardRows, setDashboardRows] = useState<InvoiceOrderRow[] | null>(null);
   const [items, setItems] = useState<readonly InvoiceOrderRow[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -123,7 +130,21 @@ export function OrdersPage() {
   const tabFromUrl = parseInvoiceFilterTab(rawTabParam);
   const filter: InvoiceFilterId = tabFromUrl ?? "all";
 
-  const filterActiveDot = filter !== "all" || userFilterId.trim().length > 0;
+  const dashboardPayload = (location.state as OrdersPageLocationState | null)?.dashboardOngoing;
+
+  const navigatedWithDashboardOngoing =
+    Array.isArray(dashboardPayload) && dashboardPayload.length > 0;
+  /** True while showing the dashboard ongoing list (route state and/or hydrated rows). Category filters only — no invoice list API. */
+  const isOngoingFromDashboard = navigatedWithDashboardOngoing || dashboardRows != null;
+
+  const displayRows = useMemo(() => {
+    if (dashboardRows != null) return [...dashboardRows];
+    return [...items];
+  }, [dashboardRows, items]);
+
+  const filterActiveDot = isOngoingFromDashboard
+    ? filter !== "all"
+    : filter !== "all" || userFilterId.trim().length > 0;
 
   useLayoutEffect(() => {
     const raw = searchParams.get("tab");
@@ -169,7 +190,12 @@ export function OrdersPage() {
     [setSearchParams],
   );
 
+  /** Full My Orders only — ongoing-from-dashboard uses in-memory rows + category filters; no list or member APIs. */
   useEffect(() => {
+    if (navigatedWithDashboardOngoing) {
+      setMembersLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setMembersLoading(true);
@@ -185,7 +211,7 @@ export function OrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigatedWithDashboardOngoing]);
 
   const loadFirst = useCallback(
     async (fid: InvoiceFilterId) => {
@@ -214,13 +240,31 @@ export function OrdersPage() {
     [userFilterId],
   );
 
+  /** Hydrate from dashboard “View all” once — category changes only re-filter via {@link displayRows} (no GET /invoice). */
   useEffect(() => {
     if (!tabSynced) return;
+    if (Array.isArray(dashboardPayload) && dashboardPayload.length > 0) {
+      setDashboardRows(invoiceOrderRowsFromDashboardOngoing(dashboardPayload));
+      setItems([]);
+      setHasMore(false);
+      setPage(1);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    setDashboardRows(null);
+  }, [dashboardPayload, tabSynced]);
+
+  /** Full My Orders: refetch when tab or member filter changes. Skipped entirely while showing dashboard ongoing only. */
+  useEffect(() => {
+    if (!tabSynced) return;
+    if (Array.isArray(dashboardPayload) && dashboardPayload.length > 0) return;
     void loadFirst(filter);
-  }, [filter, loadFirst, tabSynced]);
+  }, [dashboardPayload, filter, loadFirst, tabSynced]);
 
   const onLoadMore = async () => {
     if (loadingMore || !hasMore) return;
+    if (isOngoingFromDashboard) return;
     setLoadingMore(true);
     setError(null);
     try {
@@ -253,97 +297,107 @@ export function OrdersPage() {
     }
   };
 
-  const emptyPrimaryMessage =
-    filter === "all" && userFilterId.trim().length === 0 ? "No orders yet." : "No orders found for this category.";
+  let emptyPrimaryMessage = "No orders found for this category.";
+  if (dashboardRows != null && displayRows.length === 0) {
+    emptyPrimaryMessage = "No ongoing orders.";
+  } else if (filter === "all" && userFilterId.trim().length === 0) {
+    emptyPrimaryMessage = "No orders yet.";
+  }
 
   return (
     <div className="orders-page">
       <main className="orders-page__main">
         <div className="orders-page__title-row">
-          <h1 className="orders-page__title">My Orders</h1>
-          <button
-            type="button"
-            className="orders-filter-appbar-btn"
-            aria-label="Filter orders"
-            title="Filter orders"
-            onClick={() => setSheetOpen(true)}
-          >
-            <span className="orders-filter-appbar-btn__icon-wrap">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M4 6h4.5M10 6h10M14 18h6M4 18h7M9 12h11M4 12h3"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <circle cx="9" cy="18" r="2" stroke="currentColor" strokeWidth="2" />
-                <circle cx="15" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
-                <circle cx="7" cy="6" r="2" stroke="currentColor" strokeWidth="2" />
-              </svg>
-              {filterActiveDot ? <span className="orders-filter-appbar-btn__dot" aria-hidden /> : null}
-            </span>
-          </button>
+          <h1 className="orders-page__title">
+            {isOngoingFromDashboard ? "My ongoing orders" : "My Orders"}
+          </h1>
+          {isOngoingFromDashboard ? null : (
+            <button
+              type="button"
+              className="orders-filter-appbar-btn"
+              aria-label="Filter orders"
+              title="Filter orders"
+              onClick={() => setSheetOpen(true)}
+            >
+              <span className="orders-filter-appbar-btn__icon-wrap">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M4 6h4.5M10 6h10M14 18h6M4 18h7M9 12h11M4 12h3"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="9" cy="18" r="2" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="15" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
+                  <circle cx="7" cy="6" r="2" stroke="currentColor" strokeWidth="2" />
+                </svg>
+                {filterActiveDot ? <span className="orders-filter-appbar-btn__dot" aria-hidden /> : null}
+              </span>
+            </button>
+          )}
         </div>
 
-        <MobileFilterSheet
-          open={sheetOpen}
-          onClose={() => setSheetOpen(false)}
-          title="Filter orders"
-          subtitle="Choose a category and optionally a family member"
-        >
-          <div className="mobile-filter-sheet__divider" />
-          <div className="mobile-filter-sheet__section">
-            <div className="mobile-filter-sheet__wrap">
-              {FILTER_TABS.map((tab) => (
-                <MobileFilterChip
-                  key={tab.id}
-                  label={tab.label}
-                  icon={
-                    <OrderCategoryIcon categoryKey={invoiceTabToCategoryKey(tab.id)} width={18} height={18} />
-                  }
-                  selected={filter === tab.id}
-                  onClick={() => {
-                    setFilterTab(tab.id);
-                    setSheetOpen(false);
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="mobile-filter-sheet__divider" />
-          <div className="mobile-filter-sheet__section-label">Family member</div>
-          <div className="mobile-filter-sheet__section">
-            {membersLoading ? (
-              <div className="mobile-filter-sheet__members-loading mobile-filter-sheet__members-loading--text">
-                Loading…
-              </div>
-            ) : (
+        {isOngoingFromDashboard ? null : (
+          <MobileFilterSheet
+            open={sheetOpen}
+            onClose={() => setSheetOpen(false)}
+            title="Filter orders"
+            subtitle="Choose a category and optionally a family member"
+          >
+            <div className="mobile-filter-sheet__divider" />
+            <div className="mobile-filter-sheet__section">
               <div className="mobile-filter-sheet__wrap">
-                <MobileFilterChip
-                  label="All members"
-                  icon={<img src={familyAccountsSvg} alt="" width={18} height={18} />}
-                  selected={userFilterId.trim().length === 0}
-                  onClick={() => {
-                    persistUserFilter("");
-                    setSheetOpen(false);
-                  }}
-                />
-                {members.map((m) => (
+                {FILTER_TABS.map((tab) => (
                   <MobileFilterChip
-                    key={m.id}
-                    label={m.name.trim().length > 0 ? m.name : m.id}
-                    icon={<img src={profileSvg} alt="" width={18} height={18} />}
-                    selected={userFilterId === m.id}
+                    key={tab.id}
+                    label={tab.label}
+                    icon={
+                      <OrderCategoryIcon categoryKey={invoiceTabToCategoryKey(tab.id)} width={18} height={18} />
+                    }
+                    selected={filter === tab.id}
                     onClick={() => {
-                      persistUserFilter(m.id);
+                      setFilterTab(tab.id);
                       setSheetOpen(false);
                     }}
                   />
                 ))}
               </div>
-            )}
-          </div>
-        </MobileFilterSheet>
+            </div>
+            <div className="mobile-filter-sheet__divider" />
+            <div className="mobile-filter-sheet__section-label">Family member</div>
+            <div className="mobile-filter-sheet__section">
+              {membersLoading ? (
+                <div className="mobile-filter-sheet__members-loading mobile-filter-sheet__members-loading--text">
+                  Loading…
+                </div>
+              ) : (
+                <div className="mobile-filter-sheet__wrap">
+                  <MobileFilterChip
+                    label="All members"
+                    icon={<img src={familyAccountsSvg} alt="" width={18} height={18} />}
+                    selected={userFilterId.trim().length === 0}
+                    onClick={() => {
+                      persistUserFilter("");
+                      setSheetOpen(false);
+                    }}
+                  />
+                  {members.map((m) => (
+                    <MobileFilterChip
+                      key={m.id}
+                      label={m.name.trim().length > 0 ? m.name : m.id}
+                      icon={<img src={profileSvg} alt="" width={18} height={18} />}
+                      selected={userFilterId === m.id}
+                      onClick={() => {
+                        persistUserFilter(m.id);
+                        setSheetOpen(false);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </MobileFilterSheet>
+        )}
 
         {loading ? (
           <div className="orders-skeleton" aria-busy="true">
@@ -356,19 +410,26 @@ export function OrdersPage() {
         {!loading && error ? (
           <div className="orders-state orders-state--error">
             <p>{error}</p>
-            <button type="button" className="orders-retry" onClick={() => void loadFirst(filter)}>
+            <button
+              type="button"
+              className="orders-retry"
+              onClick={() => {
+                if (dashboardRows != null) return;
+                void loadFirst(filter);
+              }}
+            >
               Try again
             </button>
           </div>
         ) : null}
 
-        {!loading && !error && items.length === 0 ? (
+        {!loading && !error && displayRows.length === 0 ? (
           <p className="orders-state orders-state--empty">{emptyPrimaryMessage}</p>
         ) : null}
 
-        {!loading && !error && items.length > 0 ? (
+        {!loading && !error && displayRows.length > 0 ? (
           <ul className="orders-list">
-            {items.map((row) => (
+            {displayRows.map((row) => (
               <li key={row.id} className="orders-list__item">
                 <div className="orders-list__row">
                   <Link to={pathToOrderDetail(row.categoryKey, row.id)} className="orders-card-link">
@@ -393,7 +454,7 @@ export function OrdersPage() {
           </ul>
         ) : null}
 
-        {!loading && !error && hasMore ? (
+        {!loading && !error && dashboardRows == null && hasMore ? (
           <div className="orders-more-wrap">
             <button
               type="button"

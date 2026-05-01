@@ -1,4 +1,5 @@
 import { ROUTES } from "@/constants";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import {
   DIAG_LAB_SLOT_PAYLOAD_KEY,
   DIAG_LAB_SLOTS_PACKAGE,
@@ -10,12 +11,17 @@ import {
   writeHealthPathologySlotJson,
   writeHealthRadiologySlotJson,
 } from "@/constants/diagnosticsHealthFlowStorage";
-import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
+import {
+  DEFAULT_LOCATION_ADDRESS_LINE,
+  readSelectedAddress,
+  subscribeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
 import { fetchDiagnosticSlots, type DiagnosticSlotPick } from "@/api/patientDiagnosticsLab";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HeaderTexts } from "@/constants/HeaderTexts";
 import { useToast } from "@/hooks/useToast";
+import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
 import "./ConsultationAppointmentSlotsPage.css";
 
 type DayChip = Readonly<{ day: string; date: string; dow: string }>;
@@ -45,6 +51,7 @@ export function DiagnosticsSlotsPage() {
     () => "",
   );
 
+  /** Lab cart flow — today through next 6 days. */
   const labDays = useMemo((): readonly DayChip[] => {
     const out: DayChip[] = [];
     const base = new Date();
@@ -64,7 +71,35 @@ export function DiagnosticsSlotsPage() {
     return out;
   }, []);
 
+  /**
+   * AHC / health checkup — matches patient_app `HealthCheckupsController._initDates`:
+   * next 7 days starting **tomorrow** (`now.add(Duration(days: i + 1))`).
+   */
+  const ahcSlotDays = useMemo((): readonly DayChip[] => {
+    const out: DayChip[] = [];
+    const base = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i + 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const dayNum = String(d.getDate()).padStart(2, "0");
+      const date = `${y}-${m}-${dayNum}`;
+      out.push({
+        date,
+        day: String(d.getDate()),
+        dow: d.toLocaleDateString("en-IN", { weekday: "short" }),
+      });
+    }
+    return out;
+  }, []);
+
+  const displayDays = isLabTests ? labDays : ahcSlotDays;
+
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const hSlotsLocLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const hSlotsLocTag = useSelectedAddressTag("HOME");
 
   const [labVendorCode, setLabVendorCode] = useState(() => {
     try {
@@ -81,10 +116,12 @@ export function DiagnosticsSlotsPage() {
   const [labSlotLoading, setLabSlotLoading] = useState(false);
   const [labSelectedPick, setLabSelectedPick] = useState<DiagnosticSlotPick | null>(null);
 
+  /** Reset date strip when switching pathology ↔ radiology (patient_app re-inits per category). */
   useEffect(() => {
-    const first = labDays[0]?.date;
+    const days = isLabTests ? labDays : ahcSlotDays;
+    const first = days[0]?.date;
     if (first) setSelectedDate(first);
-  }, [labDays]);
+  }, [isLabTests, labDays, ahcSlotDays, healthPhase]);
 
   useEffect(() => {
     if (!isLabTests) return;
@@ -205,24 +242,37 @@ export function DiagnosticsSlotsPage() {
   };
 
   const healthMeta = !isLabTests ? readHealthVendorMeta() : null;
-  const healthSlotHint =
-    !isLabTests && healthMeta?.needPathology && healthMeta.needRadiology
-      ? healthPhase === "pathology"
-        ? "Step 1 of 2: pathology collection time"
-        : "Step 2 of 2: radiology visit time"
-      : null;
+
+  const slotHeaderTitle = !isLabTests
+    ? healthPhase === "pathology"
+      ? "Pathology Slot"
+      : "Radiology Slot"
+    : type === "health-checkups"
+      ? HeaderTexts.healthCheckups.title
+      : HeaderTexts.labTests.title;
+
+  const pathTabDone =
+    healthPhase === "radiology" || (healthPhase === "pathology" && labSelectedPick != null);
+  const radTabDone = healthPhase === "radiology" && labSelectedPick != null;
+
+  const allBucketsEmpty =
+    labMorning.length === 0 && labAfternoon.length === 0 && labEvening.length === 0;
 
   const confirmDisabled =
     isLabTests && (!labSelectedPick || !labVendorCode) ? true : !isLabTests && !labSelectedPick;
 
-  const confirmLabel =
-    !isLabTests &&
-    healthMeta?.needPathology &&
-    healthMeta.needRadiology &&
-    healthPhase === "pathology" &&
-    labSelectedPick
-      ? "Continue to radiology"
-      : "Confirm";
+  const confirmLabel = useMemo(() => {
+    if (isLabTests) return "Confirm";
+    const m = healthMeta;
+    if (!m) return "Continue to Overview";
+    if (m.needPathology && m.needRadiology && healthPhase === "pathology") return "Next: Radiology Slot";
+    return "Continue to Overview";
+  }, [isLabTests, healthMeta, healthPhase]);
+
+  const slotsGridClass = !isLabTests ? "cas-slots cas-slots--dense" : "cas-slots";
+
+  const slotBtnClass = (active: boolean) =>
+    `${!isLabTests ? "cas-slot cas-slot--dense" : "cas-slot"}${active ? " cas-slot--active" : ""}`;
 
   return (
     <div className="cas-page">
@@ -242,18 +292,45 @@ export function DiagnosticsSlotsPage() {
             />
           </svg>
         </Link>
-        <h1 className="cas-title">
-          {type === "health-checkups" ? HeaderTexts.healthCheckups.title : HeaderTexts.labTests.title}
-        </h1>
+        <h1 className="cas-title">{slotHeaderTitle}</h1>
       </header>
+
+      {!isLabTests ? (
+        <button
+          type="button"
+          className="cas-loc-bar"
+          aria-label="Choose address"
+          onClick={() => setAddrSheetOpen(true)}
+        >
+          <span className="cas-loc-bar__pin" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z" fill="#FF541E" />
+              <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
+            </svg>
+          </span>
+          <span className="cas-loc-bar__body">
+            <span className="cas-loc-bar__title">{hSlotsLocTag}</span>
+            <span className="cas-loc-bar__addr">{hSlotsLocLine}</span>
+          </span>
+          <span className="cas-loc-bar__chev" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+      ) : null}
 
       <main className="cas-main cas-main--with-sticky-footer">
         <div className="cas-note">
           Note : Flip Health will call and try to schedule your sample collection in your preferred slot or the next
           available slot
         </div>
-
-        {healthSlotHint ? <p className="cas-note">{healthSlotHint}</p> : null}
 
         {isLabTests && !labVendorCode ? (
           <p className="cas-note" role="alert">
@@ -265,6 +342,51 @@ export function DiagnosticsSlotsPage() {
           <p className="cas-note" role="alert">
             Go back and complete vendor selection first.
           </p>
+        ) : null}
+
+        {!isLabTests && healthMeta?.needPathology && healthMeta.needRadiology ? (
+          <div className="cas-ahc-tabs" role="tablist" aria-label="Slot steps">
+            <div
+              className={`cas-ahc-tab${healthPhase === "pathology" ? " cas-ahc-tab--active" : ""}`}
+              role="tab"
+              aria-selected={healthPhase === "pathology"}
+            >
+              <span>Pathology</span>
+              {pathTabDone ? (
+                <span className="cas-ahc-tab__done" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M20 6L9 17l-5-5"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              ) : null}
+            </div>
+            <div
+              className={`cas-ahc-tab${healthPhase === "radiology" ? " cas-ahc-tab--active" : ""}`}
+              role="tab"
+              aria-selected={healthPhase === "radiology"}
+            >
+              <span>Radiology</span>
+              {radTabDone ? (
+                <span className="cas-ahc-tab__done" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M20 6L9 17l-5-5"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         <div className="cas-row">
@@ -280,117 +402,133 @@ export function DiagnosticsSlotsPage() {
           <div className="cas-row__right">{monthBanner || " "}</div>
         </div>
 
-        <div className="cas-days" role="radiogroup" aria-label="Choose day">
-          {labDays.map((d) => {
-            const active = selectedDate === d.date;
-            return (
-              <button
-                key={d.date}
-                type="button"
-                className={`cas-day${active ? " cas-day--active" : ""}`}
-                role="radio"
-                aria-checked={active}
-                onClick={() => setSelectedDate(d.date)}
-              >
-                <div className="cas-day__num">{d.day}</div>
-                <div className="cas-day__dow">{d.dow}</div>
-              </button>
-            );
-          })}
+        <div className={isLabTests ? undefined : "cas-days-wrap"}>
+          <div
+            className={`cas-days${!isLabTests ? " cas-days--scroll" : ""}`}
+            role="radiogroup"
+            aria-label="Choose day"
+          >
+            {displayDays.map((d) => {
+              const active = selectedDate === d.date;
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  className={`cas-day${active ? " cas-day--active" : ""}`}
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setSelectedDate(d.date)}
+                >
+                  <div className="cas-day__num">{d.day}</div>
+                  <div className="cas-day__dow">{d.dow}</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="cas-divider" />
 
         {labSlotLoading ? <p className="cas-note">Loading slots…</p> : null}
-        <section className="cas-section">
-          <div className="cas-section__head">
-            <span className="cas-sun" aria-hidden="true">
-              ☀
-            </span>
-            <span>Morning</span>
-          </div>
-          <div className="cas-slots" role="radiogroup" aria-label="Morning slots">
-            {labMorning.length === 0 && !labSlotLoading ? (
-              <span className="cas-note">No morning slots</span>
-            ) : null}
-            {labMorning.map((s) => {
-              const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
-              const label = `${s.start_time} – ${s.end_time}`;
-              return (
-                <button
-                  key={slotKey(s)}
-                  type="button"
-                  className={`cas-slot${active ? " cas-slot--active" : ""}`}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => pickLabSlot(s)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
 
-        <section className="cas-section">
-          <div className="cas-section__head">
-            <span className="cas-sun cas-sun--pm" aria-hidden="true">
-              ✷
-            </span>
-            <span>Afternoon</span>
+        {!isLabTests && allBucketsEmpty && !labSlotLoading ? (
+          <div className="cas-empty-ahc">
+            <p className="cas-empty-ahc__title">No slots available</p>
+            <p className="cas-empty-ahc__sub">Try another date or check back later.</p>
           </div>
-          <div className="cas-slots" role="radiogroup" aria-label="Afternoon slots">
-            {labAfternoon.length === 0 && !labSlotLoading ? (
-              <span className="cas-note">No afternoon slots</span>
-            ) : null}
-            {labAfternoon.map((s) => {
-              const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
-              const label = `${s.start_time} – ${s.end_time}`;
-              return (
-                <button
-                  key={slotKey(s)}
-                  type="button"
-                  className={`cas-slot${active ? " cas-slot--active" : ""}`}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => pickLabSlot(s)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        ) : (
+          <>
+            <section className="cas-section">
+              <div className="cas-section__head">
+                <span className="cas-sun" aria-hidden="true">
+                  ☀
+                </span>
+                <span>Morning</span>
+              </div>
+              <div className={slotsGridClass} role="radiogroup" aria-label="Morning slots">
+                {labMorning.length === 0 && !labSlotLoading && isLabTests ? (
+                  <span className="cas-note">No morning slots</span>
+                ) : null}
+                {labMorning.map((s) => {
+                  const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
+                  const label = `${s.start_time} – ${s.end_time}`;
+                  return (
+                    <button
+                      key={slotKey(s)}
+                      type="button"
+                      className={slotBtnClass(active)}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => pickLabSlot(s)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
-        <section className="cas-section">
-          <div className="cas-section__head">
-            <span className="cas-sun cas-sun--pm" aria-hidden="true">
-              ☾
-            </span>
-            <span>Evening</span>
-          </div>
-          <div className="cas-slots" role="radiogroup" aria-label="Evening slots">
-            {labEvening.length === 0 && !labSlotLoading ? (
-              <span className="cas-note">No evening slots</span>
-            ) : null}
-            {labEvening.map((s) => {
-              const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
-              const label = `${s.start_time} – ${s.end_time}`;
-              return (
-                <button
-                  key={slotKey(s)}
-                  type="button"
-                  className={`cas-slot${active ? " cas-slot--active" : ""}`}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => pickLabSlot(s)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+            <section className="cas-section">
+              <div className="cas-section__head">
+                <span className="cas-sun cas-sun--pm" aria-hidden="true">
+                  ✷
+                </span>
+                <span>Afternoon</span>
+              </div>
+              <div className={slotsGridClass} role="radiogroup" aria-label="Afternoon slots">
+                {labAfternoon.length === 0 && !labSlotLoading && isLabTests ? (
+                  <span className="cas-note">No afternoon slots</span>
+                ) : null}
+                {labAfternoon.map((s) => {
+                  const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
+                  const label = `${s.start_time} – ${s.end_time}`;
+                  return (
+                    <button
+                      key={slotKey(s)}
+                      type="button"
+                      className={slotBtnClass(active)}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => pickLabSlot(s)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="cas-section">
+              <div className="cas-section__head">
+                <span className="cas-sun cas-sun--pm" aria-hidden="true">
+                  ☾
+                </span>
+                <span>Evening</span>
+              </div>
+              <div className={slotsGridClass} role="radiogroup" aria-label="Evening slots">
+                {labEvening.length === 0 && !labSlotLoading && isLabTests ? (
+                  <span className="cas-note">No evening slots</span>
+                ) : null}
+                {labEvening.map((s) => {
+                  const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
+                  const label = `${s.start_time} – ${s.end_time}`;
+                  return (
+                    <button
+                      key={slotKey(s)}
+                      type="button"
+                      className={slotBtnClass(active)}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => pickLabSlot(s)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          </>
+        )}
       </main>
 
       <footer className="cas-footer cas-footer--sticky">
@@ -448,6 +586,8 @@ export function DiagnosticsSlotsPage() {
           {confirmLabel}
         </button>
       </footer>
+
+      {!isLabTests ? <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} /> : null}
     </div>
   );
 }

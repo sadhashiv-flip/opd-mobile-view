@@ -13,6 +13,8 @@ export type GymMemberListRow = Readonly<{
   dob?: string;
   gender?: string;
   bloodGroup?: string;
+  /** Sponsored AHC eligibility from members API (`AHCAvailable`). */
+  ahcAvailable: boolean;
 }>;
 
 function subtitleForMember(m: MemberDisplay): string {
@@ -39,5 +41,6 @@ export function patientMembersToGymRows(members: readonly MemberDisplay[]): GymM
     dob: m.dob ?? undefined,
     gender: m.gender ?? undefined,
     bloodGroup: m.bloodGroup ?? undefined,
+    ahcAvailable: m.ahcAvailable,
   }));
 }

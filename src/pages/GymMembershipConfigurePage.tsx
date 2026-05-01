@@ -72,6 +72,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     userId: null,
     phone: "9876543210",
     email: "abhinay@email.com",
+    ahcAvailable: false,
   },
   {
     id: "family-1",
@@ -81,6 +82,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     userId: null,
     phone: "9876543210",
     email: "xxxxxxx@email.com",
+    ahcAvailable: false,
   },
 ];
 
@@ -125,6 +127,7 @@ function loadMembers(): GymMemberListRow[] {
               userId: null,
               phone: typeof row.phone === "string" ? row.phone : "9876543210",
               email: "xxxxxxx@email.com",
+              ahcAvailable: false,
             });
           }
         }
@@ -444,6 +447,11 @@ function GymMemberConfigureCard({
 
 export function GymMembershipConfigurePage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    navigate(ROUTES.gymMembership, { replace: true });
+  }, [navigate]);
+
   const location = useLocation();
   const toast = useToast();
   const statePlanId =

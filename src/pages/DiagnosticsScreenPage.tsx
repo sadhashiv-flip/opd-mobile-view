@@ -487,7 +487,7 @@ export function DiagnosticsScreenPage() {
               />
             </svg>
           </Link>
-          <h1 className="ds-title">Health Checkups</h1>
+          <h1 className="ds-title">Select Vendor</h1>
         </header>
 
         <main className="ds-main">
@@ -506,7 +506,7 @@ export function DiagnosticsScreenPage() {
                 <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
               </svg>
             </span>
-            <span className="ds-location__title">Home</span>
+            <span className="ds-location__title">{dsLocTag}</span>
             <span className="ds-location__sep" aria-hidden="true">
               |
             </span>
@@ -524,8 +524,6 @@ export function DiagnosticsScreenPage() {
             </span>
           </button>
 
-          <p className="ds-sellab-hint">Choose partners for pathology and radiology (when applicable)</p>
-
           {healthLoading ? <p className="ds-location__addr">Loading partners…</p> : null}
           {healthError && !healthLoading ? (
             <p className="ds-location__addr" role="alert">
@@ -534,8 +532,21 @@ export function DiagnosticsScreenPage() {
           ) : null}
 
           {healthPricing?.pathologyCategoryExists ? (
-            <section className="ds-health-sec" aria-label="Pathology">
-              <h2 className="ds-health-sec__title">Pathology</h2>
+            <section className="ds-health-sec" aria-label="Pathology vendors">
+              <div className="ds-health-sec-head">
+                <span className="ds-health-sec-head__ic ds-health-sec-head__ic--path" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M9 3h6v3h-1v4l2 7H8l2-7V6H9V3z"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M7 17h10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <h2 className="ds-health-sec-head__title">Pathology Vendors</h2>
+              </div>
               {healthPricing.pathologyVendors.length === 0 ? (
                 <p className="ds-location__addr">Partner will be assigned for you.</p>
               ) : (
@@ -549,8 +560,20 @@ export function DiagnosticsScreenPage() {
           ) : null}
 
           {healthPricing?.radiologyCategoryExists ? (
-            <section className="ds-health-sec" aria-label="Radiology">
-              <h2 className="ds-health-sec__title">Radiology</h2>
+            <section className="ds-health-sec" aria-label="Radiology vendors">
+              <div className="ds-health-sec-head">
+                <span className="ds-health-sec-head__ic ds-health-sec-head__ic--rad" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 21a9 9 0 100-18 9 9 0 000 18z"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                    />
+                    <path d="M12 9v6M9 12h6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <h2 className="ds-health-sec-head__title">Radiology Vendors</h2>
+              </div>
               {healthPricing.radiologyVendors.length === 0 ? (
                 <p className="ds-location__addr">Partner will be assigned for you.</p>
               ) : (
@@ -573,7 +596,7 @@ export function DiagnosticsScreenPage() {
               goHealthSlots();
             }}
           >
-            Continue
+            Continue to Slots
           </button>
         </footer>
       </div>

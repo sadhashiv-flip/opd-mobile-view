@@ -676,7 +676,9 @@ export function HomePage() {
                 <button
                   type="button"
                   className="home-ongoing-section__view-all"
-                  onClick={() => navigate(ROUTES.orders)}
+                  onClick={() =>
+                    navigate(ROUTES.orders, { state: { dashboardOngoing: ongoing } })
+                  }
                 >
                   View all
                 </button>
@@ -888,7 +890,7 @@ export function HomePage() {
               >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Dental</h3>
-                  <p className="home-card__meta">LOREM IPSUM</p>
+                  <p className="home-card__meta">DENTAL BOOKING</p>
                   <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
                 </div>
                 <div

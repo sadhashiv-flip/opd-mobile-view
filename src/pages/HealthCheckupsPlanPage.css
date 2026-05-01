@@ -7,13 +7,23 @@
 }
 
 .hcp-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 8px;
+  column-gap: 8px;
   padding: 10px 14px 8px;
+  border-bottom: 1px solid #ececec;
+}
+
+.hcp-top__spacer {
+  width: 88px;
+  height: 32px;
+  justify-self: end;
 }
 
 .hcp-back {
+  grid-column: 1;
+  justify-self: start;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -26,13 +36,17 @@
 
 .hcp-title {
   margin: 0;
+  grid-column: 2;
+  justify-self: start;
+  min-width: 0;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 700;
   line-height: 1.2;
 }
 
 .hcp-orders {
-  margin-left: auto;
+  grid-column: 3;
+  justify-self: end;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -63,6 +77,246 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Align with Flutter `SelectPlanPage`: tabs + list — no address row; list inset matches ListView `padding: 16`. */
+.hcp-main--health-plan {
+  padding: 0 0 18px;
+}
+
+.hcp-health-plan {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hcp-health-plan .hcp-empty {
+  padding: 16px var(--addr-box-margin-inline) 24px;
+}
+
+.hcp-member-strip {
+  flex-shrink: 0;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.hcp-member-strip .hcp-member-tabs {
+  margin: 0;
+  padding: 14px 16px;
+}
+
+.hcp-plans-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  overscroll-behavior: contain;
+}
+
+.hcp-plan-err {
+  margin: 0 0 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff1ee;
+  color: #5c5c5c;
+  font-size: max(10px, calc(13 * 100cqw / 375));
+  font-weight: 600;
+}
+
+.hcp-plan-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 24px 16px;
+}
+
+.hcp-plan-loading__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #ececec;
+  border-top-color: #ff541e;
+  border-radius: 50%;
+  animation: hcp-spin 0.7s linear infinite;
+  text-indent: -9999px;
+  overflow: hidden;
+}
+
+@keyframes hcp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hcp-plan-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 48px;
+  text-align: center;
+}
+
+.hcp-plan-empty__msg {
+  margin: 12px 0 0;
+  font-size: clamp(13px, calc(15 * 100cqw / 375), calc(15 * 1.05px));
+  font-weight: 600;
+  color: #6f6f6f;
+}
+
+.hcp-plan-multi-hint {
+  margin: 0 0 12px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+  color: #8f8f8f;
+  line-height: 1.4;
+}
+
+.hcp-plan-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.hcp-pkg-card {
+  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid #ececec;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+
+.hcp-pkg-card--selected {
+  border-color: #ff541e;
+  border-width: 1.5px;
+  background: rgba(255, 84, 30, 0.06);
+}
+
+.hcp-pkg-card__tap {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hcp-pkg-card__icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.hcp-pkg-card__lab-ic {
+  display: block;
+}
+
+.hcp-pkg-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.hcp-pkg-card__title {
+  margin: 0;
+  font-size: clamp(13px, calc(15 * 100cqw / 375), calc(15 * 1.05px));
+  font-weight: 600;
+  color: #111111;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hcp-pkg-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.hcp-info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: max(9px, calc(11 * 100cqw / 375));
+  font-weight: 500;
+  color: #6f6f6f;
+}
+
+.hcp-info-chip svg {
+  flex-shrink: 0;
+  color: #6f6f6f;
+}
+
+.hcp-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: max(8px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+}
+
+.hcp-cat-chip--pathology {
+  background: rgba(33, 150, 243, 0.1);
+  color: #1976d2;
+}
+
+.hcp-cat-chip--radiology {
+  background: rgba(255, 152, 0, 0.12);
+  color: #f57c00;
+}
+
+.hcp-cat-chip--default {
+  background: rgba(255, 84, 30, 0.1);
+  color: #ff541e;
+}
+
+.hcp-pkg-card__radio {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #ececec;
+  background: #f5f5f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hcp-pkg-card__radio--on {
+  border-color: #ff541e;
+  background: #ff541e;
+}
+
+.hcp-inclusions-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: max(10px, calc(13 * 100cqw / 375));
+  font-weight: 600;
+  color: #ff541e;
+}
+
+.hcp-inclusions-link svg {
+  flex-shrink: 0;
 }
 
 .lt-wrap {
@@ -405,10 +659,10 @@
 
 .hcp-card {
   margin-top: 16px;
-  border: 1.5px solid #111111;
+  border: 1.5px solid #d8d8d8;
   border-radius: 20px;
   padding: 14px 14px 0;
-  background: #ffffff;
+  background: #fafafa;
   overflow: hidden;
 }
 
@@ -419,7 +673,7 @@
   padding-bottom: 8px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.28) transparent;
@@ -429,9 +683,10 @@
 
 .hcp-plans .hcp-card {
   width: 100%;
-  max-width: 420px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  box-sizing: border-box;
 }
 
 .hcp-plans__head {
@@ -440,6 +695,8 @@
   z-index: 2;
   background: #ffffff;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 10px 0 6px;
   display: flex;
   align-items: center;
@@ -508,6 +765,7 @@
 
 .hcp-card--interactive {
   cursor: pointer;
+  text-align: left;
 }
 
 .hcp-card--interactive:focus-visible {
@@ -516,8 +774,32 @@
 }
 
 .hcp-card--selected {
-  border-color: #111111;
-  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.12);
+  border-color: #ff541e;
+  border-width: 2px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(255, 84, 30, 0.35),
+    0 6px 20px rgba(255, 84, 30, 0.18);
+}
+
+.hcp-card__pick-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  font-size: max(9px, calc(11 * 100cqw / 375));
+  font-weight: 800;
+  color: #c63d16;
+  line-height: 1.2;
+}
+
+.hcp-card__pick-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff541e;
+  flex-shrink: 0;
 }
 
 .hcp-card__top {
@@ -750,32 +1032,74 @@
 
 .hcp-member-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 10px;
   margin: 12px 0 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
 }
 
 .hcp-member-tab {
-  border: 1px solid #e4e4e4;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid #ececec;
   border-radius: 999px;
-  padding: 8px 14px;
-  font-size: max(10px, calc(12 * 100cqw / 375));
+  padding: 6px 14px 6px 6px;
+  font-size: max(10px, calc(13 * 100cqw / 375));
   font-weight: 600;
   background: #fff;
-  color: #111;
+  color: #111111;
+  cursor: pointer;
+}
+
+.hcp-member-tab__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  background: #f0f0f0;
+  color: #111111;
+}
+
+.hcp-member-tab--done:not(.hcp-member-tab--active) .hcp-member-tab__avatar {
+  background: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+}
+
+.hcp-member-tab--active .hcp-member-tab__avatar {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.hcp-member-tab__name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hcp-member-tab__done-ic {
+  display: inline-flex;
+  margin-left: 6px;
+  color: #ffffff;
 }
 
 .hcp-member-tab--active {
-  border-color: #111111;
-  color: #111111;
-  background: rgba(0, 0, 0, 0.05);
+  border-color: transparent;
+  color: #ffffff;
+  background: linear-gradient(135deg, #111111 0%, #3d3d3d 100%);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
 }
 
-.hcp-plan-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
+.hcp-member-tab--done:not(.hcp-member-tab--active) {
+  border-color: rgba(46, 125, 50, 0.45);
 }
 
 .hcp-empty {
@@ -792,12 +1116,16 @@
 
 .hcp-plans--api {
   margin-top: 8px;
+  width: 100%;
 }
 
 .hcp-card-wrap {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .hcp-inclusions-btn {

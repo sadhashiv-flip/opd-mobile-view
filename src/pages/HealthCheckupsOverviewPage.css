@@ -635,6 +635,18 @@
   background: #f6f6f6;
 }
 
+.hco-page--ahc-overview {
+  background: #f6f6f6;
+}
+
+.hco-main--ahc-overview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #f6f6f6;
+}
+
 .hco-main--lab-review {
   flex: 1;
   display: flex;
@@ -701,15 +713,20 @@
 .lt-card {
   background: #ffffff;
   border: 1px solid #ececec;
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.lt-card--compact {
+  padding: 12px;
 }
 
 .lt-card__head {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
 .lt-card__icon {
@@ -717,11 +734,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 25px;
+  height: 25px;
+  border-radius: 10px;
   color: #111111;
   background: #f2f2f2;
+}
+
+.lt-card__icon--accent {
+  background: rgba(255, 112, 67, 0.12);
+  color: #ff541e;
+}
+
+.lt-card__rule {
+  height: 1px;
+  margin: 14px 0;
+  background: #ececec;
+}
+
+.lt-card--compact .lt-card__rule {
+  margin: 10px 0;
 }
 
 .lt-card__titles {
@@ -737,6 +769,16 @@
   line-height: 1.3;
 }
 
+.lt-card__title--emphasis {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.lt-card__title--compact {
+  font-size: 14px;
+}
+
 .lt-card__subtitle {
   margin: 4px 0 0;
   font-size: 10px;
@@ -746,6 +788,165 @@
 
 .lt-card__body {
   padding-left: 2px;
+}
+
+.lt-addr-plain__tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.lt-addr-plain__lines {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #6f6f6f;
+}
+
+.lt-health-members {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.lt-booking-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.lt-booking-row:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.lt-booking-row__avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #111111;
+  background: #f0f0f0;
+}
+
+.lt-booking-row__mid {
+  flex: 1;
+  min-width: 0;
+}
+
+.lt-booking-row__member {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.lt-booking-row__pkg {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6f6f6f;
+  line-height: 1.35;
+}
+
+.lt-booking-row__cat {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9e9e9e;
+}
+
+.lt-booking-row__price {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.lt-booking-row__mrp {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9e9e9e;
+  text-decoration: line-through;
+}
+
+.lt-booking-row__offer {
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #111111;
+}
+
+.lt-booking-row__offer--free {
+  color: #2e7d32;
+}
+
+.lt-booking-row__save {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #2e7d32;
+}
+
+.lt-health-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lt-slot-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.lt-slot-row__ic {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #8a8a8a;
+  display: inline-flex;
+}
+
+.lt-slot-row__cat {
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a8a8a;
+}
+
+.lt-slot-row__date {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.lt-slot-row__time {
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6f6f6f;
+}
+
+.lt-alt--compact {
+  margin-top: 0;
+  border-radius: 12px;
+  border-color: #ececec;
+  background: #fafafa;
+}
+
+.lt-alt--compact .hco-alt__input {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.lt-alt--compact .hco-alt__cc {
+  background: transparent;
+  font-weight: 700;
 }
 
 .lt-muted {
@@ -1213,5 +1414,138 @@
 .lt-sheet__cta:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* Zero-pay / omit-payment confirm — above .lt-sheet-backdrop (z-index 100) */
+.hco-booking-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.hco-booking-confirm__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.hco-booking-confirm__backdrop:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.hco-booking-confirm__panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 300px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: hco-booking-confirm-in 0.2s ease-out;
+}
+
+@keyframes hco-booking-confirm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.hco-booking-confirm__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 12px;
+}
+
+.hco-booking-confirm__info {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ff8a4a 0%, #ff6b2c 100%);
+  color: #ffffff;
+  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
+  font-weight: 800;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(255, 107, 44, 0.35);
+}
+
+.hco-booking-confirm__title {
+  margin: 0;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
+  font-weight: 700;
+  color: #444444;
+  line-height: 1.3;
+}
+
+.hco-booking-confirm__body {
+  padding: 0 var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
+  padding-left: 66px;
+}
+
+.hco-booking-confirm__message {
+  margin: 0;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-weight: 500;
+  line-height: 1.45;
+  color: #888888;
+}
+
+.hco-booking-confirm__actions {
+  display: flex;
+  border-top: 1px solid #ececec;
+}
+
+.hco-booking-confirm__btn {
+  flex: 1;
+  padding: 14px 12px;
+  border: none;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hco-booking-confirm__btn:focus-visible {
+  outline: 2px solid rgba(255, 107, 44, 0.45);
+  outline-offset: -2px;
+}
+
+.hco-booking-confirm__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hco-booking-confirm__btn--no {
+  color: #ff6b2c;
+  border-right: 1px solid #ececec;
+}
+
+.hco-booking-confirm__btn--yes {
+  color: #333333;
+  font-weight: 600;
 }
 

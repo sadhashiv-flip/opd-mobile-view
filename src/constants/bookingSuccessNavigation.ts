@@ -53,8 +53,9 @@ export function resolveDiagnosticsBookingSuccessCardCopy(
   }
   if (t === DIAG_TYPE_HEALTH) {
     return {
-      title: "Appointment booked successfully!",
-      description: "Your health checkup appointment has been booked. You can track it in My Orders.",
+      title: "Booking confirmed",
+      description:
+        "Your health checkup order has been placed successfully. You can track it in My Orders.",
     };
   }
   return {

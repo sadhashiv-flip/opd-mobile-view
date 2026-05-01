@@ -22,6 +22,7 @@ import { UnknownRouteRedirect } from "@/app/UnknownRouteRedirect";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
 import { SupportTicketChatPage } from "@/pages/SupportTicketChatPage";
 import { GymMembershipPage } from "@/pages/GymMembershipPage";
+import { GymMembershipContactPage } from "@/pages/GymMembershipContactPage";
 import { GymMembershipSelectPeoplePage } from "@/pages/GymMembershipSelectPeoplePage";
 import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
 import { GymMembershipOverviewPage } from "@/pages/GymMembershipOverviewPage";
@@ -222,6 +223,7 @@ export function AppRoutes() {
         path={ROUTES.gymMembership}
         element={<GymMembershipPage />}
       />
+      <Route path={ROUTES.gymMembershipContact} element={<GymMembershipContactPage />} />
       <Route
         path={ROUTES.gymMembershipSelectPeople}
         element={<GymMembershipSelectPeoplePage />}

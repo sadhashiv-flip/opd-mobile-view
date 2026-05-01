@@ -231,7 +231,8 @@ function inferPaymentRequired(
 /** Phase A (quote): no persisted invoice/order/checkout. Phase B (confirm): full payment shape. */
 export type GymOptInPhase = "quote" | "confirm";
 
-function parseGymOptInResponse(raw: unknown, phase: GymOptInPhase): GymOptInResult {
+/** Exported for multi-line `gym/optIn` responses that reuse the same payment envelope. */
+export function parseGymOptInResponse(raw: unknown, phase: GymOptInPhase): GymOptInResult {
   const layer = readAppointmentPaymentLayer(raw);
   const pending_amount = numOptIn(layer.pending_amount ?? layer.pendingAmount);
   const payment_required = inferPaymentRequired(layer, pending_amount);

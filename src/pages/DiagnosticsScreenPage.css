@@ -697,9 +697,36 @@ button.ds-lab-card.ds-lab-card--selected {
   margin-top: 16px;
 }
 
-.ds-health-sec__title {
-  margin: 0 0 10px;
-  font-size: clamp(13px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+.ds-health-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ds-health-sec-head__ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.ds-health-sec-head__ic--path {
+  background: rgba(33, 150, 243, 0.12);
+  color: #1976d2;
+}
+
+.ds-health-sec-head__ic--rad {
+  background: rgba(255, 112, 67, 0.14);
+  color: #ff7043;
+}
+
+.ds-health-sec-head__title {
+  margin: 0;
+  font-size: clamp(14px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 800;
   color: #111111;
 }
