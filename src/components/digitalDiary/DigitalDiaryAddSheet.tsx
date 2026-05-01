@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import {
   activityLogTitleForApiType,
   activitySubmitPayloads,
+  DIARY_MOOD_LABELS,
   type DigitalDiaryActivityType,
 } from "@/lib/digitalDiary";
 import "./DigitalDiaryAddSheet.css";
-
-const MOOD_LABELS = ["", "Awful", "Bad", "Okay", "Good", "Great"];
 
 export type DigitalDiaryAddSheetProps = Readonly<{
   open: boolean;
@@ -260,7 +260,7 @@ export function DigitalDiaryAddSheet({
                 className={`dd-sheet__mood-chip${moodIndex === idx ? " dd-sheet__mood-chip--on" : ""}`}
                 onClick={() => setMoodIndex(idx)}
               >
-                {MOOD_LABELS[idx]}
+                {DIARY_MOOD_LABELS[idx]}
               </button>
             ))}
           </div>
@@ -421,7 +421,7 @@ export function DigitalDiaryAddSheet({
           {isSubmitting ? (
             <span className="dd-sheet__spinner" aria-hidden />
           ) : (
-            "Save"
+            <span>{DIGITAL_DIARY_COPY.sheetSave}</span>
           )}
         </button>
       </form>

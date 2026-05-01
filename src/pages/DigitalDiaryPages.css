@@ -241,6 +241,17 @@
   justify-content: center;
 }
 
+/* patient_app `kActivityAddOnlyToday` — show when viewing a past diary date */
+.dd-log__today-hint {
+  margin: 0;
+  padding: 8px 16px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.03);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
 .dd-log__main {
   flex: 1;
   padding: 8px 16px calc(120px + env(safe-area-inset-bottom, 0));

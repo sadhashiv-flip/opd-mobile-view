@@ -1,0 +1,50 @@
+/**
+ * User-facing copy aligned with `patient_app` `lib/core/constants/string_define.dart`
+ * (digital diary / activities). Single source for the React app.
+ */
+export const DIGITAL_DIARY_COPY = {
+  /** `kDigitalDiaryAppBarTitle` */
+  appBarTitle: "Digital diary",
+  /** `kDashboardActivitiesTitle` */
+  dashboardActivitiesTitle: "Your digital diary",
+  /** `kDashboardActivitiesSubtitle` */
+  dashboardActivitiesSubtitle:
+    "Jot down vitals, water, workouts, mood, and medicines—your day-to-day health story, organised in one place.",
+  /** `kDashboardActivitiesCta` */
+  dashboardActivitiesCta: "Open diary",
+  /** `kActivitiesHubIntro` */
+  hubIntro:
+    "Pick a category to review your history by day. Everything is grouped so you can find it quickly.",
+  /** `kActivitiesSectionDailyHabits` */
+  sectionDailyHabits: "Daily habits",
+  /** `kActivitiesSectionVitals` */
+  sectionVitals: "Vitals",
+  /** `kActivitiesSectionBodySleep` */
+  sectionBodySleep: "Body & sleep",
+  /** `kActivitiesSectionWellness` */
+  sectionWellness: "Symptoms & wellness",
+  /** `kActivityLogEmpty` */
+  logEmpty: "No entries for this day",
+  /** `kActivityLogRetry` */
+  logRetry: "Try again",
+  /** `kActivitySubmitSuccess` */
+  submitSuccess: "Saved to your diary",
+  /** `kActivitySubmitError` */
+  submitError: "Could not save. Please try again.",
+  /** `kActivitySheetSave` */
+  sheetSave: "Save",
+  /** `kActivityFabAdd` */
+  fabAdd: "Add",
+  /** `kActivityAddOnlyToday` */
+  addOnlyToday: "You can add new entries for today only.",
+  /** In-form load error (web log page) */
+  logLoadError: "Could not load activities.",
+  /** `ActivitiesRepository` catch-all (patient_app) */
+  loadActivitiesGenericError: "Could not load activities. Please try again.",
+  /**
+   * Services hub help card — concise entry line (patient `kActivitiesSubtitle` is
+   * “Check your activities”; this stays as the richer web teaser).
+   */
+  helpHubDigitalDiaryDescription:
+    "Vitals, water, mood, medicines—your daily health log",
+} as const;

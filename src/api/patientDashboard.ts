@@ -4,6 +4,7 @@ import {
   friendlyWhenLine,
   mapOngoingStatusLabel,
   memberCountFromRow,
+  parseOngoingServiceStatusCode,
   orderCategoryKeyFromDisplayCategory,
   patientNameFromRow,
   transactionTypeFromRow,
@@ -289,8 +290,14 @@ function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
   if (!id || !invoiceId) return null;
   const type = parseStringOrRawField(row, ["type", "transaction_type", "transactionType", "service_type", "serviceType", "category"]);
   const orderType = parseStringOrRawField(row, ["order_type", "transaction_type", "transactionType", "service_type", "serviceType"]);
-  const statusRaw = row.status;
-  const status = typeof statusRaw === "number" && Number.isFinite(statusRaw) ? statusRaw : -1;
+  const rawInfo =
+    row.info && typeof row.info === "object"
+      ? (row.info as Record<string, unknown>)
+      : row.invoice && typeof row.invoice === "object"
+        ? (row.invoice as Record<string, unknown>)
+        : {};
+  const serviceStatus = parseOngoingServiceStatusCode(row, rawInfo);
+  const status = serviceStatus != null ? serviceStatus : -1;
   const comm = parseStringOrRawField(row, ["communication"]).toUpperCase();
   const canJoinVideoCall = orderType.toUpperCase() === "APPOINTMENT" && comm === "ONLINE";
   const details =
@@ -303,12 +310,6 @@ function parseOngoingRow(item: unknown): DashboardOngoingItem | null {
       ? consultationTitleAndMeta(row)
       : ongoingTitleAndMeta(type, orderType, details);
 
-  const rawInfo =
-    row.info && typeof row.info === "object"
-      ? (row.info as Record<string, unknown>)
-      : row.invoice && typeof row.invoice === "object"
-        ? (row.invoice as Record<string, unknown>)
-        : {};
   const tx = transactionTypeFromRow(row);
   const displayCategory = displayCategoryFromTx(tx);
   const statusLabel = mapOngoingStatusLabel(row, rawInfo, tx);

@@ -1,3 +1,5 @@
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
+
 /**
  * Digital diary (patient parameters) — mirrors Flutter `patient_app`
  * `activity_type_labels.dart`, `activity_submit_payloads.dart`, and category mapping
@@ -171,14 +173,14 @@ export type DigitalDiaryHubSection = Readonly<{
 
 export const DIGITAL_DIARY_SECTIONS: readonly DigitalDiaryHubSection[] = [
   {
-    title: "Daily habits",
+    title: DIGITAL_DIARY_COPY.sectionDailyHabits,
     items: [
       { title: "Water", hint: "Hydration", apiArg: "water" },
       { title: "Exercise", hint: "Workouts", apiArg: "workout" },
     ],
   },
   {
-    title: "Vitals",
+    title: DIGITAL_DIARY_COPY.sectionVitals,
     items: [
       { title: "Glucose", hint: "Blood sugar", apiArg: "GL" },
       { title: "Blood pressure", hint: "BP readings", apiArg: "BP" },
@@ -188,7 +190,7 @@ export const DIGITAL_DIARY_SECTIONS: readonly DigitalDiaryHubSection[] = [
     ],
   },
   {
-    title: "Body & sleep",
+    title: DIGITAL_DIARY_COPY.sectionBodySleep,
     items: [
       { title: "Height", hint: "Growth / BMI", apiArg: "height" },
       { title: "Weight", hint: "Progress", apiArg: "weight" },
@@ -196,7 +198,7 @@ export const DIGITAL_DIARY_SECTIONS: readonly DigitalDiaryHubSection[] = [
     ],
   },
   {
-    title: "Symptoms & wellness",
+    title: DIGITAL_DIARY_COPY.sectionWellness,
     items: [
       { title: "Symptoms", hint: "How you feel", apiArg: "symptom" },
       { title: "Mood", hint: "Emotions", apiArg: "mood" },
@@ -206,7 +208,7 @@ export const DIGITAL_DIARY_SECTIONS: readonly DigitalDiaryHubSection[] = [
 ];
 
 /** Mood scale 1–5 — same labels as {@link DigitalDiaryAddSheet} */
-const MOOD_LABELS = ["", "Awful", "Bad", "Okay", "Good", "Great"];
+export const DIARY_MOOD_LABELS = ["", "Awful", "Bad", "Okay", "Good", "Great"];
 
 function coalesceApiUnit(e: Record<string, unknown>): string {
   const raw = e.units ?? e.unit;
@@ -296,7 +298,7 @@ export function formatDiaryEntrySummary(
     if (effectiveType === "mood" || cat === "mood") {
       const n = typeof value === "number" ? value : Number.parseInt(valStr, 10);
       if (Number.isFinite(n) && n >= 1 && n <= 5) {
-        const label = MOOD_LABELS[n] ?? valStr;
+        const label = DIARY_MOOD_LABELS[n] ?? valStr;
         return `${label} (${n}/5)`;
       }
     }

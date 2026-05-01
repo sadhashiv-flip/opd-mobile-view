@@ -1,28 +1,62 @@
 import { HomeNotificationIcon, HomeProfileIcon, HomeVoiceRecordIcon, HomeSearchIcon, HomeWalletIcon } from "@/assets/icons/react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
-import atCenterSvg from "@/assets/icons/Dashboard/AtCenter.svg";
-import wpfOnlineSvg from "@/assets/icons/Dashboard/wpf_online.svg";
 import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
 import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
+import BorderGlow from "@/components/borderGlow/BorderGlow";
+import { HomeSearchOverlay } from "@/components/home/HomeSearchOverlay";
+import TextType from "@/components/textType/TextType";
 import { HealthClubSection } from "@/components/healthClub/HealthClubSection";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
+import type { DashboardOngoingItem } from "@/api/patientDashboard";
 import { HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
+import type { HomeSearchAction } from "@/constants/homeSearchIndex";
+import { HOME_SEARCH_ACTIONS } from "@/constants/homeSearchIndex";
+import { HOME_SEARCH_TYPEWRITER_SUFFIXES } from "@/constants/homeSearchTypewriter";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useToast } from "@/hooks/useToast";
+import {
+  type WebSpeechErrorCode,
+  useWebSpeechRecognition,
+} from "@/hooks/useWebSpeechRecognition";
 import { cssBackgroundUrl } from "@/lib/cssBackgroundUrl";
+import {
+  addHomeRecentSearch,
+  loadHomeRecentSearches,
+  saveHomeRecentSearches,
+} from "@/lib/homeRecentSearchesStorage";
+import { rankHomeSearchActions } from "@/lib/homeSearchScore";
 import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useHomeDashboard } from "@/hooks/useHomeDashboard";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
+import "@/components/home/HomeSearchOverlay.css";
 import "./HomePage.css";
 import "./DigitalDiaryPages.css";
 import "./ServicesHubPage.css";
 
 const PLACEHOLDER_ADDRESS = "Street, 7th floor, Building A…";
+
+/** BorderGlow — diagnostics featured card only. */
+const HOME_CARD_BORDER_GLOW_PROPS = {
+  lightTheme: true,
+  edgeSensitivity: 20,
+  glowColor: "265 60 68",
+  backgroundColor: "#ffffff",
+  borderRadius: 15,
+  glowRadius: 26,
+  glowIntensity: 1.25,
+  coneSpread: 26,
+  animated: false,
+  colors: ["#8b5cf6", "#db2777", "#0284c7"],
+  fillOpacity: 0.38,
+} as const;
 
 /** Status chip tint — mirrors Flutter `DashboardUpcomingOrdersSection._statusFg/_statusBg`. */
 function ongoingStatusBadgeClass(label: string): string {
@@ -31,6 +65,7 @@ function ongoingStatusBadgeClass(label: string): string {
   if (s.includes("cancel") || s.includes("expired")) return "home-ongoing-dash-card__status--danger";
   if (s.includes("payment pending")) return "home-ongoing-dash-card__status--warning";
   if (s.includes("upcoming") || s.includes("session")) return "home-ongoing-dash-card__status--info";
+  if (s.includes("confirmed")) return "home-ongoing-dash-card__status--info";
   if (
     s.includes("pending") ||
     s.includes("processing") ||
@@ -42,11 +77,62 @@ function ongoingStatusBadgeClass(label: string): string {
   return "home-ongoing-dash-card__status--neutral";
 }
 
+/** Prefer numeric `info.status` / service code (same as order detail); aligns chip with {@link parseOngoingServiceStatusCode}. */
+function ongoingStatusBadgeClassForItem(item: DashboardOngoingItem): string {
+  const code = item.status;
+  if (typeof code === "number" && code >= 0) {
+    switch (code) {
+      case 1:
+        return "home-ongoing-dash-card__status--completed";
+      case 2:
+      case 9:
+        return "home-ongoing-dash-card__status--danger";
+      case 4:
+        return "home-ongoing-dash-card__status--warning";
+      case 5:
+        return "home-ongoing-dash-card__status--info";
+      case 0:
+      case 3:
+      case 6:
+      case 7:
+      case 8:
+        return "home-ongoing-dash-card__status--warning";
+      default:
+        break;
+    }
+  }
+  return ongoingStatusBadgeClass(item.statusLabel);
+}
+
 /** Dots for slide counts 2–7; at 8+ use compact progress + prev/next (too many dots otherwise). */
 const HOME_CAROUSEL_DOT_MAX = 7;
 
+function homeVoiceSearchErrorMessage(code: WebSpeechErrorCode): string | null {
+  switch (code) {
+    case "not-supported":
+      return "Voice search isn’t available in this browser.";
+    case "start-failed":
+      return "Could not start voice search. Try again.";
+    case "not-allowed":
+      return "Microphone permission denied. Allow the mic to use voice search.";
+    case "no-speech":
+      return "No speech detected. Try again.";
+    case "audio-capture":
+      return "No microphone found. Check your device settings.";
+    case "network":
+      return "Voice search failed due to a network error.";
+    case "service-not-allowed":
+      return "Voice search isn’t available on this page (use HTTPS).";
+    case "aborted":
+      return null;
+    default:
+      return "Voice search couldn’t complete. Try again.";
+  }
+}
+
 export function HomePage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const {
     apiBanners,
     ahcBanners,
@@ -62,16 +148,130 @@ export function HomePage() {
   const homeCarouselCount = apiBannerCount;
   const {
     activeIndex: activeHomeCarousel,
+    extendedPos: bannerExtendedPos,
+    extendedCount: homeBannerExtendedCount,
+    translatePercent: homeBannerTranslatePercent,
+    instantMove: homeBannerInstantMove,
     goTo: goToHomeCarousel,
+    stepNext: stepHomeBannerNext,
+    stepPrev: stepHomeBannerPrev,
     onTouchStart: onHomeCarouselTouchStart,
     onTouchEnd: onHomeCarouselTouchEnd,
+    onTrackTransitionEnd: onHomeBannerTrackTransitionEnd,
   } = useHomeBannerCarousel({ slideCount: homeCarouselCount });
+
+  const homeBannerSlides = useMemo(() => {
+    if (apiBanners.length <= 1) {
+      return apiBanners.map((slide, index) => ({
+        key: slide.id != null ? `banner-${String(slide.id)}` : `banner-${slide.image}-${index}`,
+        slide,
+      }));
+    }
+    const n = apiBanners.length;
+    const last = apiBanners[n - 1]!;
+    const first = apiBanners[0]!;
+    return [
+      {
+        key: `banner-clone-prev-${last.id ?? last.image}`,
+        slide: last,
+      },
+      ...apiBanners.map((slide, index) => ({
+        key: slide.id != null ? `banner-${String(slide.id)}` : `banner-${slide.image}-${index}`,
+        slide,
+      })),
+      {
+        key: `banner-clone-next-${first.id ?? first.image}`,
+        slide: first,
+      },
+    ];
+  }, [apiBanners]);
+
+  const {
+    extendedPos: ongoingExtendedPos,
+    extendedCount: ongoingExtendedCount,
+    translatePercent: ongoingTranslatePercent,
+    instantMove: ongoingInstantMove,
+    onTouchStart: onOngoingCarouselTouchStart,
+    onTouchEnd: onOngoingCarouselTouchEnd,
+    onTrackTransitionEnd: onOngoingTrackTransitionEnd,
+  } = useHomeBannerCarousel({ slideCount: ongoingCount });
+
+  const ongoingSlides = useMemo(() => {
+    if (ongoing.length <= 1) {
+      return ongoing.map((item) => ({ key: item.id, item }));
+    }
+    const n = ongoing.length;
+    const last = ongoing[n - 1]!;
+    const first = ongoing[0]!;
+    return [
+      { key: `ongoing-clone-prev-${last.id}`, item: last },
+      ...ongoing.map((item) => ({ key: item.id, item })),
+      { key: `ongoing-clone-next-${first.id}`, item: first },
+    ];
+  }, [ongoing]);
 
   const [isDiagnosticsSheetOpen, setIsDiagnosticsSheetOpen] = useState(false);
   const [isConsultationSheetOpen, setIsConsultationSheetOpen] = useState(false);
   const [isVisionSheetOpen, setIsVisionSheetOpen] = useState(false);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const ongoingCarouselRef = useRef<HTMLDivElement>(null);
+  const [homeSearchQuery, setHomeSearchQuery] = useState("");
+  const [homeSearchFocused, setHomeSearchFocused] = useState(false);
+  const [homeRecentSearches, setHomeRecentSearches] = useState<string[]>(() => loadHomeRecentSearches());
+  const homeSearchInputRef = useRef<HTMLInputElement>(null);
+  const debouncedHomeSearch = useDebouncedValue(homeSearchQuery, 200);
+  const homeSearchRanked = useMemo(
+    () => rankHomeSearchActions(debouncedHomeSearch, HOME_SEARCH_ACTIONS),
+    [debouncedHomeSearch],
+  );
+
+  const onHomeVoiceError = useCallback(
+    (code: WebSpeechErrorCode) => {
+      const msg = homeVoiceSearchErrorMessage(code);
+      if (msg) toast.error(msg);
+    },
+    [toast],
+  );
+
+  const { supported: voiceSearchSupported, listening: voiceSearchListening, toggle: toggleVoiceSearch, stop: stopVoiceSearch } =
+    useWebSpeechRecognition({
+      onTranscript: setHomeSearchQuery,
+      onError: onHomeVoiceError,
+    });
+
+  const handleHomeSearchResult = useCallback(
+    (action: HomeSearchAction) => {
+      stopVoiceSearch();
+      const q = homeSearchQuery.trim();
+      if (q) {
+        addHomeRecentSearch(q);
+        setHomeRecentSearches(loadHomeRecentSearches());
+      }
+      setHomeSearchQuery("");
+      setHomeSearchFocused(false);
+      homeSearchInputRef.current?.blur();
+      navigate(action.to);
+    },
+    [homeSearchQuery, navigate, stopVoiceSearch],
+  );
+
+  const handleHomeRecentSelect = useCallback((text: string) => {
+    setHomeSearchQuery(text);
+    requestAnimationFrame(() => homeSearchInputRef.current?.focus());
+  }, []);
+
+  const handleHomeRecentRemove = useCallback((text: string) => {
+    setHomeRecentSearches((prev) => {
+      const next = prev.filter((t) => t !== text);
+      saveHomeRecentSearches(next);
+      return next;
+    });
+  }, []);
+
+  const handleHomeClearRecents = useCallback(() => {
+    setHomeRecentSearches([]);
+    saveHomeRecentSearches([]);
+  }, []);
+
   const ahcBannerScrollRef = useRef<HTMLDivElement>(null);
   const ahcBannerSlideCount = ahcBanners.length;
 
@@ -91,26 +291,6 @@ export function HomePage() {
     }, 3000);
     return () => clearInterval(id);
   }, [ahc, ahcBannerSlideCount]);
-
-  /** Match Flutter dashboard: auto-advance `PageView` every 3s. */
-  useEffect(() => {
-    if (ongoingCount <= 1) return;
-    const id = window.setInterval(() => {
-      const el = ongoingCarouselRef.current;
-      if (!el) return;
-      const slides = el.querySelectorAll<HTMLElement>("[data-ongoing-slide]");
-      if (slides.length === 0) return;
-      const gap = 12;
-      const w = slides[0].offsetWidth;
-      const cur = Math.max(
-        0,
-        Math.round(el.scrollLeft / Math.max(1, w + gap)),
-      );
-      const next = (cur + 1) % slides.length;
-      el.scrollTo({ left: next * (w + gap), behavior: "smooth" });
-    }, 3000);
-    return () => clearInterval(id);
-  }, [ongoingCount]);
 
   useEffect(() => {
     const isAnySheetOpen =
@@ -152,7 +332,7 @@ export function HomePage() {
             type="button"
             className="home-banner__compact-nav-btn"
             aria-label="Previous slide"
-            onClick={() => goToHomeCarousel(activeHomeCarousel - 1)}
+            onClick={() => stepHomeBannerPrev()}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -185,7 +365,7 @@ export function HomePage() {
             type="button"
             className="home-banner__compact-nav-btn"
             aria-label="Next slide"
-            onClick={() => goToHomeCarousel(activeHomeCarousel + 1)}
+            onClick={() => stepHomeBannerNext()}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -279,20 +459,72 @@ export function HomePage() {
 
         <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
 
-        <div className="home-search">
-          <span className="home-search__search-ic" aria-hidden="true">
-            <HomeSearchIcon />
-          </span>
-          <input
-            type="search"
-            className="home-search__input"
-            placeholder="Search for Pharmacy"
-            aria-label="Search for Pharmacy"
-          />
-          <span className="home-search__divider" aria-hidden="true" />
-          <button type="button" className="home-search__mic" aria-label="Voice search">
-            <HomeVoiceRecordIcon />
-          </button>
+        <div className="home-search-block">
+          <div className="home-search">
+            <span className="home-search__search-ic" aria-hidden="true">
+              <HomeSearchIcon />
+            </span>
+            <div className="home-search__field">
+              <input
+                ref={homeSearchInputRef}
+                type="search"
+                className="home-search__input"
+                value={homeSearchQuery}
+                onChange={(e) => setHomeSearchQuery(e.target.value)}
+                onFocus={() => setHomeSearchFocused(true)}
+                onBlur={() => setHomeSearchFocused(false)}
+                placeholder=""
+                aria-label="Search for pharmacy, diagnostics, claims, consultation, and more"
+                autoComplete="off"
+                enterKeyHint="search"
+              />
+              {homeSearchQuery === "" && !homeSearchFocused ? (
+                <div className="home-search__typewrap" aria-hidden>
+                  <span className="home-search__type home-search__type--prefix">Search for </span>
+                  <TextType
+                    as="span"
+                    className="home-search__type home-search__type--rotating"
+                    text={[...HOME_SEARCH_TYPEWRITER_SUFFIXES]}
+                    typingSpeed={75}
+                    pauseDuration={1500}
+                    deletingSpeed={28}
+                    showCursor={false}
+                    startOnVisible
+                  />
+                </div>
+              ) : null}
+            </div>
+            <span className="home-search__divider" aria-hidden="true" />
+            <button
+              type="button"
+              className={`home-search__mic${voiceSearchListening ? " home-search__mic--listening" : ""}`}
+              aria-label={voiceSearchListening ? "Stop voice search" : "Voice search"}
+              aria-pressed={voiceSearchListening}
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (!voiceSearchSupported) {
+                  toast.error("Voice search isn’t available in this browser.");
+                  return;
+                }
+                setHomeSearchFocused(true);
+                homeSearchInputRef.current?.focus();
+                toggleVoiceSearch();
+              }}
+            >
+              <HomeVoiceRecordIcon className={voiceSearchListening ? "home-search__mic-img--listening" : undefined} />
+            </button>
+          </div>
+          {homeSearchFocused ? (
+            <HomeSearchOverlay
+              query={homeSearchQuery}
+              results={homeSearchRanked}
+              recents={homeRecentSearches}
+              onResultNavigate={handleHomeSearchResult}
+              onRecentSelect={handleHomeRecentSelect}
+              onRecentRemove={handleHomeRecentRemove}
+              onClearRecents={handleHomeClearRecents}
+            />
+          ) : null}
         </div>
       </div>
 
@@ -326,18 +558,22 @@ export function HomePage() {
                 onTouchEnd={onHomeCarouselTouchEnd}
               >
                 <div
-                  className="home-banner__track"
+                  className={`home-banner__track${homeBannerInstantMove ? " home-banner__track--instant" : ""}`}
                   style={{
-                    width: `${homeCarouselCount * 100}%`,
-                    transform: `translateX(-${(activeHomeCarousel * 100) / homeCarouselCount}%)`,
+                    width: `${homeBannerExtendedCount * 100}%`,
+                    transform: `translateX(${homeBannerTranslatePercent}%)`,
+                  }}
+                  onTransitionEnd={(e) => {
+                    if (e.propertyName !== "transform") return;
+                    onHomeBannerTrackTransitionEnd();
                   }}
                 >
-                  {apiBanners.map((slide, index) => (
+                  {homeBannerSlides.map(({ key, slide }, index) => (
                     <div
-                      key={slide.id ?? `banner-${slide.image}-${index}`}
+                      key={key}
                       className="home-banner__slide home-banner__slide--api"
-                      style={{ flex: `0 0 ${100 / homeCarouselCount}%` }}
-                      aria-hidden={index !== activeHomeCarousel}
+                      style={{ flex: `0 0 ${100 / homeBannerExtendedCount}%` }}
+                      aria-hidden={index !== bannerExtendedPos}
                     >
                       {slide.link ? (
                         <a
@@ -434,7 +670,8 @@ export function HomePage() {
             <section className="home-ongoing-section" aria-labelledby="ongoing-orders-heading">
               <div className="home-ongoing-section__header">
                 <h2 id="ongoing-orders-heading" className="home-ongoing-section__title">
-                  Ongoing orders
+                  Ongoing orders{" "}
+                  <span className="home-ongoing-section__count">({ongoingCount})</span>
                 </h2>
                 <button
                   type="button"
@@ -446,241 +683,197 @@ export function HomePage() {
               </div>
               <div className="home-ongoing-section__body">
                 <div
-                  className="home-ongoing-carousel"
-                  ref={ongoingCarouselRef}
+                  className="home-ongoing-carousel-viewport"
+                  onTouchStart={onOngoingCarouselTouchStart}
+                  onTouchEnd={onOngoingCarouselTouchEnd}
+                  aria-roledescription="carousel"
                   aria-label="Ongoing orders, swipe sideways"
                 >
-                  {ongoing.map((item) => (
-                    <div
-                      key={item.id}
-                      className="home-ongoing-carousel__slide"
-                      data-ongoing-slide
-                    >
-                      <div className="home-ongoing-dash-card">
-                        <button
-                          type="button"
-                          className="home-ongoing-dash-card__main"
-                          onClick={() =>
-                            navigate(
-                              generatePath(ROUTES.ordersDetail, {
-                                orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
-                                invoiceId: item.invoiceId,
-                              }),
-                            )
-                          }
-                        >
-                          <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
-                            <OrderCategoryIcon
-                              categoryKey={item.orderCategoryIconKey}
-                              width={18}
-                              height={18}
-                            />
-                          </span>
-                          <span className="home-ongoing-dash-card__content">
-                            <span className="home-ongoing-dash-card__row1">
-                              <span className="home-ongoing-dash-card__category">
-                                {item.displayCategory}
-                              </span>
-                              <span
-                                className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClass(item.statusLabel)}`}
-                              >
-                                {item.statusLabel}
-                              </span>
-                            </span>
-                            <span className="home-ongoing-dash-card__row2">
-                              <span className="home-ongoing-dash-card__patient">
-                                {item.patientLine}
-                              </span>
-                              {item.memberCount > 1 ? (
-                                <span className="home-ongoing-dash-card__members">
-                                  +{item.memberCount - 1} members
-                                </span>
-                              ) : null}
-                            </span>
-                            <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
-                            {item.visitTypeLabel ? (
-                              <span className="home-ongoing-dash-card__visit-type">
-                                {item.visitTypeLabel}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="home-ongoing-dash-card__chev" aria-hidden>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                              <path
-                                d="M9 6l6 6-6 6"
-                                stroke="currentColor"
-                                strokeWidth="2.2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </span>
-                        </button>
-                        {item.canJoinVideoCall ? (
+                  <div
+                    className={`home-ongoing-carousel__track${ongoingInstantMove ? " home-ongoing-carousel__track--instant" : ""}`}
+                    style={{
+                      width: `${ongoingExtendedCount * 100}%`,
+                      transform: `translateX(${ongoingTranslatePercent}%)`,
+                    }}
+                    onTransitionEnd={(e) => {
+                      if (e.propertyName !== "transform") return;
+                      onOngoingTrackTransitionEnd();
+                    }}
+                  >
+                    {ongoingSlides.map(({ key, item }, index) => (
+                      <div
+                        key={key}
+                        className="home-ongoing-carousel__slide"
+                        style={{ flex: `0 0 ${100 / ongoingExtendedCount}%` }}
+                        aria-hidden={index !== ongoingExtendedPos}
+                      >
+                        <div className="home-ongoing-dash-card">
                           <button
                             type="button"
-                            className="home-ongoing-dash-card__join-call"
+                            className="home-ongoing-dash-card__main"
                             onClick={() =>
                               navigate(
-                                generatePath(ROUTES.videoCall, { appointmentId: item.id }),
+                                generatePath(ROUTES.ordersDetail, {
+                                  orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
+                                  invoiceId: item.invoiceId,
+                                }),
                               )
                             }
                           >
-                            Join video call
+                            <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
+                              <OrderCategoryIcon
+                                categoryKey={item.orderCategoryIconKey}
+                                width={18}
+                                height={18}
+                              />
+                            </span>
+                            <span className="home-ongoing-dash-card__content">
+                              <span className="home-ongoing-dash-card__row1">
+                                <span className="home-ongoing-dash-card__category">
+                                  {item.displayCategory}
+                                </span>
+                                <span
+                                  className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClassForItem(item)}`}
+                                >
+                                  {item.statusLabel}
+                                </span>
+                              </span>
+                              <span className="home-ongoing-dash-card__row2">
+                                <span className="home-ongoing-dash-card__patient">
+                                  {item.patientLine}
+                                </span>
+                                {item.memberCount > 1 ? (
+                                  <span className="home-ongoing-dash-card__members">
+                                    +{item.memberCount - 1} members
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
+                              {item.visitTypeLabel ? (
+                                <span className="home-ongoing-dash-card__visit-type">
+                                  {item.visitTypeLabel}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="home-ongoing-dash-card__chev" aria-hidden>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M9 6l6 6-6 6"
+                                  stroke="currentColor"
+                                  strokeWidth="2.2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </span>
                           </button>
-                        ) : null}
+                          {item.canJoinVideoCall ? (
+                            <button
+                              type="button"
+                              className="home-ongoing-dash-card__join-call"
+                              onClick={() =>
+                                navigate(
+                                  generatePath(ROUTES.videoCall, { appointmentId: item.id }),
+                                )
+                              }
+                            >
+                              Join video call
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-                {ongoingCount > 1 ? (
-                  <button
-                    type="button"
-                    className="home-ongoing-more-link"
-                    onClick={() => navigate(ROUTES.orders)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    +{ongoingCount - 1} more ongoing
-                  </button>
-                ) : null}
               </div>
             </section>
           ) : null}
 
-          <button
-            type="button"
-            className="home-card home-card--featured home-card--clickable home-card--btn"
-            aria-label="Open Diagnostics options"
-            onClick={() => setIsDiagnosticsSheetOpen(true)}
+          <BorderGlow
+            className="home-diagnostics-border-glow-wrap"
+            {...HOME_CARD_BORDER_GLOW_PROPS}
           >
-            <div className="home-card__body">
-              <h3 className="home-card__title">Diagnostics</h3>
-              <div className="home-card__slot-row">
-                <span className="home-card__slot-ic" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="9"
-                      stroke="currentColor"
-                      strokeWidth="1.75"
-                    />
-                    <path
-                      d="M12 8v4l3 1.5"
-                      stroke="currentColor"
-                      strokeWidth="1.75"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-                <span className="home-card__slot-text">SAME DAY SLOT BOOKING</span>
-              </div>
-              <div className="home-card__loc-row">
-                <span className="home-card__loc-item">
-                  <span className="home-card__loc-ic home-card__loc-ic--blue" aria-hidden="true">
+            <button
+              type="button"
+              className="home-card home-card--featured home-card--clickable home-card--btn"
+              aria-label="Open Diagnostics options"
+              onClick={() => setIsDiagnosticsSheetOpen(true)}
+            >
+              <div className="home-card__body">
+                <h3 className="home-card__title">Diagnostics</h3>
+                <div className="home-card__slot-row">
+                  <span className="home-card__slot-ic" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z"
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
                         stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinejoin="round"
+                        strokeWidth="1.75"
                       />
-                    </svg>
-                  </span>
-                  home collection
-                </span>
-                <span className="home-card__loc-sep" aria-hidden="true">
-                  ·
-                </span>
-                <span className="home-card__loc-item">
-                  <span className="home-card__loc-ic home-card__loc-ic--brand" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                       <path
-                        d="M6 22V12l6-3 6 3v10M9 22v-5h6v5M10 9h.01M14 9h.01"
+                        d="M12 8v4l3 1.5"
                         stroke="currentColor"
-                        strokeWidth="1.6"
+                        strokeWidth="1.75"
                         strokeLinecap="round"
-                        strokeLinejoin="round"
                       />
                     </svg>
                   </span>
-                  at center
-                </span>
+                  <span className="home-card__slot-text">SAME DAY SLOT BOOKING</span>
+                </div>
+                <div className="home-card__loc-row">
+                  <span className="home-card__loc-item">
+                    <span className="home-card__loc-ic home-card__loc-ic--blue" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1v-9.5z"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    home collection
+                  </span>
+                  <span className="home-card__loc-sep" aria-hidden="true">
+                    ·
+                  </span>
+                  <span className="home-card__loc-item">
+                    <span className="home-card__loc-ic home-card__loc-ic--brand" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M6 22V12l6-3 6 3v10M9 22v-5h6v5M10 9h.01M14 9h.01"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    at center
+                  </span>
+                </div>
+                <span className="home-badge home-badge--soft">UP TO 20% OFF</span>
               </div>
-              <span className="home-badge home-badge--soft">UP TO 20% OFF</span>
-            </div>
-            <div
-              className="home-card__media home-card__media--lg"
-              style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.diagnostics) }}
-            />
-          </button>
+              <div
+                className="home-card__media home-card__media--lg"
+                style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.diagnostics) }}
+              />
+            </button>
+          </BorderGlow>
 
           <div className="home-grid-wrap">
             <div className="home-grid">
               <button
                 type="button"
-                className="home-card home-card--tile home-card--tile-consult home-card--btn home-card--clickable"
+                className="home-card home-card--tile home-card--btn home-card--clickable"
                 aria-label="Open Consultation options"
                 onClick={() => setIsConsultationSheetOpen(true)}
               >
                 <div className="home-card__body">
                   <h3 className="home-card__title">Consultation</h3>
-                  <p className="home-card__meta">INSTANT APPOINTMENT</p>
-                  <div className="home-card__loc-row home-card__loc-row--tile">
-                    <span className="home-card__loc-item">
-                      <span className="home-card__loc-ic" aria-hidden="true">
-                        <img
-                          src={wpfOnlineSvg}
-                          alt=""
-                          className="home-card__loc-img"
-                          width={14}
-                          height={14}
-                          draggable={false}
-                        />
-                      </span>
-                      virtual
-                    </span>
-                    <span className="home-card__loc-sep" aria-hidden="true">
-                      ·
-                    </span>
-                    <span className="home-card__loc-item">
-                      <span className="home-card__loc-ic" aria-hidden="true">
-                        <img
-                          src={atCenterSvg}
-                          alt=""
-                          className="home-card__loc-img"
-                          width={14}
-                          height={14}
-                          draggable={false}
-                        />
-                      </span>
-                      at center
-                    </span>
-                  </div>
-                  <span className="home-badge home-badge--bolt">
-                    <svg
-                      className="home-badge__bolt-ic"
-                      width="11"
-                      height="11"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                    10 MINS
-                  </span>
+                  <p className="home-card__meta">BOOK APPOINTMENT</p>
+                  <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
                 </div>
                 <div
                   className="home-card__media"
@@ -736,16 +929,21 @@ export function HomePage() {
             </div>
           </div>
 
+          <Link to={ROUTES.services} className="home-view-more">
+            VIEW MORE
+          </Link>
+
           <Link to={ROUTES.digitalDiary} className="home-digital-diary">
             <div className="home-digital-diary__inner">
               <div className="home-digital-diary__copy">
-                <h3 className="home-digital-diary__title">Your digital diary</h3>
+                <h3 className="home-digital-diary__title">
+                  {DIGITAL_DIARY_COPY.dashboardActivitiesTitle}
+                </h3>
                 <p className="home-digital-diary__desc">
-                  Jot down vitals, water, workouts, mood, and medicines—your day-to-day health story,
-                  organised in one place.
+                  {DIGITAL_DIARY_COPY.dashboardActivitiesSubtitle}
                 </p>
                 <span className="home-digital-diary__cta">
-                  Open diary
+                  {DIGITAL_DIARY_COPY.dashboardActivitiesCta}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
                       d="M9 6l6 6-6 6"
@@ -773,10 +971,6 @@ export function HomePage() {
           </Link>
 
           <HealthClubSection />
-
-          <Link to={ROUTES.services} className="home-view-more">
-            VIEW MORE
-          </Link>
         </section>
       </main>
 

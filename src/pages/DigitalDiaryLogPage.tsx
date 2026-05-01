@@ -5,6 +5,7 @@ import {
 import { DigitalDiaryAddSheet } from "@/components/digitalDiary/DigitalDiaryAddSheet";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import { useToast } from "@/hooks/useToast";
 import {
   activityLogTitleForApiType,
@@ -64,7 +65,9 @@ export function DigitalDiaryLogPage() {
       setEntries(rows);
     } catch (e) {
       setEntries([]);
-      setError(e instanceof Error ? e.message : "Could not load activities.");
+      setError(
+        e instanceof Error ? e.message : DIGITAL_DIARY_COPY.logLoadError,
+      );
     } finally {
       setLoading(false);
     }
@@ -80,10 +83,12 @@ export function DigitalDiaryLogPage() {
       try {
         await submitPatientParameter(body);
         await loadActivities();
-        toast.success("Saved to your diary");
+        toast.success(DIGITAL_DIARY_COPY.submitSuccess);
         return true;
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not save. Please try again.");
+        toast.error(
+          e instanceof Error ? e.message : DIGITAL_DIARY_COPY.submitError,
+        );
         return false;
       } finally {
         setSubmitting(false);
@@ -221,6 +226,12 @@ export function DigitalDiaryLogPage() {
         </div>
       </header>
 
+      {!isToday ? (
+        <p className="dd-log__today-hint" role="status">
+          {DIGITAL_DIARY_COPY.addOnlyToday}
+        </p>
+      ) : null}
+
       <main className="dd-log__main">
         {loading ? (
           <p className="dd-log__meta">Loading…</p>
@@ -230,7 +241,7 @@ export function DigitalDiaryLogPage() {
           <div className="dd-empty">
             <p>{error}</p>
             <button type="button" className="dd-btn" onClick={() => void loadActivities()}>
-              Try again
+              {DIGITAL_DIARY_COPY.logRetry}
             </button>
           </div>
         ) : null}
@@ -248,7 +259,7 @@ export function DigitalDiaryLogPage() {
                 <path d="M8 10h8M8 14h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
-            <p>No entries for this day</p>
+            <p>{DIGITAL_DIARY_COPY.logEmpty}</p>
           </div>
         ) : null}
 
@@ -261,7 +272,9 @@ export function DigitalDiaryLogPage() {
               if (typeof dtRaw === "string") {
                 rawTime = dtRaw;
               } else if (typeof dtRaw === "number" && Number.isFinite(dtRaw)) {
-                rawTime = new Date(dtRaw).toISOString();
+                // Match patient_app: epoch ms; also accept s if value is small (defensive)
+                const ms = dtRaw < 1e12 ? dtRaw * 1000 : dtRaw;
+                rawTime = new Date(ms).toISOString();
               }
               let timeLabel = "—";
               if (rawTime.length > 0) {
@@ -293,7 +306,7 @@ export function DigitalDiaryLogPage() {
           <span className="dd-fab__plus" aria-hidden>
             +
           </span>
-          Add
+          {DIGITAL_DIARY_COPY.fabAdd}
         </button>
       ) : null}
 

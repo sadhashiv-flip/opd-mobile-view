@@ -81,17 +81,25 @@ function isConsultationExpired(info: Record<string, unknown>): boolean {
   return Date.now() > scheduledAt + 10 * 60 * 1000;
 }
 
-function statusInt(row: Record<string, unknown>, info: Record<string, unknown>): number | null {
-  const jsonSt = row.status;
+/**
+ * Service workflow code from `data.info.status` (same as order details / `order/...` invoice)
+ * or top-level `row.status` when numeric. Prefer **info** first so payment strings on the
+ * invoice root do not override `info.status` (see `mapOngoingStatusLabel` order).
+ */
+export function parseOngoingServiceStatusCode(
+  row: Record<string, unknown>,
+  info: Record<string, unknown>,
+): number | null {
   const st = info.status;
-  if (typeof jsonSt === "number" && Number.isFinite(jsonSt)) return jsonSt;
-  if (typeof jsonSt === "string") {
-    const p = Number.parseInt(jsonSt.trim(), 10);
-    if (!Number.isNaN(p)) return p;
-  }
   if (typeof st === "number" && Number.isFinite(st)) return st;
   if (typeof st === "string") {
     const p = Number.parseInt(st.trim(), 10);
+    if (!Number.isNaN(p)) return p;
+  }
+  const jsonSt = row.status;
+  if (typeof jsonSt === "number" && Number.isFinite(jsonSt)) return jsonSt;
+  if (typeof jsonSt === "string") {
+    const p = Number.parseInt(jsonSt.trim(), 10);
     if (!Number.isNaN(p)) return p;
   }
   return null;
@@ -102,26 +110,7 @@ export function mapOngoingStatusLabel(
   info: Record<string, unknown>,
   tx: string,
 ): string {
-  const payment = (row.status?.toString() ?? "").toLowerCase();
-  if (["cancelled", "canceled", "failed", "refunded"].includes(payment)) return "Cancelled";
-  if (["success", "paid", "completed", "complete"].includes(payment)) return "Completed";
-  if (["pending", "created", "processing"].includes(payment)) {
-    return payment === "processing" ? "Processing" : "Pending";
-  }
-
-  const statusText = firstNonEmpty([
-    row.statusText?.toString(),
-    row.status_text?.toString(),
-    info.statusText?.toString(),
-    info.status_text?.toString(),
-  ]).toLowerCase();
-  if (statusText.includes("payment pending")) return "Payment Pending";
-  if (statusText.includes("pending")) return "Pending";
-  if (statusText.includes("confirm")) return "Confirm Changes";
-  if (statusText.includes("complete")) return "Completed";
-  if (statusText.includes("cancel")) return "Cancelled";
-
-  const statusCode = statusInt(row, info);
+  const statusCode = parseOngoingServiceStatusCode(row, info);
   if (statusCode != null) {
     switch (statusCode) {
       case 1:
@@ -131,10 +120,15 @@ export function mapOngoingStatusLabel(
       case 9:
         return "Expired";
       case 4:
-        return "Payment Pending";
+        /** Matches {@link consultationInfoStatusLabelOffline} / order `order/...` */
+        return "Payment pending";
       case 5:
         if (tx === "CONSULTATION" && isConsultationExpired(info)) return "Expired";
-        return tx === "MENTALWELLNESS" ? "Upcoming Session" : "Upcoming";
+        if (tx === "MENTALWELLNESS") return "Upcoming Session";
+        if (tx === "CONSULTATION" || tx === "APPOINTMENT")
+          return "Upcoming Appointment";
+        /** Non–doctor-consultation / list-style `info.status` 5 — see `invoiceListStatusLabelFromInfoStatus` */
+        return "Confirmed";
       case 3:
         return "Confirm Changes";
       case 0:
@@ -148,6 +142,25 @@ export function mapOngoingStatusLabel(
         break;
     }
   }
+
+  const payment = (row.status?.toString() ?? "").toLowerCase();
+  if (["cancelled", "canceled", "failed", "refunded"].includes(payment)) return "Cancelled";
+  if (["success", "paid", "completed", "complete"].includes(payment)) return "Completed";
+  if (["pending", "created", "processing"].includes(payment)) {
+    return payment === "processing" ? "Processing" : "Pending";
+  }
+
+  const statusText = firstNonEmpty([
+    row.statusText?.toString(),
+    row.status_text?.toString(),
+    info.statusText?.toString(),
+    info.status_text?.toString(),
+  ]).toLowerCase();
+  if (statusText.includes("payment pending")) return "Payment pending";
+  if (statusText.includes("pending")) return "Pending";
+  if (statusText.includes("confirm")) return "Confirm Changes";
+  if (statusText.includes("complete")) return "Completed";
+  if (statusText.includes("cancel")) return "Cancelled";
 
   const stStr = (info.status?.toString() ?? "").toLowerCase();
   if (stStr.includes("cancel")) return "Cancelled";

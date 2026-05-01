@@ -1,5 +1,5 @@
 import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
-import { patientJson, patientJsonList } from "@/api/patientHttp";
+import { patientFetchChecked, patientJson, patientJsonList } from "@/api/patientHttp";
 
 /** Normalized row for UI; maps common API field names. */
 export type SubscriptionDisplay = Readonly<{
@@ -193,14 +193,22 @@ function parseMemberTypeCounts(v: unknown): Record<string, number> | null {
   if (!r) return null;
   const out: Record<string, number> = {};
   for (const [k, val] of Object.entries(r)) {
-    if (typeof val === "number" && Number.isFinite(val)) out[k] = val;
+    let n: number;
+    if (typeof val === "number" && Number.isFinite(val)) {
+      n = val;
+    } else if (typeof val === "string" || typeof val === "boolean") {
+      n = Number.parseInt(String(val).trim(), 10);
+    } else {
+      n = Number.NaN;
+    }
+    if (Number.isFinite(n)) out[k] = n;
   }
   return Object.keys(out).length > 0 ? out : null;
 }
 
 function formatMemberTypeLine(mt: Record<string, number> | null): string | null {
   if (!mt) return null;
-  const order = ["child", "employee", "spouse"] as const;
+  const order = ["employee", "spouse", "parent", "child"] as const;
   const seen = new Set<string>();
   const parts: string[] = [];
   for (const k of order) {
@@ -213,6 +221,59 @@ function formatMemberTypeLine(mt: Record<string, number> | null): string | null 
     if (!seen.has(k)) parts.push(`${k} (${mt[k]})`);
   }
   return parts.length ? parts.join(" , ") : null;
+}
+
+/** Same ordering as patient_app `MySubscriptionsScreen._SlotList`. */
+export function sortSubscriptionMemberTypeKeys(keys: readonly string[]): string[] {
+  const order = ["employee", "spouse", "parent", "child"];
+  return [...keys].sort((a, b) => {
+    const ia = order.indexOf(a.toLowerCase());
+    const ib = order.indexOf(b.toLowerCase());
+    if (ia !== -1 || ib !== -1) {
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    }
+    return a.localeCompare(b);
+  });
+}
+
+function subscriptionValidUntilDisplay(o: Record<string, unknown>): string | null {
+  const explicit = str(o.expiresAt_display);
+  if (explicit) return explicit;
+
+  for (const key of [
+    "expiresAt",
+    "expires_at",
+    "end_date",
+    "valid_until",
+    "subscription_end",
+  ] as const) {
+    const v = o[key];
+    if (v == null || typeof v === "object") continue;
+    const s = String(v).trim();
+    if (!s) continue;
+    const parsed = Date.parse(s);
+    if (!Number.isNaN(parsed)) {
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }).format(new Date(parsed));
+    }
+  }
+
+  const daysLeft = num(o.daysLeft) ?? num(o.days_left);
+  if (daysLeft != null && daysLeft >= 0) {
+    const end = new Date();
+    end.setDate(end.getDate() + daysLeft);
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(end);
+  }
+  return null;
 }
 
 export type ActiveSubscriptionPatientRow = Readonly<{
@@ -233,6 +294,13 @@ export type ActiveSubscriptionItem = Readonly<{
   memberTypeLine: string | null;
   canActivate: boolean;
   patients: readonly ActiveSubscriptionPatientRow[];
+  /** Buyer / primary purchaser — must match logged-in user to assign dependents (patient_app). */
+  patientId: string | null;
+  planAllowsDependentAdd: boolean;
+  subscriptionStatusActive: boolean;
+  validUntilDisplay: string | null;
+  memberTypeCounts: Record<string, number> | null;
+  assignedPatientIds: readonly string[];
 }>;
 
 export type ActiveSubscriptionsResult = Readonly<{
@@ -261,6 +329,39 @@ function parseActivePatientRow(v: unknown, index: number): ActiveSubscriptionPat
   };
 }
 
+function collectAssignedPatientIds(
+  o: Record<string, unknown>,
+  parsedPatients: readonly ActiveSubscriptionPatientRow[],
+): readonly string[] {
+  const ids = new Set<string>();
+  const membersRaw = o.members;
+  if (Array.isArray(membersRaw)) {
+    for (const e of membersRaw) {
+      const m = asRecord(e);
+      const id = m ? str(m.id) : null;
+      if (id) ids.add(id);
+    }
+  }
+  for (const p of parsedPatients) {
+    ids.add(p.id);
+  }
+  const patientsRaw = o.patients;
+  if (Array.isArray(patientsRaw)) {
+    for (const e of patientsRaw) {
+      const row = asRecord(e);
+      if (!row) continue;
+      const pid = str(row.patient_id);
+      if (pid) ids.add(pid);
+      const inner = asRecord(row.patient);
+      if (inner) {
+        const id = str(inner.id);
+        if (id) ids.add(id);
+      }
+    }
+  }
+  return [...ids];
+}
+
 function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscriptionItem | null {
   const o = asRecord(v);
   if (!o) return null;
@@ -269,13 +370,19 @@ function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscript
 
   const id = str(o.id) ?? str(o.purchase_id) ?? `sub-${index}`;
 
-  const memberTypeLine = formatMemberTypeLine(parseMemberTypeCounts(o.member_type));
+  const memberTypeCounts =
+    parseMemberTypeCounts(plan.member_type) ?? parseMemberTypeCounts(o.member_type);
+  const memberTypeLine = formatMemberTypeLine(memberTypeCounts);
   const patientsRaw = o.patients;
   const patients: ActiveSubscriptionPatientRow[] = Array.isArray(patientsRaw)
     ? patientsRaw
       .map((p, i) => parseActivePatientRow(p, i))
       .filter((x): x is ActiveSubscriptionPatientRow => x != null)
     : [];
+
+  const statusN = num(o.status);
+  const subscriptionStatusActive = statusN === 1 || o.status === true;
+  const planAllowsDependentAdd = plan.dependent_add === true;
 
   return {
     id,
@@ -286,6 +393,12 @@ function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscript
     memberTypeLine,
     canActivate: o.canActivate === true,
     patients,
+    patientId: str(o.patient_id),
+    planAllowsDependentAdd,
+    subscriptionStatusActive,
+    validUntilDisplay: subscriptionValidUntilDisplay(o),
+    memberTypeCounts,
+    assignedPatientIds: collectAssignedPatientIds(o, patients),
   };
 }
 
@@ -307,6 +420,12 @@ function legacyItemsToActive(items: SubscriptionDisplay[]): ActiveSubscriptionIt
     memberTypeLine: s.description,
     canActivate: false,
     patients: [],
+    patientId: null,
+    planAllowsDependentAdd: false,
+    subscriptionStatusActive: false,
+    validUntilDisplay: s.endDate,
+    memberTypeCounts: null,
+    assignedPatientIds: [],
   }));
 }
 
@@ -344,4 +463,24 @@ export function parseActiveSubscriptionsResponse(body: unknown): ActiveSubscript
 export async function fetchActiveSubscriptions(): Promise<ActiveSubscriptionsResult> {
   const raw = await patientJson<unknown>("subscription/plans", { method: "GET" });
   return parseActiveSubscriptionsResponse(raw);
+}
+
+/**
+ * POST `/patient/subscription/activate` — assign a family member to a plan slot (patient_app
+ * `SubscriptionRepository.activateMemberOnPlan`).
+ */
+export async function activateMemberOnPlan(params: Readonly<{
+  memberId: number;
+  subscriptionId: string;
+  dependentType: string;
+}>): Promise<void> {
+  const res = await patientFetchChecked("subscription/activate", {
+    method: "POST",
+    body: JSON.stringify({
+      member_id: params.memberId,
+      subscription_id: params.subscriptionId,
+      dependent_type: params.dependentType,
+    }),
+  });
+  await res.text();
 }

@@ -1,5 +1,6 @@
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import { DIGITAL_DIARY_SECTIONS } from "@/lib/digitalDiary";
 import { generatePath, useLocation, useNavigate } from "react-router-dom";
 import "./DigitalDiaryPages.css";
@@ -151,11 +152,11 @@ export function DigitalDiaryHubPage() {
             />
           </svg>
         </button>
-        <h1 className="dd-screen-header__title">Digital diary</h1>
+        <h1 className="dd-screen-header__title">{DIGITAL_DIARY_COPY.appBarTitle}</h1>
       </header>
 
       <main className="dd-hub__main">
-        <section className="dd-intro" aria-label="About digital diary">
+        <section className="dd-intro" aria-label={DIGITAL_DIARY_COPY.appBarTitle}>
           <span className="dd-intro__icon" aria-hidden>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path
@@ -167,10 +168,7 @@ export function DigitalDiaryHubPage() {
               <circle cx="12" cy="12" r="3" stroke="#ff5224" strokeWidth="1.8" />
             </svg>
           </span>
-          <p className="dd-intro__text">
-            Pick a category to review your history by day. Everything is grouped so you can find it
-            quickly.
-          </p>
+          <p className="dd-intro__text">{DIGITAL_DIARY_COPY.hubIntro}</p>
         </section>
 
         {DIGITAL_DIARY_SECTIONS.map((section) => (

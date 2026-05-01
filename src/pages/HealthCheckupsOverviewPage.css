@@ -1130,10 +1130,13 @@
   cursor: not-allowed;
 }
 
+/* Match .mobile-frame width under .mobile-app-root (--mobile-frame-max-width); same pattern as BookingConfirmationBottomSheet */
 .lt-sheet-backdrop {
   position: fixed;
   inset: 0;
   z-index: 100;
+  box-sizing: border-box;
+  padding: 0 14px calc(12px + env(safe-area-inset-bottom, 0px));
   background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: flex-end;
@@ -1142,13 +1145,15 @@
 
 .lt-sheet {
   width: 100%;
-  max-width: 560px;
+  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  min-width: 0;
   max-height: min(92vh, 720px);
   overflow: auto;
   background: #ffffff;
   border-radius: 16px 16px 0 0;
   padding: 12px 18px calc(18px + env(safe-area-inset-bottom));
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
 }
 
 .lt-sheet__head {

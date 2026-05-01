@@ -1,5 +1,6 @@
-import { categoryForActivityType } from "@/lib/digitalDiary";
 import { patientJson } from "@/api/patientHttp";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
+import { categoryForActivityType } from "@/lib/digitalDiary";
 
 const VITAL_TYPES_FILTER = new Set(["GL", "BP", "HR", "TEMP", "O2"]);
 
@@ -59,7 +60,7 @@ export async function fetchPatientParameters(
     return list;
   } catch (e) {
     if (e instanceof Error) throw e;
-    throw new Error("Could not load activities. Please try again.");
+    throw new Error(DIGITAL_DIARY_COPY.loadActivitiesGenericError);
   }
 }
 

@@ -460,8 +460,12 @@ export function OrderDetailsPage() {
   const cancelDialogTitleId = useId();
   const cancelReasonFieldId = useId();
   const confirmMedicineOrderTitleId = useId();
+  const confirmLabSubOrderDialogTitleId = useId();
+  const confirmLabSubOrderDialogRef = useRef<HTMLDialogElement>(null);
   const [confirmMedicineOrderDialogOpen, setConfirmMedicineOrderDialogOpen] = useState(false);
   const [confirmMedicineOrderBusy, setConfirmMedicineOrderBusy] = useState(false);
+  /** Lab collection schedule — confirm center API runs only after user accepts this dialog. */
+  const [labSubOrderConfirmDialogId, setLabSubOrderConfirmDialogId] = useState<string | null>(null);
   const [labRescheduleRow, setLabRescheduleRow] = useState<LabSubOrderDetailRow | null>(null);
   const [labCancelPhase, setLabCancelPhase] = useState<"reason" | "confirm">("reason");
   const [confirmLabSubOrderBusyId, setConfirmLabSubOrderBusyId] = useState<string | null>(null);
@@ -694,6 +698,22 @@ export function OrderDetailsPage() {
       d.close();
     }
   }, [confirmMedicineOrderDialogOpen]);
+
+  useEffect(() => {
+    const d = confirmLabSubOrderDialogRef.current;
+    if (!d) return;
+    if (labSubOrderConfirmDialogId != null && labSubOrderConfirmDialogId.trim() !== "") {
+      if (!d.open) d.showModal();
+    } else if (d.open) {
+      d.close();
+    }
+  }, [labSubOrderConfirmDialogId]);
+
+  useEffect(() => {
+    if (detail?.categoryKey !== "lab") {
+      setLabSubOrderConfirmDialogId(null);
+    }
+  }, [detail?.categoryKey]);
 
   useEffect(() => {
     if (!detail?.pharmacyAwaitingDetailConfirmation) {
@@ -1258,6 +1278,19 @@ export function OrderDetailsPage() {
     return detail.pharmacyConfirmCenter;
   }, [detail]);
 
+  /** Lab only: Collection schedule already shows Center details per sub-order — hide duplicate standalone card (pharmacy/vision unchanged). */
+  const labCollectionScheduleHasCenterDetails = useMemo(() => {
+    if (!detail || detail.categoryKey !== "lab") return false;
+    return detail.labSubOrders.some(
+      (row) =>
+        Boolean(row.subOrderCenter.centerName?.trim()) ||
+        Boolean(row.subOrderCenter.centerAddress?.trim()) ||
+        Boolean(row.subOrderCenter.centerPhone?.trim()) ||
+        Boolean(row.subOrderCenterBookingTimeLine) ||
+        row.showConfirmSubOrderCenterButton,
+    );
+  }, [detail]);
+
   const openLabReschedule = useCallback(
     (row: LabSubOrderDetailRow) => {
       if (!detail || detail.categoryKey !== "lab") return;
@@ -1279,6 +1312,7 @@ export function OrderDetailsPage() {
       setConfirmLabSubOrderBusyId(sid);
       try {
         await patchLabOrderConfirm(sid);
+        setLabSubOrderConfirmDialogId(null);
         toast.success("Center details confirmed");
         await load();
       } catch (e) {
@@ -1665,7 +1699,7 @@ export function OrderDetailsPage() {
                       ) : null}
                     </section>
 
-                    {pharmacyCenterForConfirmUi != null ? (
+                    {pharmacyCenterForConfirmUi != null && !labCollectionScheduleHasCenterDetails ? (
                       <section className="od-card od-card--pharmacy-center-confirm" aria-label="Center details">
                         <h3 className="od-card__title">Center details</h3>
                         <p className="od-pharm-center__name">
@@ -1710,7 +1744,7 @@ export function OrderDetailsPage() {
                           ) : null}
                         </div>
                       </section>
-                    ) : showPharmacyAwaitingDetailConfirmation ? (
+                    ) : showPharmacyAwaitingDetailConfirmation && pharmacyCenterForConfirmUi == null ? (
                       <section className="od-card od-card--pharmacy-center-confirm" aria-label="Confirm order details">
                         <div className="od-pharm-center__actions od-pharm-center__actions--solo">
                           <button
@@ -1791,7 +1825,7 @@ export function OrderDetailsPage() {
                                   type="button"
                                   className="od-lab-sub-card__confirm-center"
                                   disabled={confirmLabSubOrderBusyId === row.id}
-                                  onClick={() => void onConfirmLabSubOrderCenter(row.id)}
+                                  onClick={() => setLabSubOrderConfirmDialogId(row.id)}
                                 >
                                   {confirmLabSubOrderBusyId === row.id ? "Confirming…" : "Confirm details"}
                                 </button>
@@ -2220,6 +2254,52 @@ export function OrderDetailsPage() {
                 onClick={() => void onConfirmMedicineOrderDetails()}
               >
                 {confirmMedicineOrderBusy ? "Confirming…" : "Yes, confirm"}
+              </button>
+            </footer>
+          </div>
+        </dialog>
+      ) : null}
+
+      {labSubOrderConfirmDialogId != null && labSubOrderConfirmDialogId.trim() !== "" ? (
+        <dialog
+          ref={confirmLabSubOrderDialogRef}
+          className="od-cancel-dialog od-confirm-medicine-dialog"
+          aria-labelledby={confirmLabSubOrderDialogTitleId}
+          aria-describedby={`${confirmLabSubOrderDialogTitleId}-desc`}
+          onClose={() => {
+            if (confirmLabSubOrderBusyId != null) return;
+            setLabSubOrderConfirmDialogId(null);
+          }}
+          onCancel={(e) => {
+            e.preventDefault();
+            if (confirmLabSubOrderBusyId != null) return;
+            setLabSubOrderConfirmDialogId(null);
+          }}
+        >
+          <div className="od-cancel-dialog__panel">
+            <h2 id={confirmLabSubOrderDialogTitleId} className="od-cancel-dialog__title">
+              Confirm these details?
+            </h2>
+            <p id={`${confirmLabSubOrderDialogTitleId}-desc`} className="od-cancel-dialog__desc">
+              Please confirm the collection center and schedule shown for this visit are correct. After this, the
+              order will move forward when payment or other steps apply.
+            </p>
+            <footer className="od-cancel-dialog__footer">
+              <button
+                type="button"
+                className="od-cancel-dialog__btn od-cancel-dialog__btn--secondary"
+                disabled={confirmLabSubOrderBusyId != null}
+                onClick={() => setLabSubOrderConfirmDialogId(null)}
+              >
+                No, go back
+              </button>
+              <button
+                type="button"
+                className="od-cancel-dialog__btn od-cancel-dialog__btn--primary"
+                disabled={confirmLabSubOrderBusyId != null}
+                onClick={() => void onConfirmLabSubOrderCenter(labSubOrderConfirmDialogId)}
+              >
+                {confirmLabSubOrderBusyId != null ? "Confirming…" : "Yes, confirm"}
               </button>
             </footer>
           </div>

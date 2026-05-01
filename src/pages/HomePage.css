@@ -246,6 +246,12 @@
   color: #111111;
 }
 
+.home-ongoing-section__count {
+  font-weight: 600;
+  font-size: clamp(13px, calc(15 * 100cqw / 375), 15px);
+  color: #616161;
+}
+
 .home-ongoing-section__view-all {
   border: none;
   padding: 0;
@@ -263,30 +269,31 @@
   gap: 10px;
 }
 
-/* Horizontal carousel — Flutter `PageView` + swipe; one “page” per order. */
-.home-ongoing-carousel {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
+/* Infinite horizontal carousel — same transform pattern as `.home-banner__viewport` */
+.home-ongoing-carousel-viewport {
+  overflow: hidden;
+  width: 100%;
+  border-radius: 12px;
+  touch-action: pan-y pinch-zoom;
   min-height: 110px;
-  padding-bottom: 2px;
-  margin-inline: -4px;
-  padding-inline: 4px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
 }
 
-.home-ongoing-carousel::-webkit-scrollbar {
-  display: none;
+.home-ongoing-carousel__track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  min-height: 110px;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.home-ongoing-carousel__track--instant {
+  transition: none;
 }
 
 .home-ongoing-carousel__slide {
-  flex: 0 0 100%;
-  min-width: 100%;
-  max-width: 100%;
-  scroll-snap-align: start;
+  position: relative;
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -456,27 +463,6 @@
 
 .home-ongoing-dash-card__join-call:active {
   opacity: 0.92;
-}
-
-.home-ongoing-more-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  margin: 0;
-  padding: 4px 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: clamp(12px, calc(12 * 100cqw / 375), 12px);
-  font-weight: 600;
-  color: #0b69ff;
-  cursor: pointer;
-}
-
-.home-ongoing-more-link svg {
-  flex-shrink: 0;
-  color: #0b69ff;
 }
 
 .home-ongoing-section__cards {
@@ -879,13 +865,20 @@
   background: #f5f5f5;
 }
 
+/* Search + typeahead (mirrors Flutter `SearchOverlay` above main content) */
+.home-search-block {
+  position: relative;
+  z-index: 30;
+  margin-bottom: 20px;
+}
+
 /* Stadium / pill search field (Figma) */
 .home-search {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   border: 1px solid #e8e8e8;
   border-radius: 999px;
   background: #fafafa;
@@ -896,8 +889,18 @@
   display: flex;
 }
 
-.home-search__input {
+.home-search__field {
+  position: relative;
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.home-search__input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
   min-width: 0;
   border: none;
   background: transparent;
@@ -909,6 +912,36 @@
 
 .home-search__input::placeholder {
   color: #b0b0b0;
+}
+
+/* TextType — overlay when empty & unfocused (pointer-events none → input still receives taps) */
+.home-search__typewrap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.home-search__type {
+  color: #b0b0b0;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  line-height: 1.25;
+}
+
+.home-search__type--prefix {
+  flex-shrink: 0;
+  white-space: pre;
+}
+
+.home-search__type--rotating {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .home-search__divider {
@@ -934,6 +967,18 @@
   width: 22px;
   height: 22px;
   object-fit: contain;
+}
+
+/* Voice active — mirrors Flutter `DashboardSearchBar` mic highlight */
+.home-search__mic--listening {
+  border-radius: 50%;
+  background: rgb(255 84 30 / 14%);
+  padding: 6px;
+  margin: -6px -6px -6px 0;
+}
+
+.home-search__mic-img--listening {
+  filter: brightness(0.85) saturate(1.2);
 }
 
 .home-section {
@@ -1085,6 +1130,27 @@
   margin-bottom: 12px;
 }
 
+/* BorderGlow wrapper — spacing matches `.home-card--featured`; inner card margin cleared */
+.home-diagnostics-border-glow-wrap {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.home-diagnostics-border-glow-wrap .home-card--featured {
+  margin-bottom: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.home-diagnostics-border-glow-wrap .home-card--featured:active {
+  transform: translateY(0.5px);
+}
+
+/* White surface — crisp hairline */
+.home-diagnostics-border-glow-wrap.border-glow-card--light {
+  border-color: rgb(15 23 42 / 14%);
+}
+
 .home-card--btn {
   padding: 0;
   text-align: left;
@@ -1140,7 +1206,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 6px;
+  /* gap: 4px 6px; */
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 500;
   line-height: 1.3;
@@ -1424,14 +1490,6 @@
   margin-top: auto;
 }
 
-.home-card--tile-consult .home-card__body {
-  padding: 10px 10px 6px;
-}
-
-.home-card--tile-consult .home-card__loc-row--tile {
-  margin-bottom: 5px;
-}
-
 .home-badge {
   display: inline-block;
   align-self: flex-start;
@@ -1463,31 +1521,6 @@
   color: var(--color-brand-orange);
   background: linear-gradient(90deg, #ffc0ac 0%, #ffffff 100%);
 }
-
-/* Orange pill, white bolt + label (Consultation) — gradient border via clip (works with radius) */
-.home-badge.home-badge--bolt {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  align-self: flex-start;
-  padding: 3px 7px 3px 5px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  color: #000000;
-  background: linear-gradient(#ededed, #ffffff) padding-box, linear-gradient(94deg, #ff3d00 0.61%, #ffffff 91%) border-box;
-  background-origin: border-box;
-  background-clip: padding-box, border-box;
-}
-
-.home-badge__bolt-ic {
-  flex-shrink: 0;
-  display: block;
-  color: var(--color-brand-orange);
-}
-
 
 .home-view-more {
   display: block;
@@ -1529,8 +1562,13 @@
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  transition: transform 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
+}
+
+/* Infinite loop jump — snap without animating backward across all slides */
+.home-banner__track--instant {
+  transition: none;
 }
 
 .home-banner__slide {

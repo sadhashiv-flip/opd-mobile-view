@@ -1,4 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import bookConsultationSvg from "@/assets/icons/Services/BookConsultation.svg";
 import bookDiagnosticSvg from "@/assets/icons/Services/BookDiagnostic.svg";
 import chronicManagementSvg from "@/assets/icons/Services/ChronicManagement.svg";
@@ -264,8 +265,8 @@ export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
   },
   {
     id: "activity",
-    title: "Digital diary",
-    description: "Vitals, water, mood, medicines—your daily health log",
+    title: DIGITAL_DIARY_COPY.appBarTitle,
+    description: DIGITAL_DIARY_COPY.helpHubDigitalDiaryDescription,
     iconSrc: helpActivitiesSvg,
   },
 ];

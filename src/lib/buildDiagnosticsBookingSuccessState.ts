@@ -18,10 +18,10 @@ export function buildDiagnosticsBookingSuccessState(args: {
 }): BookingSuccessLocationState {
   const invoiceDocId = args.invoiceId.trim();
   const infoId = args.overview?.infoOrderId?.trim() ?? "";
-  /** `/order/lab/:id` — partner expects `info.id`; payment APIs still receive document invoice id separately. */
-  const orderDetailRouteId = infoId || invoiceDocId;
-  const orderDisplay = infoId
-    ? `#${infoId.replace(/^#/, "")}`
+  /** Show order id when present; if not, show invoice id (avoid "—" when either exists). */
+  const displayId = infoId || invoiceDocId;
+  const orderDisplay = displayId
+    ? `#${displayId.replace(/^#/, "")}`
     : "—";
   const serviceNames =
     args.overview != null && args.overview.items.length > 0
@@ -48,6 +48,7 @@ export function buildDiagnosticsBookingSuccessState(args: {
       { label: "Schedule", value: args.scheduleDisplay.trim() || "—" },
     ],
     orderDetailCategoryKey: "lab",
-    orderDetailInvoiceId: orderDetailRouteId || undefined,
+    /** `GET /invoice/:invoiceId` — document invoice id for `/order/lab/:invoiceId`, not partner `info.id`. */
+    orderDetailInvoiceId: invoiceDocId || undefined,
   };
 }

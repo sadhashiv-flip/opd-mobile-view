@@ -667,9 +667,10 @@ export function HealthCheckupsOverviewPage() {
     <div className={`hco-page ${isLabTests ? "hco-page--lab-review" : "hco-page--lab"}`}>
       <header className="hco-top">
         <Link
-          to={generatePath(ROUTES.diagnosticsSlots, { type })}
+          to={isLabTests ? ROUTES.orders : generatePath(ROUTES.diagnosticsSlots, { type })}
+          replace={isLabTests}
           className="hco-back"
-          aria-label="Back to slots"
+          aria-label={isLabTests ? "Back to orders" : "Back to slots"}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
