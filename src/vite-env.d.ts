@@ -58,6 +58,13 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
   /** Web Push certificates key pair — Firebase Console → Project settings → Cloud Messaging → Web configuration. */
   readonly VITE_FIREBASE_VAPID_KEY?: string;
+  /**
+   * `"true"` — mock SSO (no API). `"false"` — `POST` IAM token exchange on API root.
+   * Unset — mock in dev, real in production builds.
+   */
+  readonly VITE_SSO_USE_MOCK?: string;
+  /** Relative path on API host root for IAM token exchange (`access_token`), then client loads `GET /patient/profile`. Default `iam/auth/sso/token-exchange`. */
+  readonly VITE_SSO_EXCHANGE_PATH?: string;
 }
 
 interface ImportMeta {

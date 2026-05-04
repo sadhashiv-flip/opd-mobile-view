@@ -14,6 +14,7 @@ import { HealthCheckupsPlanPage } from "../pages/HealthCheckupsPlanPage";
 import { HomePage } from "../pages/HomePage";
 import { AccountLinkPage } from "@/pages/AccountLinkPage";
 import { PreLoginNoticeGate } from "../pages/PreLoginNoticeGate";
+import { SsoLoginPage } from "@/pages/SsoLoginPage";
 import { RequiredLabTestsPage } from "@/pages/RequiredLabTestsPage";
 import { OtpPage } from "../pages/OtpPage";
 import { MedicalRecordsPage } from "@/pages/MedicalRecordsPage";
@@ -99,6 +100,7 @@ export function AppRoutes() {
     <Routes>
       <Route path={ROUTES.root} element={<SplashPage />} />
       <Route path={ROUTES.login} element={<PreLoginNoticeGate />} />
+      <Route path={ROUTES.ssoLogin} element={<SsoLoginPage />} />
       <Route element={<SessionNoticeGateLayout />}>
       <Route path={ROUTES.otp} element={<OtpPage />} />
       <Route path={ROUTES.requiredLabTests} element={<RequiredLabTestsPage />} />

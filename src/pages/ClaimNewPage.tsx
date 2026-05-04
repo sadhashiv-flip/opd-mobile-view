@@ -21,6 +21,7 @@ import {
 } from "@/api/patientReimbursement";
 import { uploadReimbursementBillDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
+import { CLAIMS_DISCLOSURES_GATE_SESSION_KEY } from "@/constants/appSessionStorageKeys";
 import { CLAIM_CHECKLIST_ESCROW_STORAGE_KEY } from "@/constants/claimsChecklistEscrow";
 import { useToast } from "@/hooks/useToast";
 import type { ClaimBillChecklistLocationState } from "@/pages/ClaimBillChecklistPage";
@@ -28,7 +29,6 @@ import "@/components/address/AddressBottomSheet.css";
 import "@/pages/ProfileBankFormPage.css";
 import "./ClaimsPages.css";
 
-const GATE_KEY = "fh_claims_disclosures_ok";
 type StepId = 1 | 2 | 3;
 
 type DraftBill = Readonly<{
@@ -219,7 +219,8 @@ export function ClaimNewPage() {
     (location.state as { returnPath?: string } | null)?.returnPath?.trim() || ROUTES.claims;
 
   const [gate, setGate] = useState<"terms" | "note" | "done">(() =>
-    typeof globalThis.sessionStorage !== "undefined" && globalThis.sessionStorage.getItem(GATE_KEY) === "1"
+    typeof globalThis.sessionStorage !== "undefined" &&
+      globalThis.sessionStorage.getItem(CLAIMS_DISCLOSURES_GATE_SESSION_KEY) === "1"
       ? "done"
       : "terms",
   );
@@ -1361,7 +1362,7 @@ export function ClaimNewPage() {
                 className="claim-sheet__btn-black"
                 style={{ flex: 1 }}
                 onClick={() => {
-                  sessionStorage.setItem(GATE_KEY, "1");
+                  sessionStorage.setItem(CLAIMS_DISCLOSURES_GATE_SESSION_KEY, "1");
                   setGate("done");
                 }}
               >

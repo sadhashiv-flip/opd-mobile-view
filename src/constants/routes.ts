@@ -3,6 +3,11 @@ export const ROUTES = {
   /** Onboarding carousel; use `login` for the auth screen. */
   root: "/",
   login: "/login",
+  /**
+   * IAM / mobile redirect: `?token=<short-lived JWT>`. Exchanges for app session (mock or API).
+   * Register this path with IAM as the provider redirect URL.
+   */
+  ssoLogin: "/sso-login",
   otp: "/otp",
   /** Onboarding when verify returns `isReg: false` (personal info → BMI). */
   userDetailsPersonal: "/user-details/personal",

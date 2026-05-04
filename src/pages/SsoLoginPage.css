@@ -1,0 +1,233 @@
+/* SSO redirect screen — aligned with LoginPage (brand, Poppins, orange CTA). */
+
+.sso-login-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #ffffff;
+  color: #000000;
+  container-type: inline-size;
+  container-name: sso-login;
+}
+
+.sso-login-page__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--page-pad-x) clamp(18px, 5cqw, 26px);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.sso-login-page__body--loading {
+  justify-content: center;
+  min-height: min(70dvh, 520px);
+}
+
+.sso-login-page__brand {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-bottom: clamp(16px, 4cqw, 24px);
+}
+
+.sso-login-page__body--loading .sso-login-page__brand {
+  margin-bottom: clamp(20px, 5cqw, 32px);
+}
+
+.sso-login-page__logo {
+  display: block;
+  max-width: min(200px, 52cqw);
+  width: auto;
+  height: auto;
+  max-height: 40px;
+  object-fit: contain;
+}
+
+.sso-login-page__panel {
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.sso-login-page__panel--loading {
+  text-align: center;
+  padding: clamp(12px, 3cqw, 20px) 0;
+}
+
+.sso-login-page__header {
+  margin-bottom: 0;
+}
+
+.sso-login-page__header--center {
+  text-align: center;
+}
+
+.sso-login-page__title {
+  margin: 0 auto 10px;
+  max-width: 22em;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+.sso-login-page__subtitle {
+  margin: 0 auto;
+  max-width: 24em;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 400;
+  line-height: 1.45;
+  color: #757575;
+}
+
+.sso-login-page__message {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 400;
+  line-height: 1.5;
+  color: #616161;
+}
+
+/* Loading spinner */
+.sso-login-page__spinner-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: clamp(20px, 5cqw, 28px);
+}
+
+.sso-login-page__spinner {
+  width: clamp(56px, 18cqw, 72px);
+  height: clamp(56px, 18cqw, 72px);
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    var(--color-brand-orange),
+    color-mix(in srgb, var(--color-brand-orange) 35%, #ffffff),
+    #e8e8e8,
+    #e8e8e8
+  );
+  animation: sso-login-spin 0.85s linear infinite;
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 5px),
+    #000 calc(100% - 4px)
+  );
+}
+
+@keyframes sso-login-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error illustration */
+.sso-login-page__error-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: clamp(16px, 4cqw, 22px);
+}
+
+.sso-login-page__error-svg {
+  width: clamp(72px, 22cqw, 88px);
+  height: clamp(72px, 22cqw, 88px);
+}
+
+/* Mock helpers */
+.sso-login-page__mock-pill {
+  display: inline-flex;
+  align-self: center;
+  margin: clamp(16px, 4cqw, 22px) auto 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(10px, calc(11 * 100cqw / 375), 12px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #616161;
+  background: #f5f5f5;
+  border: 1px solid #eeeeee;
+}
+
+.sso-login-page__mock-banner {
+  margin-top: clamp(18px, 4cqw, 24px);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand-orange) 6%, #ffffff),
+    #fafafa
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand-orange) 22%, #e0e0e0);
+}
+
+.sso-login-page__mock-label {
+  display: block;
+  font-size: clamp(10px, calc(11 * 100cqw / 375), 12px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-brand-orange);
+  margin-bottom: 6px;
+}
+
+.sso-login-page__mock-text {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  line-height: 1.45;
+  color: #616161;
+}
+
+.sso-login-page__code {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.85em;
+  word-break: break-all;
+  color: #424242;
+}
+
+/* Actions */
+.sso-login-page__actions {
+  margin-top: clamp(22px, 5cqw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sso-login-page__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-brand-orange);
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(var(--color-brand-orange-rgb), 0.35);
+  box-sizing: border-box;
+}
+
+.sso-login-page__cta:active {
+  transform: scale(0.99);
+}
+
+.sso-login-page__footer-hint {
+  margin: 0;
+  text-align: center;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: clamp(10px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  line-height: 1.45;
+  color: #9e9e9e;
+}

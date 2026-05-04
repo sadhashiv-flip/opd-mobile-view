@@ -1,5 +1,5 @@
 import { beginApiLoadingRequest, endApiLoadingRequest } from "@/api/apiLoadingStore";
-import { clearSession, AUTH_SESSION_EXPIRED_EVENT, getAccessToken, notifyUnauthorizedAndSignOut } from "@/lib/authStorage";
+import { getAccessToken, notifyUnauthorizedAndSignOut } from "@/lib/authStorage";
 import {
   getPatientApiBase,
   getPatientApiRootBase,
@@ -57,10 +57,7 @@ async function patientFetchWithBase(
       headers,
       cache: rest.cache ?? "no-store",
     });
-    if (res.status === 401 && headers.has("Authorization")) {
-      clearSession();
-      globalThis.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
-    }
+    // Response handling for authenticated requests: clear session + global event → AuthSessionListener → /login
     if (res.status === 401 && !skipAuth) {
       notifyUnauthorizedAndSignOut();
     }
@@ -72,9 +69,11 @@ async function patientFetchWithBase(
 }
 
 /**
- * Patient API fetch with request "interceptor" (Bearer token) and 401 handling.
+ * Patient API fetch with request/response behavior equivalent to interceptors:
+ * - Request: inject Bearer token when `skipAuth` is not set.
+ * - Response: on HTTP 401 for protected calls (`skipAuth` false), clear client auth and emit
+ *   `auth:session-expired` so `AuthSessionListener` navigates to login.
  * Use `skipAuth: true` for register, verify, login, and other public endpoints.
- * Authenticated: `link`, `vlink`, profile, etc.
  */
 export async function patientFetch(
   path: string,

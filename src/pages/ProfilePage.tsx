@@ -32,7 +32,6 @@ import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import {
   clearClientStorageOnUnauthorized,
-  clearSession,
 } from "@/lib/authStorage";
 import "./ProfilePage.css";
 
@@ -417,7 +416,7 @@ export function ProfilePage() {
           try {
             await requestProfileDeletion({ feedback });
             setDeleteAccountOpen(false);
-            clearSession();
+            clearClientStorageOnUnauthorized();
             toast.success("Your deletion request has been submitted.");
             navigate(ROUTES.login, { replace: true });
           } catch (e) {
