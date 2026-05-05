@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logoDark from "@/assets/images/logos/logo-dark.png";
 import { ROUTES } from "@/constants";
+import { useToast } from "@/hooks/useToast";
 import { exchangeSsoToken, shouldUseSsoMock } from "@/lib/sso/exchangeSsoToken";
 import { completeAuthAndNavigate } from "@/lib/postVerifyNavigation";
 import { saveAuthSession } from "@/lib/authStorage";
@@ -58,6 +59,7 @@ function SsoErrorIllustration() {
  */
 export function SsoLoginPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const titleId = useId();
   const [phase, setPhase] = useState<Phase>("loading");
   const [message, setMessage] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export function SsoLoginPage() {
       try {
         const data = await exchangeSsoToken(token);
         await saveAuthSession(data);
+        toast.success(data.message?.trim() || "Login successful");
         await completeAuthAndNavigate(navigate, data);
       } catch (e) {
         setPhase("error");
@@ -94,7 +97,7 @@ export function SsoLoginPage() {
         );
       }
     })();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   if (phase === "error" && message) {
     return (

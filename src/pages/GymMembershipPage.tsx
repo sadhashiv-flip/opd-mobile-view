@@ -28,7 +28,6 @@ import {
 import { portalToMobileFrame } from "@/lib/mobileFramePortal";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import "./GymMembershipPage.css";
 import "./HealthCheckupsOverviewPage.css";
 
@@ -315,12 +314,7 @@ export function GymMembershipPage() {
           </svg>
         </Link>
         <h1 className="hco-title">Gym Membership</h1>
-        <Link to={ROUTES.orders} className="hco-orders">
-          <span className="hco-orders__ic" aria-hidden="true">
-            <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-          </span>
-          My Orders
-        </Link>
+        <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="gym-membership-main">

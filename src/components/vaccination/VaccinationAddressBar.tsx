@@ -1,20 +1,19 @@
 import { useState } from "react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import "./VaccinationAddressBar.css";
 
 export function VaccinationAddressBar() {
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const line = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const tag = useSelectedAddressTag("HOME");
+  const addrRaw = useSelectedAddressLine("");
 
   return (
     <>
       <button
         type="button"
         className="vac-flow-loc"
-        aria-label="Choose address"
+        aria-label={addrRaw.trim() ? "Choose address" : "Add delivery address"}
         onClick={() => setAddrSheetOpen(true)}
       >
         <span className="vac-flow-loc__pin" aria-hidden="true">
@@ -27,11 +26,14 @@ export function VaccinationAddressBar() {
           </svg>
         </span>
         <span className="vac-flow-loc__body">
-          <span className="vac-flow-loc__title">{tag}</span>
-          <span className="vac-flow-loc__sep" aria-hidden="true">
-            |
-          </span>
-          <span className="vac-flow-loc__addr">{line}</span>
+          <AddressStripLabels
+            layout="pipe"
+            addrRaw={addrRaw}
+            titleClassName="vac-flow-loc__title"
+            sepClassName="vac-flow-loc__sep"
+            addrClassName="vac-flow-loc__addr"
+            promptClassName="vac-flow-loc__addr vac-flow-loc__addr--prompt"
+          />
         </span>
         <span className="vac-flow-loc__chev" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

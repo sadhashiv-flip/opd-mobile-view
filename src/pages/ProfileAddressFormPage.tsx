@@ -326,25 +326,6 @@ function ProfileAddressFormInner({
       </header>
 
       <main className="paf-main">
-        <p className="paf-loc-note">
-          Type at least 2 characters — suggestions appear below
-          {geocodeWithGoogle ? (
-            <>
-              {" "}
-              (Google Geocoder, biased to the visible map and country{" "}
-              <strong>{nominatimCountryCodes}</strong>).
-            </>
-          ) : (
-            <>
-              {" "}
-              (OpenStreetMap Nominatim when the Google script is still loading or no API key;
-              country <strong>{nominatimCountryCodes}</strong>).
-            </>
-          )}{" "}
-          Drag the pin or tap the map to set location; fields update from the pin when possible.{" "}
-          <strong>Location</strong> is lat, lng.
-        </p>
-
         <div
           className={`paf-search${showSuggestionsPanel ? " paf-search--open" : ""}`}
           ref={searchWrapRef}
@@ -417,11 +398,6 @@ function ProfileAddressFormInner({
               mapViewboxRef.current = vb;
             }}
           />
-          <p className="paf-map-hint">
-            Same idea as Angular <code>agm-map</code> / <code>agm-marker</code>: zoom with +/−,
-            drag the pin or tap the map. Address fields fill via{" "}
-            {geocodeWithGoogle ? "Google reverse geocoding" : "reverse geocoding"} when data exists.
-          </p>
         </div>
 
         <div className="paf-form-grid">

@@ -1,6 +1,7 @@
 import { HomeNotificationIcon, HomeProfileIcon, HomeVoiceRecordIcon, HomeSearchIcon, HomeWalletIcon } from "@/assets/icons/react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
 import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
@@ -13,7 +14,13 @@ import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import type { DashboardOngoingItem } from "@/api/patientDashboard";
-import { HOME_IMAGE_URLS, ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
+import {
+  HOME_IMAGE_URLS,
+  ROUTES,
+  VISION_ROUTE_TYPE,
+  WELLNESS_SESSION_KIND,
+} from "@/constants";
 import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import type { HomeSearchAction } from "@/constants/homeSearchIndex";
 import { HOME_SEARCH_ACTIONS } from "@/constants/homeSearchIndex";
@@ -34,14 +41,25 @@ import { rankHomeSearchActions } from "@/lib/homeSearchScore";
 import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useHomeDashboard } from "@/hooks/useHomeDashboard";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import { DashboardHalfTileGraphic } from "@/lib/dashboardHalfTileGraphic";
+import {
+  DASHBOARD_HALF_TILE_COPY,
+  selectDashboardHalfTiles,
+  type DashboardHalfTileKind,
+} from "@/lib/dashboardServiceGrid";
+import {
+  DIAG_SUB_HEALTH_CHECKUPS,
+  DIAG_SUB_LAB_TESTS,
+  diagnosticsSingleVisibleSlug,
+} from "@/lib/subscriptionDashboardModules";
+import { consultationSingleVisibleType } from "@/lib/moduleGatesFromProfile";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "@/components/home/HomeSearchOverlay.css";
 import "./HomePage.css";
 import "./DigitalDiaryPages.css";
 import "./ServicesHubPage.css";
-
-const PLACEHOLDER_ADDRESS = "Street, 7th floor, Building A…";
 
 /** BorderGlow — diagnostics featured card only. */
 const HOME_CARD_BORDER_GLOW_PROPS = {
@@ -141,8 +159,38 @@ export function HomePage() {
     ongoing,
     ahc,
   } = useHomeDashboard();
-  const addressLine = useSelectedAddressLine(primaryAddressLine ?? PLACEHOLDER_ADDRESS);
-  const addressTag = useSelectedAddressTag("HOME");
+  const mod = useProfileModuleGates();
+  /** Diagnostics card: `plan.modules.Lab` / `Diagnostic` + subscription gates from profile (cached in localStorage, then refreshed). */
+  const showDiagnosticsTile = mod.showLabDiagnosticsTile;
+  const showAhcSubscription =
+    !mod.loaded || mod.showAhcBanner;
+  const showDiagSheetHealthCheckups =
+    !mod.loaded ||
+    !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_HEALTH_CHECKUPS);
+  const showDiagSheetLabTests =
+    !mod.loaded ||
+    !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS);
+  /** One branch hidden → go straight to the other; never open the picker sheet (uses cached profile before refresh). */
+  const diagnosticsDirectSlug = useMemo(
+    () => diagnosticsSingleVisibleSlug(mod.diagnosticsHiddenSubSlugs),
+    [mod.diagnosticsHiddenSubSlugs],
+  );
+
+  const homeSearchActionsFiltered = useMemo(() => {
+    const h = mod.diagnosticsHiddenSubSlugs;
+    return HOME_SEARCH_ACTIONS.filter((a) => {
+      if (a.id === "health-checkups" && h.has(DIAG_SUB_HEALTH_CHECKUPS)) return false;
+      if (a.id === "lab-tests" && h.has(DIAG_SUB_LAB_TESTS)) return false;
+      return true;
+    });
+  }, [mod.diagnosticsHiddenSubSlugs]);
+
+  const addrRaw = useSelectedAddressLine(primaryAddressLine ?? "");
+
+  useEffect(() => {
+    void ensureDefaultSelectedAddressIfNeeded();
+  }, []);
+
   const ongoingCount = ongoing.length;
   const apiBannerCount = apiBanners.length;
   const homeCarouselCount = apiBannerCount;
@@ -218,10 +266,72 @@ export function HomePage() {
   const [homeSearchFocused, setHomeSearchFocused] = useState(false);
   const [homeRecentSearches, setHomeRecentSearches] = useState<string[]>(() => loadHomeRecentSearches());
   const homeSearchInputRef = useRef<HTMLInputElement>(null);
+
+  const dashboardHalfTiles = useMemo(() => selectDashboardHalfTiles(mod), [mod]);
+  const navigateDashboardHalfTile = useCallback(
+    (kind: DashboardHalfTileKind) => {
+      switch (kind) {
+        case "consultation": {
+          const direct =
+            mod.loaded && consultationSingleVisibleType(mod.consultation);
+          if (direct) {
+            void navigate(generatePath(ROUTES.consultation, { type: direct }));
+            return;
+          }
+          setIsConsultationSheetOpen(true);
+          return;
+        }
+        case "vision":
+          setIsVisionSheetOpen(true);
+          return;
+        case "dental":
+          void navigate(ROUTES.dentalSelectPeople);
+          return;
+        case "pharmacy":
+          void navigate(ROUTES.pharmacy, {
+            state: { returnPath: ROUTES.dashboard },
+          });
+          return;
+        case "vaccination":
+          void navigate(ROUTES.vaccinationSelectPeople);
+          return;
+        case "mental":
+          void navigate(
+            generatePath(ROUTES.servicesWellness, {
+              wellnessKind: WELLNESS_SESSION_KIND.mentalWellness,
+            }),
+          );
+          return;
+        case "chronic":
+          void navigate(ROUTES.pharmacy, {
+            state: { returnPath: ROUTES.dashboard },
+          });
+          return;
+        case "nutrition":
+          void navigate(
+            generatePath(ROUTES.servicesWellness, {
+              wellnessKind: WELLNESS_SESSION_KIND.nutrition,
+            }),
+          );
+          return;
+        case "gym":
+          void navigate(ROUTES.gymMembership);
+          return;
+        case "claim":
+          void navigate(ROUTES.claims, {
+            state: { returnPath: ROUTES.dashboard },
+          });
+          return;
+        default:
+          return;
+      }
+    },
+    [navigate, mod.loaded, mod.consultation],
+  );
   const debouncedHomeSearch = useDebouncedValue(homeSearchQuery, 200);
   const homeSearchRanked = useMemo(
-    () => rankHomeSearchActions(debouncedHomeSearch, HOME_SEARCH_ACTIONS),
-    [debouncedHomeSearch],
+    () => rankHomeSearchActions(debouncedHomeSearch, homeSearchActionsFiltered),
+    [debouncedHomeSearch, homeSearchActionsFiltered],
   );
 
   const onHomeVoiceError = useCallback(
@@ -389,7 +499,7 @@ export function HomePage() {
           <button
             type="button"
             className="home-loc"
-            aria-label="Choose address"
+            aria-label={addrRaw.trim() ? "Choose address" : "Add delivery address"}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="home-loc__pin" aria-hidden="true">
@@ -402,11 +512,14 @@ export function HomePage() {
               </svg>
             </span>
             <div className="home-loc__body">
-              <span className="home-loc__title">{addressTag}</span>
-              <span className="home-loc__sep" aria-hidden="true">
-                |
-              </span>
-              <span className="home-loc__addr">{addressLine}</span>
+              <AddressStripLabels
+                layout="pipe"
+                addrRaw={addrRaw}
+                titleClassName="home-loc__title"
+                sepClassName="home-loc__sep"
+                addrClassName="home-loc__addr"
+                promptClassName="home-loc__addr home-loc__addr--prompt"
+              />
             </div>
             <span className="home-loc__chev" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -604,7 +717,7 @@ export function HomePage() {
             </section>
           ) : null}
 
-          {ahc ? (
+          {ahc && showAhcSubscription ? (
             <button
               type="button"
               className="home-ahc-card"
@@ -779,7 +892,7 @@ export function HomePage() {
                                 )
                               }
                             >
-                              Join video call
+                              Join call
                             </button>
                           ) : null}
                         </div>
@@ -791,6 +904,7 @@ export function HomePage() {
             </section>
           ) : null}
 
+          {showDiagnosticsTile ? (
           <BorderGlow
             className="home-diagnostics-border-glow-wrap"
             {...HOME_CARD_BORDER_GLOW_PROPS}
@@ -798,8 +912,20 @@ export function HomePage() {
             <button
               type="button"
               className="home-card home-card--featured home-card--clickable home-card--btn"
-              aria-label="Open Diagnostics options"
-              onClick={() => setIsDiagnosticsSheetOpen(true)}
+              aria-label={
+                diagnosticsDirectSlug
+                  ? `Open ${diagnosticsDirectSlug === "health-checkups" ? "health checkups" : "lab tests"}`
+                  : "Open Diagnostics options"
+              }
+              onClick={() => {
+                if (diagnosticsDirectSlug) {
+                  void navigate(
+                    generatePath(ROUTES.diagnosticsType, { type: diagnosticsDirectSlug }),
+                  );
+                  return;
+                }
+                setIsDiagnosticsSheetOpen(true);
+              }}
             >
               <div className="home-card__body">
                 <h3 className="home-card__title">Diagnostics</h3>
@@ -863,71 +989,34 @@ export function HomePage() {
               />
             </button>
           </BorderGlow>
+          ) : null}
 
           <div className="home-grid-wrap">
             <div className="home-grid">
-              <button
-                type="button"
-                className="home-card home-card--tile home-card--btn home-card--clickable"
-                aria-label="Open Consultation options"
-                onClick={() => setIsConsultationSheetOpen(true)}
-              >
-                <div className="home-card__body">
-                  <h3 className="home-card__title">Consultation</h3>
-                  <p className="home-card__meta">BOOK APPOINTMENT</p>
-                  <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
-                </div>
-                <div
-                  className="home-card__media"
-                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.consultation) }}
-                />
-              </button>
-              <button
-                type="button"
-                className="home-card home-card--tile home-card--btn home-card--clickable"
-                aria-label="Open Dental"
-                onClick={() => navigate(ROUTES.dentalSelectPeople)}
-              >
-                <div className="home-card__body">
-                  <h3 className="home-card__title">Dental</h3>
-                  <p className="home-card__meta">DENTAL BOOKING</p>
-                  <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
-                </div>
-                <div
-                  className="home-card__media"
-                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.dental) }}
-                />
-              </button>
-              <button
-                type="button"
-                className="home-card home-card--tile home-card--btn home-card--clickable"
-                aria-label="Open Vision options"
-                onClick={() => setIsVisionSheetOpen(true)}
-              >
-                <div className="home-card__body">
-                  <h3 className="home-card__title">Vision</h3>
-                  <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
-                </div>
-                <div
-                  className="home-card__media"
-                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.vision) }}
-                />
-              </button>
-              <button
-                type="button"
-                className="home-card home-card--tile home-card--btn home-card--clickable"
-                aria-label="Open Pharmacy"
-                onClick={() => navigate(ROUTES.pharmacy, { state: { returnPath: ROUTES.dashboard } })}
-              >
-                <div className="home-card__body">
-                  <h3 className="home-card__title">Pharmacy</h3>
-                  <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
-                </div>
-                <div
-                  className="home-card__media"
-                  style={{ backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.pharmacy) }}
-                />
-              </button>
+              {dashboardHalfTiles.map((kind) => {
+                const copy = DASHBOARD_HALF_TILE_COPY[kind];
+                let ariaLabel = `Open ${copy.title}`;
+                if (kind === "consultation") ariaLabel = "Open Consultation options";
+                else if (kind === "vision") ariaLabel = "Open Vision options";
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="home-card home-card--tile home-card--btn home-card--clickable"
+                    aria-label={ariaLabel}
+                    onClick={() => navigateDashboardHalfTile(kind)}
+                  >
+                    <div className="home-card__body">
+                      <h3 className="home-card__title">{copy.title}</h3>
+                      {copy.meta ? (
+                        <p className="home-card__meta">{copy.meta}</p>
+                      ) : null}
+                      <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
+                    </div>
+                    <DashboardHalfTileGraphic kind={kind} />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -972,7 +1061,7 @@ export function HomePage() {
             </div>
           </Link>
 
-          <HealthClubSection />
+          {!mod.loaded || mod.serviceHub.fitness ? <HealthClubSection /> : null}
         </section>
       </main>
 
@@ -1009,6 +1098,7 @@ export function HomePage() {
             </header>
 
             <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              {showDiagSheetHealthCheckups ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -1024,9 +1114,11 @@ export function HomePage() {
                 description="Avail Free Health Checkups"
                 onClick={() => {
                   setIsDiagnosticsSheetOpen(false);
-                  navigate("/diagnostics/health-checkups");
+                  void navigate(generatePath(ROUTES.diagnosticsType, { type: "health-checkups" }));
                 }}
               />
+              ) : null}
+              {showDiagSheetLabTests ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -1042,9 +1134,10 @@ export function HomePage() {
                 description="Fully sponsored"
                 onClick={() => {
                   setIsDiagnosticsSheetOpen(false);
-                  navigate("/diagnostics/lab-tests");
+                  void navigate(generatePath(ROUTES.diagnosticsType, { type: "lab-tests" }));
                 }}
               />
+              ) : null}
             </div>
           </section>
         </dialog>
@@ -1083,6 +1176,7 @@ export function HomePage() {
             </header>
 
             <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              {!mod.loaded || mod.consultation.sheetHospital ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -1101,6 +1195,8 @@ export function HomePage() {
                   navigate("/consultation/at_hospital");
                 }}
               />
+              ) : null}
+              {!mod.loaded || mod.consultation.sheetVirtual ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -1119,6 +1215,7 @@ export function HomePage() {
                   navigate("/consultation/virtual");
                 }}
               />
+              ) : null}
             </div>
           </section>
         </dialog>
@@ -1157,6 +1254,7 @@ export function HomePage() {
             </header>
 
             <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              {!mod.loaded || mod.vision.sheetClinic ? (
               <ServiceHubCard
                 icon={
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1185,6 +1283,8 @@ export function HomePage() {
                   navigate(generatePath(ROUTES.visionSelectPeople, { visionType: VISION_ROUTE_TYPE.eyeCheckup }));
                 }}
               />
+              ) : null}
+              {!mod.loaded || mod.vision.sheetStore ? (
               <ServiceHubCard
                 icon={
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1200,6 +1300,7 @@ export function HomePage() {
                   navigate(generatePath(ROUTES.visionSelectPeople, { visionType: VISION_ROUTE_TYPE.glassesLens }));
                 }}
               />
+              ) : null}
             </div>
           </section>
         </dialog>

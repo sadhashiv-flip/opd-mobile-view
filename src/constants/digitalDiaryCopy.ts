@@ -39,6 +39,18 @@ export const DIGITAL_DIARY_COPY = {
   addOnlyToday: "You can add new entries for today only.",
   /** In-form load error (web log page) */
   logLoadError: "Could not load activities.",
+  /** Workout log — inline catalog (patient_app activity_log_screen) */
+  workoutAddExercise: "Add exercise",
+  workoutChooseTitle: "Choose a workout",
+  workoutSearchPlaceholder: "Search by name",
+  workoutSearchClear: "Clear",
+  workoutLoadMore: "Load more",
+  workoutNoResults: "No workouts found. Try another search.",
+  workoutMinutesTitle: "Duration",
+  workoutMinutesLabel: "Minutes",
+  workoutCancelCatalog: "Cancel",
+  workoutLogSectionTitle: "Your log for this day",
+  workoutCatalogGenericError: "Could not load workouts. Please try again.",
   /** `ActivitiesRepository` catch-all (patient_app) */
   loadActivitiesGenericError: "Could not load activities. Please try again.",
   /**

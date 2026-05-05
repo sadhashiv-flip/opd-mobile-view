@@ -12,8 +12,8 @@ import { generatePath, Link, useNavigate, useParams } from "react-router-dom";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { MobileFilterChip, MobileFilterSheet } from "@/components/mobileFilter/MobileFilterSheet";
 import { medicalRecordSlugIconSrc } from "@/components/mobileFilter/medicalRecordFilterIcons";
-import familyAccountsSvg from "@/assets/icons/AccountManagement/FamilyAccounts.svg";
-import profileSvg from "@/assets/icons/AccountManagement/Profile.svg";
+import familyAccountsSvg from "@/assets/icons/patient-app/hub/account_management/family_account.svg";
+import profileSvg from "@/assets/icons/patient-app/hub/account_management/profile.svg";
 import "./MedicalRecordsPage.css";
 
 const MR_USER_FILTER_KEY = "opd-mobile-view.medical-records.userFilter";
@@ -174,6 +174,20 @@ export function MedicalRecordsPage() {
     }
   };
 
+  useEffect(() => {
+    const uid = userFilterId.trim();
+    if (!uid) return;
+    const m = members.find((x) => x.id === uid);
+    if (m && !m.isSubscribed) {
+      setUserFilterId("");
+      try {
+        sessionStorage.setItem(MR_USER_FILTER_KEY, "");
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [members, userFilterId]);
+
   const reportUrl = selected ? pickStr(selected.reportUrl, selected.report_url) : "";
   const invoiceId = selected ? pickStr(selected.invoice_id, selected.invoiceId) : "";
   const labOrderDetailId = selected
@@ -279,6 +293,7 @@ export function MedicalRecordsPage() {
                   label={m.name.trim().length > 0 ? m.name : m.id}
                   icon={<img src={profileSvg} alt="" width={18} height={18} />}
                   selected={userFilterId === m.id}
+                  disabled={!m.isSubscribed}
                   onClick={() => {
                     persistUserFilter(m.id);
                     setSheetOpen(false);

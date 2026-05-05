@@ -164,6 +164,12 @@
   text-overflow: ellipsis;
 }
 
+.cas-loc-bar__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
+}
+
 .cas-loc-bar__chev {
   display: inline-flex;
   flex-shrink: 0;

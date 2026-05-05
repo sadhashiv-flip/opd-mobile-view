@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchPatientProfileRaw } from "@/api/patientProfile";
 import { loginPatientWithPassword } from "@/api/patientLoginPassword";
 import { registerPatientLogin } from "@/api/patientRegister";
 import {
@@ -107,6 +108,7 @@ export function useLoginPage(): LoginPageController {
           tc_accepted: accepted,
         });
         await saveAuthSession(data);
+        void fetchPatientProfileRaw().catch(() => {});
         toast.success(data.message?.trim() || "Login successful");
         await completeAuthAndNavigate(navigate, data);
         return;

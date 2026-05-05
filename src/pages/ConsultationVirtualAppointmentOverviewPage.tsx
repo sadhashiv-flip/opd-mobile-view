@@ -3,12 +3,16 @@ import { SelectPeopleBottomSheet } from "@/components/select-people/SelectPeople
 import { VirtualAppointmentSlotBottomSheet } from "@/components/consultation/VirtualAppointmentSlotBottomSheet";
 import { ROUTES } from "@/constants";
 import {
-  clearVirtualConsultPurposeAndLanguage,
+  clearVirtualConsultPurposeOnly,
   clearVirtualFollowUpAppointmentId,
   readVirtualFollowUpAppointmentId,
   VIRTUAL_CONSULT_LANGUAGE_KEY,
   VIRTUAL_CONSULT_PURPOSE_KEY,
 } from "@/constants/virtualConsultationSessionStorage";
+import {
+  CONSULTATION_LANGUAGES,
+  isConsultationLanguageValue,
+} from "@/constants/consultationLanguages";
 import {
   readConsultSelectedPersonIdNumber,
   readPrimaryConsultSelectedMemberSnapshot,
@@ -30,28 +34,9 @@ import {
   loadRazorpayScript,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
-import type { SearchablePickerOption } from "@/components/wellness/SearchablePickerField";
-import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
 import { useToast } from "@/hooks/useToast";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import "./ConsultationAppointmentOverviewPage.css";
-
-/** English first, then major Indian languages (ISO-style labels for display). */
-const CONSULTATION_LANGUAGES: readonly { value: string; label: string }[] = [
-  { value: "English", label: "English" },
-  { value: "Hindi", label: "Hindi (हिन्दी)" },
-  { value: "Bengali", label: "Bengali (বাংলা)" },
-  { value: "Telugu", label: "Telugu (తెలుగు)" },
-  { value: "Marathi", label: "Marathi (मराठी)" },
-  { value: "Tamil", label: "Tamil (தமிழ்)" },
-  { value: "Gujarati", label: "Gujarati (ગુજરાતી)" },
-  { value: "Kannada", label: "Kannada (ಕನ್ನಡ)" },
-  { value: "Malayalam", label: "Malayalam (മലയാളം)" },
-  { value: "Punjabi", label: "Punjabi (ਪੰਜਾਬੀ)" },
-  { value: "Odia", label: "Odia (ଓଡ଼ିଆ)" },
-  { value: "Assamese", label: "Assamese (অসমীয়া)" },
-  { value: "Urdu", label: "Urdu (اردو)" },
-] as const;
 
 /** Slot key from slots screen: `YYYY-MM-DD|time` (time normalized to `HH:mm:ss` for the API). */
 function parseVirtualBookingSlot(slotKey: string): { date: string; time: string } | null {
@@ -146,7 +131,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [purpose, setPurpose] = useState("");
-  /** Empty until user picks a language (placeholder option). */
+  /** Set from preferred language step before slots (`VIRTUAL_CONSULT_LANGUAGE_KEY`). */
   const [language, setLanguage] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
 
@@ -203,16 +188,25 @@ export function ConsultationVirtualAppointmentOverviewPage() {
    */
   useLayoutEffect(() => {
     if (!readVirtualFollowUpAppointmentId()) {
-      clearVirtualConsultPurposeAndLanguage();
+      clearVirtualConsultPurposeOnly();
       setPurpose("");
-      setLanguage("");
+      try {
+        const lang = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY);
+        if (lang && isConsultationLanguageValue(lang)) {
+          setLanguage(lang);
+        } else {
+          setLanguage("");
+        }
+      } catch {
+        setLanguage("");
+      }
       return;
     }
     try {
       const p = sessionStorage.getItem(VIRTUAL_CONSULT_PURPOSE_KEY);
       if (p) setPurpose(p);
       const lang = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY);
-      if (lang && CONSULTATION_LANGUAGES.some((x) => x.value === lang)) {
+      if (lang && isConsultationLanguageValue(lang)) {
         setLanguage(lang);
       }
     } catch {
@@ -248,10 +242,6 @@ export function ConsultationVirtualAppointmentOverviewPage() {
     const n = Number(issueId);
     return Number.isFinite(n) ? n : Number.NaN;
   }, [issueId]);
-
-  const languagePickerOptions = useMemo((): readonly SearchablePickerOption[] => {
-    return CONSULTATION_LANGUAGES.map((x) => ({ value: x.value, label: x.label }));
-  }, []);
 
   const canBookNow =
     purpose.trim().length > 0 &&
@@ -305,19 +295,12 @@ export function ConsultationVirtualAppointmentOverviewPage() {
         </section>
 
         <section className="cao-field">
-          <SearchablePickerField
-            label="Language"
-            requiredMark
-            placeholder="Select language"
-            sheetTitle="Preferred language"
-            searchPlaceholder="Search language…"
-            options={languagePickerOptions}
-            value={language}
-            onChange={setLanguage}
-            pageSize={12}
-            emptySearchMessage="No language matches your search"
-            fieldClassName="cao-field__searchable-picker"
-          />
+          <div className="cao-field__label">Language</div>
+          <div className="cao-field__value">
+            {language
+              ? CONSULTATION_LANGUAGES.find((x) => x.value === language)?.label ?? language
+              : "—"}
+          </div>
         </section>
 
         <section className="cao-field">

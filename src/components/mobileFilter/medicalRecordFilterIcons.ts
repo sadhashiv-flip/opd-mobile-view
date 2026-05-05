@@ -1,11 +1,11 @@
-import bookConsultationSvg from "@/assets/icons/Services/BookConsultation.svg";
-import bookDiagnosticSvg from "@/assets/icons/Services/BookDiagnostic.svg";
-import chronicManagementSvg from "@/assets/icons/Services/ChronicManagement.svg";
-import mentalWellnessSvg from "@/assets/icons/Services/MentalWellness.svg";
-import nutritionServicesSvg from "@/assets/icons/Services/NutritionServices.svg";
-import medicalRecordsSvg from "@/assets/icons/HelpAndSupport/MedicalRecords.svg";
-import labReportsSvg from "@/assets/icons/HelpAndSupport/LabReports.svg";
-import myPrescriptionsSvg from "@/assets/icons/HelpAndSupport/MyPrescriptions.svg";
+import bookConsultationSvg from "@/assets/icons/patient-app/hub/services/bookConsultations.svg";
+import bookDiagnosticSvg from "@/assets/icons/patient-app/hub/services/bookDaignostics.svg";
+import chronicManagementSvg from "@/assets/icons/patient-app/hub/services/chronicManagement.svg";
+import mentalWellnessSvg from "@/assets/icons/patient-app/hub/services/mentalWellness.svg";
+import nutritionServicesSvg from "@/assets/icons/patient-app/hub/services/nutritionServices.svg";
+import medicalRecordsSvg from "@/assets/icons/patient-app/hub/medical_records.svg";
+import labReportsSvg from "@/assets/icons/patient-app/hub/medical_records/lab_reports.svg";
+import myPrescriptionsSvg from "@/assets/icons/patient-app/hub/medical_records/my_prescription.svg";
 
 /** Icons for medical-record filter chips — mirrors Flutter `_MedicalRecordsFilterSheet._iconForCategory` assets where possible. */
 export function medicalRecordSlugIconSrc(slug: string): string {

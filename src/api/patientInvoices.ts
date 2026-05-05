@@ -3216,6 +3216,7 @@ function parseInvoiceFollowUp(
       parent: parentInt,
       issueTitle,
       spid: parentInt,
+      language: language ?? "English",
     },
     priorAppointmentId: prior,
     patientId: patientId != null && Number.isFinite(patientId) ? Math.floor(patientId) : null,

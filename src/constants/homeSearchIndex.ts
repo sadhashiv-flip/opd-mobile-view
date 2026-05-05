@@ -118,11 +118,19 @@ export const HOME_SEARCH_ACTIONS: readonly HomeSearchAction[] = [
     to: ROUTES.vaccinationSelectPeople,
   },
   {
+    id: "fitness",
+    title: "Fitness",
+    subtitle: "Fitness programs and health club",
+    category: "Services",
+    keywords: ["fitness", "health club", "classes", "workout", "exercise", "training", "yoga"],
+    to: ROUTES.fitness,
+  },
+  {
     id: "gym",
     title: "Gym Membership",
     subtitle: "Explore gym membership plans",
     category: "Services",
-    keywords: ["gym", "fitness", "workout", "cult", "membership", "exercise", "training", "cult fit"],
+    keywords: ["gym", "membership", "cult fit"],
     to: ROUTES.gymMembership,
   },
   {

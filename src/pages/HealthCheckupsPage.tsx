@@ -3,6 +3,7 @@ import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
 import { Link, generatePath, useLocation, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import "./HealthCheckupsPage.css";
 
 type PersonCard = Readonly<{
@@ -35,6 +36,8 @@ const SEED_MEMBERS: readonly PersonCard[] = [
 export function HealthCheckupsPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const mod = useProfileModuleGates();
+  const canAddFamily = mod.planDependents.dependentAddAllowed;
   const params = useParams();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const isConsultation = location.pathname.toLowerCase().startsWith("/consultation/");
@@ -225,20 +228,22 @@ export function HealthCheckupsPage() {
             </button>
           ))}
 
-          <button
-            type="button"
-            className="hc-add-family"
-            onClick={() =>
-              navigate(ROUTES.profileMembersAdd, {
-                state: { returnPath: `${location.pathname}${location.search}` },
-              })
-            }
-          >
-            <span className="hc-add-family__ic" aria-hidden="true">
-              +
-            </span>{" "}
-            Add new family member
-          </button>
+          {canAddFamily ? (
+            <button
+              type="button"
+              className="hc-add-family"
+              onClick={() =>
+                navigate(ROUTES.profileMembersAdd, {
+                  state: { returnPath: `${location.pathname}${location.search}` },
+                })
+              }
+            >
+              <span className="hc-add-family__ic" aria-hidden="true">
+                +
+              </span>{" "}
+              Add new family member
+            </button>
+          ) : null}
         </section>
       </main>
 

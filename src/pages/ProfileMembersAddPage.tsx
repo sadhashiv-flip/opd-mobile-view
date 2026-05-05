@@ -10,6 +10,7 @@ import { requestMemberPhoneOtp } from "@/api/patientMemberOtp";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
 import { getWebFcmToken } from "@/lib/fcmToken";
 import "./AddFamilyMemberPage.css";
@@ -94,6 +95,7 @@ export function ProfileMembersAddPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const location = useLocation();
+  const mod = useProfileModuleGates();
   const { memberId } = useParams<{ memberId?: string }>();
   const isEdit = Boolean(memberId?.trim());
 
@@ -198,6 +200,27 @@ export function ProfileMembersAddPage() {
   useEffect(() => {
     void getWebFcmToken();
   }, []);
+
+  useEffect(() => {
+    if (!mod.loaded) return;
+    const { dependentAddAllowed, dependentEditAllowed } = mod.planDependents;
+    if (isEdit && !dependentEditAllowed) {
+      toast.error("Your plan doesn’t allow editing family members.");
+      navigate(ROUTES.profileMembers, { replace: true });
+      return;
+    }
+    if (!isEdit && !dependentAddAllowed) {
+      toast.error("Your plan doesn’t allow adding family members.");
+      navigate(ROUTES.profileMembers, { replace: true });
+    }
+  }, [
+    isEdit,
+    mod.loaded,
+    mod.planDependents.dependentAddAllowed,
+    mod.planDependents.dependentEditAllowed,
+    navigate,
+    toast,
+  ]);
 
   const onPhoneChange = (value: string) => {
     setPhone(value);

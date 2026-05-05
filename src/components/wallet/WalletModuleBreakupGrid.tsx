@@ -31,6 +31,8 @@ const TINT_CLASS: Record<string, string> = {
   vision: "wallet-mod--vision",
   vaccine: "wallet-mod--vaccine",
   gym: "wallet-mod--fitness",
+  fitness: "wallet-mod--fitness",
+  yoga: "wallet-mod--fitness",
   mental_wellness: "wallet-mod--mental",
   nutrition: "wallet-mod--nutrition",
 };

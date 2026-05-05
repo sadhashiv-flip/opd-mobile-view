@@ -203,7 +203,9 @@ export function refTypeToCategoryKey(refType: string): string {
   if (lower === "vision") return "vision";
   if (lower === "vaccine") return "vaccine";
   if (lower === "nutrition") return "nutrition";
-  if (lower === "fitness" || lower === "gym" || lower === "yoga") return "gym";
+  if (lower === "fitness") return "fitness";
+  if (lower === "gym") return "gym";
+  if (lower === "yoga") return "yoga";
   if (lower.includes("mental") && lower.includes("well")) return "mental_wellness";
   if (lower === "chronic_optin" || lower.includes("chronic")) return "nutrition";
   return "consultation";

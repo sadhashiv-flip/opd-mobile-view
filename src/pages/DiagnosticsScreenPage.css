@@ -35,6 +35,11 @@
   font-weight: 700;
 }
 
+.ds-page--lab .ds-title--flex {
+  flex: 1;
+  min-width: 0;
+}
+
 .ds-main {
   flex: 1;
   padding: var(--addr-box-margin-top) var(--addr-box-margin-inline) 14px;
@@ -77,6 +82,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ds-location__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
 }
 
 .ds-location__chev {

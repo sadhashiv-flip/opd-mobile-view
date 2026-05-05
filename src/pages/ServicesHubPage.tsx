@@ -7,6 +7,13 @@ import {
   isHubTabId,
   type HubTabId,
 } from "@/constants/servicesHubContent";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import {
+  DIAG_SUB_HEALTH_CHECKUPS,
+  DIAG_SUB_LAB_TESTS,
+  diagnosticsSingleVisibleSlug,
+} from "@/lib/subscriptionDashboardModules";
+import { consultationSingleVisibleType } from "@/lib/moduleGatesFromProfile";
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
 import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
@@ -73,6 +80,54 @@ export function ServicesHubPage() {
     [searchParams],
   );
 
+  const mod = useProfileModuleGates();
+
+  const visibleHubTabs = useMemo(() => {
+    if (!mod.loaded || mod.showOpdClaimsHubTab) return HUB_TABS;
+    return HUB_TABS.filter((t) => t.id !== "opd-claims");
+  }, [mod.loaded, mod.showOpdClaimsHubTab]);
+
+  useEffect(() => {
+    if (!mod.loaded) return;
+    if (tabId === "opd-claims" && !mod.showOpdClaimsHubTab) {
+      setSearchParams({ tab: "services" }, { replace: true });
+    }
+  }, [mod.loaded, mod.showOpdClaimsHubTab, setSearchParams, tabId]);
+  const hubItems = useMemo(() => {
+    const raw = getHubItems(tabId);
+    if (tabId !== "services") return raw;
+    const g = mod.serviceHub;
+    return raw.filter((item) => {
+      if (!mod.loaded) return true;
+      switch (item.id) {
+        case "diag":
+          return g.diag;
+        case "consult":
+          return g.consult;
+        case "dental":
+          return g.dental;
+        case "pharm":
+          return g.pharm;
+        case "vax":
+          return g.vax;
+        case "vision":
+          return g.vision;
+        case "mental":
+          return g.mental;
+        case "chronic":
+          return g.chronic;
+        case "nutrition":
+          return g.nutrition;
+        case "fitness":
+          return g.fitness;
+        case "gym":
+          return g.gym;
+        default:
+          return true;
+      }
+    });
+  }, [tabId, mod]);
+
   const navigate = useNavigate();
   const toast = useToast();
   const supportSectionRef = useRef<HTMLDivElement | null>(null);
@@ -109,7 +164,6 @@ export function ServicesHubPage() {
     [setSearchParams],
   );
 
-  const items = getHubItems(tabId);
   const heading = getHubHeading(tabId);
   // Help tab: 4-column grid; other tabs keep the shared hub layout.
   const gridCols = tabId === "help" ? 4 : 2;
@@ -288,7 +342,7 @@ export function ServicesHubPage() {
           </svg>
         </Link>
         <nav className="services-hub__tabs" aria-label="Service categories">
-          {HUB_TABS.map(({ id, label, Icon, iconSrc }) => {
+          {visibleHubTabs.map(({ id, label, Icon, iconSrc }) => {
             const active = tabId === id;
             const TabIcon = Icon;
             let tabIconNode = null;
@@ -332,7 +386,7 @@ export function ServicesHubPage() {
         <div
           className={`service-hub-grid service-hub-grid--cols-${gridCols}`}
         >
-          {items.map((item) => {
+          {hubItems.map((item) => {
             const Icon = item.Icon;
             const isMedical = tabId === "medical-records";
 
@@ -357,9 +411,28 @@ export function ServicesHubPage() {
             if (isHelpSupportCard) {
               cardAction = () => supportSectionRef.current?.scrollIntoView({ behavior: "smooth" });
             } else if (tabId === "services" && item.id === "diag") {
-              cardAction = () => setDiagnosticsSheetOpen(true);
+              cardAction = () => {
+                const slug = diagnosticsSingleVisibleSlug(mod.diagnosticsHiddenSubSlugs);
+                if (slug) {
+                  void navigate(generatePath(ROUTES.diagnosticsType, { type: slug }));
+                  return;
+                }
+                setDiagnosticsSheetOpen(true);
+              };
             } else if (tabId === "services" && item.id === "consult") {
-              cardAction = () => setConsultationSheetOpen(true);
+              cardAction = () => {
+                const direct =
+                  mod.loaded && consultationSingleVisibleType(mod.consultation);
+                if (direct) {
+                  void navigate(generatePath(ROUTES.consultation, { type: direct }));
+                  return;
+                }
+                setConsultationSheetOpen(true);
+              };
+            } else if (tabId === "services" && item.id === "fitness") {
+              cardAction = () => {
+                void navigate(ROUTES.fitness);
+              };
             } else if (tabId === "services" && item.id === "gym") {
               cardAction = () => {
                 void navigate(ROUTES.gymMembership);
@@ -681,6 +754,8 @@ export function ServicesHubPage() {
             </header>
 
             <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              {!mod.loaded ||
+              !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_HEALTH_CHECKUPS) ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -699,6 +774,9 @@ export function ServicesHubPage() {
                   void navigate(generatePath(ROUTES.diagnosticsType, { type: "health-checkups" }));
                 }}
               />
+              ) : null}
+              {!mod.loaded ||
+              !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS) ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -717,6 +795,7 @@ export function ServicesHubPage() {
                   void navigate(generatePath(ROUTES.diagnosticsType, { type: "lab-tests" }));
                 }}
               />
+              ) : null}
             </div>
           </section>
         </dialog>
@@ -755,6 +834,7 @@ export function ServicesHubPage() {
             </header>
 
             <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              {!mod.loaded || mod.consultation.sheetHospital ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -773,6 +853,8 @@ export function ServicesHubPage() {
                   void navigate(generatePath(ROUTES.consultation, { type: "at_hospital" }));
                 }}
               />
+              ) : null}
+              {!mod.loaded || mod.consultation.sheetVirtual ? (
               <ServiceHubCard
                 icon={
                   <img
@@ -791,6 +873,7 @@ export function ServicesHubPage() {
                   void navigate(generatePath(ROUTES.consultation, { type: "virtual" }));
                 }}
               />
+              ) : null}
             </div>
           </section>
         </dialog>
@@ -829,6 +912,7 @@ export function ServicesHubPage() {
             </header>
 
             <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
+              {!mod.loaded || mod.vision.sheetClinic ? (
               <ServiceHubCard
                 icon={
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -859,6 +943,8 @@ export function ServicesHubPage() {
                   );
                 }}
               />
+              ) : null}
+              {!mod.loaded || mod.vision.sheetStore ? (
               <ServiceHubCard
                 icon={
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -876,6 +962,7 @@ export function ServicesHubPage() {
                   );
                 }}
               />
+              ) : null}
             </div>
           </section>
         </dialog>

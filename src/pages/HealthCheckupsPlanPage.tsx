@@ -1,12 +1,8 @@
 import { ROUTES } from "@/constants";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import {
-  DEFAULT_LOCATION_ADDRESS_LINE,
-  readSelectedAddress,
-  subscribeSelectedAddress,
-} from "@/constants/selectedAddressStorage";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
 import { addLabProductToCart, fetchLabCart, removeLabCartItem } from "@/api/patientLabCart";
 import {
@@ -130,8 +126,7 @@ export function HealthCheckupsPlanPage() {
   const [healthErr, setHealthErr] = useState<string | null>(null);
   const [pkgByMemberKey, setPkgByMemberKey] = useState<Record<string, number[]>>({});
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const hcpLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const hcpLocTag = useSelectedAddressTag("HOME");
+  const hcpLocAddrRaw = useSelectedAddressLine("");
   const selectedAddressId = useSyncExternalStore(
     subscribeSelectedAddress,
     () => readSelectedAddress()?.id?.trim() ?? "",
@@ -374,16 +369,7 @@ export function HealthCheckupsPlanPage() {
           </svg>
         </Link>
         <h1 className="hcp-title">{pageTitle}</h1>
-        {type === "lab-tests" ? (
-          <Link to={ROUTES.orders} className="hcp-orders">
-            <span className="hcp-orders__ic" aria-hidden="true">
-              <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-            </span>
-            <span>My Orders</span>
-          </Link>
-        ) : (
-          <span className="hcp-top__spacer" aria-hidden />
-        )}
+        <span className="hcp-top__spacer" aria-hidden />
       </header>
 
       <main className={`hcp-main${type === "health-checkups" ? " hcp-main--health-plan" : ""}`}>
@@ -392,7 +378,7 @@ export function HealthCheckupsPlanPage() {
             <button
               type="button"
               className="hcp-loc"
-              aria-label="Choose address"
+              aria-label={hcpLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
               onClick={() => setAddrSheetOpen(true)}
             >
               <span className="hcp-loc__pin" aria-hidden="true">
@@ -404,11 +390,14 @@ export function HealthCheckupsPlanPage() {
                   <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
                 </svg>
               </span>
-              <span className="hcp-loc__title">{hcpLocTag}</span>
-              <span className="hcp-loc__sep" aria-hidden="true">
-                |
-              </span>
-              <span className="hcp-loc__addr">{hcpLocAddrLine}</span>
+              <AddressStripLabels
+                layout="pipe"
+                addrRaw={hcpLocAddrRaw}
+                titleClassName="hcp-loc__title"
+                sepClassName="hcp-loc__sep"
+                addrClassName="hcp-loc__addr"
+                promptClassName="hcp-loc__addr hcp-loc__addr--prompt"
+              />
               <span className="hcp-loc__chev" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path

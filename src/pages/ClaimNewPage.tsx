@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchBankDetailsPage, type PatientBankRecord } from "@/api/patientBankDetails";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
+import { MEMBER_NOT_ACTIVATED_LABEL } from "@/lib/gymMemberDisplay";
 import { fetchPatientProfile } from "@/api/patientProfile";
 import {
   areBillChecklistRequirementsMet,
@@ -23,6 +24,7 @@ import { uploadReimbursementBillDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
 import { CLAIMS_DISCLOSURES_GATE_SESSION_KEY } from "@/constants/appSessionStorageKeys";
 import { CLAIM_CHECKLIST_ESCROW_STORAGE_KEY } from "@/constants/claimsChecklistEscrow";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
 import type { ClaimBillChecklistLocationState } from "@/pages/ClaimBillChecklistPage";
 import "@/components/address/AddressBottomSheet.css";
@@ -215,6 +217,8 @@ export function ClaimNewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const mod = useProfileModuleGates();
+  const canAddFamilyMember = mod.planDependents.dependentAddAllowed;
   const returnPath =
     (location.state as { returnPath?: string } | null)?.returnPath?.trim() || ROUTES.claims;
 
@@ -276,12 +280,15 @@ export function ClaimNewPage() {
         setMembers(mems);
         setBanks(bankPage.items);
         setServiceTypesCatalog(st);
-        const primary = mems.find((m) => m.memberKind === "primary") ?? mems[0];
+        const subscribed = mems.filter((m) => m.isSubscribed);
+        const primary =
+          subscribed.find((m) => m.memberKind === "primary") ?? subscribed[0] ?? null;
         if (primary) {
           setMemberId(primary.id);
           setPhone((primary.phone ?? prof.phone)?.trim() ?? "");
           setEmail(prof.email?.trim() ?? "");
         } else {
+          setMemberId("");
           setPhone(prof.phone?.trim() ?? "");
           setEmail(prof.email?.trim() ?? "");
         }
@@ -416,10 +423,14 @@ export function ClaimNewPage() {
   }, []);
 
   const goAddMember = useCallback(() => {
+    if (!canAddFamilyMember) {
+      toast.error("Your plan doesn’t allow adding family members.");
+      return;
+    }
     setMemberSheetOpen(false);
     const returnTo = `${location.pathname}${location.search}`;
     navigate(ROUTES.profileMembersAdd, { state: { returnTo } });
-  }, [location.pathname, location.search, navigate]);
+  }, [canAddFamilyMember, location.pathname, location.search, navigate, toast]);
 
   const goAddBank = useCallback(() => {
     setBankSheetOpen(false);
@@ -436,18 +447,18 @@ export function ClaimNewPage() {
 
   const onMemberChange = useCallback(
     (id: string) => {
-      setMemberId(id);
       const m = members.find((x) => x.id === id);
-      if (m) {
-        setPhone((m.phone ?? profilePhone).trim());
-        setEmail(profileEmail);
-      }
+      if (!m?.isSubscribed) return;
+      setMemberId(id);
+      setPhone((m.phone ?? profilePhone).trim());
+      setEmail(profileEmail);
     },
     [members, profilePhone, profileEmail],
   );
 
   const canStep1Continue =
     Boolean(memberId) &&
+    Boolean(selectedMember?.isSubscribed) &&
     Boolean(bankId) &&
     termsChecked &&
     phone.trim().length >= 10 &&
@@ -1443,18 +1454,23 @@ export function ClaimNewPage() {
                 </svg>
               </button>
             </header>
-            <p className="addr-sheet__hint">Choose who this claim is for, or add a family member.</p>
+            <p className="addr-sheet__hint">
+              {canAddFamilyMember
+                ? "Choose who this claim is for, or add a family member."
+                : "Choose who this claim is for."}
+            </p>
             {members.length === 0 ? (
               <p className="addr-sheet__empty">No saved patients yet.</p>
             ) : (
               <ul className="addr-sheet__list" role="radiogroup" aria-label="Patients">
                 {members.map((m) => {
                   const inputId = `claim-member-${m.id}`;
+                  const inactive = !m.isSubscribed;
                   return (
                     <li key={m.id} className="addr-sheet__item-wrap">
                       <label
                         htmlFor={inputId}
-                        className={`addr-sheet__item${memberId === m.id ? " addr-sheet__item--selected" : ""}`}
+                        className={`addr-sheet__item${memberId === m.id ? " addr-sheet__item--selected" : ""}${inactive ? " addr-sheet__item--inactive" : ""}`}
                       >
                         <input
                           id={inputId}
@@ -1462,10 +1478,14 @@ export function ClaimNewPage() {
                           className="addr-sheet__radio"
                           name="claim-member-sheet"
                           checked={memberId === m.id}
+                          disabled={inactive}
                           onChange={() => onMemberChange(m.id)}
                         />
                         <span className="addr-sheet__item-body">
                           <span className="addr-sheet__tag">{memberLocTag(m)}</span>
+                          {inactive ? (
+                            <span className="addr-sheet__inactive-pill">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                          ) : null}
                           {m.memberKind === "primary" ? (
                             <span className="addr-sheet__primary-pill" aria-label="Primary member">
                               Primary
@@ -1482,14 +1502,16 @@ export function ClaimNewPage() {
                 })}
               </ul>
             )}
-            <div className="addr-sheet__actions">
-              <button type="button" className="addr-sheet__add-btn" onClick={goAddMember}>
-                <span className="addr-sheet__add-ic" aria-hidden="true">
-                  +
-                </span>
-                <span>Add family member</span>
-              </button>
-            </div>
+            {canAddFamilyMember ? (
+              <div className="addr-sheet__actions">
+                <button type="button" className="addr-sheet__add-btn" onClick={goAddMember}>
+                  <span className="addr-sheet__add-ic" aria-hidden="true">
+                    +
+                  </span>
+                  <span>Add family member</span>
+                </button>
+              </div>
+            ) : null}
           </section>
         </dialog>
       ) : null}

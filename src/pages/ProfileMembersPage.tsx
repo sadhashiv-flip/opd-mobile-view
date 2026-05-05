@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, generatePath, useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
 import "./ProfileManagePage.css";
@@ -31,6 +32,9 @@ function memberStatusBadgeClass(label: string | null): string {
 export function ProfileMembersPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const mod = useProfileModuleGates();
+  const canAdd = mod.planDependents.dependentAddAllowed;
+  const canEdit = mod.planDependents.dependentEditAllowed;
   const [members, setMembers] = useState<MemberDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,20 +90,24 @@ export function ProfileMembersPage() {
 
       <main className="profile-manage-page__main">
         <p className="profile-manage-page__intro">
-          View status for each member and tap edit to update their details.
+          {canEdit
+            ? "View status for each member and tap edit to update their details."
+            : "View status for each member on your plan."}
         </p>
 
-        <Link to={ROUTES.profileMembersAdd} className="profile-manage-page__link-card">
-          <span className="profile-manage-page__link-text">
-            <span className="profile-manage-page__link-title">Add member</span>
-            <span className="profile-manage-page__link-desc">
-              Name, relationship, date of birth, gender, phone
+        {canAdd ? (
+          <Link to={ROUTES.profileMembersAdd} className="profile-manage-page__link-card">
+            <span className="profile-manage-page__link-text">
+              <span className="profile-manage-page__link-title">Add member</span>
+              <span className="profile-manage-page__link-desc">
+                Name, relationship, date of birth, gender, phone
+              </span>
             </span>
-          </span>
-          <span className="profile-manage-page__chevron" aria-hidden>
-            ›
-          </span>
-        </Link>
+            <span className="profile-manage-page__chevron" aria-hidden>
+              ›
+            </span>
+          </Link>
+        ) : null}
 
         {loading ? (
           <div className="profile-sub-skeleton" aria-busy="true">
@@ -146,15 +154,17 @@ export function ProfileMembersPage() {
                         <span className={memberStatusBadgeClass(m.statusLabel)}>{m.statusLabel}</span>
                       ) : null}
                     </div>
-                    <div className="profile-manage-page__member-actions">
-                      <Link
-                        to={generatePath(ROUTES.profileMembersEdit, { memberId: m.id })}
-                        className="profile-manage-page__member-icon-btn"
-                        aria-label={`Edit ${m.name}`}
-                      >
-                        <PencilIcon />
-                      </Link>
-                    </div>
+                    {canEdit ? (
+                      <div className="profile-manage-page__member-actions">
+                        <Link
+                          to={generatePath(ROUTES.profileMembersEdit, { memberId: m.id })}
+                          className="profile-manage-page__member-icon-btn"
+                          aria-label={`Edit ${m.name}`}
+                        >
+                          <PencilIcon />
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
                 </li>
               ))}
@@ -163,7 +173,11 @@ export function ProfileMembersPage() {
         ) : null}
 
         {!loading && !error && members.length === 0 ? (
-          <p className="profile-manage-page__hint">No members yet. Tap Add member to create one.</p>
+          <p className="profile-manage-page__hint">
+            {canAdd
+              ? "No members yet. Tap Add member to create one."
+              : "No members listed yet. Your plan may not allow adding members here."}
+          </p>
         ) : null}
       </main>
 

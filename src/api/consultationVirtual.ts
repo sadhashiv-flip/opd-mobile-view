@@ -10,6 +10,8 @@ export type VirtualSpecialtySlotsState = Readonly<{
   parent: number;
   issueTitle: string;
   spid: number;
+  /** Preferred language for {@link fetchAvailableSlots} (required for new flow). */
+  language: string;
 }>;
 
 export type SpecialityDoctor = Readonly<{

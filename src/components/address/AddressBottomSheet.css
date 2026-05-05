@@ -175,6 +175,15 @@
   background: #fff8f5;
 }
 
+.addr-sheet__item--inactive {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.addr-sheet__item--inactive .addr-sheet__radio {
+  cursor: not-allowed;
+}
+
 /* Native radios ignore accent-color in some themes — custom circle uses brand orange only */
 .addr-sheet__radio {
   appearance: none;
@@ -252,6 +261,17 @@
   background: rgba(46, 125, 50, 0.12);
   color: #2e7d32;
   font-size: 10px;
+}
+
+.addr-sheet__inactive-pill {
+  display: inline-block;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ececec;
+  color: #757575;
+  margin-right: 6px;
 }
 
 .addr-sheet__lines {

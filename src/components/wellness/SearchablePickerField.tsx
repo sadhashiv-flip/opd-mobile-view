@@ -5,6 +5,8 @@ export type SearchablePickerOption = Readonly<{
   value: string;
   label: string;
   description?: string;
+  /** When true, row is visible but cannot be chosen (e.g. subscription inactive). */
+  disabled?: boolean;
 }>;
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -255,18 +257,26 @@ export function SearchablePickerField({
             >
               {visibleSlice.map((o) => {
                 const active = o.value === value;
+                const rowDisabled = Boolean(o.disabled);
                 return (
                   <li key={o.value} role="none">
                     <button
                       type="button"
                       role="option"
                       aria-selected={active}
+                      aria-disabled={rowDisabled}
+                      disabled={rowDisabled}
                       className={
-                        active
-                          ? "searchable-picker-sheet__row searchable-picker-sheet__row--active"
-                          : "searchable-picker-sheet__row"
+                        rowDisabled
+                          ? "searchable-picker-sheet__row searchable-picker-sheet__row--disabled"
+                          : active
+                            ? "searchable-picker-sheet__row searchable-picker-sheet__row--active"
+                            : "searchable-picker-sheet__row"
                       }
-                      onClick={() => pick(o.value)}
+                      onClick={() => {
+                        if (rowDisabled) return;
+                        pick(o.value);
+                      }}
                     >
                       <span className="searchable-picker-sheet__row-main">
                         <span className="searchable-picker-sheet__row-label">{o.label}</span>

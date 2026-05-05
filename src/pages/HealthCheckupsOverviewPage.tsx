@@ -3,7 +3,7 @@ import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { DIAG_LAB_SLOT_PAYLOAD_KEY } from "@/constants/diagnosticsLabFlowStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import {
-  DEFAULT_LOCATION_ADDRESS_LINE,
+  ADD_DELIVERY_ADDRESS_PROMPT,
   readSelectedAddress,
   subscribeSelectedAddress,
 } from "@/constants/selectedAddressStorage";
@@ -53,9 +53,6 @@ import {
   type ReactNode,
 } from "react";
 import "./HealthCheckupsOverviewPage.css";
-
-const LAB_OVERVIEW_ADDRESS =
-  "iSprout, 7th floor, Plot No: 28, Divyasree Trinity, near Hexagon Capability Center, 5 & 6, Hitech City, Hyderabad, Telangana 500081";
 
 function formatInr(n: number): string {
   return n.toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -382,10 +379,8 @@ export function HealthCheckupsOverviewPage() {
   const toast = useToast();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const isLabTests = type === "lab-tests";
-  const locAddrLine = useSelectedAddressLine(
-    isLabTests ? LAB_OVERVIEW_ADDRESS : DEFAULT_LOCATION_ADDRESS_LINE,
-  );
-  const fallbackAddrTag = useSelectedAddressTag("HOME");
+  const locAddrLine = useSelectedAddressLine("");
+  const fallbackAddrTag = useSelectedAddressTag("");
 
   const selectedAddressId = useSyncExternalStore(
     subscribeSelectedAddress,
@@ -1050,10 +1045,15 @@ export function HealthCheckupsOverviewPage() {
                 <LtCard icon={LT_IC_PIN} title="Address" accentIcon>
                   <div className="lt-addr-plain">
                     <div className="lt-addr-plain__tag">
-                      {labOverview.addressTag?.trim() || fallbackAddrTag}
+                      {labOverview.addressTag?.trim() ||
+                        (labOverview.addressLine.trim() || locAddrLine.trim()
+                          ? fallbackAddrTag || "HOME"
+                          : "")}
                     </div>
                     <p className="lt-addr-plain__lines">
-                      {labOverview.addressLine.trim() || locAddrLine.trim()}
+                      {labOverview.addressLine.trim() ||
+                        locAddrLine.trim() ||
+                        ADD_DELIVERY_ADDRESS_PROMPT}
                     </p>
                   </div>
                 </LtCard>

@@ -203,6 +203,11 @@
   box-shadow: 0 2px 8px rgba(255, 82, 36, 0.12);
 }
 
+.mobile-filter-chip--disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
 .mobile-filter-chip__icon {
   flex-shrink: 0;
   display: flex;

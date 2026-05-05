@@ -1,17 +1,13 @@
 import { ROUTES } from "@/constants";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import {
   DIAG_LAB_VENDOR_CODE_KEY,
   DIAG_LAB_VENDOR_NAME_KEY,
 } from "@/constants/diagnosticsLabFlowStorage";
-import {
-  DEFAULT_LOCATION_ADDRESS_LINE,
-  readSelectedAddress,
-  subscribeSelectedAddress,
-} from "@/constants/selectedAddressStorage";
+import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { getPatientApiRootBase } from "@/api/patientClient";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
 import {
   fetchDiagnosticVendorsPricing,
@@ -244,8 +240,7 @@ export function DiagnosticsScreenPage() {
     selectedAddressId,
   ]);
 
-  const dsLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const dsLocTag = useSelectedAddressTag("HOME");
+  const dsLocAddrRaw = useSelectedAddressLine("");
 
   if (isLabTests) {
     return (
@@ -267,20 +262,14 @@ export function DiagnosticsScreenPage() {
               />
             </svg>
           </Link>
-          <h1 className="ds-title">Select Lab</h1>
-          <Link to={ROUTES.orders} className="ds-orders">
-            <span className="ds-orders__ic" aria-hidden="true">
-              <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-            </span>
-            <span>My Orders</span>
-          </Link>
+          <h1 className="ds-title ds-title--flex">Select Lab</h1>
         </header>
 
         <main className="ds-main">
           <button
             type="button"
             className="ds-location"
-            aria-label="Choose address"
+            aria-label={dsLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="ds-location__pin" aria-hidden="true">
@@ -292,11 +281,14 @@ export function DiagnosticsScreenPage() {
                 <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
               </svg>
             </span>
-            <span className="ds-location__title">{dsLocTag}</span>
-            <span className="ds-location__sep" aria-hidden="true">
-              |
-            </span>
-            <span className="ds-location__addr">{dsLocAddrLine}</span>
+            <AddressStripLabels
+              layout="pipe"
+              addrRaw={dsLocAddrRaw}
+              titleClassName="ds-location__title"
+              sepClassName="ds-location__sep"
+              addrClassName="ds-location__addr"
+              promptClassName="ds-location__addr ds-location__addr--prompt"
+            />
             <span className="ds-location__chev" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path
@@ -494,7 +486,7 @@ export function DiagnosticsScreenPage() {
           <button
             type="button"
             className="ds-location"
-            aria-label="Choose address"
+            aria-label={dsLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="ds-location__pin" aria-hidden="true">
@@ -506,11 +498,14 @@ export function DiagnosticsScreenPage() {
                 <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
               </svg>
             </span>
-            <span className="ds-location__title">{dsLocTag}</span>
-            <span className="ds-location__sep" aria-hidden="true">
-              |
-            </span>
-            <span className="ds-location__addr">{dsLocAddrLine}</span>
+            <AddressStripLabels
+              layout="pipe"
+              addrRaw={dsLocAddrRaw}
+              titleClassName="ds-location__title"
+              sepClassName="ds-location__sep"
+              addrClassName="ds-location__addr"
+              promptClassName="ds-location__addr ds-location__addr--prompt"
+            />
             <span className="ds-location__chev" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path

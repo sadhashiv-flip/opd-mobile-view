@@ -1,0 +1,301 @@
+.fitness-list-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #f6f7f9;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.fitness-list-page__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.fitness-list-page__main {
+  flex: 1;
+  padding: 12px 14px 24px;
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.fitness-list__header-action {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  color: #ff6000;
+  border-radius: 10px;
+}
+
+.fitness-list__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 16px;
+  color: #64748b;
+}
+
+.fitness-list__loading--inline {
+  padding: 24px;
+}
+
+.fitness-list__spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 96, 0, 0.2);
+  border-top-color: #ff6000;
+  animation: fitness-spin 0.75s linear infinite;
+}
+
+@keyframes fitness-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fitness-list__empty {
+  text-align: center;
+  color: #64748b;
+  padding: 32px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.fitness-list__hint {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 12px;
+}
+
+.fitness-hero__banner {
+  border-radius: 14px;
+  padding: 20px 18px;
+  background: linear-gradient(135deg, #4f46e5 0%, #a855f7 55%, #ec4899 100%);
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.fitness-hero__headline {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.fitness-hero__sub {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.92;
+}
+
+.fitness-yoga-card {
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: linear-gradient(120deg, rgba(15, 23, 42, 0.75), rgba(79, 70, 229, 0.55)),
+    linear-gradient(180deg, #0f172a, #312e81);
+  color: #fff;
+}
+
+.fitness-yoga-card__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.fitness-yoga-card__title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.fitness-yoga-card__schedule {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.fitness-yoga-card__cta {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 700;
+  font-size: 14px;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.fitness-section {
+  margin-bottom: 20px;
+}
+
+.fitness-section__title {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.fitness-section__scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fitness-section__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.fitness-card {
+  flex-shrink: 0;
+}
+
+.fitness-card--horizontal {
+  position: relative;
+}
+
+.fitness-card--horizontal .fitness-card__surface {
+  width: 200px;
+  text-align: left;
+  border: 1px solid rgba(255, 96, 0, 0.35);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.fitness-card__surface {
+  display: block;
+  width: 100%;
+}
+
+.fitness-card__media {
+  position: relative;
+  height: 108px;
+  background: #e8ecf1;
+}
+
+.fitness-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fitness-card__placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+}
+
+.fitness-card--horizontal .fitness-card__fav-hit {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #ff6000;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  z-index: 1;
+}
+
+.fitness-card__body {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fitness-card__title {
+  font-size: 14px;
+  font-weight: 650;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fitness-card__meta {
+  font-size: 12px;
+  color: #ff6000;
+  font-weight: 600;
+}
+
+.fitness-card__meta--muted {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.fitness-card__kcal::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fb923c, #ef4444);
+  vertical-align: middle;
+}
+
+.fitness-list__fav-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fitness-list__fav-grid .fitness-card {
+  width: 100%;
+  border: 1px solid rgba(255, 96, 0, 0.25);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.fitness-list__fav-grid .fitness-card__media {
+  width: 112px;
+  flex-shrink: 0;
+  height: auto;
+  min-height: 88px;
+}
+
+.fitness-list__fav-grid .fitness-card__body {
+  flex: 1;
+  justify-content: center;
+}

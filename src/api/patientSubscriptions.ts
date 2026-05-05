@@ -362,6 +362,59 @@ function collectAssignedPatientIds(
   return [...ids];
 }
 
+function parseTruthyFlag(v: unknown): boolean {
+  if (v === true || v === 1) return true;
+  if (v === false || v === 0) return false;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "yes") return true;
+    if (s === "0" || s === "false" || s === "no" || s === "") return false;
+  }
+  return false;
+}
+
+/** Plan row: `canActivate` / `can_activate` — when true, purchaser may assign members to open slots. */
+function parseCanActivate(o: Record<string, unknown>): boolean {
+  const raw = o.canActivate ?? o.can_activate ?? o.CanActivate;
+  return parseTruthyFlag(raw);
+}
+
+function rowLooksLikeActiveSubscriptionRow(v: unknown): boolean {
+  const o = asRecord(v);
+  if (!o) return false;
+  return asRecord(o.plan) != null;
+}
+
+/**
+ * GET `/subscription/plans` may return `data`, `subscription`, `subscriptions`, etc.
+ * Used only when normalizing the active-subscription payload (not the paginated catalog list).
+ */
+function extractActiveSubscriptionRowsFromPlansResponse(body: unknown): unknown[] | null {
+  if (Array.isArray(body)) {
+    if (body.length === 0) return [];
+    return rowLooksLikeActiveSubscriptionRow(body[0]) ? body : null;
+  }
+  const root = asRecord(body);
+  if (!root) return null;
+
+  const tryArray = (a: unknown): unknown[] | null => {
+    if (!Array.isArray(a)) return null;
+    if (a.length === 0) return [];
+    return rowLooksLikeActiveSubscriptionRow(a[0]) ? a : null;
+  };
+
+  for (const key of ["data", "subscription", "subscriptions", "items", "plans"] as const) {
+    const got = tryArray(root[key]);
+    if (got != null) return got;
+  }
+  const nested = firstArrayInRecord(root);
+  if (nested) {
+    const got = tryArray(nested);
+    if (got != null) return got;
+  }
+  return null;
+}
+
 function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscriptionItem | null {
   const o = asRecord(v);
   if (!o) return null;
@@ -383,6 +436,7 @@ function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscript
   const statusN = num(o.status);
   const subscriptionStatusActive = statusN === 1 || o.status === true;
   const planAllowsDependentAdd = plan.dependent_add === true;
+  const canActivate = parseCanActivate(o) || parseCanActivate(plan);
 
   return {
     id,
@@ -391,7 +445,7 @@ function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscript
     planAmount: num(plan.amount),
     membersCount: num(plan.members),
     memberTypeLine,
-    canActivate: o.canActivate === true,
+    canActivate,
     patients,
     patientId: str(o.patient_id),
     planAllowsDependentAdd,
@@ -400,14 +454,6 @@ function parseActiveSubscriptionItem(v: unknown, index: number): ActiveSubscript
     memberTypeCounts,
     assignedPatientIds: collectAssignedPatientIds(o, patients),
   };
-}
-
-function isNewSubscriptionShape(body: unknown): boolean {
-  const root = asRecord(body);
-  if (!root || !Array.isArray(root.data)) return false;
-  if (root.data.length === 0) return true;
-  const first = asRecord(root.data[0]);
-  return first != null && asRecord(first.plan) != null;
 }
 
 function legacyItemsToActive(items: SubscriptionDisplay[]): ActiveSubscriptionItem[] {
@@ -429,31 +475,34 @@ function legacyItemsToActive(items: SubscriptionDisplay[]): ActiveSubscriptionIt
   }));
 }
 
-/** Normalizes GET /subscription body (active plans + patients) or legacy list shapes. */
+/** Normalizes GET `/subscription/plans` (active plans + patients) or legacy list shapes. */
 export function parseActiveSubscriptionsResponse(body: unknown): ActiveSubscriptionsResult {
+  const activeRows = extractActiveSubscriptionRowsFromPlansResponse(body);
+  if (activeRows != null) {
+    const root = asRecord(body);
+    const message = root ? str(root.message) : null;
+    const isSubscribedFlag = root ? parseTruthyFlag(root.isSubscribed) : false;
+    const items = activeRows
+      .map((row, i) => parseActiveSubscriptionItem(row, i))
+      .filter((x): x is ActiveSubscriptionItem => x != null);
+    return {
+      isSubscribed: isSubscribedFlag || items.length > 0,
+      message,
+      items,
+    };
+  }
+
   const root = asRecord(body);
   if (!root) {
     return { isSubscribed: false, message: null, items: [] };
   }
 
   const message = str(root.message);
-  const isSubscribed = root.isSubscribed === true;
-
-  if (isNewSubscriptionShape(body)) {
-    const data = root.data as unknown[];
-    const items = data
-      .map((row, i) => parseActiveSubscriptionItem(row, i))
-      .filter((x): x is ActiveSubscriptionItem => x != null);
-    return {
-      isSubscribed: isSubscribed || items.length > 0,
-      message,
-      items,
-    };
-  }
+  const isSubscribedFlag = parseTruthyFlag(root.isSubscribed);
 
   const legacy = normalizeSubscriptionsResponse(body);
   return {
-    isSubscribed: legacy.length > 0,
+    isSubscribed: isSubscribedFlag || legacy.length > 0,
     message,
     items: legacyItemsToActive(legacy),
   };

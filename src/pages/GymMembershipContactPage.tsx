@@ -27,7 +27,6 @@ import {
 } from "@/lib/gymSubscriptionFlow";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { portalToMobileFrame } from "@/lib/mobileFramePortal";
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -222,9 +221,7 @@ export function GymMembershipContactPage() {
             </svg>
           </Link>
           <h1 className="hco-title">Location &amp; contact</h1>
-          <span className="hco-orders" style={{ visibility: "hidden" }} aria-hidden>
-            My Orders
-          </span>
+          <span className="hco-top__spacer" aria-hidden />
         </header>
         <main className="gym-contact-main">
           <p className="gym-contact-loading" aria-busy="true">
@@ -252,12 +249,7 @@ export function GymMembershipContactPage() {
           </svg>
         </Link>
         <h1 className="hco-title">Location &amp; contact</h1>
-        <Link to={ROUTES.orders} className="hco-orders">
-          <span className="hco-orders__ic" aria-hidden="true">
-            <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-          </span>
-          My Orders
-        </Link>
+        <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="gym-contact-main">

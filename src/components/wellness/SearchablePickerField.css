@@ -248,6 +248,16 @@
   box-shadow: inset 0 0 0 1px rgba(255, 90, 31, 0.25);
 }
 
+.searchable-picker-sheet__row--disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  background: #ececec;
+}
+
+.searchable-picker-sheet__row--disabled:hover {
+  background: #ececec;
+}
+
 .searchable-picker-sheet__row-main {
   flex: 1;
   min-width: 0;

@@ -55,6 +55,42 @@ function asRecord(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function nestedAddressList(obj: Record<string, unknown>): unknown[] | null {
+  const nested =
+    obj.addressess ??
+    obj.addresses ??
+    obj.address_list ??
+    obj.items ??
+    obj.list ??
+    obj.records;
+  return Array.isArray(nested) ? nested : null;
+}
+
+function pickNonEmptyAddressSlice(keys: readonly unknown[]): unknown[] | null {
+  for (const k of keys) {
+    if (Array.isArray(k) && k.length > 0) return k;
+  }
+  for (const k of keys) {
+    const inner = asRecord(k);
+    if (!inner) continue;
+    const nested = nestedAddressList(inner);
+    if (nested && nested.length > 0) return nested;
+  }
+  return null;
+}
+
+function pickAnyAddressSlice(keys: readonly unknown[]): unknown[] {
+  for (const k of keys) {
+    if (Array.isArray(k)) return k;
+    const inner = asRecord(k);
+    if (inner) {
+      const nested = nestedAddressList(inner);
+      if (nested) return nested;
+    }
+  }
+  return [];
+}
+
 function extractAddressArray(body: unknown): unknown[] {
   if (Array.isArray(body)) return body;
   const root = asRecord(body);
@@ -64,26 +100,18 @@ function extractAddressArray(body: unknown): unknown[] {
     root.addresses,
     root.address_list,
     root.data,
+    root.result,
+    root.payload,
   ] as const;
-  for (const k of keys) {
-    if (Array.isArray(k)) return k;
-    const inner = asRecord(k);
-    if (inner) {
-      const nested =
-        inner.addressess ??
-        inner.addresses ??
-        inner.items ??
-        inner.list;
-      if (Array.isArray(nested)) return nested;
-    }
-  }
-  return [];
+
+  /** Prefer non-empty arrays — API sometimes sends `addressess: []` plus real rows under `data`. */
+  return pickNonEmptyAddressSlice(keys) ?? pickAnyAddressSlice(keys);
 }
 
 function normalizeAddressItem(v: unknown): PatientAddressRecord | null {
   const o = asRecord(v);
   if (!o) return null;
-  const id = str(o.id);
+  const id = str(o.id) || str(o._id) || str(o.address_id);
   if (!id) return null;
   const line1 = str(o.line_1) || str(o.line1);
   return {

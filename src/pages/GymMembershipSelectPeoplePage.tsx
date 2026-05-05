@@ -9,8 +9,13 @@ import {
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
-import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import {
+  defaultGymMemberSelection,
+  MEMBER_NOT_ACTIVATED_LABEL,
+  patientMembersToGymRows,
+  type GymMemberListRow,
+} from "@/lib/gymMemberDisplay";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -26,12 +31,6 @@ function readStoredGymPlanId(): string | null {
   }
 }
 
-function defaultGymSelection(rows: GymMemberListRow[]): string[] {
-  const primary = rows.find((r) => r.section === "self");
-  if (primary) return [primary.id];
-  return rows[0] ? [rows[0].id] : [];
-}
-
 export function GymMembershipSelectPeoplePage() {
   const navigate = useNavigate();
 
@@ -41,6 +40,8 @@ export function GymMembershipSelectPeoplePage() {
 
   const location = useLocation();
   const toast = useToast();
+  const mod = useProfileModuleGates();
+  const canAddFamily = mod.planDependents.dependentAddAllowed;
   const statePlanId =
     typeof (location.state as { planId?: unknown } | null)?.planId === "string"
       ? (location.state as { planId: string }).planId
@@ -91,10 +92,16 @@ export function GymMembershipSelectPeoplePage() {
       return;
     }
     setSelectedIds((prev) => {
-      let next = prev.filter((id) => rows.some((r) => r.id === id));
+      let next = prev.filter((id) => {
+        const r = rows.find((x) => x.id === id);
+        return Boolean(r?.isSubscribed);
+      });
       if (next.length === 0) {
-        const stored = readGymSelectedPersonIds().filter((id) => rows.some((r) => r.id === id));
-        next = stored.length > 0 ? stored : defaultGymSelection(rows);
+        const stored = readGymSelectedPersonIds().filter((id) => {
+          const r = rows.find((x) => x.id === id);
+          return Boolean(r?.isSubscribed);
+        });
+        next = stored.length > 0 ? stored : defaultGymMemberSelection(rows);
       }
       if (next.length > maxSelectable) {
         next = next.slice(0, maxSelectable);
@@ -120,6 +127,8 @@ export function GymMembershipSelectPeoplePage() {
   );
 
   const toggleMember = (memberId: string) => {
+    const row = rows.find((r) => r.id === memberId);
+    if (!row?.isSubscribed) return;
     setSelectedIds((prev) => {
       if (prev.includes(memberId)) {
         if (prev.length <= 1) return prev;
@@ -160,7 +169,8 @@ export function GymMembershipSelectPeoplePage() {
 
   const renderTrailing = (member: GymMemberListRow) => {
     const isSelected = selectedIds.includes(member.id);
-    const atMax = !isSelected && selectedIds.length >= maxSelectable;
+    const inactive = !member.isSubscribed;
+    const atMax = !isSelected && selectedIds.length >= maxSelectable && !inactive;
 
     if (isSelected) {
       return (
@@ -178,10 +188,10 @@ export function GymMembershipSelectPeoplePage() {
 
     return (
       <span
-        className={`hc-person__cta${atMax ? " hc-person__cta--disabled" : ""}`}
+        className={`hc-person__cta${inactive || atMax ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
       >
-        Add
+        {inactive ? MEMBER_NOT_ACTIVATED_LABEL : "Add"}
       </span>
     );
   };
@@ -208,12 +218,7 @@ export function GymMembershipSelectPeoplePage() {
           </svg>
         </Link>
         <h1 className="hco-title">{pageTitle}</h1>
-        <Link to={ROUTES.orders} className="hco-orders">
-          <span className="hco-orders__ic" aria-hidden="true">
-            <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-          </span>
-          My Orders
-        </Link>
+        <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="hc-main">
@@ -277,11 +282,14 @@ export function GymMembershipSelectPeoplePage() {
                 <p className="hc-block__empty-hint">No primary profile listed. Add or update members in Profile.</p>
               ) : null}
 
-              {selfMembers.map((member) => (
+              {selfMembers.map((member) => {
+                const rowDisabled = !member.isSubscribed;
+                return (
                 <button
                   key={member.id}
                   type="button"
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                  disabled={rowDisabled}
+                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                   aria-pressed={selectedIds.includes(member.id)}
                   onClick={() => toggleMember(member.id)}
                 >
@@ -297,11 +305,15 @@ export function GymMembershipSelectPeoplePage() {
                   </span>
                   <span className="hc-person__info">
                     <span className="hc-person__name">{member.name}</span>
+                    {rowDisabled ? (
+                      <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                    ) : null}
                     <span className="hc-person__sub">{member.subtitle}</span>
                   </span>
                   {renderTrailing(member)}
                 </button>
-              ))}
+              );
+              })}
             </section>
 
             <section className="hc-block">
@@ -316,11 +328,14 @@ export function GymMembershipSelectPeoplePage() {
                 <p className="hc-block__subhint">Family members can be included in your multi-select.</p>
               ) : null}
 
-              {familyMembersList.map((member) => (
+              {familyMembersList.map((member) => {
+                const rowDisabled = !member.isSubscribed;
+                return (
                 <button
                   key={member.id}
                   type="button"
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                  disabled={rowDisabled}
+                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                   aria-pressed={selectedIds.includes(member.id)}
                   onClick={() => toggleMember(member.id)}
                 >
@@ -336,6 +351,9 @@ export function GymMembershipSelectPeoplePage() {
                   </span>
                   <span className="hc-person__info">
                     <span className="hc-person__name">{member.name}</span>
+                    {rowDisabled ? (
+                      <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                    ) : null}
                     <span
                       className={`hc-person__sub${member.section === "family" ? " hc-person__sub--muted" : ""}`}
                     >
@@ -344,26 +362,29 @@ export function GymMembershipSelectPeoplePage() {
                   </span>
                   {renderTrailing(member)}
                 </button>
-              ))}
+              );
+              })}
 
-              <button
-                type="button"
-                className="hc-add-family"
-                onClick={() =>
-                  navigate(ROUTES.profileMembersAdd, {
-                    state: {
-                      title: pageTitle,
-                      returnPath: ROUTES.gymMembershipSelectPeople,
-                      returnState: { planId },
-                    },
-                  })
-                }
-              >
-                <span className="hc-add-family__ic" aria-hidden="true">
-                  +
-                </span>
-                Add new family member
-              </button>
+              {canAddFamily ? (
+                <button
+                  type="button"
+                  className="hc-add-family"
+                  onClick={() =>
+                    navigate(ROUTES.profileMembersAdd, {
+                      state: {
+                        title: pageTitle,
+                        returnPath: ROUTES.gymMembershipSelectPeople,
+                        returnState: { planId },
+                      },
+                    })
+                  }
+                >
+                  <span className="hc-add-family__ic" aria-hidden="true">
+                    +
+                  </span>
+                  Add new family member
+                </button>
+              ) : null}
             </section>
           </>
         ) : null}

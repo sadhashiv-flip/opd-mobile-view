@@ -10,6 +10,7 @@ import {
 } from "@/api/consultationVirtual";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/ConsultationVirtualSlotsPage.css";
+import { VIRTUAL_CONSULT_LANGUAGE_KEY } from "@/constants/virtualConsultationSessionStorage";
 import "@/components/consultation/VirtualAppointmentSlotBottomSheet.css";
 
 const STORAGE_PREFIX = "opd-mobile-view.virtualSlots.";
@@ -53,7 +54,15 @@ export type VirtualAppointmentSlotBottomSheetProps = Readonly<{
   onApplied: (next: Readonly<{ slotDate: string; slotKey: string }>) => void;
 }>;
 
-const LANG = "English";
+function readPreferredConsultLanguage(): string {
+  try {
+    const v = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY)?.trim();
+    if (v) return v;
+  } catch {
+    // ignore
+  }
+  return "English";
+}
 
 export function VirtualAppointmentSlotBottomSheet({
   open,
@@ -107,7 +116,7 @@ export function VirtualAppointmentSlotBottomSheet({
       const list = await fetchAllAvailableSlots({
         date: slotDate,
         spid: meta.spid,
-        language: LANG,
+        language: readPreferredConsultLanguage(),
       });
       setSlots(list);
       setSlotsLoad("ok");

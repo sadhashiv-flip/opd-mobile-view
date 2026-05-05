@@ -10,8 +10,8 @@ import { MobileFilterChip, MobileFilterSheet } from "@/components/mobileFilter/M
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ROUTES } from "@/constants";
-import familyAccountsSvg from "@/assets/icons/AccountManagement/FamilyAccounts.svg";
-import profileSvg from "@/assets/icons/AccountManagement/Profile.svg";
+import familyAccountsSvg from "@/assets/icons/patient-app/hub/account_management/family_account.svg";
+import profileSvg from "@/assets/icons/patient-app/hub/account_management/profile.svg";
 import {
   invoiceOrderRowsFromDashboardOngoing,
   type OrdersPageLocationState,
@@ -297,6 +297,20 @@ export function OrdersPage() {
     }
   };
 
+  useEffect(() => {
+    const uid = userFilterId.trim();
+    if (!uid) return;
+    const m = members.find((x) => x.id === uid);
+    if (m && !m.isSubscribed) {
+      setUserFilterId("");
+      try {
+        sessionStorage.setItem(ORDERS_USER_FILTER_KEY, "");
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [members, userFilterId]);
+
   let emptyPrimaryMessage = "No orders found for this category.";
   if (dashboardRows != null && displayRows.length === 0) {
     emptyPrimaryMessage = "No ongoing orders.";
@@ -387,6 +401,7 @@ export function OrdersPage() {
                       label={m.name.trim().length > 0 ? m.name : m.id}
                       icon={<img src={profileSvg} alt="" width={18} height={18} />}
                       selected={userFilterId === m.id}
+                      disabled={!m.isSubscribed}
                       onClick={() => {
                         persistUserFilter(m.id);
                         setSheetOpen(false);

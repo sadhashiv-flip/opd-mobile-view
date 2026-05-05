@@ -37,6 +37,15 @@ export function clearVirtualFollowUpAppointmentId(): void {
   writeVirtualFollowUpAppointmentId(null);
 }
 
+/** Clears purpose only — preferred language may already be chosen before slots (virtual flow). */
+export function clearVirtualConsultPurposeOnly(): void {
+  try {
+    sessionStorage.removeItem(VIRTUAL_CONSULT_PURPOSE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /** Clears overview form seeds — use when starting a new virtual booking (not follow-up). */
 export function clearVirtualConsultPurposeAndLanguage(): void {
   try {

@@ -1,4 +1,5 @@
 import { patientJson } from "@/api/patientHttp";
+import { saveCachedProfileRaw } from "@/lib/profileCacheStorage";
 
 /** WHO-style bands for BMI coloring on the profile screen. */
 export type BmiCategory =
@@ -234,5 +235,13 @@ export function resolveProfileImageUrl(image: string | null): string | null {
 /** GET /patient/profile (Bearer token via interceptor). */
 export async function fetchPatientProfile(): Promise<ProfileDisplay> {
   const raw = await patientJson<unknown>("profile", { method: "GET" });
+  saveCachedProfileRaw(raw);
   return normalizeProfileResponse(raw);
+}
+
+/** Same GET as {@link fetchPatientProfile}; returns JSON for subscription / `plan.modules`. Updates {@link saveCachedProfileRaw}. */
+export async function fetchPatientProfileRaw(): Promise<unknown> {
+  const raw = await patientJson<unknown>("profile", { method: "GET" });
+  saveCachedProfileRaw(raw);
+  return raw;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { fetchPatientProfileRaw } from "@/api/patientProfile";
 import { verifyPatientLogin } from "@/api/patientVerify";
 import { DEMO_PHONE, ROUTES } from "@/constants";
 import { getWebFcmToken } from "@/lib/fcmToken";
@@ -54,6 +55,7 @@ export function useOtpPage(): OtpPageController {
         fcm_token,
       });
       await saveAuthSession(data);
+      void fetchPatientProfileRaw().catch(() => {});
       toast.success(data.message?.trim() || "Login successful");
       await completeAuthAndNavigate(navigate, data);
     } catch (e) {

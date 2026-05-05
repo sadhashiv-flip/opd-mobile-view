@@ -34,7 +34,11 @@ function readStoredMeta(issueId: string): VirtualSpecialtySlotsState | null {
       Number.isFinite(p.spid) &&
       typeof p.issueTitle === "string"
     ) {
-      return { parent: p.parent, spid: p.spid, issueTitle: p.issueTitle };
+      const lang =
+        typeof p.language === "string" && p.language.trim()
+          ? p.language.trim()
+          : "English";
+      return { parent: p.parent, spid: p.spid, issueTitle: p.issueTitle, language: lang };
     }
   } catch {
     // ignore
@@ -47,17 +51,25 @@ export function ConsultationVirtualSlotsPage() {
   const location = useLocation();
   const issueId = typeof params.issueId === "string" ? params.issueId : "";
 
-  const meta = useMemo(() => {
+  const meta = useMemo((): VirtualSpecialtySlotsState | null => {
     const fromState = location.state as VirtualSpecialtySlotsState | null;
+    let raw: VirtualSpecialtySlotsState | null = null;
     if (
       fromState &&
       typeof fromState.parent === "number" &&
       typeof fromState.spid === "number" &&
       typeof fromState.issueTitle === "string"
     ) {
-      return fromState;
+      raw = fromState;
+    } else {
+      raw = readStoredMeta(issueId);
     }
-    return readStoredMeta(issueId);
+    if (!raw) return null;
+    const lang =
+      typeof raw.language === "string" && raw.language.trim()
+        ? raw.language.trim()
+        : "English";
+    return { ...raw, language: lang };
   }, [location.state, issueId]);
 
   useEffect(() => {
@@ -74,8 +86,9 @@ export function ConsultationVirtualSlotsPage() {
   const [slotsLoad, setSlotsLoad] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [slotsErr, setSlotsErr] = useState<string | null>(null);
   const [selectedSlotKey, setSelectedSlotKey] = useState<string>("");
-  const language = "English";
   const navigate = useNavigate();
+
+  const slotsLanguage = meta?.language ?? "English";
 
   const canContinue = Boolean(selectedSlotKey);
 
@@ -101,7 +114,7 @@ export function ConsultationVirtualSlotsPage() {
       const list = await fetchAllAvailableSlots({
         date: slotDate,
         spid: meta.spid,
-        language,
+        language: slotsLanguage,
       });
       setSlots(list);
       setSlotsLoad("ok");
@@ -110,7 +123,7 @@ export function ConsultationVirtualSlotsPage() {
       setSlotsLoad("error");
       setSlotsErr(e instanceof Error ? e.message : "Could not load slots");
     }
-  }, [meta, slotDate, language]);
+  }, [meta, slotDate, slotsLanguage]);
 
   useEffect(() => {
     void loadDoctors();

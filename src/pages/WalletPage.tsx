@@ -2,14 +2,20 @@ import {
   fetchWallet,
   fetchWalletTransactionsPage,
   type WalletDisplay,
+  type WalletModuleDisplay,
   type WalletTransactionRow,
 } from "@/api/wallet";
+import { fetchPatientProfileRaw } from "@/api/patientProfile";
+import {
+  computeHiddenWalletCategoryKeys,
+  filterWalletModulesForSubscription,
+} from "@/lib/walletSubscriptionModules";
 import { WalletBalanceCard } from "@/components/wallet/WalletBalanceCard";
 import { WalletModuleBreakupGrid } from "@/components/wallet/WalletModuleBreakupGrid";
 import { WalletScreenHeader } from "@/components/wallet/WalletScreenHeader";
 import { WalletTransactionItem } from "@/components/wallet/WalletTransactionItem";
 import { ROUTES } from "@/constants";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import "./WalletPages.css";
 
@@ -20,11 +26,22 @@ export function WalletPage() {
   const navigate = useNavigate();
 
   const [wallet, setWallet] = useState<WalletDisplay | null>(null);
+  const [profileBody, setProfileBody] = useState<unknown>(null);
   const [recent, setRecent] = useState<readonly WalletTransactionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const subId = subscriptionId?.trim() ?? "";
+
+  const hiddenModuleKeys = useMemo(
+    () => computeHiddenWalletCategoryKeys(profileBody, subId),
+    [profileBody, subId],
+  );
+
+  const visibleModules = useMemo((): readonly WalletModuleDisplay[] => {
+    if (!wallet) return [];
+    return filterWalletModulesForSubscription(wallet.modules, hiddenModuleKeys);
+  }, [wallet, hiddenModuleKeys]);
 
   const handleBack = useCallback(() => {
     navigate(ROUTES.dashboard);
@@ -35,14 +52,17 @@ export function WalletPage() {
     setLoading(true);
     setError(null);
     try {
-      const [w, tx] = await Promise.all([
+      const [w, tx, prof] = await Promise.all([
         fetchWallet(),
         fetchWalletTransactionsPage(subId, { page: 1, limit: RECENT_LIMIT }),
+        fetchPatientProfileRaw().catch(() => null),
       ]);
       setWallet(w);
+      setProfileBody(prof);
       setRecent(tx.items);
     } catch (e) {
       setWallet(null);
+      setProfileBody(null);
       setRecent([]);
       setError(e instanceof Error ? e.message : "Could not load wallet");
     } finally {
@@ -93,7 +113,7 @@ export function WalletPage() {
               validTillLabel={wallet.validTillLabel}
               daysLeft={wallet.daysLeft}
             />
-            <WalletModuleBreakupGrid modules={wallet.modules} />
+            <WalletModuleBreakupGrid modules={visibleModules} />
 
             <section className="wallet-recent" aria-labelledby="wallet-recent-heading">
               <div className="wallet-recent__head">

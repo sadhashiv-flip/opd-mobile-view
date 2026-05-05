@@ -67,6 +67,7 @@ type MobileFilterChipProps = Readonly<{
   icon: ReactNode;
   selected: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }>;
 
 function CheckIcon() {
@@ -83,12 +84,19 @@ function CheckIcon() {
   );
 }
 
-export function MobileFilterChip({ label, icon, selected, onClick }: MobileFilterChipProps) {
+export function MobileFilterChip({
+  label,
+  icon,
+  selected,
+  onClick,
+  disabled = false,
+}: MobileFilterChipProps) {
   return (
     <button
       type="button"
-      className={`mobile-filter-chip${selected ? " mobile-filter-chip--selected" : ""}`}
-      onClick={onClick}
+      className={`mobile-filter-chip${selected ? " mobile-filter-chip--selected" : ""}${disabled ? " mobile-filter-chip--disabled" : ""}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
     >
       <span className="mobile-filter-chip__icon">{icon}</span>
       <span className="mobile-filter-chip__label">{label}</span>

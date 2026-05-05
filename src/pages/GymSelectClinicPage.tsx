@@ -1,6 +1,6 @@
 import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -118,7 +118,7 @@ export function GymSelectClinicPage() {
   );
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const gscLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
+  const gscLocAddrRaw = useSelectedAddressLine("");
 
   useEffect(() => {
     if (!planId) {
@@ -175,7 +175,7 @@ export function GymSelectClinicPage() {
         <button
           type="button"
           className="hco-loc"
-          aria-label="Choose address"
+          aria-label={gscLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
           onClick={() => setAddrSheetOpen(true)}
         >
           <span className="hco-loc__pin" aria-hidden="true">
@@ -187,11 +187,14 @@ export function GymSelectClinicPage() {
               <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
             </svg>
           </span>
-          <span className="hco-loc__title">Home</span>
-          <span className="hco-loc__sep" aria-hidden="true">
-            |
-          </span>
-          <span className="hco-loc__addr">{gscLocAddrLine}</span>
+          <AddressStripLabels
+            layout="pipe"
+            addrRaw={gscLocAddrRaw}
+            titleClassName="hco-loc__title"
+            sepClassName="hco-loc__sep"
+            addrClassName="hco-loc__addr"
+            promptClassName="hco-loc__addr hco-loc__addr--prompt"
+          />
           <span className="hco-loc__chev" aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path

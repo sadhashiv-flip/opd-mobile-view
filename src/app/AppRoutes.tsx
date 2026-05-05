@@ -62,6 +62,8 @@ import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalRes
 import { WellnessSessionPage } from "@/pages/WellnessSessionPage";
 import { HealthClubDetailPage } from "@/pages/HealthClubDetailPage";
 import { HealthClubListPage } from "@/pages/HealthClubListPage";
+import { FitnessListPage } from "@/pages/FitnessListPage";
+import { FitnessVideosPage } from "@/pages/FitnessVideosPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
 import { OrderDetailsPage } from "@/pages/OrderDetailsPage";
@@ -111,6 +113,8 @@ export function AppRoutes() {
       <Route path={ROUTES.dashboard} element={<HomePage />} />
       <Route path={ROUTES.healthClub} element={<HealthClubListPage />} />
       <Route path={ROUTES.healthClubDetail} element={<HealthClubDetailPage />} />
+      <Route path={ROUTES.fitness} element={<FitnessListPage />} />
+      <Route path={ROUTES.fitnessTag} element={<FitnessVideosPage />} />
       <Route path={ROUTES.digitalDiary} element={<DigitalDiaryHubPage />} />
       <Route path={ROUTES.digitalDiaryLog} element={<DigitalDiaryLogPage />} />
       <Route path={ROUTES.medicalRecords} element={<MedicalRecordsPage />} />

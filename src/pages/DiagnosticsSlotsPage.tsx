@@ -11,17 +11,14 @@ import {
   writeHealthPathologySlotJson,
   writeHealthRadiologySlotJson,
 } from "@/constants/diagnosticsHealthFlowStorage";
-import {
-  DEFAULT_LOCATION_ADDRESS_LINE,
-  readSelectedAddress,
-  subscribeSelectedAddress,
-} from "@/constants/selectedAddressStorage";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { fetchDiagnosticSlots, type DiagnosticSlotPick } from "@/api/patientDiagnosticsLab";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HeaderTexts } from "@/constants/HeaderTexts";
 import { useToast } from "@/hooks/useToast";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import "./ConsultationAppointmentSlotsPage.css";
 
 type DayChip = Readonly<{ day: string; date: string; dow: string }>;
@@ -98,8 +95,7 @@ export function DiagnosticsSlotsPage() {
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const hSlotsLocLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const hSlotsLocTag = useSelectedAddressTag("HOME");
+  const hSlotsLocRaw = useSelectedAddressLine("");
 
   const [labVendorCode, setLabVendorCode] = useState(() => {
     try {
@@ -299,7 +295,7 @@ export function DiagnosticsSlotsPage() {
         <button
           type="button"
           className="cas-loc-bar"
-          aria-label="Choose address"
+          aria-label={hSlotsLocRaw.trim() ? "Choose address" : "Add delivery address"}
           onClick={() => setAddrSheetOpen(true)}
         >
           <span className="cas-loc-bar__pin" aria-hidden="true">
@@ -309,8 +305,13 @@ export function DiagnosticsSlotsPage() {
             </svg>
           </span>
           <span className="cas-loc-bar__body">
-            <span className="cas-loc-bar__title">{hSlotsLocTag}</span>
-            <span className="cas-loc-bar__addr">{hSlotsLocLine}</span>
+            <AddressStripLabels
+              layout="stack"
+              addrRaw={hSlotsLocRaw}
+              titleClassName="cas-loc-bar__title"
+              addrClassName="cas-loc-bar__addr"
+              promptClassName="cas-loc-bar__addr cas-loc-bar__addr--prompt"
+            />
           </span>
           <span className="cas-loc-bar__chev" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

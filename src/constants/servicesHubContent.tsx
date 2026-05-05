@@ -1,40 +1,41 @@
 import type { ComponentType, SVGProps } from "react";
 import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
-import bookConsultationSvg from "@/assets/icons/Services/BookConsultation.svg";
-import bookDiagnosticSvg from "@/assets/icons/Services/BookDiagnostic.svg";
-import chronicManagementSvg from "@/assets/icons/Services/ChronicManagement.svg";
-import dentalServicesSvg from "@/assets/icons/Services/DentalServices.svg";
-import gymAndFitnessSvg from "@/assets/icons/Services/GymAndFitness.svg";
-import mentalWellnessSvg from "@/assets/icons/Services/MentalWellness.svg";
-import nutritionServicesSvg from "@/assets/icons/Services/NutritionServices.svg";
-import prescribedPharmacySvg from "@/assets/icons/Services/PrescribedPharmacy.svg";
-import vaccinationServicesSvg from "@/assets/icons/Services/VaccinationServices.svg";
-import visionServicesSvg from "@/assets/icons/Services/VissionServices.svg";
-import viewServicesSvg from "@/assets/icons/Services/ViewServices.svg";
+/** Synced from patient-app `assets/svg/all services icons/` → `patient-app/hub/`. */
+import bookConsultationSvg from "@/assets/icons/patient-app/hub/services/bookConsultations.svg";
+import bookDiagnosticSvg from "@/assets/icons/patient-app/hub/services/bookDaignostics.svg";
+import chronicManagementSvg from "@/assets/icons/patient-app/hub/services/chronicManagement.svg";
+import dentalServicesSvg from "@/assets/icons/patient-app/hub/services/dentalServices.svg";
+import gymAndFitnessSvg from "@/assets/icons/patient-app/hub/services/gymAndFitness.svg";
+import mentalWellnessSvg from "@/assets/icons/patient-app/hub/services/mentalWellness.svg";
+import nutritionServicesSvg from "@/assets/icons/patient-app/hub/services/nutritionServices.svg";
+import prescribedPharmacySvg from "@/assets/icons/patient-app/hub/services/prescribedPharmacy.svg";
+import vaccinationServicesSvg from "@/assets/icons/patient-app/hub/services/vaccinationServices.svg";
+import visionServicesSvg from "@/assets/icons/patient-app/hub/services/visionServices.svg";
+import viewServicesSvg from "@/assets/icons/patient-app/hub/tab_bar_icons/services.svg";
 
-import opdClaimsMainMenuSvg from "@/assets/icons/OPDClaims/MainMenu.svg";
-import opdClaimsClaimsSvg from "@/assets/icons/OPDClaims/Claims.svg";
-import opdClaimsBankDetailsSvg from "@/assets/icons/OPDClaims/BankDetails.svg";
+import hubTabOpdClaimsSvg from "@/assets/icons/patient-app/hub/tab_bar_icons/opd_claims.svg";
+import opdClaimsClaimsSvg from "@/assets/icons/patient-app/hub/opd/claims.svg";
+import opdClaimsBankDetailsSvg from "@/assets/icons/patient-app/hub/opd/bank_details.svg";
 
-import accountMainMenuSvg from "@/assets/icons/AccountManagement/MainMenu.svg";
-import accountProfileSvg from "@/assets/icons/AccountManagement/Profile.svg";
-import accountSubscriptionsSvg from "@/assets/icons/AccountManagement/Subscriptions.svg";
-import accountFamilyAccountsSvg from "@/assets/icons/AccountManagement/FamilyAccounts.svg";
-import accountAddressBookSvg from "@/assets/icons/AccountManagement/AddressBook.svg";
-import accountOrdersSvg from "@/assets/icons/AccountManagement/Orders.svg";
-import accountSetPasswordSvg from "@/assets/icons/AccountManagement/SetPassword.svg";
-import accountDeleteAccountSvg from "@/assets/icons/AccountManagement/DeleteAccount.svg";
-import accountInvoicesSvg from "@/assets/icons/AccountManagement/Invoices.svg";
+import hubTabAccountSvg from "@/assets/icons/patient-app/hub/tab_bar_icons/account_management.svg";
+import accountProfileSvg from "@/assets/icons/patient-app/hub/account_management/profile.svg";
+import accountSubscriptionsSvg from "@/assets/icons/patient-app/hub/account_management/subscriptions.svg";
+import accountFamilyAccountsSvg from "@/assets/icons/patient-app/hub/account_management/family_account.svg";
+import accountAddressBookSvg from "@/assets/icons/patient-app/hub/account_management/address_book.svg";
+import accountOrdersSvg from "@/assets/icons/patient-app/hub/account_management/oders.svg";
+import accountSetPasswordSvg from "@/assets/icons/patient-app/hub/account_management/set_password.svg";
+import accountDeleteAccountSvg from "@/assets/icons/patient-app/hub/account_management/delete_account.svg";
+import accountInvoicesSvg from "@/assets/icons/patient-app/hub/account_management/invoices.svg";
 
-import helpMainMenuSvg from "@/assets/icons/HelpAndSupport/MainMenu.svg";
-import helpSupportSvg from "@/assets/icons/HelpAndSupport/Support.svg";
-import helpFaqSvg from "@/assets/icons/HelpAndSupport/FAQ.svg";
-import helpTandCSvg from "@/assets/icons/HelpAndSupport/TandC.svg";
-import helpPrivacyAndPoliciesSvg from "@/assets/icons/HelpAndSupport/PrivacyAndPolicies.svg";
-import helpMedicalRecordsSvg from "@/assets/icons/HelpAndSupport/MedicalRecords.svg";
-import helpLabReportsSvg from "@/assets/icons/HelpAndSupport/LabReports.svg";
-import helpMyPrescriptionsSvg from "@/assets/icons/HelpAndSupport/MyPrescriptions.svg";
-import helpActivitiesSvg from "@/assets/icons/HelpAndSupport/Activities.svg";
+import hubTabHelpSupportSvg from "@/assets/icons/patient-app/hub/help_and_support/support.svg";
+import helpFaqSvg from "@/assets/icons/patient-app/hub/help_and_support/faq.svg";
+import helpTandCSvg from "@/assets/icons/patient-app/hub/help_and_support/terms_and_conditions.svg";
+import helpPrivacyAndPoliciesSvg from "@/assets/icons/patient-app/hub/help_and_support/privacy_policy.svg";
+import hubTabMedicalRecordsSvg from "@/assets/icons/patient-app/hub/medical_records.svg";
+import mrAppointmentsSvg from "@/assets/icons/patient-app/hub/medical_records/my_appointments.svg";
+import helpLabReportsSvg from "@/assets/icons/patient-app/hub/medical_records/lab_reports.svg";
+import helpMyPrescriptionsSvg from "@/assets/icons/patient-app/hub/medical_records/my_prescription.svg";
+import helpActivitiesSvg from "@/assets/icons/patient-app/hub/medical_records/activities.svg";
 
 export type HubTabId =
   | "services"
@@ -58,20 +59,20 @@ export function isHubTabId(s: string): s is HubTabId {
 export type HubTab = Readonly<{
   id: HubTabId;
   label: string;
-  /** Asset from `src/assets/icons/Services/` — used instead of `Icon` when set */
+  /** Raster/SVG from `patient-app/hub` — used instead of `Icon` when set */
   iconSrc?: string;
   Icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }>;
 
 export const HUB_TABS: readonly HubTab[] = [
   { id: "services", label: "Services", iconSrc: viewServicesSvg },
-  { id: "opd-claims", label: "OPD Claims", iconSrc: opdClaimsMainMenuSvg },
-  { id: "account", label: "Account Management", iconSrc: accountMainMenuSvg },
-  { id: "help", label: "Help & Support", iconSrc: helpMainMenuSvg },
+  { id: "opd-claims", label: "OPD Claims", iconSrc: hubTabOpdClaimsSvg },
+  { id: "account", label: "Account Management", iconSrc: hubTabAccountSvg },
+  { id: "help", label: "Help & Support", iconSrc: hubTabHelpSupportSvg },
   {
     id: "medical-records",
     label: "medical Records",
-    iconSrc: helpMedicalRecordsSvg,
+    iconSrc: hubTabMedicalRecordsSvg,
   },
 ];
 
@@ -79,7 +80,7 @@ export type HubCardItem = Readonly<{
   id: string;
   title: string;
   description: string;
-  /** `src/assets/icons/Services/*.svg` for Services category tiles */
+  /** SVG from `patient-app/hub` for hub category tiles */
   iconSrc?: string;
   Icon?: ComponentType<SVGProps<SVGSVGElement>>;
   badge?: "new";
@@ -143,9 +144,15 @@ export const SERVICES_MAIN_ITEMS: readonly HubCardItem[] = [
     iconSrc: nutritionServicesSvg,
   },
   {
+    id: "fitness",
+    title: "Fitness",
+    description: "Fitness programs and health club",
+    iconSrc: gymAndFitnessSvg,
+  },
+  {
     id: "gym",
-    title: "Gym & Fitness",
-    description: "Buy Gym memberships and fitness membership",
+    title: "Gym Membership",
+    description: "Buy gym membership",
     iconSrc: gymAndFitnessSvg,
   },
 ];
@@ -221,7 +228,7 @@ export const HELP_ITEMS: readonly HubCardItem[] = [
     id: "support",
     title: "Support",
     description: "For any queries or support tickets",
-    iconSrc: helpSupportSvg,
+    iconSrc: hubTabHelpSupportSvg,
   },
   {
     id: "faq",
@@ -248,7 +255,7 @@ export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
     id: "appts",
     title: "My Appointments",
     description: "Check your appointments history/status here",
-    iconSrc: helpMedicalRecordsSvg,
+    iconSrc: mrAppointmentsSvg,
   },
   {
     id: "lab",

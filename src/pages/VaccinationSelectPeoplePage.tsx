@@ -3,19 +3,17 @@ import { clearVaccinationFlowState, writeVaccinationFlowState } from "@/constant
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
-import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import {
+  defaultGymMemberSelection,
+  MEMBER_NOT_ACTIVATED_LABEL,
+  patientMembersToGymRows,
+  type GymMemberListRow,
+} from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
-
-function defaultSelection(rows: GymMemberListRow[]): string[] {
-  const primary = rows.find((r) => r.section === "self");
-  if (primary) return [primary.id];
-  return rows[0] ? [rows[0].id] : [];
-}
 
 export function VaccinationSelectPeoplePage() {
   const navigate = useNavigate();
@@ -62,8 +60,11 @@ export function VaccinationSelectPeoplePage() {
       return;
     }
     setSelectedIds((prev) => {
-      let next = prev.filter((id) => rows.some((r) => r.id === id));
-      if (next.length === 0) next = defaultSelection(rows);
+      let next = prev.filter((id) => {
+        const r = rows.find((x) => x.id === id);
+        return Boolean(r?.isSubscribed);
+      });
+      if (next.length === 0) next = defaultGymMemberSelection(rows);
       if (next.length > maxSelectable) next = next.slice(0, maxSelectable);
       return next;
     });
@@ -73,10 +74,12 @@ export function VaccinationSelectPeoplePage() {
   const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
 
   const toggleMember = (memberId: string) => {
+    const row = rows.find((r) => r.id === memberId);
+    if (!row?.isSubscribed) return;
     setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
   };
 
-  const renderTrailing = (member: GymMemberListRow) => {
+  const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
     const isSelected = selectedIds.includes(member.id);
     if (isSelected) {
       return (
@@ -85,9 +88,13 @@ export function VaccinationSelectPeoplePage() {
         </span>
       );
     }
+    const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
     return (
-      <span className="hc-person__cta" aria-hidden="true">
-        Add
+      <span
+        className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
+        aria-hidden="true"
+      >
+        {ctaLabel}
       </span>
     );
   };
@@ -129,12 +136,7 @@ export function VaccinationSelectPeoplePage() {
           </svg>
         </Link>
         <h1 className="hco-title">Select family member</h1>
-        <Link to={ROUTES.orders} className="hco-orders">
-          <span className="hco-orders__ic" aria-hidden="true">
-            <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-          </span>
-          <span>My Orders</span>
-        </Link>
+        <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="hc-main">
@@ -180,11 +182,14 @@ export function VaccinationSelectPeoplePage() {
           <>
             <section className="hc-block">
               <h2 className="hc-block__title">For you</h2>
-              {selfMembers.map((member) => (
+              {selfMembers.map((member) => {
+                const rowDisabled = !member.isSubscribed;
+                return (
                 <button
                   key={member.id}
                   type="button"
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                  disabled={rowDisabled}
+                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                   onClick={() => toggleMember(member.id)}
                 >
                   <span className="hc-person__avatar" aria-hidden="true">
@@ -192,20 +197,27 @@ export function VaccinationSelectPeoplePage() {
                   </span>
                   <span className="hc-person__info">
                     <span className="hc-person__name">{member.name}</span>
+                    {rowDisabled ? (
+                      <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                    ) : null}
                     <span className="hc-person__sub">{member.subtitle}</span>
                   </span>
-                  {renderTrailing(member)}
+                  {renderTrailing(member, rowDisabled)}
                 </button>
-              ))}
+              );
+              })}
             </section>
 
             <section className="hc-block">
               <h2 className="hc-block__title">For your family</h2>
-              {familyMembersList.map((member) => (
+              {familyMembersList.map((member) => {
+                const rowDisabled = !member.isSubscribed;
+                return (
                 <button
                   key={member.id}
                   type="button"
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                  disabled={rowDisabled}
+                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                   onClick={() => toggleMember(member.id)}
                 >
                   <span className="hc-person__avatar" aria-hidden="true">
@@ -213,11 +225,15 @@ export function VaccinationSelectPeoplePage() {
                   </span>
                   <span className="hc-person__info">
                     <span className="hc-person__name">{member.name}</span>
+                    {rowDisabled ? (
+                      <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                    ) : null}
                     <span className="hc-person__sub">{member.subtitle}</span>
                   </span>
-                  {renderTrailing(member)}
+                  {renderTrailing(member, rowDisabled)}
                 </button>
-              ))}
+              );
+              })}
             </section>
           </>
         ) : null}

@@ -24,6 +24,11 @@ export type MemberDisplay = Readonly<{
   email: string | null;
   /** From members API `AHCAvailable` — eligible for sponsored annual health checkup (patient_app). */
   ahcAvailable: boolean;
+  /**
+   * Members API `isSubscribed`: `1` / true = plan active for this member; `0` / false = not activated for services.
+   * When omitted, treated as subscribed so older API shapes keep working.
+   */
+  isSubscribed: boolean;
 }>;
 
 function str(v: unknown): string | null {
@@ -141,6 +146,18 @@ function healthScoreDetailsRow(o: Record<string, unknown>): Record<string, unkno
   return asRecord(hs.details);
 }
 
+function deriveIsSubscribed(o: Record<string, unknown>): boolean {
+  const raw =
+    o.isSubscribed ??
+    o.is_subscribed ??
+    o.IsSubscribed ??
+    o.subscribe_status ??
+    o.subscribeStatus;
+  if (raw === true || raw === 1 || raw === "1") return true;
+  if (raw === false || raw === 0 || raw === "0") return false;
+  return true;
+}
+
 function deriveStatusLabel(o: Record<string, unknown>): string | null {
   const statusFlag = coerceFiniteNumber(o.status);
   if (statusFlag === 1) return "Active";
@@ -213,6 +230,7 @@ function normalizeMember(
       coerceFiniteNumber(id),
     email: str(o.email) ?? str(o.email_id),
     ahcAvailable: o.AHCAvailable === true || o.ahcAvailable === true,
+    isSubscribed: deriveIsSubscribed(o),
   };
 }
 

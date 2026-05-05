@@ -1,9 +1,15 @@
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { ROUTES } from "@/constants";
-import { clearVirtualFollowUpAppointmentId } from "@/constants/virtualConsultationSessionStorage";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { isConsultationLanguageValue } from "@/constants/consultationLanguages";
+import {
+  clearVirtualConsultPurposeOnly,
+  clearVirtualFollowUpAppointmentId,
+  VIRTUAL_CONSULT_LANGUAGE_KEY,
+} from "@/constants/virtualConsultationSessionStorage";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
@@ -58,12 +64,11 @@ export function ConsultationSpecialtiesPage() {
   const nextVirtualPageRef = useRef(1);
   const hasMoreVirtualRef = useRef(true);
   const loadingMoreVirtualRef = useRef(false);
-  const virtualScrollRef = useRef<HTMLUListElement | null>(null);
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const cspLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const cspLocAddrTag = useSelectedAddressTag("HOME");
+  const cspLocAddrRaw = useSelectedAddressLine("");
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
+  const [virtualSearchQuery, setVirtualSearchQuery] = useState("");
 
   const filteredHospitalSpecs = useMemo(() => {
     const q = hospitalSearchQuery.trim().toLowerCase();
@@ -71,10 +76,21 @@ export function ConsultationSpecialtiesPage() {
     return hospitalSpecs.filter((s) => s.name.toLowerCase().includes(q));
   }, [hospitalSpecs, hospitalSearchQuery]);
 
+  const filteredVirtualIssues = useMemo(() => {
+    const q = virtualSearchQuery.trim().toLowerCase();
+    if (!q) return virtualIssues;
+    return virtualIssues.filter((i) => i.title.toLowerCase().includes(q));
+  }, [virtualIssues, virtualSearchQuery]);
+
   useEffect(() => {
     if (!isHospital) return;
     void ensureDefaultSelectedAddressIfNeeded();
   }, [isHospital]);
+
+  useEffect(() => {
+    if (isHospital) return;
+    clearVirtualConsultPurposeOnly();
+  }, [isHospital, location.key]);
 
   useEffect(() => {
     if (!isHospital) return;
@@ -228,28 +244,37 @@ export function ConsultationSpecialtiesPage() {
     }
   }, [issuesLoad, toast]);
 
-  const onVirtualScroll = useCallback(
-    (e: UIEvent<HTMLUListElement>) => {
-      const el = e.currentTarget;
-      const thresholdPx = 80;
-      if (el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx) void loadMoreVirtual();
-    },
-    [loadMoreVirtual],
-  );
+  useEffect(() => {
+    if (isHospital) return;
+    if (issuesLoad !== "ok" || virtualIssues.length === 0) return;
+    if (!hasMoreVirtualRef.current || loadingMoreVirtualRef.current) return;
+    const doc = document.documentElement;
+    if (doc.scrollHeight <= window.innerHeight + 2) void loadMoreVirtual();
+  }, [isHospital, issuesLoad, virtualIssues.length, loadMoreVirtual]);
 
   useEffect(() => {
-    if (isHospital || issuesLoad !== "ok" || virtualIssues.length === 0) return;
-    if (!hasMoreVirtualRef.current || loadingMoreVirtualRef.current) return;
-    const el = virtualScrollRef.current;
-    if (!el) return;
-    if (el.scrollHeight <= el.clientHeight + 2) void loadMoreVirtual();
-  }, [isHospital, issuesLoad, virtualIssues.length, loadMoreVirtual]);
+    if (isHospital) return;
+    if (issuesLoad !== "ok") return;
+    const thresholdPx = 120;
+    const onScroll = () => {
+      if (!hasMoreVirtualRef.current || loadingMoreVirtualRef.current) return;
+      const doc = document.documentElement;
+      if (
+        doc.scrollHeight - window.scrollY - window.innerHeight <
+        thresholdPx
+      ) {
+        void loadMoreVirtual();
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isHospital, issuesLoad, loadMoreVirtual]);
 
   const topArea =
     isHospital ? null : (
-      <div className="csp-search">
+      <div className="csp-search csp-search--virtual-issues">
         <span className="csp-search__ic" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
             <path
               d="M20 20l-3.5-3.5"
@@ -262,8 +287,13 @@ export function ConsultationSpecialtiesPage() {
         <input
           type="search"
           className="csp-search__input"
-          placeholder="Search for doctors, symptoms, health concerns"
-          aria-label="Search"
+          placeholder="Search Issues"
+          aria-label="Search issues"
+          value={virtualSearchQuery}
+          onChange={(e) => setVirtualSearchQuery(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
         />
       </div>
     );
@@ -365,34 +395,45 @@ export function ConsultationSpecialtiesPage() {
     virtualSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties available right now.</div>
     );
+  } else if (filteredVirtualIssues.length === 0) {
+    virtualSpecialtiesBody = (
+      <div className="csp-issues-msg">No issues found</div>
+    );
   } else {
     virtualSpecialtiesBody = (
       <>
-        <ul
-          ref={virtualScrollRef}
-          className="csp-list"
-          aria-label="Specialties"
-          onScroll={onVirtualScroll}
-        >
-          {virtualIssues.map((issue) => {
+        <ul className="csp-virtual-grid" aria-label="Issues">
+          {filteredVirtualIssues.map((issue) => {
             const imgUrl = resolveProfileImageUrl(issue.image);
-            const slotState = {
-              parent: issue.parent,
-              issueTitle: issue.title,
-              /** `availableSlots?spid=` expects the issue’s `parent` (e.g. 1), not `id` (e.g. 132). */
-              spid: issue.parent,
-            };
             return (
-              <li key={issue.id}>
+              <li key={issue.id} className="csp-virtual-grid__cell">
                 <button
                   type="button"
-                  className="csp-item"
+                  className="csp-virtual-tile"
                   onClick={() => {
                     clearVirtualFollowUpAppointmentId();
-                    sessionStorage.setItem(
-                      `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
-                      JSON.stringify(slotState),
-                    );
+                    let langRaw = "";
+                    try {
+                      langRaw = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY)?.trim() ?? "";
+                    } catch {
+                      langRaw = "";
+                    }
+                    const resolvedLang =
+                      langRaw && isConsultationLanguageValue(langRaw) ? langRaw : "English";
+                    const slotState: VirtualSpecialtySlotsState = {
+                      parent: issue.parent,
+                      issueTitle: issue.title,
+                      spid: issue.parent,
+                      language: resolvedLang,
+                    };
+                    try {
+                      sessionStorage.setItem(
+                        `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
+                        JSON.stringify(slotState),
+                      );
+                    } catch {
+                      // ignore
+                    }
                     navigate(
                       generatePath(ROUTES.consultationVirtualSlots, {
                         issueId: String(issue.id),
@@ -400,33 +441,34 @@ export function ConsultationSpecialtiesPage() {
                       { state: slotState },
                     );
                   }}
-                >
-                  <div className="csp-item__ic" aria-hidden="true">
-                    {imgUrl ? (
-                      <img
-                        src={imgUrl}
-                        alt=""
-                        className="csp-item__thumb"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <span className="csp-item__ic-fallback">—</span>
-                    )}
-                  </div>
-                  <div className="csp-item__label">{issue.title}</div>
-                  <span className="csp-item__chev" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M9 18l6-6-6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
+              >
+                <div className="csp-virtual-tile__media" aria-hidden="true">
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt=""
+                      className="csp-virtual-tile__thumb"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <span className="csp-virtual-tile__fallback">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path
+                          d="M14 8a2 2 0 10-4 0v2H8a1 1 0 00-1 1v1a1 1 0 001 1h2v2a2 2 0 104 0v-2h2a1 1 0 001-1v-1a1 1 0 00-1-1h-2V8z"
+                          fill="currentColor"
+                        />
+                        <path
+                          d="M7 18h10a2 2 0 002-2v-1H5v1a2 2 0 002 2z"
+                          fill="currentColor"
+                          opacity="0.85"
+                        />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <div className="csp-virtual-tile__title">{issue.title}</div>
+              </button>
               </li>
             );
           })}
@@ -468,7 +510,7 @@ export function ConsultationSpecialtiesPage() {
           <button
             type="button"
             className="csp-loc"
-            aria-label="Choose address"
+            aria-label={cspLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="csp-loc__pin" aria-hidden="true">
@@ -480,11 +522,14 @@ export function ConsultationSpecialtiesPage() {
                 <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
               </svg>
             </span>
-            <span className="csp-loc__title">{cspLocAddrTag}</span>
-            <span className="csp-loc__sep" aria-hidden="true">
-              |
-            </span>
-            <span className="csp-loc__addr">{cspLocAddrLine}</span>
+            <AddressStripLabels
+              layout="pipe"
+              addrRaw={cspLocAddrRaw}
+              titleClassName="csp-loc__title"
+              sepClassName="csp-loc__sep"
+              addrClassName="csp-loc__addr"
+              promptClassName="csp-loc__addr csp-loc__addr--prompt"
+            />
             <span className="csp-loc__chev" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path
@@ -518,9 +563,21 @@ export function ConsultationSpecialtiesPage() {
           </div>
         </div>
       ) : (
-        <div className="csp-banner csp-banner--green">
-          <span className="csp-banner__text">Consult Top Doctors Online</span>
-          <span className="csp-banner__art" aria-hidden="true" />
+        <div className="csp-banner-container csp-banner-container--virtual">
+          <img
+            className="csp-banner__art csp-banner__art--virtual-overlap"
+            src={networkDoctorsHospitalSvg}
+            alt=""
+            width={60}
+            height={60}
+            draggable={false}
+            aria-hidden
+          />
+          <div className="csp-banner csp-banner--virtual-strip">
+            <span className="csp-banner__text csp-banner__text--virtual">
+              Consult Top Doctors <span className="csp-banner__online">Online</span>
+            </span>
+          </div>
         </div>
       )}
 
@@ -554,8 +611,10 @@ export function ConsultationSpecialtiesPage() {
           </div>
         ) : null}
 
-        <div className="csp-section">
-          <div className="csp-section__title">Common specialties</div>
+        <div className={`csp-section${isHospital ? "" : " csp-section--virtual-issues"}`}>
+          {isHospital ? (
+            <div className="csp-section__title">Common specialties</div>
+          ) : null}
           {isHospital ? hospitalSpecialtiesBody : virtualSpecialtiesBody}
         </div>
       </main>

@@ -9,6 +9,8 @@ export type WalletFilterBottomSheetProps = Readonly<{
   onApply: (next: { status: WalletStatusFilter | null; refType: WalletRefTypeApi | null }) => void;
   initialStatus: WalletStatusFilter | null;
   initialRefType: WalletRefTypeApi | null;
+  /** Ref types hidden by subscription (same rules as wallet module breakup). */
+  hiddenRefTypes?: ReadonlySet<WalletRefTypeApi>;
 }>;
 
 export function WalletFilterBottomSheet({
@@ -17,6 +19,7 @@ export function WalletFilterBottomSheet({
   onApply,
   initialStatus,
   initialRefType,
+  hiddenRefTypes,
 }: WalletFilterBottomSheetProps) {
   const [status, setStatus] = useState<WalletStatusFilter | null>(initialStatus);
   const [refType, setRefType] = useState<WalletRefTypeApi | null>(initialRefType);
@@ -122,6 +125,7 @@ export function WalletFilterBottomSheet({
             <h3 className="wallet-filter-block__label">Type</h3>
             <div className="wallet-filter-type-grid">
               {WALLET_TYPE_FILTER_OPTIONS.map(({ api, label }) => {
+                if (hiddenRefTypes?.has(api)) return null;
                 const active = refType === api;
                 return (
                   <button

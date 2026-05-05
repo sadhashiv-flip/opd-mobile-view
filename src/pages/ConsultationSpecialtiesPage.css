@@ -30,6 +30,14 @@
   text-decoration: none;
 }
 
+button.csp-back {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 .csp-title {
   margin: 0;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
@@ -74,6 +82,12 @@
   text-overflow: ellipsis;
 }
 
+.csp-loc__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
+}
+
 .csp-loc__chev {
   display: inline-flex;
   color: #111111;
@@ -83,12 +97,46 @@
 
 .csp-banner-container {
   height: 65px;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    overflow: hidden;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Virtual online: dark strip + overlapping doctor art (patient-app SelectSpecialityScreen) */
+.csp-banner-container--virtual {
+  height: auto;
+  min-height: 52px;
+  margin: 12px 0;
+  overflow: visible;
+  align-items: flex-end;
+}
+
+.csp-banner--virtual-strip {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 72px 8px 16px;
+  justify-content: center;
+}
+
+.csp-banner__text--virtual {
+  font-weight: 600;
+}
+
+.csp-banner__online {
+  font-weight: 600;
+}
+
+.csp-banner__art--virtual-overlap {
+  right: 30px;
+  top: auto;
+  bottom: 5px;
+  transform: none;
+  width: 60px;
+  height: 60px;
+  z-index: 2;
 }
 
 .csp-banner {
@@ -187,6 +235,19 @@
 
 .csp-search__input::placeholder {
   color: #b6b6b6;
+}
+
+/* Flutter online issues search: white fill, #EEEEEE border, 12px radius */
+.csp-search--virtual-issues {
+  margin: 0 0 12px;
+  border-radius: 12px;
+  border-color: #eeeeee;
+  padding: 10px 14px;
+  box-shadow: none;
+}
+
+.csp-search--virtual-issues:focus-within {
+  border-color: #ff541e;
 }
 
 .csp-filter {
@@ -307,6 +368,10 @@
 
 .csp-section {
   padding-left: 10px;
+}
+
+.csp-section--virtual-issues {
+  padding-left: 0;
 }
 
 .csp-section__title {
@@ -476,5 +541,134 @@
   align-items: center;
   justify-content: center;
   color: #9a9a9a;
+}
+
+/* Virtual issues: 3-column grid (Flutter SelectSpecialityScreen online) */
+.csp-virtual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 0 2px 24px;
+  list-style: none;
+  margin: 0;
+}
+
+.csp-virtual-grid__cell {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+}
+
+.csp-virtual-tile {
+  flex: 1;
+  aspect-ratio: 0.85;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 6px;
+  box-sizing: border-box;
+  border: 1px solid #eeeeee;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: center;
+  font: inherit;
+  color: #111111;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.csp-virtual-tile:active {
+  background: rgba(255, 82, 36, 0.06);
+}
+
+.csp-virtual-tile:focus-visible {
+  outline: 2px solid rgba(255, 82, 36, 0.45);
+  outline-offset: 2px;
+}
+
+.csp-virtual-tile__media {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.csp-virtual-tile__thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  display: block;
+  border-radius: 8px;
+}
+
+.csp-virtual-tile__fallback {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 84, 30, 0.1);
+  color: #ff541e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.csp-virtual-tile__title {
+  font-size: max(10px, calc(11 * 100cqw / 375));
+  font-weight: 500;
+  line-height: 1.25;
+  color: #111111;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.csp-lang-lead {
+  margin: 0 0 14px;
+  font-size: max(11px, calc(12 * 100cqw / 375));
+  font-weight: 600;
+  color: #555;
+  line-height: 1.45;
+}
+
+.csp-lang-picker {
+  margin-top: 4px;
+}
+
+.csp-vrtl-ft {
+  margin-top: auto;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1px solid #ececec;
+}
+
+.csp-vrtl-ft__btn {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  color: #ffffff;
+  background: linear-gradient(90deg, #ff541e 0%, #ff7a45 100%);
+  cursor: pointer;
+}
+
+.csp-vrtl-ft__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 

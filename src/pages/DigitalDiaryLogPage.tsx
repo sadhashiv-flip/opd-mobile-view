@@ -3,6 +3,7 @@ import {
   submitPatientParameter,
 } from "@/api/patientParameters";
 import { DigitalDiaryAddSheet } from "@/components/digitalDiary/DigitalDiaryAddSheet";
+import { DigitalDiaryWorkoutSection } from "@/components/digitalDiary/DigitalDiaryWorkoutSection";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
 import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
@@ -108,8 +109,12 @@ export function DigitalDiaryLogPage() {
     setSelectedDate(v);
   }, []);
 
+  /** Workout uses inline exercise catalog (patient_app); other types use the FAB + sheet. */
   const showFab =
-    apiType != null && isToday && activityTypeSupportsSubmit(apiType);
+    apiType != null &&
+    isToday &&
+    activityTypeSupportsSubmit(apiType) &&
+    apiType !== "workout";
 
   const dateLabel = useMemo(() => {
     const [y, m, d] = selectedDate.split("-").map((x) => Number.parseInt(x, 10));
@@ -246,53 +251,68 @@ export function DigitalDiaryLogPage() {
           </div>
         ) : null}
 
-        {!loading && !error && entries.length === 0 ? (
-          <div className="dd-empty">
-            <div className="dd-empty__icon" aria-hidden>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M4 6h16v12H4z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinejoin="round"
+        {!loading && !error ? (
+          <>
+            {apiType === "workout" ? (
+              <>
+                <DigitalDiaryWorkoutSection
+                  enabled={isToday}
+                  calendarDayKey={selectedDate}
+                  submitting={submitting}
+                  onSubmitBody={onSubmitBody}
                 />
-                <path d="M8 10h8M8 14h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </div>
-            <p>{DIGITAL_DIARY_COPY.logEmpty}</p>
-          </div>
-        ) : null}
+                <h3 className="dd-workout-log__heading">
+                  {DIGITAL_DIARY_COPY.workoutLogSectionTitle}
+                </h3>
+              </>
+            ) : null}
 
-        {!loading && !error && entries.length > 0 ? (
-          <ul className="dd-list">
-            {entries.map((e, i) => {
-              const summary = formatDiaryEntrySummary(e, apiType);
-              let rawTime = "";
-              const dtRaw = e.datetime;
-              if (typeof dtRaw === "string") {
-                rawTime = dtRaw;
-              } else if (typeof dtRaw === "number" && Number.isFinite(dtRaw)) {
-                // Match patient_app: epoch ms; also accept s if value is small (defensive)
-                const ms = dtRaw < 1e12 ? dtRaw * 1000 : dtRaw;
-                rawTime = new Date(ms).toISOString();
-              }
-              let timeLabel = "—";
-              if (rawTime.length > 0) {
-                const dt = new Date(rawTime);
-                if (!Number.isNaN(dt.getTime())) {
-                  timeLabel = timeFmt.format(dt);
-                }
-              }
-              return (
-                <li key={`${rawTime}-${i}`}>
-                  <div className="dd-row">
-                    <span className="dd-row__summary">{summary}</span>
-                    <span className="dd-row__time">{timeLabel}</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+            {entries.length === 0 ? (
+              <div className="dd-empty">
+                <div className="dd-empty__icon" aria-hidden>
+                  <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 6h16v12H4z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M8 10h8M8 14h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <p>{DIGITAL_DIARY_COPY.logEmpty}</p>
+              </div>
+            ) : (
+              <ul className="dd-list">
+                {entries.map((e, i) => {
+                  const summary = formatDiaryEntrySummary(e, apiType);
+                  let rawTime = "";
+                  const dtRaw = e.datetime;
+                  if (typeof dtRaw === "string") {
+                    rawTime = dtRaw;
+                  } else if (typeof dtRaw === "number" && Number.isFinite(dtRaw)) {
+                    const ms = dtRaw < 1e12 ? dtRaw * 1000 : dtRaw;
+                    rawTime = new Date(ms).toISOString();
+                  }
+                  let timeLabel = "—";
+                  if (rawTime.length > 0) {
+                    const dt = new Date(rawTime);
+                    if (!Number.isNaN(dt.getTime())) {
+                      timeLabel = timeFmt.format(dt);
+                    }
+                  }
+                  return (
+                    <li key={`${rawTime}-${i}`}>
+                      <div className="dd-row">
+                        <span className="dd-row__summary">{summary}</span>
+                        <span className="dd-row__time">{timeLabel}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         ) : null}
       </main>
 

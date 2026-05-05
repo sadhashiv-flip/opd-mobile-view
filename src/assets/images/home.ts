@@ -1,7 +1,8 @@
 /** `?url` keeps stable file URLs for backgrounds (see {@link cssBackgroundUrl}). */
 import consultationImg from "./Consultation/Consultation.svg?url";
 import dentalImg from "./Dental.svg?url";
-import diagnosticImg from "./Diagnostic.svg?url";
+/** Same raster as Flutter {@code kDashboardMicroscope} / patient-app diagnostics half-card. */
+import diagnosticImg from "./dashboard-patient-app/daignosticsCardDashbaord.png?url";
 /** Raster hero art for ongoing slides — replace files in `src/assets/images/` as needed. */
 import doctorConsultationImg from "./doctorConsultation.jpg?url";
 import mentalhealthImg from "./mentalhealth.jpg?url";

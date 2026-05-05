@@ -134,6 +134,12 @@ export const ROUTES = {
   ordersDetailLegacy: "/order/:invoiceId",
   /** Legacy path; AppRoutes redirects to `servicesHelpTab`. */
   help: "/help",
+  /**
+   * Workout videos — `GET video/category` (list), `GET video/category/:tagId` (videos).
+   * Parity with patient-webapp `fitness-routing.module.ts`.
+   */
+  fitness: "/services/fitness",
+  fitnessTag: "/services/fitness/tag/:tagId",
   gymMembership: "/services/gym-membership",
   /** Location & contact per member — aligns with Flutter `GymLineContactScreen`. */
   gymMembershipContact: "/services/gym-membership/location-contact",

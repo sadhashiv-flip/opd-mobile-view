@@ -438,3 +438,175 @@
   justify-content: center;
   color: rgba(255, 82, 36, 0.55);
 }
+
+/* Workout log — exercise catalog (patient_app activity_log_screen) */
+.dd-workout-add {
+  margin-bottom: 20px;
+}
+
+.dd-workout-add__primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--dd-orange);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.dd-workout-add__primary:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.dd-workout-add__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.dd-workout-add__cancel {
+  border: none;
+  background: none;
+  color: var(--dd-orange);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+
+.dd-workout-add__heading {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.dd-workout-add__search-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dd-workout-add__search {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  font-size: 15px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.dd-workout-add__search-go,
+.dd-workout-add__clear {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.dd-workout-add__search-go {
+  background: rgba(255, 82, 36, 0.12);
+  color: var(--dd-orange);
+}
+
+.dd-workout-add__clear {
+  background: transparent;
+  color: #64748b;
+}
+
+.dd-workout-add__err {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.dd-workout-add__empty {
+  margin: 8px 0 16px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.dd-workout-add__loading {
+  padding: 16px 0;
+}
+
+.dd-workout-add__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.dd-workout-add__tile {
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 14px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.dd-workout-add__tile:active {
+  transform: scale(0.99);
+}
+
+.dd-workout-add__progress {
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--dd-orange), rgba(255, 82, 36, 0.2));
+  animation: dd-workout-pulse 1s ease-in-out infinite;
+}
+
+@keyframes dd-workout-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.dd-workout-add__more {
+  display: block;
+  margin: 14px auto 0;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--dd-orange);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dd-workout-add__more:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.dd-workout-log__heading {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}

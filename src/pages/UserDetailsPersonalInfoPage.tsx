@@ -72,8 +72,8 @@ export function UserDetailsPersonalInfoPage() {
         setUser(u);
         if (!u) return;
 
-        // Guard: only allow access if user is registered (isReg: true)
-        if (!s?.isReg) {
+        // Same as post-/verify routing: onboarding when verify returns isReg: false (registration incomplete).
+        if (s?.isReg) {
           navigate(ROUTES.dashboard, { replace: true });
           return;
         }

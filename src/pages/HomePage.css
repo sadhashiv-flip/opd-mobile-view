@@ -801,6 +801,12 @@
   text-overflow: ellipsis;
 }
 
+.home-loc__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
+}
+
 .home-loc__chev {
   display: inline-flex;
   color: #111111;
@@ -1488,6 +1494,21 @@
   background-repeat: no-repeat;
   background-position: right bottom;
   margin-top: auto;
+}
+
+.home-card--tile .home-card__media--lottie {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding-right: 2px;
+  padding-bottom: 0;
+}
+
+.home-card--tile .home-card__lottie {
+  width: 72px;
+  height: 72px;
+  max-width: 55%;
+  flex-shrink: 0;
 }
 
 .home-badge {

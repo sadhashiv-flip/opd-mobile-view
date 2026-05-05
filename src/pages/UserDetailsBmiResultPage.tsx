@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants";
+import { navigateDashboardWithLabGate } from "@/lib/postVerifyNavigation";
 import type { UserDetailsBmiResultLocationState } from "@/types/navigation";
 import "./UserDetailsFlow.css";
 
@@ -114,7 +115,7 @@ export function UserDetailsBmiResultPage() {
           <button
             type="button"
             className="ud-secondary ud-result-page__skip"
-            onClick={() => navigate(ROUTES.dashboard, { replace: true })}
+            onClick={() => void navigateDashboardWithLabGate(navigate)}
           >
             Skip
           </button>
@@ -123,7 +124,7 @@ export function UserDetailsBmiResultPage() {
         <button
           type="button"
           className="ud-primary ud-result-page__continue"
-          onClick={() => navigate(ROUTES.dashboard, { replace: true })}
+          onClick={() => void navigateDashboardWithLabGate(navigate)}
         >
           Continue
         </button>

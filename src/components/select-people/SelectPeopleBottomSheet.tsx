@@ -8,9 +8,15 @@ import {
   writeConsultSelectedMembersSnapshots,
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
-import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import {
+  defaultGymMemberSelection,
+  MEMBER_NOT_ACTIVATED_LABEL,
+  patientMembersToGymRows,
+  type GymMemberListRow,
+} from "@/lib/gymMemberDisplay";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/HealthCheckupsPage.css";
@@ -23,12 +29,6 @@ export type SelectPeopleBottomSheetProps = Readonly<{
   /** After selection is persisted (e.g. consultation storage); parent may refresh UI. */
   onApplied?: () => void;
 }>;
-
-function defaultSelection(rows: GymMemberListRow[]): string[] {
-  const primary = rows.find((r) => r.section === "self");
-  if (primary) return [primary.id];
-  return rows[0] ? [rows[0].id] : [];
-}
 
 function readStoredPersonId(): string | null {
   try {
@@ -43,6 +43,8 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const mod = useProfileModuleGates();
+  const canAddFamily = mod.planDependents.dependentAddAllowed;
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -87,14 +89,17 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
       return;
     }
     setSelectedIds((prev) => {
-      let next = prev.filter((id) => rows.some((r) => r.id === id));
+      let next = prev.filter((id) => {
+        const r = rows.find((x) => x.id === id);
+        return Boolean(r?.isSubscribed);
+      });
       if (next.length === 0) {
         const stored = readStoredPersonId();
-        if (stored && rows.some((r) => r.id === stored)) {
-          next = [stored];
-        } else {
-          next = defaultSelection(rows);
+        if (stored) {
+          const storedRow = rows.find((r) => r.id === stored);
+          if (storedRow?.isSubscribed) next = [stored];
         }
+        if (next.length === 0) next = defaultGymMemberSelection(rows);
       }
       if (next.length > maxSelectable) next = next.slice(0, maxSelectable);
       return next;
@@ -114,10 +119,12 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
   const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
 
   const toggleMember = (memberId: string) => {
+    const row = rows.find((r) => r.id === memberId);
+    if (!row?.isSubscribed) return;
     setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
   };
 
-  const renderTrailing = (member: GymMemberListRow) => {
+  const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
     const isSelected = selectedIds.includes(member.id);
     if (isSelected) {
       return (
@@ -127,8 +134,11 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
       );
     }
     return (
-      <span className="hc-person__cta" aria-hidden="true">
-        Add
+      <span
+        className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
+        aria-hidden="true"
+      >
+        {rowDisabled ? MEMBER_NOT_ACTIVATED_LABEL : "Add"}
       </span>
     );
   };
@@ -224,11 +234,14 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
             <>
               <section className="hc-block">
                 <h2 className="hc-block__title">For you</h2>
-                {selfMembers.map((member) => (
+                {selfMembers.map((member) => {
+                  const rowDisabled = !member.isSubscribed;
+                  return (
                   <button
                     key={member.id}
                     type="button"
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                    disabled={rowDisabled}
+                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                     onClick={() => toggleMember(member.id)}
                   >
                     <span className="hc-person__avatar" aria-hidden="true">
@@ -236,20 +249,27 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
+                      {rowDisabled ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
                       <span className="hc-person__sub">{member.subtitle}</span>
                     </span>
-                    {renderTrailing(member)}
+                    {renderTrailing(member, rowDisabled)}
                   </button>
-                ))}
+                );
+                })}
               </section>
 
               <section className="hc-block">
                 <h2 className="hc-block__title">For your family</h2>
-                {familyMembersList.map((member) => (
+                {familyMembersList.map((member) => {
+                  const rowDisabled = !member.isSubscribed;
+                  return (
                   <button
                     key={member.id}
                     type="button"
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                    disabled={rowDisabled}
+                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                     onClick={() => toggleMember(member.id)}
                   >
                     <span className="hc-person__avatar" aria-hidden="true">
@@ -257,27 +277,33 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
+                      {rowDisabled ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
                       <span className="hc-person__sub">{member.subtitle}</span>
                     </span>
-                    {renderTrailing(member)}
+                    {renderTrailing(member, rowDisabled)}
                   </button>
-                ))}
+                );
+                })}
 
-                <button
-                  type="button"
-                  className="hc-add-family"
-                  onClick={() => {
-                    onClose();
-                    navigate(ROUTES.profileMembersAdd, {
-                      state: { returnPath: `${location.pathname}${location.search}` },
-                    });
-                  }}
-                >
-                  <span className="hc-add-family__ic" aria-hidden="true">
-                    +
-                  </span>
-                  <span> Add new family member</span>
-                </button>
+                {canAddFamily ? (
+                  <button
+                    type="button"
+                    className="hc-add-family"
+                    onClick={() => {
+                      onClose();
+                      navigate(ROUTES.profileMembersAdd, {
+                        state: { returnPath: `${location.pathname}${location.search}` },
+                      });
+                    }}
+                  >
+                    <span className="hc-add-family__ic" aria-hidden="true">
+                      +
+                    </span>
+                    <span> Add new family member</span>
+                  </button>
+                ) : null}
               </section>
             </>
           ) : null}

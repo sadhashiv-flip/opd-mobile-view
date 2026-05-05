@@ -1,11 +1,9 @@
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import {
-  DEFAULT_LOCATION_ADDRESS_LINE,
-  subscribeSelectedAddress,
-} from "@/constants/selectedAddressStorage";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { readHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import {
@@ -46,8 +44,7 @@ export function ConsultationHospitalResultsPage() {
   const toast = useToast();
   const params = useParams();
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
-  const chrLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const chrLocAddrTag = useSelectedAddressTag("HOME");
+  const chrLocAddrRaw = useSelectedAddressLine("");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortId, setSortId] = useState<SortOptionId>("relevance");
   const [doctors, setDoctors] = useState<readonly NetworkListDoctorRow[]>([]);
@@ -347,7 +344,7 @@ export function ConsultationHospitalResultsPage() {
       <button
         type="button"
         className="chr-loc"
-        aria-label="Choose address"
+        aria-label={chrLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
         onClick={() => setAddrSheetOpen(true)}
       >
         <span className="chr-loc__pin" aria-hidden="true">
@@ -359,11 +356,14 @@ export function ConsultationHospitalResultsPage() {
             <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
           </svg>
         </span>
-        <span className="chr-loc__title">{chrLocAddrTag}</span>
-        <span className="chr-loc__sep" aria-hidden="true">
-          |
-        </span>
-        <span className="chr-loc__addr">{chrLocAddrLine}</span>
+        <AddressStripLabels
+          layout="pipe"
+          addrRaw={chrLocAddrRaw}
+          titleClassName="chr-loc__title"
+          sepClassName="chr-loc__sep"
+          addrClassName="chr-loc__addr"
+          promptClassName="chr-loc__addr chr-loc__addr--prompt"
+        />
         <span className="chr-loc__chev" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path

@@ -1,14 +1,14 @@
-import subscriptionsSvg from "@/assets/icons/AccountManagement/Subscriptions.svg";
-import bookConsultationSvg from "@/assets/icons/Services/BookConsultation.svg";
-import bookDiagnosticSvg from "@/assets/icons/Services/BookDiagnostic.svg";
-import dentalServicesSvg from "@/assets/icons/Services/DentalServices.svg";
-import gymAndFitnessSvg from "@/assets/icons/Services/GymAndFitness.svg";
-import mentalWellnessSvg from "@/assets/icons/Services/MentalWellness.svg";
-import nutritionServicesSvg from "@/assets/icons/Services/NutritionServices.svg";
-import prescribedPharmacySvg from "@/assets/icons/Services/PrescribedPharmacy.svg";
-import vaccinationServicesSvg from "@/assets/icons/Services/VaccinationServices.svg";
-import visionServicesSvg from "@/assets/icons/Services/VissionServices.svg";
-import viewServicesSvg from "@/assets/icons/Services/ViewServices.svg";
+import subscriptionsSvg from "@/assets/icons/patient-app/hub/account_management/subscriptions.svg";
+import bookConsultationSvg from "@/assets/icons/patient-app/hub/services/bookConsultations.svg";
+import bookDiagnosticSvg from "@/assets/icons/patient-app/hub/services/bookDaignostics.svg";
+import dentalServicesSvg from "@/assets/icons/patient-app/hub/services/dentalServices.svg";
+import gymAndFitnessSvg from "@/assets/icons/patient-app/hub/services/gymAndFitness.svg";
+import mentalWellnessSvg from "@/assets/icons/patient-app/hub/services/mentalWellness.svg";
+import nutritionServicesSvg from "@/assets/icons/patient-app/hub/services/nutritionServices.svg";
+import prescribedPharmacySvg from "@/assets/icons/patient-app/hub/services/prescribedPharmacy.svg";
+import vaccinationServicesSvg from "@/assets/icons/patient-app/hub/services/vaccinationServices.svg";
+import visionServicesSvg from "@/assets/icons/patient-app/hub/services/visionServices.svg";
+import viewServicesSvg from "@/assets/icons/patient-app/hub/tab_bar_icons/services.svg";
 
 export function orderCategoryIconSrc(categoryKey: string): string {
   switch (categoryKey) {
@@ -25,6 +25,8 @@ export function orderCategoryIconSrc(categoryKey: string): string {
     case "vaccine":
       return vaccinationServicesSvg;
     case "gym":
+    case "fitness":
+    case "yoga":
       return gymAndFitnessSvg;
     case "mental_wellness":
       return mentalWellnessSvg;

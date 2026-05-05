@@ -4,11 +4,16 @@ import {
   type WalletStatusFilter,
   type WalletTransactionRow,
 } from "@/api/wallet";
+import { fetchPatientProfileRaw } from "@/api/patientProfile";
+import {
+  computeHiddenWalletCategoryKeys,
+  hiddenWalletRefTypesForCategories,
+} from "@/lib/walletSubscriptionModules";
 import { WalletFilterBottomSheet } from "@/components/wallet/WalletFilterBottomSheet";
 import { WalletScreenHeader } from "@/components/wallet/WalletScreenHeader";
 import { WalletTransactionItem } from "@/components/wallet/WalletTransactionItem";
 import { ROUTES } from "@/constants";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import "./WalletPages.css";
 
@@ -42,6 +47,12 @@ export function WalletAllTransactionsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<WalletStatusFilter | null>(null);
   const [refTypeFilter, setRefTypeFilter] = useState<WalletRefTypeApi | null>(null);
+  const [profileBody, setProfileBody] = useState<unknown>(null);
+
+  const hiddenRefTypes = useMemo(() => {
+    const cat = computeHiddenWalletCategoryKeys(profileBody, subId);
+    return hiddenWalletRefTypesForCategories(cat);
+  }, [profileBody, subId]);
 
   const handleBack = useCallback(() => {
     navigate(generatePath(ROUTES.walletSubscription, { subscriptionId: subId }));
@@ -77,6 +88,27 @@ export function WalletAllTransactionsPage() {
     }
     void loadFirst();
   }, [subId, loadFirst, navigate]);
+
+  useEffect(() => {
+    if (!subId) return;
+    let cancelled = false;
+    fetchPatientProfileRaw()
+      .then((raw) => {
+        if (!cancelled) setProfileBody(raw);
+      })
+      .catch(() => {
+        if (!cancelled) setProfileBody(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [subId]);
+
+  useEffect(() => {
+    if (refTypeFilter && hiddenRefTypes.has(refTypeFilter)) {
+      setRefTypeFilter(null);
+    }
+  }, [refTypeFilter, hiddenRefTypes]);
 
   const onLoadMore = async () => {
     if (!subId || loadingMore || !hasMore) return;
@@ -177,6 +209,7 @@ export function WalletAllTransactionsPage() {
         onApply={onApplyFilters}
         initialStatus={statusFilter}
         initialRefType={refTypeFilter}
+        hiddenRefTypes={hiddenRefTypes}
       />
     </div>
   );

@@ -56,9 +56,16 @@
 
 .hco-top > .hco-orders,
 .hco-top > .hco-top__balance,
+.hco-top > .hco-top__spacer,
 .hco-top > .gsc-header__spacer {
   grid-column: 3;
   justify-self: end;
+}
+
+/** Keeps title alignment when the former “My Orders” header chip is omitted. */
+.hco-top > .hco-top__spacer {
+  width: 88px;
+  height: 32px;
 }
 
 .hco-back {
@@ -141,6 +148,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.hco-loc__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
 }
 
 .hco-loc__chev {

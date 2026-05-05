@@ -37,7 +37,6 @@ import {
 import { gymPackageToMembershipPlan } from "@/lib/gymPackageToPlan";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { resolveGymMembershipPlan } from "@/lib/resolveGymMembershipPlan";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
 import { GYM_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -73,6 +72,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     phone: "9876543210",
     email: "abhinay@email.com",
     ahcAvailable: false,
+    isSubscribed: true,
   },
   {
     id: "family-1",
@@ -83,6 +83,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     phone: "9876543210",
     email: "xxxxxxx@email.com",
     ahcAvailable: false,
+    isSubscribed: true,
   },
 ];
 
@@ -128,6 +129,7 @@ function loadMembers(): GymMemberListRow[] {
               phone: typeof row.phone === "string" ? row.phone : "9876543210",
               email: "xxxxxxx@email.com",
               ahcAvailable: false,
+              isSubscribed: true,
             });
           }
         }
@@ -1083,9 +1085,7 @@ export function GymMembershipConfigurePage() {
             </svg>
           </Link>
           <h1 className="hco-title">Gym Membership</h1>
-          <span className="hco-orders" style={{ visibility: "hidden" }} aria-hidden>
-            My Orders
-          </span>
+          <span className="hco-top__spacer" aria-hidden />
         </header>
         <main className="gmc-main">
           <p className="gmc-loading-msg" aria-busy="true">
@@ -1120,12 +1120,7 @@ export function GymMembershipConfigurePage() {
           </svg>
         </Link>
         <h1 className="hco-title">Gym Membership</h1>
-        <Link to={ROUTES.orders} className="hco-orders">
-          <span className="hco-orders__ic" aria-hidden="true">
-            <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-          </span>
-          My Orders
-        </Link>
+        <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="gmc-main">

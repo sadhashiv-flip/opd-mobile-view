@@ -3,7 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
-import type { GymMemberListRow } from "@/lib/gymMemberDisplay";
+import {
+  defaultGymMemberSelection,
+  MEMBER_NOT_ACTIVATED_LABEL,
+  type GymMemberListRow,
+} from "@/lib/gymMemberDisplay";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/HealthCheckupsPage.css";
 import "@/pages/HealthCheckupsOverviewPage.css";
@@ -20,12 +25,6 @@ export type PharmacyOrderingMemberSheetProps = Readonly<{
   onApply: (row: GymMemberListRow) => void;
 }>;
 
-function defaultSelection(rows: readonly GymMemberListRow[]): string[] {
-  const primary = rows.find((r) => r.section === "self");
-  if (primary) return [primary.id];
-  return rows[0] ? [rows[0].id] : [];
-}
-
 export function PharmacyOrderingMemberSheet({
   open,
   onClose,
@@ -36,6 +35,8 @@ export function PharmacyOrderingMemberSheet({
 }: PharmacyOrderingMemberSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const mod = useProfileModuleGates();
+  const canAddFamily = mod.planDependents.dependentAddAllowed;
   const rows = members;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -55,10 +56,11 @@ export function PharmacyOrderingMemberSheet({
       return;
     }
     const id = selectedMemberId?.trim() ?? "";
-    if (id && rows.some((r) => r.id === id)) {
+    const rowForId = id ? rows.find((r) => r.id === id) : undefined;
+    if (id && rowForId?.isSubscribed) {
       setSelectedIds([id]);
     } else {
-      setSelectedIds(defaultSelection(rows));
+      setSelectedIds(defaultGymMemberSelection(rows));
     }
   }, [open, selectedMemberId, rows]);
 
@@ -66,10 +68,12 @@ export function PharmacyOrderingMemberSheet({
   const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
 
   const toggleMember = (memberId: string) => {
+    const row = rows.find((r) => r.id === memberId);
+    if (!row?.isSubscribed) return;
     setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
   };
 
-  const renderTrailing = (member: GymMemberListRow) => {
+  const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
     const isSelected = selectedIds.includes(member.id);
     if (isSelected) {
       return (
@@ -78,9 +82,13 @@ export function PharmacyOrderingMemberSheet({
         </span>
       );
     }
+    const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
     return (
-      <span className="hc-person__cta" aria-hidden="true">
-        Add
+      <span
+        className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
+        aria-hidden="true"
+      >
+        {ctaLabel}
       </span>
     );
   };
@@ -145,11 +153,14 @@ export function PharmacyOrderingMemberSheet({
             <>
               <section className="hc-block">
                 <h2 className="hc-block__title">For you</h2>
-                {selfMembers.map((member) => (
+                {selfMembers.map((member) => {
+                  const rowDisabled = !member.isSubscribed;
+                  return (
                   <button
                     key={member.id}
                     type="button"
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                    disabled={rowDisabled}
+                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                     onClick={() => toggleMember(member.id)}
                   >
                     <span className="hc-person__avatar" aria-hidden="true">
@@ -157,20 +168,27 @@ export function PharmacyOrderingMemberSheet({
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
+                      {rowDisabled ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
                       <span className="hc-person__sub">{member.subtitle}</span>
                     </span>
-                    {renderTrailing(member)}
+                    {renderTrailing(member, rowDisabled)}
                   </button>
-                ))}
+                );
+                })}
               </section>
 
               <section className="hc-block">
                 <h2 className="hc-block__title">For your family</h2>
-                {familyMembersList.map((member) => (
+                {familyMembersList.map((member) => {
+                  const rowDisabled = !member.isSubscribed;
+                  return (
                   <button
                     key={member.id}
                     type="button"
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}`}
+                    disabled={rowDisabled}
+                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
                     onClick={() => toggleMember(member.id)}
                   >
                     <span className="hc-person__avatar" aria-hidden="true">
@@ -178,26 +196,32 @@ export function PharmacyOrderingMemberSheet({
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
+                      {rowDisabled ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
                       <span className="hc-person__sub">{member.subtitle}</span>
                     </span>
-                    {renderTrailing(member)}
+                    {renderTrailing(member, rowDisabled)}
                   </button>
-                ))}
+                );
+                })}
 
-                <button
-                  type="button"
-                  className="hc-add-family"
-                  onClick={() => {
-                    onClose();
-                    const returnTo = `${location.pathname}${location.search}`;
-                    navigate(ROUTES.profileMembersAdd, { state: { returnTo } });
-                  }}
-                >
-                  <span className="hc-add-family__ic" aria-hidden="true">
-                    +
-                  </span>
-                  <span> Add new family member</span>
-                </button>
+                {canAddFamily ? (
+                  <button
+                    type="button"
+                    className="hc-add-family"
+                    onClick={() => {
+                      onClose();
+                      const returnTo = `${location.pathname}${location.search}`;
+                      navigate(ROUTES.profileMembersAdd, { state: { returnTo } });
+                    }}
+                  >
+                    <span className="hc-add-family__ic" aria-hidden="true">
+                      +
+                    </span>
+                    <span> Add new family member</span>
+                  </button>
+                ) : null}
               </section>
             </>
           ) : null}

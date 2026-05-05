@@ -90,6 +90,12 @@
   text-overflow: ellipsis;
 }
 
+.hc-loc-wrap .hc-select-loc__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
+}
+
 .hc-loc-wrap .hc-select-loc__chev {
   display: inline-flex;
   color: #111111;
@@ -223,6 +229,19 @@
   font-size: max(7px, calc(9 * 100cqw / 375));
   font-weight: 800;
   line-height: 1.2;
+}
+
+.hc-person__tag--inactive {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: max(9px, calc(10 * 100cqw / 375));
+  font-weight: 700;
+  color: #8a8a8a;
+  background: #f2f2f2;
+  border: 1px solid #e5e5e5;
 }
 
 .hc-person__tag--sponsored {

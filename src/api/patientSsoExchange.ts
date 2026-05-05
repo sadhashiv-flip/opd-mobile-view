@@ -6,12 +6,22 @@ import {
   readLinkFromProfileBody,
 } from "@/lib/sso/profilePayloadToAuthUser";
 import type { VerifySuccessResponse } from "@/types/authSession";
+import { saveCachedProfileRaw } from "@/lib/profileCacheStorage";
 
 /** IAM OAuth-style token endpoint body (`POST …/iam/auth/sso/token-exchange`). */
 export type IamSsoTokenExchangeResponse = Readonly<{
   access_token: string;
   token_type?: string;
 }>;
+
+function readOptionalRootMessage(body: unknown): string | undefined {
+  const r =
+    body !== null && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : null;
+  const m = r?.message;
+  return typeof m === "string" && m.trim() ? m.trim() : undefined;
+}
 
 async function fetchProfileJsonWithBearer(accessToken: string): Promise<unknown> {
   const res = await patientFetch("profile", {
@@ -27,10 +37,29 @@ async function fetchProfileJsonWithBearer(accessToken: string): Promise<unknown>
     throw new Error(`Empty profile response (HTTP ${res.status})`);
   }
   try {
-    return JSON.parse(text) as unknown;
+    const parsed = JSON.parse(text) as unknown;
+    saveCachedProfileRaw(parsed);
+    return parsed;
   } catch {
     throw new Error(`Invalid JSON profile response (HTTP ${res.status})`);
   }
+}
+
+/** Maps GET `/patient/profile` JSON + bearer token to the same shape as POST `/patient/verify` success. */
+export function verifySuccessFromProfileBody(
+  profileBody: unknown,
+  accessToken: string,
+): VerifySuccessResponse {
+  const token = accessToken.trim();
+  const user = mapProfileBodyToAuthUser(profileBody);
+  const message = readOptionalRootMessage(profileBody);
+  return {
+    user,
+    token,
+    isReg: readIsRegFromProfileBody(profileBody),
+    link: readLinkFromProfileBody(profileBody),
+    ...(message ? { message } : {}),
+  };
 }
 
 /**
@@ -53,12 +82,5 @@ export async function exchangeIamSsoTokenForSession(
   }
 
   const profileBody = await fetchProfileJsonWithBearer(accessToken);
-  const user = mapProfileBodyToAuthUser(profileBody);
-
-  return {
-    user,
-    token: accessToken,
-    isReg: readIsRegFromProfileBody(profileBody),
-    link: readLinkFromProfileBody(profileBody),
-  };
+  return verifySuccessFromProfileBody(profileBody, accessToken);
 }

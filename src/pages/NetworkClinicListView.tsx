@@ -1,13 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import {
-  DEFAULT_LOCATION_ADDRESS_LINE,
-  subscribeSelectedAddress,
-} from "@/constants/selectedAddressStorage";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import type { DentalNetworkClinicRow } from "@/api/networkList";
 import { useToast } from "@/hooks/useToast";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import clinicDistanceIcon from "@/assets/icons/common/ClinicDistance.svg";
 import "@/pages/HealthCheckupsPage.css";
 import "./DentalNetworkListPage.css";
@@ -29,8 +27,7 @@ export function NetworkClinicListView({
 }: NetworkClinicListViewProps) {
   const navigate = useNavigate();
   const toast = useToast();
-  const addrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const addrTag = useSelectedAddressTag("HOME");
+  const addrRaw = useSelectedAddressLine("");
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [addrEpoch, setAddrEpoch] = useState(0);
   const [clinics, setClinics] = useState<DentalNetworkClinicRow[]>([]);
@@ -99,7 +96,7 @@ export function NetworkClinicListView({
       <button
         type="button"
         className="dnl-loc"
-        aria-label="Choose address"
+        aria-label={addrRaw.trim() ? "Choose address" : "Add delivery address"}
         onClick={() => setAddrSheetOpen(true)}
       >
         <span className="dnl-loc__pin" aria-hidden="true">
@@ -111,11 +108,14 @@ export function NetworkClinicListView({
             <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
           </svg>
         </span>
-        <span className="dnl-loc__title">{addrTag}</span>
-        <span className="dnl-loc__sep" aria-hidden="true">
-          |
-        </span>
-        <span className="dnl-loc__addr">{addrLine}</span>
+        <AddressStripLabels
+          layout="pipe"
+          addrRaw={addrRaw}
+          titleClassName="dnl-loc__title"
+          sepClassName="dnl-loc__sep"
+          addrClassName="dnl-loc__addr"
+          promptClassName="dnl-loc__addr dnl-loc__addr--prompt"
+        />
         <span className="dnl-loc__chev" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path

@@ -30,6 +30,16 @@ export function isDigitalDiaryActivityType(s: string): s is DigitalDiaryActivity
   return (DIGITAL_DIARY_ACTIVITY_TYPES as readonly string[]).includes(s);
 }
 
+/** Allowed `unit` for workout rows — matches Laravel `in:step,calories,minutes,sets`. */
+export type WorkoutParameterUnit = "step" | "calories" | "minutes" | "sets";
+
+export type WorkoutParameterSubmitArgs = Readonly<{
+  sourceId: number | string;
+  /** API expects a string, e.g. total kcal for the session. */
+  value: string;
+  unit: WorkoutParameterUnit;
+}>;
+
 /** Maps dashboard / detail activity keys to `search=ref:general,category:…`. */
 export function categoryForActivityType(type: string): string {
   switch (type) {
@@ -147,6 +157,34 @@ export const activitySubmitPayloads = {
       category: "workout",
       unit: "calories",
       value: calories,
+    };
+  },
+
+  /**
+   * Logged from exercise catalog — same wire shape as Flutter `ActivitySubmitPayloads.workoutFromExercise`
+   * (`value` is minutes; `unit` is legacy `"calories"`).
+   */
+  workoutFromExercise(args: Readonly<{ sourceId: string; minutes: string }>): Record<string, unknown> {
+    return {
+      ref: "general",
+      category: "workout",
+      source_id: args.sourceId,
+      unit: "calories",
+      value: args.minutes,
+    };
+  },
+
+  /**
+   * POST `/patient/parameters` — e.g. `{"category":"workout","source_id":"R1T…","unit":"calories","value":"12"}`.
+   * `value` and `source_id` are strings on the wire.
+   */
+  workoutExerciseLog(args: Readonly<WorkoutParameterSubmitArgs>): Record<string, unknown> {
+    return {
+      ref: "general",
+      category: "workout",
+      source_id: String(args.sourceId),
+      unit: args.unit,
+      value: args.value,
     };
   },
 

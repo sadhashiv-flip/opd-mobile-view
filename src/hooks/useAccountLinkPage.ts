@@ -1,13 +1,15 @@
 import type { ClipboardEvent, KeyboardEvent, MutableRefObject } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { fetchPatientProfileRaw } from "@/api/patientProfile";
 import {
   requestAccountLinkOtp,
   verifyAccountLink,
 } from "@/api/patientAccountLink";
-import { MIN_PHONE_DIGITS, ROUTES } from "@/constants";
+import { MIN_PHONE_DIGITS } from "@/constants";
 import { digitsOnly, takeDigits } from "@/lib/digits";
 import { saveAuthSession } from "@/lib/authStorage";
+import { completeAuthAndNavigate } from "@/lib/postVerifyNavigation";
 import type { AccountLinkLocationState } from "@/types/navigation";
 import { useToast } from "@/hooks/useToast";
 import { getWebFcmToken } from "@/lib/fcmToken";
@@ -124,8 +126,9 @@ export function useAccountLinkPage(): AccountLinkPageController {
         fcm_token,
       });
       await saveAuthSession(data);
+      void fetchPatientProfileRaw().catch(() => {});
       toast.success(data.message?.trim() || "Account linked successfully");
-      navigate(ROUTES.dashboard, { replace: true });
+      await completeAuthAndNavigate(navigate, data);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Verification failed");
     } finally {

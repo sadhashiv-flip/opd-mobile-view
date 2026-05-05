@@ -10,34 +10,13 @@ export function canProceedPastRequiredLabTests(data: RequiredLabTestsData): bool
   return data.required_test === false && data.access_block === false;
 }
 
-/** After session is saved: dashboard, or account-link flow when `link` is PHONE / EMAIL. */
-export function navigateAfterAuthVerify(
-  navigate: NavigateFunction,
-  data: VerifySuccessResponse,
-): void {
-  if (!data.isReg) {
-    navigate(ROUTES.userDetailsPersonal, { replace: true });
-    return;
-  }
-  const kind = parseVerifyLinkKind(data.link);
-  if (kind === "PHONE" || kind === "EMAIL") {
-    navigate(ROUTES.accountLink, {
-      replace: true,
-      state: { linkKind: kind },
-    });
-    return;
-  }
-  navigate(ROUTES.dashboard, { replace: true });
-}
-
 /**
- * After verify + {@link saveAuthSession}: GET `/required_lab_tests`, then either normal
- * {@link navigateAfterAuthVerify} or the lab-tests flow when `required_test` or `access_block` is true.
- * On fetch failure, falls back to normal navigation so login is not blocked.
+ * `GET /required_lab_tests` then `/required-lab-tests` or dashboard.
+ * Call only **after** registration / health-score onboarding is done — not for `!isReg` users.
+ * Fail-open on fetch error so login is not blocked.
  */
-export async function completeAuthAndNavigate(
+export async function navigateDashboardWithLabGate(
   navigate: NavigateFunction,
-  verifyData: VerifySuccessResponse,
 ): Promise<void> {
   try {
     const res = await fetchRequiredLabTests();
@@ -51,5 +30,32 @@ export async function completeAuthAndNavigate(
   } catch {
     // Fail-open: proceed with existing routing if the check is unavailable.
   }
-  navigateAfterAuthVerify(navigate, verifyData);
+  navigate(ROUTES.dashboard, { replace: true });
+}
+
+/**
+ * After verify + {@link saveAuthSession}:
+ * 1. **Account link** — if `link` is PHONE or EMAIL → `/account/link`.
+ * 2. **Health score / registration** — if `!isReg` → `/user-details/personal` (no lab API yet).
+ * 3. **Required lab tests** — only when `isReg` (health score path complete per API) → {@link navigateDashboardWithLabGate}.
+ */
+export async function completeAuthAndNavigate(
+  navigate: NavigateFunction,
+  verifyData: VerifySuccessResponse,
+): Promise<void> {
+  const linkKind = parseVerifyLinkKind(verifyData.link);
+  if (linkKind === "PHONE" || linkKind === "EMAIL") {
+    navigate(ROUTES.accountLink, {
+      replace: true,
+      state: { linkKind },
+    });
+    return;
+  }
+
+  if (!verifyData.isReg) {
+    navigate(ROUTES.userDetailsPersonal, { replace: true });
+    return;
+  }
+
+  await navigateDashboardWithLabGate(navigate);
 }

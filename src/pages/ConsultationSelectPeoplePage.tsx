@@ -12,14 +12,22 @@ import {
 } from "@/constants/diagnosticsSelectedMemberStorage";
 import { writeHealthSponsoredFlag } from "@/constants/diagnosticsHealthFlowStorage";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
+import { VirtualLanguageBottomSheet } from "@/components/consultation/VirtualLanguageBottomSheet";
+import { isConsultationLanguageValue } from "@/constants/consultationLanguages";
+import { VIRTUAL_CONSULT_LANGUAGE_KEY } from "@/constants/virtualConsultationSessionStorage";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DEFAULT_LOCATION_ADDRESS_LINE } from "@/constants/selectedAddressStorage";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
-import myOrdersSvg from "@/assets/icons/common/MyOrders.svg";
-import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
-import { useSelectedAddressLine, useSelectedAddressTag } from "@/hooks/useSelectedAddressLine";
+import {
+  defaultGymMemberSelection,
+  MEMBER_NOT_ACTIVATED_LABEL,
+  patientMembersToGymRows,
+  type GymMemberListRow,
+} from "@/lib/gymMemberDisplay";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
 import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -32,12 +40,6 @@ export type SelectPeopleFlowKind = "consultation" | "diagnostics" | "dental" | "
 /** Lab tests — patient_app `LabTestMemberSelectionScreen` uses `CommonMemberSelectionScreen(allowMultiSelect: true)`. */
 function isLabTestsDiagnosticsFlow(flow: SelectPeopleFlowKind, diagnosticsType: string): boolean {
   return flow === "diagnostics" && diagnosticsType === "lab-tests";
-}
-
-function defaultSelection(rows: GymMemberListRow[]): string[] {
-  const primary = rows.find((r) => r.section === "self");
-  if (primary) return [primary.id];
-  return rows[0] ? [rows[0].id] : [];
 }
 
 function parseBoolSearchParam(sp: URLSearchParams, key: string): boolean {
@@ -68,6 +70,8 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const mod = useProfileModuleGates();
+  const canAddFamily = mod.planDependents.dependentAddAllowed;
   const params = useParams();
   let type: string;
   if (typeof params.type === "string") {
@@ -122,8 +126,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const hcLocAddrLine = useSelectedAddressLine(DEFAULT_LOCATION_ADDRESS_LINE);
-  const hcLocAddrTag = useSelectedAddressTag("HOME");
+  const [virtualLangSheetOpen, setVirtualLangSheetOpen] = useState(false);
+  const [virtualLangChoice, setVirtualLangChoice] = useState("");
+  const hcLocAddrRaw = useSelectedAddressLine("");
 
   const selectionBasisRows = useMemo(() => {
     if (!isHealthCheckupsDiagnostics) return rows;
@@ -174,16 +179,19 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       return;
     }
     setSelectedIds((prev) => {
-      let next = prev.filter((id) => selectionBasisRows.some((r) => r.id === id));
+      let next = prev.filter((id) => {
+        const r = rows.find((x) => x.id === id);
+        return Boolean(r?.isSubscribed) && selectionBasisRows.some((s) => s.id === id);
+      });
       if (next.length === 0 && !isHealthCheckupsDiagnostics) {
-        next = defaultSelection(selectionBasisRows);
+        next = defaultGymMemberSelection(selectionBasisRows);
       }
       if (Number.isFinite(maxSelectable) && next.length > maxSelectable) {
         next = next.slice(0, maxSelectable);
       }
       return next;
     });
-  }, [selectionBasisRows, maxSelectable, isHealthCheckupsDiagnostics]);
+  }, [selectionBasisRows, maxSelectable, isHealthCheckupsDiagnostics, rows]);
 
   const selfMembers = useMemo(
     () => selectionBasisRows.filter((m) => m.section === "self"),
@@ -199,6 +207,8 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
   const toggleMember = (memberId: string) => {
     setSelectedIds((prev) => {
+      const targetRow = rows.find((r) => r.id === memberId);
+      if (!targetRow?.isSubscribed) return prev;
       if (labTestsMulti) {
         return prev.includes(memberId)
           ? prev.filter((id) => id !== memberId)
@@ -230,12 +240,13 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         </span>
       );
     }
+    const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
     return (
       <span
         className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
       >
-        Add
+        {ctaLabel}
       </span>
     );
   };
@@ -250,6 +261,16 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       if (!row) return;
       writeConsultSelectedPersonIds([selected]);
       writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
+      if (type === "virtual") {
+        try {
+          const raw = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY)?.trim();
+          setVirtualLangChoice(raw && isConsultationLanguageValue(raw) ? raw : "");
+        } catch {
+          setVirtualLangChoice("");
+        }
+        setVirtualLangSheetOpen(true);
+        return;
+      }
       navigate(generatePath(ROUTES.consultationSpecialties, { type }));
       return;
     }
@@ -341,12 +362,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         ) : (
           <h1 className="hco-title">{headerTitle}</h1>
         )}
-        <Link to={ROUTES.orders} className="hco-orders">
-          <span className="hco-orders__ic" aria-hidden="true">
-            <img src={myOrdersSvg} alt="" width={14} height={14} draggable={false} />
-          </span>
-          <span>My Orders</span>
-        </Link>
+        <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="hc-main">
@@ -355,7 +371,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             <button
               type="button"
               className="hc-select-loc"
-              aria-label="Choose address"
+              aria-label={hcLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
               onClick={() => setAddrSheetOpen(true)}
             >
               <span className="hc-select-loc__pin" aria-hidden="true">
@@ -367,11 +383,14 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                   <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
                 </svg>
               </span>
-              <span className="hc-select-loc__title">{hcLocAddrTag}</span>
-              <span className="hc-select-loc__sep" aria-hidden="true">
-                |
-              </span>
-              <span className="hc-select-loc__addr">{hcLocAddrLine}</span>
+              <AddressStripLabels
+                layout="pipe"
+                addrRaw={hcLocAddrRaw}
+                titleClassName="hc-select-loc__title"
+                sepClassName="hc-select-loc__sep"
+                addrClassName="hc-select-loc__addr"
+                promptClassName="hc-select-loc__addr hc-select-loc__addr--prompt"
+              />
               <span className="hc-select-loc__chev" aria-hidden="true">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path
@@ -457,9 +476,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             <section className="hc-block">
               <h2 className="hc-block__title">For you</h2>
               {selfMembers.map((member) => {
+                const notActivated = !member.isSubscribed;
                 const rowDisabled =
-                  isHealthCheckupsDiagnostics &&
-                  healthCheckupsMemberPickDisabled(member, selectedIds, rows);
+                  notActivated ||
+                  (isHealthCheckupsDiagnostics &&
+                    healthCheckupsMemberPickDisabled(member, selectedIds, rows));
                 return (
                   <button
                     key={member.id}
@@ -473,6 +494,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
+                      {notActivated ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
                       {isHealthCheckupsDiagnostics && member.ahcAvailable ? (
                         <span className="hc-person__tag hc-person__tag--sponsored">Sponsored</span>
                       ) : null}
@@ -489,9 +513,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                 <>
                   <h2 className="hc-block__title">For your family</h2>
                   {familyMembersList.map((member) => {
+                    const notActivated = !member.isSubscribed;
                     const rowDisabled =
-                      isHealthCheckupsDiagnostics &&
-                      healthCheckupsMemberPickDisabled(member, selectedIds, rows);
+                      notActivated ||
+                      (isHealthCheckupsDiagnostics &&
+                        healthCheckupsMemberPickDisabled(member, selectedIds, rows));
                     return (
                       <button
                         key={member.id}
@@ -505,6 +531,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                         </span>
                         <span className="hc-person__info">
                           <span className="hc-person__name">{member.name}</span>
+                          {notActivated ? (
+                            <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                          ) : null}
                           {isHealthCheckupsDiagnostics && member.ahcAvailable ? (
                             <span className="hc-person__tag hc-person__tag--sponsored">Sponsored</span>
                           ) : null}
@@ -517,7 +546,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                 </>
               ) : null}
 
-              {!(isHealthCheckupsDiagnostics && filterAhcDashboardEntry) ? (
+              {!(isHealthCheckupsDiagnostics && filterAhcDashboardEntry) && canAddFamily ? (
                 <button
                   type="button"
                   className="hc-add-family"
@@ -548,6 +577,28 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
       {isHealthCheckupsDiagnostics ? (
         <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
+      ) : null}
+
+      {flow === "consultation" && type === "virtual" ? (
+        <VirtualLanguageBottomSheet
+          open={virtualLangSheetOpen}
+          onClose={() => setVirtualLangSheetOpen(false)}
+          issueTitle=""
+          language={virtualLangChoice}
+          onLanguageChange={setVirtualLangChoice}
+          continueDisabled={!virtualLangChoice.trim()}
+          onContinue={() => {
+            const lang = virtualLangChoice.trim();
+            if (!lang) return;
+            try {
+              sessionStorage.setItem(VIRTUAL_CONSULT_LANGUAGE_KEY, lang);
+            } catch {
+              // ignore
+            }
+            setVirtualLangSheetOpen(false);
+            navigate(generatePath(ROUTES.consultationSpecialties, { type }));
+          }}
+        />
       ) : null}
     </div>
   );

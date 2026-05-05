@@ -117,19 +117,32 @@ export function mapProfileBodyToAuthUser(body: unknown): AuthUser {
 
 /** Registration complete — matches POST `/patient/verify` `isReg`. */
 export function readIsRegFromProfileBody(body: unknown): boolean {
+  const root = asRecord(body) ?? {};
   const pick = pickUserRecord(body);
   const v =
     pick.isReg ??
     pick.is_reg ??
     pick.registration_complete ??
-    pick.registrationComplete;
+    pick.registrationComplete ??
+    root.isReg ??
+    root.is_reg ??
+    root.registration_complete ??
+    root.registrationComplete;
   if (v === undefined) return true;
   return coerceBool(v, true);
 }
 
-/** Account-link hint — matches POST `/patient/verify` `link`. */
+/**
+ * Account-link hint — matches POST `/patient/verify` `link`.
+ * Also reads root-level `link` / `verify_link` (same shape as verify: `{ user, token, link, … }`).
+ */
 export function readLinkFromProfileBody(body: unknown): string {
+  const root = asRecord(body) ?? {};
   const pick = pickUserRecord(body);
-  const u = strOrNull(pick.link) ?? strOrNull(pick.verify_link);
+  const u =
+    strOrNull(pick.link) ??
+    strOrNull(pick.verify_link) ??
+    strOrNull(root.link) ??
+    strOrNull(root.verify_link);
   return u?.trim() ? u.trim() : "NONE";
 }

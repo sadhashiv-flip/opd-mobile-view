@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import type { AuthUser } from "@/types/authSession";
 import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
-import { fetchPatientMembers, type MemberDisplay } from "@/api/patientMember";
+import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
+import { MEMBER_NOT_ACTIVATED_LABEL } from "@/lib/gymMemberDisplay";
 import { getAuthSession } from "@/lib/authStorage";
 import {
   fetchMentalWellnessTypes,
@@ -10,8 +11,8 @@ import {
   type WellnessTypeOption,
 } from "@/api/wellnessSession";
 import { useToast } from "@/hooks/useToast";
-import mentalWellnessSvg from "@/assets/icons/Services/MentalWellness.svg";
-import nutritionServicesSvg from "@/assets/icons/Services/NutritionServices.svg";
+import mentalWellnessSvg from "@/assets/icons/patient-app/hub/services/mentalWellness.svg";
+import nutritionServicesSvg from "@/assets/icons/patient-app/hub/services/nutritionServices.svg";
 import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
 import "./WellnessSessionPage.css";
 
@@ -100,7 +101,8 @@ export function WellnessSessionPage() {
       members.map((m) => ({
         value: m.id,
         label: memberLabel(m),
-        description: memberDescription(m),
+        description: !m.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : memberDescription(m),
+        disabled: !m.isSubscribed,
       })),
     [members],
   );
@@ -163,13 +165,18 @@ export function WellnessSessionPage() {
     setMembersError(null);
     void (async () => {
       try {
-        const list = await fetchPatientMembers();
+        const list = await fetchAllPatientMembers();
         if (cancelled) return;
         setMembers(list);
-        const primary = list.find((m) => m.memberKind === "primary");
-        const initialId = primary?.id ?? list[0]?.id ?? "";
+        const firstActive =
+          list.find((m) => m.memberKind === "primary" && m.isSubscribed) ??
+          list.find((m) => m.isSubscribed);
+        const initialId = firstActive?.id ?? "";
         setSelectedMemberId((prev) => {
-          if (prev && list.some((m) => m.id === prev)) return prev;
+          if (prev) {
+            const keep = list.find((m) => m.id === prev);
+            if (keep?.isSubscribed) return prev;
+          }
           return initialId;
         });
       } catch (e) {
@@ -221,13 +228,14 @@ export function WellnessSessionPage() {
 
   const canSubmit = useMemo(() => {
     if (!sessionUser || submitting) return false;
+    if (!selectedMember?.isSubscribed) return false;
     if (!phone.trim()) return false;
     if (!email.trim()) return false;
     if (isMental) {
       if (!serviceArea.trim() || !language.trim()) return false;
     }
     return true;
-  }, [sessionUser, submitting, phone, email, isMental, serviceArea, language]);
+  }, [sessionUser, submitting, selectedMember, phone, email, isMental, serviceArea, language]);
 
   const handleSubmit = useCallback(async () => {
     if (!sessionUser || !canSubmit) return;

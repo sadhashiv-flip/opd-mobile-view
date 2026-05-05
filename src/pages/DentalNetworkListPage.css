@@ -88,6 +88,12 @@
   text-overflow: ellipsis;
 }
 
+.dnl-loc__addr--prompt {
+  color: #ff541e;
+  font-weight: 700;
+  white-space: normal;
+}
+
 .dnl-loc__chev {
   display: inline-flex;
   color: #111111;

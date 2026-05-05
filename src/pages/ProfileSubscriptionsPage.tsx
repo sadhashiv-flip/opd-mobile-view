@@ -10,7 +10,6 @@ import {
 } from "@/api/patientSubscriptions";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
-import { getAuthSession } from "@/lib/authStorage";
 import { useToast } from "@/hooks/useToast";
 import "./ProfileManagePage.css";
 import "./ProfileSubscriptionsPage.css";
@@ -57,12 +56,17 @@ function totalMemberSlots(mt: Record<string, number> | null): number {
   return t;
 }
 
-function canUseEmptySlot(item: ActiveSubscriptionItem, primaryUserId: number | null): boolean {
-  if (!item.planAllowsDependentAdd) return false;
-  if (primaryUserId == null) return false;
-  if (item.canActivate !== true) return false;
-  if (item.patientId == null) return false;
-  return item.patientId === String(primaryUserId);
+/** Activation on this page is enabled only when the subscription response reports `canActivate`. */
+function resolveEmptySlotActivation(
+  item: ActiveSubscriptionItem,
+): { canTap: boolean; disabledHint: string } {
+  if (!item.canActivate) {
+    return {
+      canTap: false,
+      disabledHint: "Member activation isn’t available for this subscription.",
+    };
+  }
+  return { canTap: true, disabledHint: "" };
 }
 
 type PickerState = Readonly<{
@@ -92,7 +96,6 @@ export function ProfileSubscriptionsPage() {
     }
   }, [location.state, navigate]);
 
-  const [primaryUserId, setPrimaryUserId] = useState<number | null>(null);
   const [items, setItems] = useState<readonly ActiveSubscriptionItem[]>([]);
   const [apiMessage, setApiMessage] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -121,12 +124,6 @@ export function ProfileSubscriptionsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    void getAuthSession().then((s) => {
-      setPrimaryUserId(s?.user.id ?? null);
-    });
   }, []);
 
   useEffect(() => {
@@ -289,7 +286,6 @@ export function ProfileSubscriptionsPage() {
               <SubscriptionPlanCard
                 key={sub.id}
                 sub={sub}
-                primaryUserId={primaryUserId}
                 onOpenSlotPicker={(dependentTypeKey, typeLabel) => {
                   void openPicker({
                     subscriptionId: sub.id,
@@ -398,17 +394,14 @@ export function ProfileSubscriptionsPage() {
 
 function SubscriptionPlanCard({
   sub,
-  primaryUserId,
   onOpenSlotPicker,
 }: Readonly<{
   sub: ActiveSubscriptionItem;
-  primaryUserId: number | null;
   onOpenSlotPicker: (dependentTypeKey: string, typeLabel: string) => void;
 }>) {
-  const planAllows = sub.planAllowsDependentAdd;
   const totalSlots = totalMemberSlots(sub.memberTypeCounts);
   const filledSlots = sub.patients.length;
-  const slotAllowed = canUseEmptySlot(sub, primaryUserId);
+  const { canTap: slotAllowed, disabledHint: emptySlotDisabledHint } = resolveEmptySlotActivation(sub);
   const hasStats =
     totalSlots > 0 ||
     typeof sub.daysLeft === "number" ||
@@ -456,22 +449,6 @@ function SubscriptionPlanCard({
           </div>
         ) : null}
 
-        {planAllows === false ? (
-          <div className="profile-sub-plan-card__warn" role="note">
-            <span className="profile-sub-plan-card__warn-icon" aria-hidden>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M7 11V8a5 5 0 0110 0v3M6 11h12v9H6v-9z"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <span>This plan doesn’t allow adding dependents.</span>
-          </div>
-        ) : null}
 
         <div className="profile-sub-plan-card__divider" />
 
@@ -482,7 +459,12 @@ function SubscriptionPlanCard({
           ) : null}
         </div>
 
-        <SlotList sub={sub} slotAllowed={slotAllowed} onOpenSlotPicker={onOpenSlotPicker} />
+        <SlotList
+          sub={sub}
+          emptySlotCanTap={slotAllowed}
+          emptySlotDisabledHint={emptySlotDisabledHint}
+          onOpenSlotPicker={onOpenSlotPicker}
+        />
       </div>
     </li>
   );
@@ -490,11 +472,13 @@ function SubscriptionPlanCard({
 
 function SlotList({
   sub,
-  slotAllowed,
+  emptySlotCanTap,
+  emptySlotDisabledHint,
   onOpenSlotPicker,
 }: Readonly<{
   sub: ActiveSubscriptionItem;
-  slotAllowed: boolean;
+  emptySlotCanTap: boolean;
+  emptySlotDisabledHint: string;
   onOpenSlotPicker: (dependentTypeKey: string, typeLabel: string) => void;
 }>) {
   const counts = sub.memberTypeCounts;
@@ -546,7 +530,8 @@ function SlotList({
         rows.push(
           <div key={`${typeKey}-e-${i}`} className="profile-sub-slot-item">
             <EmptySlotTile
-              canTap={slotAllowed}
+              canTap={emptySlotCanTap}
+              disabledHint={emptySlotDisabledHint}
               typeLabel={typeLabel}
               onActivate={() => onOpenSlotPicker(typeKey, typeLabel)}
             />
@@ -578,10 +563,12 @@ function FilledSlotTile({
 
 function EmptySlotTile({
   canTap,
+  disabledHint,
   typeLabel,
   onActivate,
 }: Readonly<{
   canTap: boolean;
+  disabledHint: string;
   typeLabel: string;
   onActivate: () => void;
 }>) {
@@ -598,9 +585,7 @@ function EmptySlotTile({
       <span className="profile-sub-empty-slot__main">
         <span className="profile-sub-empty-slot__title">Add · {typeLabel}</span>
         <span className="profile-sub-empty-slot__hint">
-          {canTap
-            ? "Tap to choose someone from your family list."
-            : "Only the plan purchaser can assign members here."}
+          {canTap ? "Tap to choose someone from your family list." : disabledHint}
         </span>
       </span>
     </button>

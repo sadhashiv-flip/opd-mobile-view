@@ -28,8 +28,12 @@ export const HeaderTexts = {
         subtitle: "Nutrition and dietician expert service",
     },
     gymAndFitness: {
-        title: "Gym & Fitness",
-        subtitle: "Buy Gym memberships and fitness membership",
+        title: "Gym Membership",
+        subtitle: "Buy Gym membership",
+    },
+    fitness: {
+        title: "Fitness",
+        subtitle: "Fitness programs and health club",
     },
     vaccination: {
         title: "Vaccination Services",
@@ -40,7 +44,7 @@ export const HeaderTexts = {
         subtitle: "Chronic medication and buy chronic medicine",
     },
     gym: {
-        title: "Gym & Fitness",
-        subtitle: "Buy Gym memberships and fitness membership",
+        title: "Gym Membership",
+        subtitle: "Buy Gym membership",
     },
 };
