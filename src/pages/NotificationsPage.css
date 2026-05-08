@@ -14,6 +14,35 @@
   flex-shrink: 0;
 }
 
+.notif-page__header-spacer {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.notif-page__clear-all {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #c62828;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notif-page__clear-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notif-page__clear-all:active:not(:disabled) {
+  opacity: 0.85;
+}
+
 .notif-page__back {
   display: flex;
   align-items: center;
@@ -35,6 +64,8 @@
 }
 
 .notif-page__title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-family: "Poppins", system-ui, sans-serif;
   font-size: clamp(1.125rem, 4.2vw, 1.35rem);
@@ -108,30 +139,93 @@
   gap: 10px;
 }
 
+.notif-list__item {
+  list-style: none;
+}
+
+.notif-card {
+  position: relative;
+  border: 1px solid #ebe8e4;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.notif-card--actionable {
+  border-color: #e8e4df;
+}
+
 .notif-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  min-width: 0;
   margin: 0;
-  padding: 14px 16px;
+  padding: 14px 48px 14px 16px;
   text-align: left;
-  border: 1px solid #ebe8e4;
+  border: none;
   border-radius: 14px;
-  background: #ffffff;
+  background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+
+.notif-row:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.notif-row__delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #616161;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.notif-row__delete:hover:not(:disabled) {
+  color: #c62828;
+  background: #fff5f5;
+}
+
+.notif-row__delete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.notif-row__delete:active:not(:disabled) {
+  opacity: 0.9;
+}
+
+.notif-row__trash-ic {
+  display: block;
+}
+
+.notif-row__delete-busy {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #757575;
+  line-height: 1;
 }
 
 .notif-row:active {
   opacity: 0.92;
-}
-
-.notif-row--actionable {
-  border-color: #e8e4df;
 }
 
 .notif-row__text {

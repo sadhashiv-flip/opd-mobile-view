@@ -1,4 +1,4 @@
-import { patientJson } from "@/api/patientHttp";
+import { patientFetchChecked, patientJson } from "@/api/patientHttp";
 
 export type PatientNotificationRow = Readonly<{
   id: string;
@@ -56,4 +56,39 @@ export async function fetchPatientNotifications(): Promise<readonly PatientNotif
     const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
     return tb - ta;
   });
+}
+
+/**
+ * PATCH `/patient/notification/markasread` — best-effort (patient_app
+ * {@link NotificationsRepository.markAsRead}); failures are ignored.
+ */
+export async function markPatientNotificationsRead(): Promise<void> {
+  try {
+    const res = await patientFetchChecked("notification/markasread", {
+      method: "PATCH",
+      body: JSON.stringify({}),
+      skipGlobalLoading: true,
+    });
+    await res.text();
+  } catch {
+    /* ignore */
+  }
+}
+
+/** DELETE `/patient/notification` — clear all (patient_app {@link NotificationsRepository.clearAllNotifications}). */
+export async function clearAllPatientNotifications(): Promise<void> {
+  const res = await patientFetchChecked("notification", {
+    method: "DELETE",
+    skipGlobalLoading: true,
+  });
+  await res.text();
+}
+
+/** DELETE `/patient/notification/:id` — remove one (patient_app {@link NotificationsRepository.deleteNotificationById}). */
+export async function deletePatientNotificationById(id: string): Promise<void> {
+  const res = await patientFetchChecked(`notification/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    skipGlobalLoading: true,
+  });
+  await res.text();
 }
