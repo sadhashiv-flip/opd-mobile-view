@@ -239,7 +239,7 @@ export const HOME_SEARCH_ACTIONS: readonly HomeSearchAction[] = [
       "chronic care",
       "management",
     ],
-    to: ROUTES.services,
+    to: ROUTES.chronic,
   },
   {
     id: "address",

@@ -95,6 +95,9 @@ import {
   LegacyOrdersDetailTwoSegmentRedirect,
 } from "@/app/LegacyOrdersDetailRedirects";
 import { BookingSuccessCanonicalRedirect } from "@/app/BookingSuccessCanonicalRedirect";
+import { ChronicManagementPage } from "@/pages/ChronicManagementPage";
+import { ChronicConditionEnrollPage } from "@/pages/ChronicConditionEnrollPage";
+import { ChronicConditionDetailPage } from "@/pages/ChronicConditionDetailPage";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -251,6 +254,9 @@ export function AppRoutes() {
       <Route path={ROUTES.vaccinationSlots} element={<VaccinationSlotsPage />} />
       <Route path={ROUTES.vaccinationOverview} element={<VaccinationOverviewPage />} />
       <Route path={ROUTES.servicesWellness} element={<WellnessSessionPage />} />
+      <Route path={ROUTES.chronic} element={<ChronicManagementPage />} />
+      <Route path={ROUTES.chronicCondition} element={<ChronicConditionEnrollPage />} />
+      <Route path={ROUTES.chronicDetail} element={<ChronicConditionDetailPage />} />
       <Route path="*" element={<UnknownRouteRedirect />} />
       </Route>
     </Routes>

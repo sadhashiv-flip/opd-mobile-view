@@ -463,10 +463,16 @@ export function ServicesHubPage() {
               cardAction = () => setVisionSheetOpen(true);
             } else if (
               tabId === "services" &&
-              (item.id === "pharm" || item.id === "chronic")
+              item.id === "pharm"
             ) {
               cardAction = () => {
                 void navigate(ROUTES.pharmacy, {
+                  state: { returnPath: `${ROUTES.services}?tab=services` },
+                });
+              };
+            } else if (tabId === "services" && item.id === "chronic") {
+              cardAction = () => {
+                void navigate(ROUTES.chronic, {
                   state: { returnPath: `${ROUTES.services}?tab=services` },
                 });
               };

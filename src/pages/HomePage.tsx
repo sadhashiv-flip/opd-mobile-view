@@ -72,9 +72,9 @@ const HOME_CARD_BORDER_GLOW_PROPS = {
   glowIntensity: 1.25,
   coneSpread: 26,
   animated: false,
-  colors: ["#8b5cf6", "#db2777", "#0284c7"],
+  colors: ["#8b5cf6", "#db2777", "#0284c7"] as string[],
   fillOpacity: 0.38,
-} as const;
+};
 
 /** Status chip tint — mirrors Flutter `DashboardUpcomingOrdersSection._statusFg/_statusBg`. */
 function ongoingStatusBadgeClass(label: string): string {
@@ -303,8 +303,8 @@ export function HomePage() {
           );
           return;
         case "chronic":
-          void navigate(ROUTES.pharmacy, {
-            state: { returnPath: ROUTES.dashboard },
+          void navigate(ROUTES.chronic, {
+            state: { returnPath: ROUTES.dashboard, fromDashboard: true },
           });
           return;
         case "nutrition":

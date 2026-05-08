@@ -157,6 +157,10 @@ export const ROUTES = {
    * `mental-wellness` | `nutrition` (see {@link WELLNESS_SESSION_KIND}).
    */
   servicesWellness: "/services/wellness/:wellnessKind",
+  /** Chronic management flow (program list → enroll/details). */
+  chronic: "/services/chronic",
+  chronicCondition: "/services/chronic/condition/:conditionId",
+  chronicDetail: "/services/chronic/:conditionId",
   /** Help tab: open ticket thread (chat + attachments). */
   servicesSupportTicketChat: "/services/support/ticket/:ticketId",
   cartOverview: "/cart-overview",
