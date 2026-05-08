@@ -17,7 +17,7 @@
   --claims-border: #e8e8e8;
   --claims-muted: #888888;
   /* Align fixed chrome with `.mobile-frame` / {@link HomeBottomNav} */
-  --claims-frame-w: min(var(--mobile-frame-max-width, 430px), 100vw);
+  --claims-frame-w: min(var(--mobile-frame-max-width, 480px), 100vw);
   --claims-frame-left: calc((100vw - var(--claims-frame-w)) / 2);
   /* Space for fixed bottom chrome (footer ± terms strip) */
   --claim-footer-chrome-h: 68px;
@@ -1732,7 +1732,7 @@ button.claim-new-page__bank-tap {
   --claims-orange-soft: #fff5f0;
   --claims-border: #e8e8e8;
   --claims-muted: #888888;
-  --claims-frame-w: min(var(--mobile-frame-max-width, 430px), 100vw);
+  --claims-frame-w: min(var(--mobile-frame-max-width, 480px), 100vw);
   --claims-frame-left: calc((100vw - var(--claims-frame-w)) / 2);
 }
 
@@ -1929,7 +1929,7 @@ button.claim-new-page__bank-tap {
 }
 
 .claim-dispute-sheet {
-  width: min(440px, 100%);
+  width: min(var(--mobile-frame-max-width, 480px), 100%);
   background: #ffffff;
   border-radius: 16px 16px 12px 12px;
   padding: 18px 18px 16px;
@@ -2890,7 +2890,7 @@ button.claim-detail-bank-update:active {
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0));
   background: #ffffff;
   border-top: 1px solid var(--claims-border, #e8e8e8);
-  max-width: var(--mobile-frame-max-width, 430px);
+  max-width: var(--mobile-frame-max-width, 480px);
   margin: 0 auto;
 }
 
@@ -2937,7 +2937,7 @@ button.claim-detail-bank-update:active {
   /* Shared with `.claim-new-page` so sheet chips / primary buttons resolve on this route */
   --claims-orange: #ff541e;
   --claims-orange-soft: #fff5f0;
-  --claims-frame-w: min(var(--mobile-frame-max-width, 430px), 100vw);
+  --claims-frame-w: min(var(--mobile-frame-max-width, 480px), 100vw);
   --claims-frame-left: calc((100vw - var(--claims-frame-w)) / 2);
 }
 
@@ -3306,7 +3306,7 @@ button.claim-detail-bank-update:active {
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0));
   background: #ffffff;
   border-top: 1px solid var(--claim-bc-border);
-  max-width: var(--mobile-frame-max-width, 430px);
+  max-width: var(--mobile-frame-max-width, 480px);
   margin: 0 auto;
 }
 
@@ -3413,7 +3413,7 @@ button.claim-detail-bank-update:active {
 
 .claim-bc-page .claim-overlay--claim-bc-services .claim-sheet {
   width: 100%;
-  max-width: min(calc(100vw - 24px), var(--mobile-frame-max-width, 430px));
+  max-width: min(calc(100vw - 24px), var(--mobile-frame-max-width, 480px));
   box-sizing: border-box;
 }
 

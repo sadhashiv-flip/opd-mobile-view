@@ -34,7 +34,7 @@
    this keeps the “main” column from spanning the entire desktop. */
 .notice-screen__shell {
   width: 100%;
-  max-width: 430px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   flex: 1;
   min-height: 0;
   display: flex;

@@ -481,7 +481,7 @@
   position: relative;
   z-index: 1;
   width: 100%;
-  max-width: min(440px, 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   /* Cap height so dimmed area stays visible; sheet sits above safe areas */
   max-height: min(72dvh, calc(100dvh - var(--gmc-pkg-sheet-top-reserve) - 12px));
   display: flex;

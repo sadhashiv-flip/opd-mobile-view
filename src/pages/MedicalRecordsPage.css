@@ -70,8 +70,8 @@
 }
 
 .mr-main {
-  max-width: 640px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
 }
 
 .mr-lead {
@@ -208,7 +208,7 @@
 
 .mr-overlay__panel {
   width: 100%;
-  max-width: 520px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   max-height: 80vh;
   overflow: auto;
   background: #fff;

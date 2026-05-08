@@ -1359,7 +1359,7 @@
 
 .lt-sheet {
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   min-width: 0;
   max-height: min(92vh, 720px);
   overflow: auto;

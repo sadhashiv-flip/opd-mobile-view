@@ -384,7 +384,7 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   padding: 12px var(--ph-gutter, 16px) calc(12px + env(safe-area-inset-bottom, 0));
   padding-left: max(var(--ph-gutter, 16px), env(safe-area-inset-left, 0px));
   padding-right: max(var(--ph-gutter, 16px), env(safe-area-inset-right, 0px));

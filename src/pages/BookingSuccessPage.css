@@ -84,7 +84,7 @@
 
 .bs-card {
   width: 100%;
-  max-width: 420px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   border: 1px solid #eeeeee;
   border-radius: 16px;
   padding: 18px;

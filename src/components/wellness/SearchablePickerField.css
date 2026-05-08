@@ -120,7 +120,7 @@
 
 .searchable-picker-sheet {
   width: 100%;
-  max-width: 420px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   max-height: min(78dvh, 620px);
   display: flex;
   flex-direction: column;

@@ -402,16 +402,17 @@ export function HomePage() {
     return () => clearInterval(id);
   }, [ahc, ahcBannerSlideCount]);
 
+  /** Hub sheets only — address sheet locks scroll inside {@link AddressBottomSheet} (avoid nested body locks). */
   useEffect(() => {
     const isAnySheetOpen =
-      isDiagnosticsSheetOpen || isConsultationSheetOpen || isVisionSheetOpen || addrSheetOpen;
+      isDiagnosticsSheetOpen || isConsultationSheetOpen || isVisionSheetOpen;
     if (!isAnySheetOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prevOverflow;
     };
-  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen, addrSheetOpen]);
+  }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen]);
 
   let homeCarouselPagination: ReactNode = null;
   if (homeCarouselCount > 1) {

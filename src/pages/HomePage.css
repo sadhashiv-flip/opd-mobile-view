@@ -1251,7 +1251,7 @@
 
 .home-sheet {
   width: 100%;
-  max-width: 420px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.12);

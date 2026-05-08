@@ -13,7 +13,9 @@ export default function App() {
         <MobileShell>
           <FcmForegroundListener />
           <AuthSessionListener />
-          <AppRoutes />
+          <div className="mobile-frame__routes">
+            <AppRoutes />
+          </div>
           <ApiLoadingOverlay />
         </MobileShell>
       </AppConfirmProvider>

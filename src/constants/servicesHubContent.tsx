@@ -23,7 +23,6 @@ import accountSubscriptionsSvg from "@/assets/icons/patient-app/hub/account_mana
 import accountFamilyAccountsSvg from "@/assets/icons/patient-app/hub/account_management/family_account.svg";
 import accountAddressBookSvg from "@/assets/icons/patient-app/hub/account_management/address_book.svg";
 import accountOrdersSvg from "@/assets/icons/patient-app/hub/account_management/oders.svg";
-import accountSetPasswordSvg from "@/assets/icons/patient-app/hub/account_management/set_password.svg";
 import accountDeleteAccountSvg from "@/assets/icons/patient-app/hub/account_management/delete_account.svg";
 
 import hubTabHelpSupportSvg from "@/assets/icons/patient-app/hub/help_and_support/support.svg";
@@ -201,12 +200,6 @@ export const ACCOUNT_ITEMS: readonly HubCardItem[] = [
     title: "Orders",
     description: "Check order status",
     iconSrc: accountOrdersSvg,
-  },
-  {
-    id: "password",
-    title: "Set Password",
-    description: "Manage your passwords",
-    iconSrc: accountSetPasswordSvg,
   },
   {
     id: "delete",

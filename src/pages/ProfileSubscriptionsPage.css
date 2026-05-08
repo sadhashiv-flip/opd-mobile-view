@@ -390,7 +390,7 @@
   align-items: flex-end;
   justify-content: center;
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
 }
@@ -410,7 +410,7 @@
   z-index: 1;
   box-sizing: border-box;
   /* Same max width as .mobile-frame under .mobile-app-root (inherited --mobile-frame-max-width) */
-  width: min(100%, var(--mobile-frame-max-width, 430px));
+  width: min(100%, var(--mobile-frame-max-width, 480px));
   max-width: 100%;
   min-width: 0;
   flex: 0 1 auto;
@@ -583,13 +583,13 @@
   padding: 16px;
   background: rgba(0, 0, 0, 0.5);
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
 }
 
 .profile-sub-confirm {
-  width: min(100%, var(--mobile-frame-max-width, 430px));
+  width: min(100%, var(--mobile-frame-max-width, 480px));
   max-width: min(360px, 100%);
   box-sizing: border-box;
   padding: 16px 18px;

@@ -29,7 +29,7 @@
 
 /* Match `.mobile-frame` / `index.css` --mobile-frame-max-width so the sheet sits in the same column as the app (not full browser width on desktop). */
 .mobile-filter-sheet {
-  width: min(100%, var(--mobile-frame-max-width, 430px));
+  width: min(100%, var(--mobile-frame-max-width, 480px));
   max-width: 100%;
   min-width: 0;
   max-height: 92vh;

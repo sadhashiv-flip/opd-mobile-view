@@ -21,9 +21,8 @@ import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { ROUTES, VISION_ROUTE_TYPE, WELLNESS_SESSION_KIND } from "@/constants";
 import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
 import { SupportTicketFeedbackDialog, FEEDBACK_RATINGS } from "@/components/support/SupportTicketFeedbackDialog";
-import { ChangePasswordModal, DeleteAccountModal } from "@/components/profile";
+import { DeleteAccountModal } from "@/components/profile";
 import { postSupportFeedback } from "@/api/patientFeedback";
-import { changePatientPassword } from "@/api/patientPassword";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -62,8 +61,6 @@ function getAccountRoute(id: string): string | null {
       return ROUTES.orders;
     case "bank":
       return ROUTES.profileBank;
-    case "password":
-      return null; // modal
     case "delete":
       return null; // modal
     default:
@@ -130,7 +127,6 @@ export function ServicesHubPage() {
   const toast = useToast();
   const supportSectionRef = useRef<HTMLDivElement | null>(null);
 
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [supportLoading, setSupportLoading] = useState(false);
@@ -481,8 +477,6 @@ export function ServicesHubPage() {
                 const route = getAccountRoute(item.id);
                 if (route) {
                   void navigate(route, { state: { returnPath: `${ROUTES.services}?tab=account` } });
-                } else if (item.id === "password") {
-                  setChangePasswordOpen(true);
                 } else if (item.id === "delete") {
                   setDeleteAccountOpen(true);
                 }
@@ -974,18 +968,6 @@ export function ServicesHubPage() {
 
       <HomeBottomNav />
 
-      <ChangePasswordModal
-        open={changePasswordOpen}
-        onClose={() => setChangePasswordOpen(false)}
-        onSubmit={async ({ oldPassword, newPassword, confirmPassword }) => {
-          await changePatientPassword({
-            current_password: oldPassword,
-            new_password: newPassword,
-            confirmation_password: confirmPassword,
-          });
-          toast.success("Password changed successfully.");
-        }}
-      />
       <DeleteAccountModal
         open={deleteAccountOpen}
         onClose={() => setDeleteAccountOpen(false)}

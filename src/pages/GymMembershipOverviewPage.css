@@ -446,7 +446,7 @@
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  width: min(100%, var(--mobile-frame-max-width, 430px));
+  width: min(100%, var(--mobile-frame-max-width, 480px));
   box-sizing: border-box;
   padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0));
   padding-left: calc(14px + env(safe-area-inset-left, 0px));

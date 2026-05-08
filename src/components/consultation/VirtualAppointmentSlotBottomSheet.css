@@ -3,7 +3,7 @@
  */
 .vas-cvsl-sheet {
   width: 100%;
-  max-width: 420px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   max-height: min(94dvh, 780px);
   display: flex;
   flex-direction: column;

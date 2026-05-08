@@ -29,8 +29,8 @@
   position: relative;
   flex-shrink: 0;
   width: 100%;
-  /* Same phone column as app shell when portaled under body (--mobile-frame-max-width falls back to 430px) */
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  /* Same phone column as app shell when portaled under body (see MobileShell MOBILE_MAX_WIDTH / index.css :root). */
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   min-width: 0;
   margin: 0 auto;
   max-height: min(92vh, 92dvh);

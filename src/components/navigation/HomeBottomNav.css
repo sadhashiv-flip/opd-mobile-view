@@ -30,7 +30,7 @@
   transform: translateX(-50%);
   box-sizing: border-box;
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   padding: 0px;
   /* min-height: calc(
     var(--home-nav-fab-overlap) + var(--home-nav-plate-h) + var(--home-nav-chrome-bottom) +

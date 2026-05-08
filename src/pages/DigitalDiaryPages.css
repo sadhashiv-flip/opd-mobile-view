@@ -8,7 +8,7 @@
   color: #0f172a;
   --dd-orange: #ff5224;
   /* Same phone column as `.mobile-frame` / {@link HomeBottomNav} (see .claims-page / --claims-frame-*) */
-  --dd-frame-w: min(var(--mobile-frame-max-width, 430px), 100vw);
+  --dd-frame-w: min(var(--mobile-frame-max-width, 480px), 100vw);
   --dd-frame-left: calc((100vw - var(--dd-frame-w)) / 2);
 }
 

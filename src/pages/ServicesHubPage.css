@@ -528,7 +528,7 @@
 
 .services-hub__support-sheet {
   width: 100%;
-  max-width: 420px;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   background: #ffffff;
   border-radius: 22px 22px 0 0;
   box-shadow: 0 -24px 48px rgba(0, 0, 0, 0.16);

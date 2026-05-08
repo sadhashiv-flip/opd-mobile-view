@@ -22,7 +22,7 @@
 
 .od-lab-rs-panel {
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   max-height: min(85dvh, 620px);
   display: flex;
   flex-direction: column;

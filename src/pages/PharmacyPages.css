@@ -880,7 +880,7 @@ label.ph-upload-zone {
 /* Panel width: never exceeds phone column or viewport (avoid invalid `var(--ph-max)` outside `.ph-page`). */
 .ph-modal {
   width: 100%;
-  max-width: min(340px, 100%, var(--mobile-frame-max-width, 430px));
+  max-width: min(340px, 100%, var(--mobile-frame-max-width, 480px));
   min-width: 0;
   box-sizing: border-box;
   background: #ffffff;
@@ -1148,7 +1148,7 @@ label.ph-upload-zone {
   display: flex;
   justify-content: center;
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   padding: 12px var(--ph-gutter) calc(12px + env(safe-area-inset-bottom, 0));
   padding-left: max(var(--ph-gutter), env(safe-area-inset-left, 0px));
   padding-right: max(var(--ph-gutter), env(safe-area-inset-right, 0px));
@@ -2536,7 +2536,7 @@ a.ph-footer-btn__inner {
   gap: 10px;
   align-items: stretch;
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 430px), 100%);
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   padding: 12px var(--ph-gutter) calc(12px + env(safe-area-inset-bottom, 0));
   padding-left: max(var(--ph-gutter), env(safe-area-inset-left, 0px));
   padding-right: max(var(--ph-gutter), env(safe-area-inset-right, 0px));

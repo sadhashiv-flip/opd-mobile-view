@@ -3,18 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBankDetails";
 import { fetchAllPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
-import { changePatientPassword } from "@/api/patientPassword";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import {
   fetchPatientProfile,
   resolveProfileImageUrl,
   type ProfileDisplay,
 } from "@/api/patientProfile";
-import {
-  ChangePasswordModal,
-  DeleteAccountModal,
-  ForgotPasswordModal,
-} from "@/components/profile";
+import { DeleteAccountModal } from "@/components/profile";
 import { InfoGrid, type InfoGridItem } from "@/components/profile/page/InfoGrid";
 import { ProfileCard } from "@/components/profile/page/ProfileCard";
 import { ProfileHeader } from "@/components/profile/page/ProfileHeader";
@@ -184,8 +179,6 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
-  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [manageExtras, setManageExtras] = useState({ bank: false, address: false });
   const [manageOpen, setManageOpen] = useState(true);
@@ -354,13 +347,6 @@ export function ProfilePage() {
                     <>
                       <button
                         type="button"
-                        className="profile-page__account-btn"
-                        onClick={() => setChangePasswordOpen(true)}
-                      >
-                        Change password
-                      </button>
-                      <button
-                        type="button"
                         className="profile-page__account-btn profile-page__account-btn--logout"
                         onClick={() => {
                           clearClientStorageOnUnauthorized();
@@ -386,29 +372,6 @@ export function ProfilePage() {
         ) : null}
       </main>
 
-      <ChangePasswordModal
-        open={changePasswordOpen}
-        onClose={() => setChangePasswordOpen(false)}
-        onForgotExternalFlow={() => {
-          setChangePasswordOpen(false);
-          setForgotPasswordOpen(true);
-        }}
-        onSubmit={async ({ oldPassword, newPassword, confirmPassword }) => {
-          await changePatientPassword({
-            current_password: oldPassword,
-            new_password: newPassword,
-            confirmation_password: confirmPassword,
-          });
-        }}
-      />
-      <ForgotPasswordModal
-        open={forgotPasswordOpen}
-        onClose={() => setForgotPasswordOpen(false)}
-        onFlowFinished={() => {
-          toast.success("Password reset successfully.");
-          navigate(ROUTES.dashboard, { replace: true });
-        }}
-      />
       <DeleteAccountModal
         open={deleteAccountOpen}
         onClose={() => setDeleteAccountOpen(false)}
