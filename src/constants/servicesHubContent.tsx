@@ -25,7 +25,6 @@ import accountAddressBookSvg from "@/assets/icons/patient-app/hub/account_manage
 import accountOrdersSvg from "@/assets/icons/patient-app/hub/account_management/oders.svg";
 import accountSetPasswordSvg from "@/assets/icons/patient-app/hub/account_management/set_password.svg";
 import accountDeleteAccountSvg from "@/assets/icons/patient-app/hub/account_management/delete_account.svg";
-import accountInvoicesSvg from "@/assets/icons/patient-app/hub/account_management/invoices.svg";
 
 import hubTabHelpSupportSvg from "@/assets/icons/patient-app/hub/help_and_support/support.svg";
 import helpFaqSvg from "@/assets/icons/patient-app/hub/help_and_support/faq.svg";
@@ -214,12 +213,6 @@ export const ACCOUNT_ITEMS: readonly HubCardItem[] = [
     title: "Delete Account",
     description: "Delete your and family accounts",
     iconSrc: accountDeleteAccountSvg,
-  },
-  {
-    id: "invoices",
-    title: "Invoices",
-    description: "Check your all invoices here",
-    iconSrc: accountInvoicesSvg,
   },
 ];
 

@@ -172,18 +172,18 @@ export type ServiceHubTileGates = Readonly<{
 }>;
 
 const ALL_OPEN: ServiceHubTileGates = {
-  diag: true,
-  consult: true,
-  dental: true,
-  pharm: true,
-  vax: true,
-  vision: true,
-  gym: true,
-  fitness: true,
-  mental: true,
-  nutrition: true,
-  chronic: true,
-  claim: true,
+  diag: false,
+  consult: false,
+  dental: false,
+  pharm: false,
+  vax: false,
+  vision: false,
+  gym: false,
+  fitness: false,
+  mental: false,
+  nutrition: false,
+  chronic: false,
+  claim: false,
 };
 
 export function parseServiceHubTileGates(profileBody: unknown): ServiceHubTileGates {
@@ -217,7 +217,7 @@ export function parseServiceHubTileGates(profileBody: unknown): ServiceHubTileGa
 export function parseShowOpdClaimsHubTab(profileBody: unknown): boolean {
   const profile = extractProfileRecord(profileBody);
   if (!profile) return true;
-  if (!subscriptionGateOk(profile)) return true;
+  if (!subscriptionGateOk(profile)) return false;
 
   const subs = profile.subscription ?? profile.subscriptions;
   if (!Array.isArray(subs)) return true;
@@ -243,13 +243,13 @@ export type PlanDependentGate = Readonly<{
 }>;
 
 const PLAN_DEPENDENTS_OPEN: PlanDependentGate = {
-  dependentAddAllowed: true,
-  dependentEditAllowed: true,
+  dependentAddAllowed: false,
+  dependentEditAllowed: false,
 };
 
 /**
- * First subscription row’s plan controls whether users may add or edit dependents in the app.
- * When a flag is omitted, it stays permissive (backward compatible).
+ * First subscription row's plan controls whether users may add or edit dependents in the app.
+ * Default is restrictive: only explicit true in subscription plan enables these actions.
  */
 export function parsePlanDependentFlags(profileBody: unknown): PlanDependentGate {
   const profile = extractProfileRecord(profileBody);
@@ -263,8 +263,8 @@ export function parsePlanDependentFlags(profileBody: unknown): PlanDependentGate
   const editRaw = plan.dependent_edit ?? plan.dependentEdit;
 
   return {
-    dependentAddAllowed: addRaw === undefined ? true : coerceBool(addRaw),
-    dependentEditAllowed: editRaw === undefined ? true : coerceBool(editRaw),
+    dependentAddAllowed: addRaw === undefined ? false : coerceBool(addRaw),
+    dependentEditAllowed: editRaw === undefined ? false : coerceBool(editRaw),
   };
 }
 

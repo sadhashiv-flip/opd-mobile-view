@@ -257,25 +257,15 @@ export function ProfileSubscriptionsPage() {
 
         {!loading && !error && items.length === 0 ? (
           <div className="profile-sub-empty-wrap">
-            <div className="profile-sub-empty-icon" aria-hidden>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M4 9a4 4 0 118 0 4 4 0 01-8 0zm16 0v11l-4-2.5V15"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <p className="profile-sub-empty__title">No subscriptions yet</p>
+           
+            <p className="profile-sub-empty__title">No active subscription</p>
             <p className="profile-sub-empty__text">
               {isSubscribed
                 ? "No subscription details were returned."
-                : "You do not have an active subscription."}
+                : "You don't have any active subscription right now."}
             </p>
             <p className="profile-sub-empty__hint">
-              After you purchase a plan, details will show here.
+              Purchase or activate a subscription to see plan details and member slots here.
             </p>
           </div>
         ) : null}

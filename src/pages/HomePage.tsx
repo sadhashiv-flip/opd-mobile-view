@@ -1061,7 +1061,7 @@ export function HomePage() {
             </div>
           </Link>
 
-          {!mod.loaded || mod.serviceHub.fitness ? <HealthClubSection /> : null}
+          <HealthClubSection />
         </section>
       </main>
 

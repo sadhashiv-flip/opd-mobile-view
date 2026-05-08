@@ -66,8 +66,6 @@ function getAccountRoute(id: string): string | null {
       return null; // modal
     case "delete":
       return null; // modal
-    case "invoices":
-      return ROUTES.profileSubscriptions; // or specific
     default:
       return null;
   }

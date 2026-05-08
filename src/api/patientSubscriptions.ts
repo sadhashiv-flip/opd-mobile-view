@@ -1,5 +1,6 @@
 import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
-import { patientFetchChecked, patientJson, patientJsonList } from "@/api/patientHttp";
+import { patientFetch, patientFetchChecked, patientJsonList } from "@/api/patientHttp";
+import { readPatientApiError } from "@/api/patientClient";
 
 /** Normalized row for UI; maps common API field names. */
 export type SubscriptionDisplay = Readonly<{
@@ -510,8 +511,31 @@ export function parseActiveSubscriptionsResponse(body: unknown): ActiveSubscript
 
 /** GET `/subscription/plans` — active subscription(s), `patients`, `plan`, `daysLeft`, etc. (not paginated; full dashboard payload). */
 export async function fetchActiveSubscriptions(): Promise<ActiveSubscriptionsResult> {
-  const raw = await patientJson<unknown>("subscription/plans", { method: "GET" });
-  return parseActiveSubscriptionsResponse(raw);
+  const path = "subscription/plans";
+  const res = await patientFetch(path, { method: "GET" });
+  if (!res.ok) {
+    throw new Error(await readPatientApiError(res));
+  }
+
+  // Backend may return 204 for "no active subscriptions" on this endpoint.
+  if (res.status === 204) {
+    return { isSubscribed: false, message: null, items: [] };
+  }
+
+  const text = await res.text();
+  if (!text?.trim()) {
+    return { isSubscribed: false, message: null, items: [] };
+  }
+
+  try {
+    const raw = JSON.parse(text) as unknown;
+    return parseActiveSubscriptionsResponse(raw);
+  } catch {
+    const preview = text.replaceAll(/\s+/g, " ").slice(0, 200);
+    throw new Error(
+      `Invalid JSON (HTTP ${res.status}) for ${path}: ${preview || "(empty after trim)"}`,
+    );
+  }
 }
 
 /**

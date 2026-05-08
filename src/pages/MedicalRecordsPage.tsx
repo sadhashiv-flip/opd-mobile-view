@@ -1,5 +1,7 @@
 import { ConsultationRecordsList } from "@/components/medicalRecords/ConsultationRecordsList";
 import { fetchMedicalHistoryByType } from "@/api/patientMedicalHistory";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import { DIAG_SUB_LAB_TESTS } from "@/lib/subscriptionDashboardModules";
 import {
   MEDICAL_RECORD_CATEGORIES,
   medicalRecordCategoryFromSlug,
@@ -81,12 +83,16 @@ function recordSubtitle(category: MedicalRecordCategoryDef, row: Record<string, 
 export function MedicalRecordsPage() {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
   const navigate = useNavigate();
+  const mod = useProfileModuleGates();
   const category = useMemo(() => medicalRecordCategoryFromSlug(categorySlug), [categorySlug]);
 
   const emptyBookNowPath = useMemo(() => {
     if (!category) return null;
     switch (category.slug) {
       case "lab-tests":
+        if (!mod.loaded) return null;
+        if (!mod.gateOk) return null;
+        if (mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS)) return null;
         return generatePath(ROUTES.diagnosticsType, { type: "lab-tests" });
       case "mental-wellness":
         return generatePath(ROUTES.servicesWellness, { wellnessKind: WELLNESS_SESSION_KIND.mentalWellness });
@@ -95,7 +101,7 @@ export function MedicalRecordsPage() {
       default:
         return null;
     }
-  }, [category]);
+  }, [category, mod.diagnosticsHiddenSubSlugs, mod.gateOk, mod.loaded]);
 
   const [rows, setRows] = useState<readonly Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(false);
