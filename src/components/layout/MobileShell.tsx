@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 
-const MOBILE_MAX_WIDTH = 430;
+const MOBILE_MAX_WIDTH = 480;
 
 type MobileShellProps = Readonly<{
   children: ReactNode;
