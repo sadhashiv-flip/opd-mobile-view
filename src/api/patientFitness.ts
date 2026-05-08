@@ -54,10 +54,21 @@ function asRecord(v: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function coerceTagOrVideoId(v: unknown): string | number | null {
+  if (typeof v === "string" || typeof v === "number") return v;
+  return null;
+}
+
+function coerceOptionalNumOrStr(v: unknown): string | number | undefined {
+  if (v == null) return undefined;
+  if (typeof v === "string" || typeof v === "number") return v;
+  return undefined;
+}
+
 function parseTag(raw: unknown): FitnessTag | null {
   const o = asRecord(raw);
   if (!o) return null;
-  const id = o.id ?? o.tag_id;
+  const id = coerceTagOrVideoId(o.id ?? o.tag_id);
   const name = o.name;
   const imageRaw = o.image;
   const image =
@@ -66,7 +77,7 @@ function parseTag(raw: unknown): FitnessTag | null {
       : imageRaw != null
         ? String(imageRaw)
         : "";
-  if (id == null || typeof name !== "string") return null;
+  if (id === null || typeof name !== "string") return null;
   const favRaw = o.isFavorite ?? o.is_favorite ?? 0;
   const isFavorite =
     favRaw === true || favRaw === 1 || favRaw === "1" ? 1 : 0;
@@ -136,13 +147,13 @@ export async function fetchFitnessVideosForTag(tagId: string): Promise<readonly 
     const repsNum = toOptionalPositiveInt(o.reps);
     const setsNum = toOptionalPositiveInt(o.sets);
     out.push({
-      id: o.id,
+      id: coerceOptionalNumOrStr(o.id),
       name: o.name,
       video: vid,
-      cal: o.cal,
+      cal: coerceOptionalNumOrStr(o.cal),
       reps: repsNum,
       sets: setsNum,
-      time: o.time,
+      time: coerceOptionalNumOrStr(o.time),
       category_id: (() => {
         const n =
           typeof o.category_id === "number" ? o.category_id : Number(o.category_id);

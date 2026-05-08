@@ -3,7 +3,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /** Same window as Flutter `listenFor` (~10s). */
 const LISTEN_DURATION_MS = 10_000;
 
-type SpeechRecognitionCtor = new () => SpeechRecognition;
+/** Minimal Web Speech API surface — mutable props match browser {@link SpeechRecognition}. */
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  lang: string;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionResultLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorLike) => void) | null;
+  onend: (() => void) | null;
+}
+
+type SpeechRecognitionResultLike = Readonly<{
+  results: ArrayLike<{ 0?: { transcript?: string } }>;
+}>;
+
+type SpeechRecognitionErrorLike = Readonly<{ error: string }>;
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof globalThis.window === "undefined") return null;
@@ -18,7 +38,7 @@ export function isSpeechRecognitionSupported(): boolean {
   return getSpeechRecognitionCtor() != null;
 }
 
-export type WebSpeechErrorCode = SpeechRecognitionErrorCode | "not-supported" | "start-failed";
+export type WebSpeechErrorCode = string | "not-supported" | "start-failed";
 
 type UseWebSpeechRecognitionOptions = Readonly<{
   /** Called with accumulated transcript (interim + final), same idea as Flutter `onResult`. */
@@ -40,7 +60,7 @@ export function useWebSpeechRecognition({
   const [supported] = useState(isSpeechRecognitionSupported);
   const [listening, setListening] = useState(false);
 
-  const recRef = useRef<SpeechRecognition | null>(null);
+  const recRef = useRef<SpeechRecognitionLike | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
@@ -88,7 +108,7 @@ export function useWebSpeechRecognition({
       recRef.current = null;
     }
 
-    let recognition: SpeechRecognition;
+    let recognition: SpeechRecognitionLike;
     try {
       recognition = new Ctor();
     } catch {
@@ -102,7 +122,7 @@ export function useWebSpeechRecognition({
     recognition.lang =
       lang ?? (typeof navigator !== "undefined" ? navigator.language : "en-US");
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionResultLike) => {
       if (recRef.current !== recognition) return;
       let text = "";
       for (let i = 0; i < event.results.length; i++) {
@@ -111,7 +131,7 @@ export function useWebSpeechRecognition({
       onTranscriptRef.current(text.trimStart());
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorLike) => {
       if (recRef.current !== recognition) return;
       if (event.error === "aborted") return;
       onError?.(event.error);

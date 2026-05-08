@@ -72,7 +72,7 @@ function HomeSearchResultsBody({
   let lastCategory: string | undefined;
   return (
     <ul className="home-search-overlay__list" role="listbox" aria-label="Search suggestions">
-      {results.map(({ action }, i) => {
+      {results.map(({ action }) => {
         const showCat = action.category !== lastCategory;
         lastCategory = action.category;
         return (

@@ -1304,9 +1304,9 @@ export function OrderDetailsPage() {
     if (!detail || detail.categoryKey !== "lab") return false;
     return detail.labSubOrders.some(
       (row) =>
-        Boolean(row.subOrderCenter.centerName?.trim()) ||
-        Boolean(row.subOrderCenter.centerAddress?.trim()) ||
-        Boolean(row.subOrderCenter.centerPhone?.trim()) ||
+        Boolean(row.subOrderCenter?.centerName?.trim()) ||
+        Boolean(row.subOrderCenter?.centerAddress?.trim()) ||
+        Boolean(row.subOrderCenter?.centerPhone?.trim()) ||
         Boolean(row.subOrderCenterBookingTimeLine) ||
         row.showConfirmSubOrderCenterButton,
     );
@@ -1807,21 +1807,21 @@ export function OrderDetailsPage() {
                               <p className="od-lab-sub-card__requested-text">{row.requestedUpdateDisplay}</p>
                             </div>
                           ) : null}
-                          {(Boolean(row.subOrderCenter.centerName?.trim()) ||
-                            Boolean(row.subOrderCenter.centerAddress?.trim()) ||
-                            Boolean(row.subOrderCenter.centerPhone?.trim()) ||
+                          {(Boolean(row.subOrderCenter?.centerName?.trim()) ||
+                            Boolean(row.subOrderCenter?.centerAddress?.trim()) ||
+                            Boolean(row.subOrderCenter?.centerPhone?.trim()) ||
                             row.subOrderCenterBookingTimeLine ||
                             row.showConfirmSubOrderCenterButton) ? (
                             <div className="od-lab-sub-card__center">
                               <p className="od-lab-sub-card__subhead">Center details</p>
-                              {row.subOrderCenter.centerName ? (
+                              {row.subOrderCenter?.centerName ? (
                                 <p className="od-lab-sub-card__center-name">{row.subOrderCenter.centerName}</p>
                               ) : null}
                               <div className="od-lab-sub-card__center-addr-row">
-                                {row.subOrderCenter.centerAddress ? (
+                                {row.subOrderCenter?.centerAddress ? (
                                   <p className="od-lab-sub-card__center-addr">{row.subOrderCenter.centerAddress}</p>
                                 ) : null}
-                                {row.subOrderCenter.mapsUrl ? (
+                                {row.subOrderCenter?.mapsUrl ? (
                                   <a
                                     className="od-lab-sub-card__dir"
                                     href={row.subOrderCenter.mapsUrl}
@@ -1833,7 +1833,7 @@ export function OrderDetailsPage() {
                                   </a>
                                 ) : null}
                               </div>
-                              {row.subOrderCenter.centerPhone ? (
+                              {row.subOrderCenter?.centerPhone ? (
                                 <p className="od-lab-sub-card__center-phone">
                                   Phone: {row.subOrderCenter.centerPhone}
                                 </p>

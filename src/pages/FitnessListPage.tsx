@@ -114,10 +114,6 @@ export function FitnessListPage() {
     [loadCategories, toast],
   );
 
-  const joinLiveYoga = useCallback(() => {
-    void navigate(ROUTES.dashboard);
-  }, [navigate]);
-
   const headerRight = useMemo(() => {
     if (view === "browse") {
       return (

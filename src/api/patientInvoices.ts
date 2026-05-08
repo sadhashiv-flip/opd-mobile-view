@@ -2409,7 +2409,9 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
       requestedMap != null ? formatLabRequestedUpdateLine(requestedMap, addRec) : null;
     const riderPair = parseLabSubOrderRiderFromRow(rec, status, visitTypeRaw);
     const showConfirmSubOrderCenterButton =
-      status === 3 && pharmacyOrderConfirmCenterUiHasContent(subOrderCenter);
+      status === 3 &&
+      subOrderCenter != null &&
+      pharmacyOrderConfirmCenterUiHasContent(subOrderCenter);
     rows.push({
       id,
       categoryLabel: catRaw.length > 0 ? catRaw : "—",

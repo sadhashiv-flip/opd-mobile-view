@@ -34,9 +34,9 @@ export function ServiceHubCard({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
-      {/* {badge === "new" ? (
+      {badge === "new" ? (
         <span className="service-hub-card__badge">New</span>
-      ) : null} */}
+      ) : null}
       <div className="service-hub-card__icon" aria-hidden="true">
         {icon}
       </div>

@@ -239,13 +239,12 @@ export function DiagnosticsSlotsPage() {
 
   const healthMeta = !isLabTests ? readHealthVendorMeta() : null;
 
+  /** Lab route is always `lab-tests`; health-checkups uses pathology/radiology branch above. */
   const slotHeaderTitle = !isLabTests
     ? healthPhase === "pathology"
       ? "Pathology Slot"
       : "Radiology Slot"
-    : type === "health-checkups"
-      ? HeaderTexts.healthCheckups.title
-      : HeaderTexts.labTests.title;
+    : HeaderTexts.labTests.title;
 
   const pathTabDone =
     healthPhase === "radiology" || (healthPhase === "pathology" && labSelectedPick != null);
