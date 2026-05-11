@@ -6,3 +6,6 @@ dist
 
 api_response.json
 /postman
+
+zip
+package-lock.json
