@@ -244,7 +244,6 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   }, [issueId]);
 
   const canBookNow =
-    purpose.trim().length > 0 &&
     language.length > 0 &&
     patientId != null &&
     slotParsed != null &&
@@ -276,10 +275,10 @@ export function ConsultationVirtualAppointmentOverviewPage() {
         <section className="cao-field">
           <div className="cao-field__label">
             Purpose of consultation
-            <span className="cao-field__req" aria-hidden="true">
+            {/* <span className="cao-field__req" aria-hidden="true">
               {" "}
               *
-            </span>
+            </span> */}
           </div>
           <textarea
             className="cao-textarea"
@@ -289,7 +288,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
             placeholder="Briefly describe why you need this consultation"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
-            aria-label="Purpose of consultation (required)"
+            aria-label="Purpose of consultation "
             required
           />
         </section>

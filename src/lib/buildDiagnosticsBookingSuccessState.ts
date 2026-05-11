@@ -1,5 +1,6 @@
 import type { BookingSuccessLocationState } from "@/constants/bookingSuccessNavigation";
 import type { NormalizedBookingOverview } from "@/api/patientDiagnosticsLab";
+import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
 
 const DEFAULT_SUB =
   "your request is successfully submitted,\nour executive will contact you shortly.";
@@ -26,9 +27,9 @@ export function buildDiagnosticsBookingSuccessState(args: {
   const serviceNames =
     args.overview != null && args.overview.items.length > 0
       ? args.overview.items
-          .map((i) => i.name)
-          .filter((n) => n.trim().length > 0)
-          .join(" / ")
+        .map((i) => i.name)
+        .filter((n) => n.trim().length > 0)
+        .join(" / ")
       : "—";
   const bookedFor = args.overview?.bookedForName?.trim() || "—";
   const tag = (args.locationTag ?? "Home").trim() || "Home";
@@ -50,5 +51,6 @@ export function buildDiagnosticsBookingSuccessState(args: {
     orderDetailCategoryKey: "lab",
     /** `GET /invoice/:invoiceId` — document invoice id for `/order/lab/:invoiceId`, not partner `info.id`. */
     orderDetailInvoiceId: invoiceDocId || undefined,
+    viewOrderDetailPath: invoiceDocId ? pathToOrderDetail("lab", invoiceDocId) : undefined,
   };
 }

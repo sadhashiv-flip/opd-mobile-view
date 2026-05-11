@@ -7,10 +7,16 @@ import {
   writeGymSelectedPersonIds,
 } from "@/constants/gymSelectedMemberStorage";
 import { fetchAllPatientMembers } from "@/api/patientMember";
+import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
 import {
   defaultGymMemberSelection,
+  HC_PERSON_ADD_CTA_TOOLTIP,
+  HC_PERSON_ADD_GYM_MAX_TOOLTIP,
+  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
+  memberShowsSubscriptionActivateCta,
   MEMBER_NOT_ACTIVATED_LABEL,
   patientMembersToGymRows,
   type GymMemberListRow,
@@ -61,9 +67,12 @@ export function GymMembershipSelectPeoplePage() {
     setFetchError(null);
     void (async () => {
       try {
-        const list = await fetchAllPatientMembers();
+        const [list, canAct] = await Promise.all([
+          fetchAllPatientMembers(),
+          fetchAnySubscriptionCanActivate(),
+        ]);
         if (!cancelled) {
-          setRows(patientMembersToGymRows(list));
+          setRows(patientMembersToGymRows(list, { subscriptionCanActivate: canAct }));
         }
       } catch (e) {
         if (!cancelled) {
@@ -146,6 +155,12 @@ export function GymMembershipSelectPeoplePage() {
     });
   };
 
+  const goProfileSubscriptions = () => {
+    void navigate(ROUTES.profileSubscriptions, {
+      state: { returnPath: `${location.pathname}${location.search}` },
+    });
+  };
+
   function MultiSelectCheckbox({ memberId }: Readonly<{ memberId: string }>) {
     const on = selectedIds.includes(memberId);
     return (
@@ -186,10 +201,21 @@ export function GymMembershipSelectPeoplePage() {
       );
     }
 
+    if (memberShowsSubscriptionActivateCta(member)) {
+      return <SubscriptionActivateCtaButton onClick={goProfileSubscriptions} />;
+    }
+
     return (
       <span
         className={`hc-person__cta${inactive || atMax ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
+        title={
+          inactive
+            ? HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP
+            : atMax
+              ? HC_PERSON_ADD_GYM_MAX_TOOLTIP
+              : HC_PERSON_ADD_CTA_TOOLTIP
+        }
       >
         {inactive ? MEMBER_NOT_ACTIVATED_LABEL : "Add"}
       </span>
@@ -239,8 +265,11 @@ export function GymMembershipSelectPeoplePage() {
                 setLoading(true);
                 void (async () => {
                   try {
-                    const list = await fetchAllPatientMembers();
-                    setRows(patientMembersToGymRows(list));
+                    const [list, canAct] = await Promise.all([
+                      fetchAllPatientMembers(),
+                      fetchAnySubscriptionCanActivate(),
+                    ]);
+                    setRows(patientMembersToGymRows(list, { subscriptionCanActivate: canAct }));
                   } catch (e) {
                     const msg = e instanceof Error ? e.message : "Could not load members";
                     setFetchError(msg);
@@ -283,36 +312,46 @@ export function GymMembershipSelectPeoplePage() {
               ) : null}
 
               {selfMembers.map((member) => {
-                const rowDisabled = !member.isSubscribed;
+                const canSubActivate = memberShowsSubscriptionActivateCta(member);
+                const inactive = !member.isSubscribed;
+                const rowDisabled = inactive;
+                const showInactiveTag = inactive && !canSubActivate;
+                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                const body = (
+                  <>
+                    <MultiSelectCheckbox memberId={member.id} />
+                    <span className="hc-person__avatar" aria-hidden="true">
+                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
+                    </span>
+                    <span className="hc-person__info">
+                      <span className="hc-person__name">{member.name}</span>
+                      {showInactiveTag ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
+                      <span className="hc-person__sub">{member.subtitle}</span>
+                    </span>
+                    {renderTrailing(member)}
+                  </>
+                );
+                if (canSubActivate) {
+                  return (
+                    <div key={member.id} className={rowClass}>
+                      {body}
+                    </div>
+                  );
+                }
                 return (
-                <button
-                  key={member.id}
-                  type="button"
-                  disabled={rowDisabled}
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
-                  aria-pressed={selectedIds.includes(member.id)}
-                  onClick={() => toggleMember(member.id)}
-                >
-                  <MultiSelectCheckbox memberId={member.id} />
-                  <span className="hc-person__avatar" aria-hidden="true">
-                    <img
-                      src={profileSvg}
-                      alt=""
-                      width={22}
-                      height={22}
-                      draggable={false}
-                    />
-                  </span>
-                  <span className="hc-person__info">
-                    <span className="hc-person__name">{member.name}</span>
-                    {rowDisabled ? (
-                      <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                    ) : null}
-                    <span className="hc-person__sub">{member.subtitle}</span>
-                  </span>
-                  {renderTrailing(member)}
-                </button>
-              );
+                  <button
+                    key={member.id}
+                    type="button"
+                    disabled={rowDisabled}
+                    className={rowClass}
+                    aria-pressed={selectedIds.includes(member.id)}
+                    onClick={() => toggleMember(member.id)}
+                  >
+                    {body}
+                  </button>
+                );
               })}
             </section>
 
@@ -329,40 +368,50 @@ export function GymMembershipSelectPeoplePage() {
               ) : null}
 
               {familyMembersList.map((member) => {
-                const rowDisabled = !member.isSubscribed;
-                return (
-                <button
-                  key={member.id}
-                  type="button"
-                  disabled={rowDisabled}
-                  className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
-                  aria-pressed={selectedIds.includes(member.id)}
-                  onClick={() => toggleMember(member.id)}
-                >
-                  <MultiSelectCheckbox memberId={member.id} />
-                  <span className="hc-person__avatar" aria-hidden="true">
-                    <img
-                      src={profileSvg}
-                      alt=""
-                      width={22}
-                      height={22}
-                      draggable={false}
-                    />
-                  </span>
-                  <span className="hc-person__info">
-                    <span className="hc-person__name">{member.name}</span>
-                    {rowDisabled ? (
-                      <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                    ) : null}
-                    <span
-                      className={`hc-person__sub${member.section === "family" ? " hc-person__sub--muted" : ""}`}
-                    >
-                      {member.subtitle}
+                const canSubActivate = memberShowsSubscriptionActivateCta(member);
+                const inactive = !member.isSubscribed;
+                const rowDisabled = inactive;
+                const showInactiveTag = inactive && !canSubActivate;
+                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                const body = (
+                  <>
+                    <MultiSelectCheckbox memberId={member.id} />
+                    <span className="hc-person__avatar" aria-hidden="true">
+                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
                     </span>
-                  </span>
-                  {renderTrailing(member)}
-                </button>
-              );
+                    <span className="hc-person__info">
+                      <span className="hc-person__name">{member.name}</span>
+                      {showInactiveTag ? (
+                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      ) : null}
+                      <span
+                        className={`hc-person__sub${member.section === "family" ? " hc-person__sub--muted" : ""}`}
+                      >
+                        {member.subtitle}
+                      </span>
+                    </span>
+                    {renderTrailing(member)}
+                  </>
+                );
+                if (canSubActivate) {
+                  return (
+                    <div key={member.id} className={rowClass}>
+                      {body}
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    disabled={rowDisabled}
+                    className={rowClass}
+                    aria-pressed={selectedIds.includes(member.id)}
+                    onClick={() => toggleMember(member.id)}
+                  >
+                    {body}
+                  </button>
+                );
               })}
 
               {canAddFamily ? (

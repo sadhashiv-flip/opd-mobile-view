@@ -2,6 +2,7 @@ import { PharmacyOrderingMemberSheet } from "@/components/pharmacy/PharmacyOrder
 import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddressBar";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { fetchAllPatientMembers } from "@/api/patientMember";
+import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import {
   readSelectedAddress,
@@ -145,8 +146,11 @@ export function PharmacyDeliveryPage() {
           setFlow(synced);
         }
         try {
-          const list = await fetchAllPatientMembers();
-          if (!cancelled) setMembers(patientMembersToGymRows(list));
+          const [list, canAct] = await Promise.all([
+            fetchAllPatientMembers(),
+            fetchAnySubscriptionCanActivate(),
+          ]);
+          if (!cancelled) setMembers(patientMembersToGymRows(list, { subscriptionCanActivate: canAct }));
         } catch {
           if (!cancelled) setMembers([]);
         } finally {
@@ -157,9 +161,12 @@ export function PharmacyDeliveryPage() {
 
       setLoadingMembers(true);
       try {
-        const list = await fetchAllPatientMembers();
+        const [list, canAct] = await Promise.all([
+          fetchAllPatientMembers(),
+          fetchAnySubscriptionCanActivate(),
+        ]);
         if (cancelled) return;
-        const rows = patientMembersToGymRows(list);
+        const rows = patientMembersToGymRows(list, { subscriptionCanActivate: canAct });
         setMembers(rows);
         const self = rows.find((r) => r.section === "self") ?? rows[0];
         if (!self || self.userId == null) {

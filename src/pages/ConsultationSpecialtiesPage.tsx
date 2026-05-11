@@ -69,6 +69,7 @@ export function ConsultationSpecialtiesPage() {
   const cspLocAddrRaw = useSelectedAddressLine("");
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
   const [virtualSearchQuery, setVirtualSearchQuery] = useState("");
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
   const filteredHospitalSpecs = useMemo(() => {
     const q = hospitalSearchQuery.trim().toLowerCase();
@@ -81,6 +82,12 @@ export function ConsultationSpecialtiesPage() {
     if (!q) return virtualIssues;
     return virtualIssues.filter((i) => i.title.toLowerCase().includes(q));
   }, [virtualIssues, virtualSearchQuery]);
+
+  useEffect(() => {
+    if (selectedIssueId && !filteredVirtualIssues.some(i => String(i.id) === selectedIssueId)) {
+      setSelectedIssueId(null);
+    }
+  }, [filteredVirtualIssues, selectedIssueId]);
 
   useEffect(() => {
     if (!isHospital) return;
@@ -352,11 +359,11 @@ export function ConsultationSpecialtiesPage() {
                       <div className="csp-item__meta">{s.consultation_time} min</div>
                     ) : null}
                   </div>
-                  {typeof s.consultation_price === "number" ? (
+                  {/* {typeof s.consultation_price === "number" ? (
                     <span className="csp-item__price-pill">
                       ₹{s.consultation_price.toLocaleString("en-IN")}
                     </span>
-                  ) : null}
+                  ) : null} */}
                   <span className="csp-item__chev" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                       <path
@@ -409,38 +416,8 @@ export function ConsultationSpecialtiesPage() {
               <li key={issue.id} className="csp-virtual-grid__cell">
                 <button
                   type="button"
-                  className="csp-virtual-tile"
-                  onClick={() => {
-                    clearVirtualFollowUpAppointmentId();
-                    let langRaw = "";
-                    try {
-                      langRaw = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY)?.trim() ?? "";
-                    } catch {
-                      langRaw = "";
-                    }
-                    const resolvedLang =
-                      langRaw && isConsultationLanguageValue(langRaw) ? langRaw : "English";
-                    const slotState: VirtualSpecialtySlotsState = {
-                      parent: issue.parent,
-                      issueTitle: issue.title,
-                      spid: issue.parent,
-                      language: resolvedLang,
-                    };
-                    try {
-                      sessionStorage.setItem(
-                        `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
-                        JSON.stringify(slotState),
-                      );
-                    } catch {
-                      // ignore
-                    }
-                    navigate(
-                      generatePath(ROUTES.consultationVirtualSlots, {
-                        issueId: String(issue.id),
-                      }),
-                      { state: slotState },
-                    );
-                  }}
+                  className={`csp-virtual-tile${selectedIssueId === String(issue.id) ? ' csp-virtual-tile--selected' : ''}`}
+                  onClick={() => setSelectedIssueId(String(issue.id))}
               >
                 <div className="csp-virtual-tile__media" aria-hidden="true">
                   {imgUrl ? (
@@ -581,7 +558,7 @@ export function ConsultationSpecialtiesPage() {
         </div>
       )}
 
-      <main className="csp-main">
+      <main className={`csp-main${isHospital ? "" : " csp-main--virtual"}`}>
         {topArea}
 
         {isHospital ? (
@@ -618,6 +595,52 @@ export function ConsultationSpecialtiesPage() {
           {isHospital ? hospitalSpecialtiesBody : virtualSpecialtiesBody}
         </div>
       </main>
+
+      {!isHospital && (
+        <footer className="csp-vrtl-ft">
+          <button
+            type="button"
+            className="csp-vrtl-ft__btn"
+            disabled={!selectedIssueId}
+            onClick={() => {
+              if (!selectedIssueId) return;
+              const issue = filteredVirtualIssues.find(i => String(i.id) === selectedIssueId);
+              if (!issue) return;
+              clearVirtualFollowUpAppointmentId();
+              let langRaw = "";
+              try {
+                langRaw = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY)?.trim() ?? "";
+              } catch {
+                langRaw = "";
+              }
+              const resolvedLang =
+                langRaw && isConsultationLanguageValue(langRaw) ? langRaw : "English";
+              const slotState: VirtualSpecialtySlotsState = {
+                parent: issue.parent,
+                issueTitle: issue.title,
+                spid: issue.parent,
+                language: resolvedLang,
+              };
+              try {
+                sessionStorage.setItem(
+                  `${VIRTUAL_SLOTS_STORAGE}${issue.id}`,
+                  JSON.stringify(slotState),
+                );
+              } catch {
+                // ignore
+              }
+              navigate(
+                generatePath(ROUTES.consultationVirtualSlots, {
+                  issueId: String(issue.id),
+                }),
+                { state: slotState },
+              );
+            }}
+          >
+            Continue
+          </button>
+        </footer>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   type GymSubscriptionRow,
 } from "@/api/patientGymSubscription";
 import { fetchAllPatientMembers } from "@/api/patientMember";
+import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { ROUTES } from "@/constants";
 import {
   clearGymFlowV2Draft,
@@ -78,7 +79,9 @@ export function GymMembershipContactPage() {
       try {
         const [pkgs, members] = await Promise.all([
           fetchGymPackages(),
-          fetchAllPatientMembers().then(patientMembersToGymRows),
+          Promise.all([fetchAllPatientMembers(), fetchAnySubscriptionCanActivate()]).then(([list, canAct]) =>
+            patientMembersToGymRows(list, { subscriptionCanActivate: canAct }),
+          ),
         ]);
         if (cancelled) return;
         setPackagesRows([...pkgs]);

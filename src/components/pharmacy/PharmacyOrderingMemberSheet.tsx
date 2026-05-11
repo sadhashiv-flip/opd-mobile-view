@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants";
+import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
 import {
   defaultGymMemberSelection,
+  HC_PERSON_ADD_CTA_DISABLED_TOOLTIP,
+  HC_PERSON_ADD_CTA_TOOLTIP,
+  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
+  memberShowsSubscriptionActivateCta,
   MEMBER_NOT_ACTIVATED_LABEL,
   type GymMemberListRow,
 } from "@/lib/gymMemberDisplay";
@@ -73,6 +78,12 @@ export function PharmacyOrderingMemberSheet({
     setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
   };
 
+  const goProfileSubscriptions = () => {
+    void navigate(ROUTES.profileSubscriptions, {
+      state: { returnPath: `${location.pathname}${location.search}` },
+    });
+  };
+
   const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
     const isSelected = selectedIds.includes(member.id);
     if (isSelected) {
@@ -82,11 +93,21 @@ export function PharmacyOrderingMemberSheet({
         </span>
       );
     }
+    if (memberShowsSubscriptionActivateCta(member)) {
+      return <SubscriptionActivateCtaButton onClick={goProfileSubscriptions} />;
+    }
     const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
+    const addTitle =
+      member.isSubscribed && !rowDisabled
+        ? HC_PERSON_ADD_CTA_TOOLTIP
+        : member.isSubscribed && rowDisabled
+          ? HC_PERSON_ADD_CTA_DISABLED_TOOLTIP
+          : undefined;
     return (
       <span
         className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
+        title={ctaLabel === "Add" ? addTitle : HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP}
       >
         {ctaLabel}
       </span>
@@ -154,56 +175,88 @@ export function PharmacyOrderingMemberSheet({
               <section className="hc-block">
                 <h2 className="hc-block__title">For you</h2>
                 {selfMembers.map((member) => {
-                  const rowDisabled = !member.isSubscribed;
+                  const canSubActivate = memberShowsSubscriptionActivateCta(member);
+                  const notActivated = !member.isSubscribed;
+                  const rowDisabled = notActivated;
+                  const showInactiveTag = notActivated && !canSubActivate;
+                  const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                  const body = (
+                    <>
+                      <span className="hc-person__avatar" aria-hidden="true">
+                        <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
+                      </span>
+                      <span className="hc-person__info">
+                        <span className="hc-person__name">{member.name}</span>
+                        {showInactiveTag ? (
+                          <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                        ) : null}
+                        <span className="hc-person__sub">{member.subtitle}</span>
+                      </span>
+                      {renderTrailing(member, rowDisabled)}
+                    </>
+                  );
+                  if (canSubActivate) {
+                    return (
+                      <div key={member.id} className={rowClass}>
+                        {body}
+                      </div>
+                    );
+                  }
                   return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    disabled={rowDisabled}
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
-                    onClick={() => toggleMember(member.id)}
-                  >
-                    <span className="hc-person__avatar" aria-hidden="true">
-                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                    </span>
-                    <span className="hc-person__info">
-                      <span className="hc-person__name">{member.name}</span>
-                      {rowDisabled ? (
-                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                      ) : null}
-                      <span className="hc-person__sub">{member.subtitle}</span>
-                    </span>
-                    {renderTrailing(member, rowDisabled)}
-                  </button>
-                );
+                    <button
+                      key={member.id}
+                      type="button"
+                      disabled={rowDisabled}
+                      className={rowClass}
+                      onClick={() => toggleMember(member.id)}
+                    >
+                      {body}
+                    </button>
+                  );
                 })}
               </section>
 
               <section className="hc-block">
                 <h2 className="hc-block__title">For your family</h2>
                 {familyMembersList.map((member) => {
-                  const rowDisabled = !member.isSubscribed;
+                  const canSubActivate = memberShowsSubscriptionActivateCta(member);
+                  const notActivated = !member.isSubscribed;
+                  const rowDisabled = notActivated;
+                  const showInactiveTag = notActivated && !canSubActivate;
+                  const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                  const body = (
+                    <>
+                      <span className="hc-person__avatar" aria-hidden="true">
+                        <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
+                      </span>
+                      <span className="hc-person__info">
+                        <span className="hc-person__name">{member.name}</span>
+                        {showInactiveTag ? (
+                          <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                        ) : null}
+                        <span className="hc-person__sub">{member.subtitle}</span>
+                      </span>
+                      {renderTrailing(member, rowDisabled)}
+                    </>
+                  );
+                  if (canSubActivate) {
+                    return (
+                      <div key={member.id} className={rowClass}>
+                        {body}
+                      </div>
+                    );
+                  }
                   return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    disabled={rowDisabled}
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
-                    onClick={() => toggleMember(member.id)}
-                  >
-                    <span className="hc-person__avatar" aria-hidden="true">
-                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                    </span>
-                    <span className="hc-person__info">
-                      <span className="hc-person__name">{member.name}</span>
-                      {rowDisabled ? (
-                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                      ) : null}
-                      <span className="hc-person__sub">{member.subtitle}</span>
-                    </span>
-                    {renderTrailing(member, rowDisabled)}
-                  </button>
-                );
+                    <button
+                      key={member.id}
+                      type="button"
+                      disabled={rowDisabled}
+                      className={rowClass}
+                      onClick={() => toggleMember(member.id)}
+                    >
+                      {body}
+                    </button>
+                  );
                 })}
 
                 {canAddFamily ? (

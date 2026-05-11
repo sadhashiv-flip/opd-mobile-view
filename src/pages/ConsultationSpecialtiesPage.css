@@ -183,6 +183,10 @@ button.csp-back {
   padding: 0 14px 14px;
 }
 
+.csp-main--virtual {
+  padding-bottom: 96px;
+}
+
 .csp-search {
   margin: 0 0 12px;
   border: 1px solid #e5e5e5;
@@ -386,8 +390,8 @@ button.csp-back {
   margin: 0;
   padding: 0;
   border-top: 1px solid #efefef;
-  height: 300px;
-  max-height: 300px;
+  height: 450px;
+  max-height: 450px;
   overflow-y: auto;
   /* Keep scroll inside the list; avoids fighting the page scroll (feels “slow”). */
   overscroll-behavior: contain;
@@ -589,6 +593,13 @@ button.csp-back {
   background: rgba(255, 82, 36, 0.06);
 }
 
+.csp-virtual-tile--selected {
+  border-color: #ff541e;
+  border-width: 2px;
+  background: rgba(255, 84, 30, 0.08);
+  box-shadow: 0 0 0 1px rgba(255, 84, 30, 0.2);
+}
+
 .csp-virtual-tile:focus-visible {
   outline: 2px solid rgba(255, 82, 36, 0.45);
   outline-offset: 2px;
@@ -649,10 +660,18 @@ button.csp-back {
 }
 
 .csp-vrtl-ft {
-  margin-top: auto;
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 25;
+  width: 100%;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
+  box-sizing: border-box;
   padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
   background: #ffffff;
   border-top: 1px solid #ececec;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .csp-vrtl-ft__btn {
@@ -663,7 +682,7 @@ button.csp-back {
   font-weight: 800;
   font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   color: #ffffff;
-  background: linear-gradient(90deg, #ff541e 0%, #ff7a45 100%);
+  background: #000000;
   cursor: pointer;
 }
 

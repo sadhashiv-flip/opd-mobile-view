@@ -211,6 +211,23 @@
   background: #f8fdf7;
 }
 
+.hc-person--subscription-activate {
+  cursor: default;
+  border-color: #c4c4c4;
+  background: #fafafa;
+}
+
+.hc-person__cta--activate {
+  border-color: #ff541e;
+  color: #ff541e;
+  background: #ffffff;
+}
+
+.hc-person__cta--activate:focus-visible {
+  outline: 2px solid rgba(255, 84, 30, 0.45);
+  outline-offset: 2px;
+}
+
 .hc-person--disabled {
   opacity: 0.48;
   cursor: not-allowed;

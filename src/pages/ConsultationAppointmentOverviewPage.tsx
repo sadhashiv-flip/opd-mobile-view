@@ -174,7 +174,7 @@ export function ConsultationAppointmentOverviewPage() {
           ? `${doctorName.trim()} · ${networkName.trim()}`
           : doctorName.trim() || networkName.trim();
       const locationLines = [head, `${tag}\n${addr.displayLine}`].filter((s) => s.trim().length > 0).join("\n");
-      navigate(ROUTES.bookingSuccess, {
+      navigate(ROUTES.consultationHospitalBookingSuccess, {
         replace: true,
         state: buildInlineConsultationBookingSuccessState({
           infoOrderId: infoId,

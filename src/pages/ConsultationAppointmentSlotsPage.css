@@ -72,6 +72,33 @@
   line-height: 1.45;
 }
 
+.cas-disc {
+  margin-top: 14px;
+  border: 1px solid #ededed;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.cas-disc__head {
+  padding: 10px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ededed;
+  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+}
+
+.cas-disc__list {
+  margin: 0;
+  padding: 12px 12px 12px 10px;
+  color: #6f6f6f;
+  font-size: max(7px, calc(9 * 100cqw / 375));
+  font-weight: 500;
+  line-height: 1.60;
+}
+
 .cas-network-note {
   margin-bottom: 8px;
   font-size: 10px;

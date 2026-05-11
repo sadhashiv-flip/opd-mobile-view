@@ -3,6 +3,7 @@ import type {
   BookingSuccessLocationState,
   BookingSuccessSummaryRow,
 } from "@/constants/bookingSuccessNavigation";
+import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
 
 const GYM_SUCCESS_NEXT_STEPS =
   "Activation is typically within 72 hours. Track status in My Orders.";
@@ -76,6 +77,7 @@ export function buildLabBookingSuccessFromInvoice(detail: InvoiceDetailModel): B
     ],
     orderDetailCategoryKey: "lab",
     orderDetailInvoiceId: routeId || undefined,
+    viewOrderDetailPath: routeId ? pathToOrderDetail("lab", routeId) : undefined,
   };
 }
 
@@ -141,6 +143,10 @@ export function buildInlineConsultationBookingSuccessState(args: {
     ],
     orderDetailCategoryKey: "consultation",
     orderDetailInvoiceId: args.invoiceIdForOrderDetail?.trim() || undefined,
+    viewOrderDetailPath:
+      args.invoiceIdForOrderDetail?.trim()
+        ? pathToOrderDetail("consultation", args.invoiceIdForOrderDetail.trim())
+        : undefined,
   };
 }
 
@@ -164,6 +170,7 @@ export function buildConsultationBookingSuccessFromInvoice(
     ],
     orderDetailCategoryKey: "consultation",
     orderDetailInvoiceId: inv || undefined,
+    viewOrderDetailPath: inv ? pathToOrderDetail("consultation", inv) : undefined,
   };
 }
 
@@ -187,6 +194,7 @@ export function buildGymBookingSuccessFromInvoice(detail: InvoiceDetailModel): B
     summaryRows: rows,
     orderDetailCategoryKey: "gym",
     orderDetailInvoiceId: inv || undefined,
+    viewOrderDetailPath: inv ? pathToOrderDetail("gym", inv) : undefined,
   };
 }
 

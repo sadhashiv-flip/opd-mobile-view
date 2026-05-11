@@ -9,6 +9,7 @@ import {
   type GymSubscriptionRow,
 } from "@/api/patientGymSubscription";
 import { fetchAllPatientMembers } from "@/api/patientMember";
+import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { ROUTES } from "@/constants";
 import {
   writeGymFlowV2Draft,
@@ -83,7 +84,9 @@ export function GymMembershipPage() {
     try {
       const [pkgs, members] = await Promise.all([
         fetchGymPackages(),
-        fetchAllPatientMembers().then(patientMembersToGymRows),
+        Promise.all([fetchAllPatientMembers(), fetchAnySubscriptionCanActivate()]).then(([list, canAct]) =>
+          patientMembersToGymRows(list, { subscriptionCanActivate: canAct }),
+        ),
       ]);
       setPackagesRows([...pkgs]);
       setFamilyRows(members);

@@ -18,10 +18,16 @@ import { VIRTUAL_CONSULT_LANGUAGE_KEY } from "@/constants/virtualConsultationSes
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { fetchAllPatientMembers } from "@/api/patientMember";
+import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
 import {
   defaultGymMemberSelection,
+  HC_PERSON_ADD_CTA_DISABLED_TOOLTIP,
+  HC_PERSON_ADD_CTA_TOOLTIP,
+  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
+  memberShowsSubscriptionActivateCta,
   MEMBER_NOT_ACTIVATED_LABEL,
   patientMembersToGymRows,
   type GymMemberListRow,
@@ -137,8 +143,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   }, [rows, isHealthCheckupsDiagnostics, filterAhcDashboardEntry]);
 
   const loadMembers = async () => {
-    const list = await fetchAllPatientMembers();
-    setRows(patientMembersToGymRows(list));
+    const [list, canAct] = await Promise.all([
+      fetchAllPatientMembers(),
+      fetchAnySubscriptionCanActivate(),
+    ]);
+    setRows(patientMembersToGymRows(list, { subscriptionCanActivate: canAct }));
   };
 
   useEffect(() => {
@@ -147,8 +156,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     setFetchError(null);
     const run = async () => {
       try {
-        const list = await fetchAllPatientMembers();
-        if (!cancelled) setRows(patientMembersToGymRows(list));
+        const [list, canAct] = await Promise.all([
+          fetchAllPatientMembers(),
+          fetchAnySubscriptionCanActivate(),
+        ]);
+        if (!cancelled) setRows(patientMembersToGymRows(list, { subscriptionCanActivate: canAct }));
       } catch (e) {
         if (!cancelled) {
           setRows([]);
@@ -183,7 +195,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         const r = rows.find((x) => x.id === id);
         return Boolean(r?.isSubscribed) && selectionBasisRows.some((s) => s.id === id);
       });
-      if (next.length === 0 && !isHealthCheckupsDiagnostics) {
+      const consultationAtHospitalNoAutoPick =
+        flow === "consultation" && type === "at_hospital";
+      if (next.length === 0 && !isHealthCheckupsDiagnostics && !consultationAtHospitalNoAutoPick) {
         next = defaultGymMemberSelection(selectionBasisRows);
       }
       if (Number.isFinite(maxSelectable) && next.length > maxSelectable) {
@@ -191,7 +205,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       }
       return next;
     });
-  }, [selectionBasisRows, maxSelectable, isHealthCheckupsDiagnostics, rows]);
+  }, [selectionBasisRows, maxSelectable, isHealthCheckupsDiagnostics, rows, flow, type]);
 
   const selfMembers = useMemo(
     () => selectionBasisRows.filter((m) => m.section === "self"),
@@ -231,6 +245,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     });
   };
 
+  const goProfileSubscriptions = () => {
+    void navigate(ROUTES.profileSubscriptions, {
+      state: { returnPath: `${location.pathname}${location.search}` },
+    });
+  };
+
   const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
     const isSelected = selectedIds.includes(member.id);
     if (isSelected) {
@@ -240,11 +260,21 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         </span>
       );
     }
+    if (memberShowsSubscriptionActivateCta(member)) {
+      return <SubscriptionActivateCtaButton onClick={goProfileSubscriptions} />;
+    }
     const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
+    const addTitle =
+      member.isSubscribed && !rowDisabled
+        ? HC_PERSON_ADD_CTA_TOOLTIP
+        : member.isSubscribed && rowDisabled
+          ? HC_PERSON_ADD_CTA_DISABLED_TOOLTIP
+          : undefined;
     return (
       <span
         className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
+        title={ctaLabel === "Add" ? addTitle : HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP}
       >
         {ctaLabel}
       </span>
@@ -476,25 +506,22 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             <section className="hc-block">
               <h2 className="hc-block__title">For you</h2>
               {selfMembers.map((member) => {
+                const canSubActivate = memberShowsSubscriptionActivateCta(member);
                 const notActivated = !member.isSubscribed;
                 const rowDisabled =
                   notActivated ||
                   (isHealthCheckupsDiagnostics &&
                     healthCheckupsMemberPickDisabled(member, selectedIds, rows));
-                return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    disabled={rowDisabled}
-                    className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
-                    onClick={() => toggleMember(member.id)}
-                  >
+                const showInactiveTag = notActivated && !canSubActivate;
+                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                const body = (
+                  <>
                     <span className="hc-person__avatar" aria-hidden="true">
                       <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
-                      {notActivated ? (
+                      {showInactiveTag ? (
                         <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
                       ) : null}
                       {isHealthCheckupsDiagnostics && member.ahcAvailable ? (
@@ -503,6 +530,24 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                       <span className="hc-person__sub">{member.subtitle}</span>
                     </span>
                     {renderTrailing(member, rowDisabled)}
+                  </>
+                );
+                if (canSubActivate) {
+                  return (
+                    <div key={member.id} className={rowClass}>
+                      {body}
+                    </div>
+                  );
+                }
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    disabled={rowDisabled}
+                    className={rowClass}
+                    onClick={() => toggleMember(member.id)}
+                  >
+                    {body}
                   </button>
                 );
               })}
@@ -513,25 +558,22 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                 <>
                   <h2 className="hc-block__title">For your family</h2>
                   {familyMembersList.map((member) => {
+                    const canSubActivate = memberShowsSubscriptionActivateCta(member);
                     const notActivated = !member.isSubscribed;
                     const rowDisabled =
                       notActivated ||
                       (isHealthCheckupsDiagnostics &&
                         healthCheckupsMemberPickDisabled(member, selectedIds, rows));
-                    return (
-                      <button
-                        key={member.id}
-                        type="button"
-                        disabled={rowDisabled}
-                        className={`hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled ? " hc-person--disabled" : ""}`}
-                        onClick={() => toggleMember(member.id)}
-                      >
+                    const showInactiveTag = notActivated && !canSubActivate;
+                    const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                    const body = (
+                      <>
                         <span className="hc-person__avatar" aria-hidden="true">
                           <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
                         </span>
                         <span className="hc-person__info">
                           <span className="hc-person__name">{member.name}</span>
-                          {notActivated ? (
+                          {showInactiveTag ? (
                             <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
                           ) : null}
                           {isHealthCheckupsDiagnostics && member.ahcAvailable ? (
@@ -540,6 +582,24 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
                           <span className="hc-person__sub">{member.subtitle}</span>
                         </span>
                         {renderTrailing(member, rowDisabled)}
+                      </>
+                    );
+                    if (canSubActivate) {
+                      return (
+                        <div key={member.id} className={rowClass}>
+                          {body}
+                        </div>
+                      );
+                    }
+                    return (
+                      <button
+                        key={member.id}
+                        type="button"
+                        disabled={rowDisabled}
+                        className={rowClass}
+                        onClick={() => toggleMember(member.id)}
+                      >
+                        {body}
                       </button>
                     );
                   })}

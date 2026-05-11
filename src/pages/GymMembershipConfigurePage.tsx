@@ -7,6 +7,7 @@ import {
 } from "@/api/patientGym";
 import { verifyGymPayment } from "@/api/patientGymPayment";
 import { fetchAllPatientMembers } from "@/api/patientMember";
+import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { ROUTES } from "@/constants";
 import { readGymCheckSnapshot, writeGymCheckSnapshot } from "@/constants/gymCheckStorage";
 import {
@@ -73,6 +74,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     email: "abhinay@email.com",
     ahcAvailable: false,
     isSubscribed: true,
+    subscriptionCanActivate: false,
   },
   {
     id: "family-1",
@@ -84,6 +86,7 @@ const SEED_MEMBERS: readonly GymMemberListRow[] = [
     email: "xxxxxxx@email.com",
     ahcAvailable: false,
     isSubscribed: true,
+    subscriptionCanActivate: false,
   },
 ];
 
@@ -130,6 +133,7 @@ function loadMembers(): GymMemberListRow[] {
               email: "xxxxxxx@email.com",
               ahcAvailable: false,
               isSubscribed: true,
+              subscriptionCanActivate: false,
             });
           }
         }
@@ -508,10 +512,10 @@ export function GymMembershipConfigurePage() {
   useEffect(() => {
     let cancelled = false;
     setApiMembersReady(false);
-    void fetchAllPatientMembers()
-      .then((list) => {
+    void Promise.all([fetchAllPatientMembers(), fetchAnySubscriptionCanActivate()])
+      .then(([list, canAct]) => {
         if (!cancelled) {
-          setApiMemberRows(patientMembersToGymRows(list));
+          setApiMemberRows(patientMembersToGymRows(list, { subscriptionCanActivate: canAct }));
         }
       })
       .catch(() => {

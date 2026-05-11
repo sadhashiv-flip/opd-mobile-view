@@ -1,6 +1,7 @@
 import { ROUTES } from "@/constants";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
 import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { HC_PERSON_ADD_CTA_TOOLTIP } from "@/lib/gymMemberDisplay";
 import { Link, generatePath, useLocation, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
@@ -132,7 +133,7 @@ export function HealthCheckupsPage() {
     }
 
     return (
-      <span className="hc-person__cta" aria-hidden="true">
+      <span className="hc-person__cta" aria-hidden="true" title={HC_PERSON_ADD_CTA_TOOLTIP}>
         Add
       </span>
     );

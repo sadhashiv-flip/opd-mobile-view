@@ -509,6 +509,16 @@ export function parseActiveSubscriptionsResponse(body: unknown): ActiveSubscript
   };
 }
 
+/** True when any active plan allows assigning members to open slots (`canActivate`). */
+export async function fetchAnySubscriptionCanActivate(): Promise<boolean> {
+  try {
+    const { items } = await fetchActiveSubscriptions();
+    return items.some((i) => i.canActivate);
+  } catch {
+    return false;
+  }
+}
+
 /** GET `/subscription/plans` — active subscription(s), `patients`, `plan`, `daysLeft`, etc. (not paginated; full dashboard payload). */
 export async function fetchActiveSubscriptions(): Promise<ActiveSubscriptionsResult> {
   const path = "subscription/plans";
