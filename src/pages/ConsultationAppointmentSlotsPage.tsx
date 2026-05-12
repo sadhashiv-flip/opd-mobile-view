@@ -166,8 +166,7 @@ export function ConsultationAppointmentSlotsPage() {
             </svg>
           </span>
           <p className="cas-alert__txt">
-            Flip Health will call and try to schedule an appointment with the doctor on the selected date
-            and time slot.
+            Check the slots available for the next day if your preferred date is unavailable.
           </p>
         </div>
 

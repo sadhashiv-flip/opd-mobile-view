@@ -21,7 +21,7 @@ import { useSupportTicketInactiveFeedback } from "@/hooks/useSupportTicketInacti
 import { useToast } from "@/hooks/useToast";
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import "./SupportTicketChatPage.css";
 
 function newSupportAttachmentId(): string {
@@ -63,8 +63,13 @@ function buildDisplayMessages(detail: SupportTicketDetail | null): SupportTicket
   return [];
 }
 
+interface SupportTicketChatPageLocationState {
+  ticketFeedback?: Record<string, unknown> | null;
+}
+
 export function SupportTicketChatPage() {
   const { ticketId = "" } = useParams<{ ticketId: string }>();
+  const location = useLocation();
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -77,6 +82,9 @@ export function SupportTicketChatPage() {
 
   const backTo = ROUTES.servicesHelpTab;
   const toast = useToast();
+
+  const locationState = location.state as SupportTicketChatPageLocationState | null;
+  const locationFeedback = locationState?.ticketFeedback ?? null;
 
   const load = useCallback(async () => {
     if (!ticketId) return;
@@ -107,6 +115,21 @@ export function SupportTicketChatPage() {
     }
   }, [ticketId, toast]);
 
+  const mergedDetail = useMemo(() => {
+    if (!detail) return null;
+    if (supportTicketHasFeedback(detail.ticket.feedback)) return detail;
+    if (locationFeedback && supportTicketHasFeedback(locationFeedback)) {
+      return {
+        ...detail,
+        ticket: {
+          ...detail.ticket,
+          feedback: locationFeedback,
+        },
+      };
+    }
+    return detail;
+  }, [detail, locationFeedback]);
+
   const {
     isInactive,
     needsSupportFeedback,
@@ -118,20 +141,25 @@ export function SupportTicketChatPage() {
     setFeedbackDescription,
     feedbackBusy,
     submitFeedback,
-  } = useSupportTicketInactiveFeedback(ticketId, detail, load, toast);
+  } = useSupportTicketInactiveFeedback(ticketId, mergedDetail, load, toast);
 
   const displayMessages = useMemo(() => buildDisplayMessages(detail), [detail]);
 
   const [viewFeedbackOpen, setViewFeedbackOpen] = useState(false);
 
   const submittedFeedbackDisplay = useMemo(
-    () => (detail ? parseSupportTicketFeedbackDisplay(detail.ticket.feedback) : { rating: null, description: null }),
-    [detail],
+    () => (mergedDetail ? parseSupportTicketFeedbackDisplay(mergedDetail.ticket.feedback) : { rating: null, description: null }),
+    [mergedDetail],
   );
 
   const canViewSubmittedFeedback = Boolean(
-    detail && isInactive && supportTicketHasFeedback(detail.ticket.feedback) && !needsSupportFeedback,
+    mergedDetail && isInactive && supportTicketHasFeedback(mergedDetail.ticket.feedback) && !needsSupportFeedback,
   );
+
+  // If feedback exists, show it in the dialog instead of separate view
+  const existingFeedback = canViewSubmittedFeedback
+    ? parseSupportTicketFeedbackDisplay(mergedDetail!.ticket.feedback)
+    : null;
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -282,7 +310,7 @@ export function SupportTicketChatPage() {
       <SupportTicketChatInactiveFooter
         loading={loading}
         loadError={loadError}
-        detail={detail}
+        detail={mergedDetail}
         isInactive={isInactive}
         needsSupportFeedback={needsSupportFeedback}
         feedbackOpen={feedbackOpen}
@@ -299,7 +327,7 @@ export function SupportTicketChatPage() {
       />
 
       <SupportTicketFeedbackDialog
-        open={Boolean(feedbackOpen && detail)}
+        open={Boolean(feedbackOpen && mergedDetail)}
         ticketIdHint={ticketId}
         feedbackRating={feedbackRating}
         feedbackDescription={feedbackDescription}
@@ -310,6 +338,7 @@ export function SupportTicketChatPage() {
         onSubmit={() => {
           submitFeedback().catch(() => {});
         }}
+        existingFeedback={existingFeedback}
       />
     </div>
   );

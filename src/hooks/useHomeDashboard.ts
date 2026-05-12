@@ -23,7 +23,10 @@ const EMPTY: PatientDashboardHomeModel = {
   jmToken: null,
 };
 
-export type UseHomeDashboardResult = PatientDashboardHomeModel;
+export type UseHomeDashboardResult = PatientDashboardHomeModel & {
+  /** True until the initial parallel dashboard + banners fetch settles (matches Flutter `isLoadingDashboard` gating). */
+  loading: boolean;
+};
 
 /**
  * Loads `GET /patient/dashboard` and `GET /patient/banners` on mount (in parallel).
@@ -31,6 +34,7 @@ export type UseHomeDashboardResult = PatientDashboardHomeModel;
  */
 export function useHomeDashboard(): UseHomeDashboardResult {
   const [model, setModel] = useState<PatientDashboardHomeModel>(EMPTY);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +50,7 @@ export function useHomeDashboard(): UseHomeDashboardResult {
         const apiBanners = split?.promoBanners ?? [];
         const ahcBanners = split?.ahcBanners ?? [];
         setModel({ ...base, apiBanners, ahcBanners });
+        setLoading(false);
       },
     );
     return () => {
@@ -53,5 +58,5 @@ export function useHomeDashboard(): UseHomeDashboardResult {
     };
   }, []);
 
-  return model;
+  return { ...model, loading };
 }

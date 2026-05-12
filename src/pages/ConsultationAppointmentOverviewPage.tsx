@@ -356,7 +356,7 @@ export function ConsultationAppointmentOverviewPage() {
               The Fees and Timings are tentative and may subject to change at the time of consultation
             </li>
             <li>
-              Registration fee charged by Clinic or Hospital are not covered under OPD insurance and has to be borne by the insured
+              Registration fee charged by Clinic or Hospital are not covered under OPD Service/Wallet and has to be borne by the user
             </li>
             </ol>
           </div>

@@ -2,6 +2,30 @@
  * Bottom nav: 56px FAB; plate `aspect-ratio: 430/76` + SVG `meet` keeps the notch circular.
  * Notch is an SVG mask cutout (not even-odd + feDropShadow). Spacer tracks `--home-nav-plate-h`.
  */
+/* Wraps spacer + fixed bar so both hide together when {@link HomeBottomNav} `visible` is false. */
+.home-nav-shell {
+  flex-shrink: 0;
+}
+
+.home-nav-shell--hidden .home-nav-spacer {
+  height: 0 !important;
+  transition: height 220ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.home-nav-shell:not(.home-nav-shell--hidden) .home-nav-spacer {
+  transition: height 220ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.home-nav-shell--hidden .home-nav__plate {
+  transform: translateY(calc(100% + 24px));
+  transition: transform 220ms cubic-bezier(0.4, 0, 1, 1);
+  pointer-events: none;
+}
+
+.home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate {
+  transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
+}
+
 :root {
   --home-nav-fab-size: 56px;
   /* ~55% of FAB above the bar (reference) */
@@ -49,6 +73,7 @@
   width: 100%;
   aspect-ratio: 430 / 76;
   flex-shrink: 0;
+  transform: translateY(0);
 }
 
 .home-nav__shape {
@@ -181,6 +206,13 @@
 @media (prefers-reduced-motion: reduce) {
   .home-nav__fab,
   .home-nav__fab--active {
+    transition: none;
+  }
+
+  .home-nav-shell--hidden .home-nav-spacer,
+  .home-nav-shell:not(.home-nav-shell--hidden) .home-nav-spacer,
+  .home-nav-shell--hidden .home-nav__plate,
+  .home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate {
     transition: none;
   }
 }

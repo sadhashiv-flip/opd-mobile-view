@@ -587,6 +587,7 @@ export function ServicesHubPage() {
                           onClick={() =>
                             void navigate(
                               generatePath(ROUTES.servicesSupportTicketChat, { ticketId: ticket.id }),
+                              { state: { ticketFeedback: ticket.feedback } },
                             )
                           }
                         >

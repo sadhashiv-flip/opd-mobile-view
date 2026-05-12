@@ -118,6 +118,8 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
   const labTestsMulti = isLabTestsDiagnosticsFlow(flow, type);
   const isHealthCheckupsDiagnostics = flow === "diagnostics" && type === "health-checkups";
+  const isConsultationAtHospital = flow === "consultation" && type === "at_hospital";
+  const requiresAddressSelection = isHealthCheckupsDiagnostics || isConsultationAtHospital;
   /** Lab tests and health checkups allow multiple members (health keeps sponsored / non-sponsored exclusion). */
   const diagnosticsMultiMember = labTestsMulti || isHealthCheckupsDiagnostics;
 
@@ -216,8 +218,13 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     [selectionBasisRows],
   );
 
+  const hasAddress = hcLocAddrRaw.trim() !== "";
   const canContinue =
-    selectedIds.length > 0 && !loading && !fetchError && selectionBasisRows.length > 0;
+    selectedIds.length > 0 &&
+    !loading &&
+    !fetchError &&
+    selectionBasisRows.length > 0 &&
+    (!requiresAddressSelection || hasAddress);
 
   const toggleMember = (memberId: string) => {
     setSelectedIds((prev) => {
@@ -396,12 +403,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       </header>
 
       <main className="hc-main">
-        {isHealthCheckupsDiagnostics ? (
+        {requiresAddressSelection ? (
           <div className="hc-loc-wrap">
             <button
               type="button"
               className="hc-select-loc"
-              aria-label={hcLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+              aria-label={hcLocAddrRaw.trim() ? "Choose address" : isConsultationAtHospital ? "Select hospital location" : "Add delivery address"}
               onClick={() => setAddrSheetOpen(true)}
             >
               <span className="hc-select-loc__pin" aria-hidden="true">
@@ -628,14 +635,18 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       </main>
 
       <footer className="hc-footer">
-        <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
-          {diagnosticsMultiMember && selectedIds.length > 0
-            ? `Continue (${selectedIds.length})`
-            : "Continue"}
+        <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue} title={requiresAddressSelection && !hasAddress ? isConsultationAtHospital ? "Please select a hospital location" : "Please add a delivery address" : ""}>
+          {requiresAddressSelection && !hasAddress ? (
+            isConsultationAtHospital ? "Select hospital location to continue" : "Add address to continue"
+          ) : diagnosticsMultiMember && selectedIds.length > 0 ? (
+            `Continue (${selectedIds.length})`
+          ) : (
+            "Continue"
+          )}
         </button>
       </footer>
 
-      {isHealthCheckupsDiagnostics ? (
+      {requiresAddressSelection ? (
         <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
       ) : null}
 

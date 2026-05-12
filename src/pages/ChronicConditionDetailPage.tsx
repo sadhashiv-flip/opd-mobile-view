@@ -580,16 +580,34 @@ export function ChronicConditionDetailPage() {
         <div className="chronic-modal">
           <button
             type="button"
-            className="chronic-modal__backdrop"
+            className="chronic-modal__backdrop chronic-modal__backdrop--soft"
             aria-label="Close"
             onClick={() => setNutritionModalOpen(false)}
           />
-          <dialog className="chronic-modal__sheet" open aria-modal="true">
-            <h3>Nutrition Plan</h3>
-            <div className="chronic-feature-grid chronic-feature-grid--single">
-              {nutritionPlanImages.map((src) => (
-                <img key={src} src={src} alt="Nutrition plan" />
-              ))}
+          <dialog
+            className="chronic-modal__sheet chronic-modal__sheet--bottom chronic-nutrition-sheet"
+            open
+            aria-modal="true"
+            aria-labelledby="chronic-nutrition-sheet-title"
+          >
+            <span className="chronic-sheet-handle" aria-hidden />
+            <div className="chronic-nutrition-sheet__header">
+              <h3 id="chronic-nutrition-sheet-title">Nutrition Plan</h3>
+              <button
+                type="button"
+                className="chronic-nutrition-sheet__close"
+                aria-label="Close nutrition plan"
+                onClick={() => setNutritionModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="chronic-nutrition-sheet__scroll">
+              <div className="chronic-feature-grid chronic-feature-grid--single">
+                {nutritionPlanImages.map((src) => (
+                  <img key={src} src={src} alt="" loading="lazy" />
+                ))}
+              </div>
             </div>
           </dialog>
         </div>
@@ -599,29 +617,47 @@ export function ChronicConditionDetailPage() {
         <div className="chronic-modal">
           <button
             type="button"
-            className="chronic-modal__backdrop"
+            className="chronic-modal__backdrop chronic-modal__backdrop--soft"
             aria-label="Close"
             onClick={() => setDietGuideModalOpen(false)}
           />
-          <dialog className="chronic-modal__sheet" open aria-modal="true">
-            <h3>Dietary Guide</h3>
-            <div className="chronic-diet-guide">
-              {validConditionId === "Diabetes" ? (
-                CHRONIC_DIABETES_DIET_GUIDE.map((guide) => (
-                  <article key={guide.title} className="chronic-diet-guide__section">
-                    <h4>{guide.title}</h4>
-                    <ul>
-                      {guide.details.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  </article>
-                ))
-              ) : (
-                <p className="chronic-muted">
-                  Dietary guide is available for Diabetes in this release.
-                </p>
-              )}
+          <dialog
+            className="chronic-modal__sheet chronic-modal__sheet--bottom chronic-diet-sheet"
+            open
+            aria-modal="true"
+            aria-labelledby="chronic-diet-sheet-title"
+          >
+            <span className="chronic-sheet-handle" aria-hidden />
+            <div className="chronic-diet-sheet__header">
+              <h3 id="chronic-diet-sheet-title">Dietary Guide</h3>
+              <button
+                type="button"
+                className="chronic-diet-sheet__close"
+                aria-label="Close dietary guide"
+                onClick={() => setDietGuideModalOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="chronic-diet-sheet__scroll">
+              <div className="chronic-diet-guide">
+                {validConditionId === "Diabetes" ? (
+                  CHRONIC_DIABETES_DIET_GUIDE.map((guide) => (
+                    <article key={guide.title} className="chronic-diet-guide__section">
+                      <h4>{guide.title}</h4>
+                      <ul>
+                        {guide.details.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))
+                ) : (
+                  <p className="chronic-muted">
+                    Dietary guide is available for Diabetes in this release.
+                  </p>
+                )}
+              </div>
             </div>
           </dialog>
         </div>

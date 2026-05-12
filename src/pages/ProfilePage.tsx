@@ -4,11 +4,7 @@ import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBan
 import { fetchAllPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
-import {
-  fetchPatientProfile,
-  resolveProfileImageUrl,
-  type ProfileDisplay,
-} from "@/api/patientProfile";
+import { fetchPatientProfile, type ProfileDisplay } from "@/api/patientProfile";
 import { DeleteAccountModal } from "@/components/profile";
 import { InfoGrid, type InfoGridItem } from "@/components/profile/page/InfoGrid";
 import { ProfileCard } from "@/components/profile/page/ProfileCard";
@@ -220,7 +216,6 @@ export function ProfilePage() {
     void load();
   }, [load]);
 
-  const imageUrl = profile ? resolveProfileImageUrl(profile.image) : null;
   const bankSaved = manageExtras.bank;
   const addressSaved = manageExtras.address;
 
@@ -318,7 +313,7 @@ export function ProfilePage() {
           <>
             <ProfileHeader
               name={profile.name}
-              imageUrl={imageUrl}
+              profileImage={profile.image}
               initials={initialsFromName(profile.name)}
               email={profile.email}
               subline={subline}

@@ -138,19 +138,20 @@
 
 .hc-person {
   width: 100%;
-  border: 1px solid #8e8e8e;
+  border: 1px solid #d9d9d9;
   background: #ffffff;
   border-radius: 12px;
-  padding: 10px 10px;
+  padding: 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
   text-align: left;
+  transition: all 200ms ease-in-out;
 }
 
 .hc-person:focus-visible {
-  outline: 2px solid rgba(255, 84, 30, 0.6);
+  outline: 2px solid rgba(255, 82, 36, 0.6);
   outline-offset: 2px;
 }
 
@@ -159,10 +160,10 @@
 }
 
 .hc-person__avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: #f3f3f3;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f5f5f5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -182,13 +183,14 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .hc-person__name {
-  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: clamp(13px, calc(14 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 500;
+  line-height: 1.22;
+  letter-spacing: -0.1px;
   color: #111111;
   white-space: nowrap;
   overflow: hidden;
@@ -196,45 +198,49 @@
 }
 
 .hc-person__sub {
-  font-size: max(7px, calc(9 * 100cqw / 375));
-  font-weight: 700;
-  color: #2e7d32;
+  font-size: max(10px, calc(11 * 100cqw / 375));
+  font-weight: 500;
+  color: #555555;
 }
 
 .hc-person__sub--muted {
   color: #9c9c9c;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .hc-person--selected {
-  border-color: #1aad0d;
-  background: #f8fdf7;
+  border-color: #ff5224;
+  border-width: 1.5px;
+  background: rgba(255, 82, 36, 0.04);
 }
 
 .hc-person--subscription-activate {
   cursor: default;
-  border-color: #c4c4c4;
-  background: #fafafa;
+  border-color: #d9d9d9;
+  background: #ffffff;
 }
 
 .hc-person__cta--activate {
-  border-color: #ff541e;
-  color: #ff541e;
+  border: none;
+  color: #ff5224;
   background: #ffffff;
 }
 
 .hc-person__cta--activate:focus-visible {
-  outline: 2px solid rgba(255, 84, 30, 0.45);
+  outline: 2px solid rgba(255, 82, 36, 0.45);
   outline-offset: 2px;
 }
 
 .hc-person--disabled {
-  opacity: 0.48;
+  opacity: 0.55;
   cursor: not-allowed;
+  background: #eef2f3;
+  border-color: #eeeeee;
 }
 
 .hc-person--disabled.hc-person--selected {
-  opacity: 1;
+  opacity: 0.55;
+  background: #eef2f3;
 }
 
 .hc-person__tag {

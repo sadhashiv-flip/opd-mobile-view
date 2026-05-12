@@ -5,7 +5,7 @@
   background: #ffffff;
   color: #111111;
   /* Same tile size for every tab: Services, OPD Claims, Account, Help, Medical Records */
-  --service-hub-card-width: 118px;
+  --service-hub-card-width: 130px;
   --service-hub-card-height: 115px;
   --service-hub-card-radius: 10px;
   --service-hub-card-pad: 8px;
@@ -56,7 +56,7 @@
   align-items: center;
   gap: 4px;
   min-width: 64px;
-  max-width: 88px;
+  max-width: 100px;
   padding: 6px 6px 10px;
   border: none;
   border-bottom: 2px solid transparent;
@@ -193,7 +193,7 @@
 .service-hub-card__icon {
   display: flex;
   flex-shrink: 0;
-  margin-bottom: 30px;
+  margin-bottom: 0px;
   color: #111111;
 }
 

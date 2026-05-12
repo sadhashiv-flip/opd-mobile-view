@@ -1,5 +1,5 @@
-import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
-import { patientJsonList } from "@/api/patientHttp";
+import { fetchAllListPages, type ListPaginationOpts, DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
+import { patientJson, patientJsonList } from "@/api/patientHttp";
 
 /** Row from GET `/specialties` (backend uses `specialities` in JSON). */
 export type HospitalSpeciality = Readonly<{
@@ -62,11 +62,29 @@ function extractSpecialitiesList(body: unknown): unknown[] {
 /** GET `/specialties?page=&limit=` — in-clinic consultation specialties. */
 export async function fetchHospitalSpecialities(
   pagination?: ListPaginationOpts,
+  searchQuery?: string | null,
 ): Promise<HospitalSpeciality[]> {
-  const raw = await patientJsonList<unknown>("specialties", { method: "GET" }, pagination);
-  return extractSpecialitiesList(raw)
-    .map(normalizeHospitalSpeciality)
-    .filter((x): x is HospitalSpeciality => x !== null);
+  const q = searchQuery?.trim();
+  if (q) {
+    // When searching, construct query string manually
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? DEFAULT_LIST_PAGE_SIZE;
+    const qs = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      search: `name:${q}`,
+    });
+    const raw = await patientJson<unknown>(`specialties?${qs.toString()}`);
+    return extractSpecialitiesList(raw)
+      .map(normalizeHospitalSpeciality)
+      .filter((x): x is HospitalSpeciality => x !== null);
+  } else {
+    // When not searching, use the standard paginated list
+    const raw = await patientJsonList<unknown>("specialties", { method: "GET" }, pagination);
+    return extractSpecialitiesList(raw)
+      .map(normalizeHospitalSpeciality)
+      .filter((x): x is HospitalSpeciality => x !== null);
+  }
 }
 
 /** Loads every page until a short or empty response. */

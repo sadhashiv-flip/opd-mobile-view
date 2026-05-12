@@ -1,0 +1,43 @@
+.service-hub-card__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 0;
+}
+
+.service-hub-card__action {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: #111111;
+  pointer-events: none;
+}
+
+.service-hub-card__action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.service-hub-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: #dfdfdf
+}
+
+.service-hub-card__icon > img,
+.service-hub-card__icon > svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}

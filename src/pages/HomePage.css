@@ -230,6 +230,124 @@
   border-radius: 16px;
 }
 
+/* ── Pinned ongoing (patient-app `DashboardMainScreen` overlay) ───────────────── */
+.home-ongoing-float {
+  position: fixed;
+  z-index: 35;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 32px), calc(var(--mobile-frame-max-width, 480px) - 32px));
+  max-width: min(calc(100vw - 32px), calc(var(--mobile-frame-max-width, 480px) - 32px));
+  box-sizing: border-box;
+  padding: 12px 14px 10px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.06);
+  pointer-events: auto;
+}
+
+.home-ongoing-float__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.home-ongoing-float__header .home-ongoing-section__title {
+  margin: 0;
+}
+
+.home-ongoing-float__viewport {
+  min-height: 100px;
+}
+
+.home-ongoing-float__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-ongoing-float__sk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-ongoing-float__sk-pill {
+  display: block;
+  height: 12px;
+  width: 110px;
+  border-radius: 6px;
+  background: #f0f0f0;
+}
+
+.home-ongoing-float__sk-pill--sm {
+  width: 48px;
+}
+
+.home-ongoing-float__sk-card {
+  height: 88px;
+  width: 100%;
+  border-radius: 12px;
+  background: #f4f4f4;
+}
+
+.home-ongoing-float__dots-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.home-ongoing-float__dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.home-ongoing-float__dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-brand-orange) 18%, #e8e8e8);
+  cursor: pointer;
+}
+
+.home-ongoing-float__dot--active {
+  width: 14px;
+  background: var(--color-brand-orange);
+}
+
+.home-ongoing-float__more {
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), 13px);
+  font-weight: 700;
+  color: #0b69ff;
+  cursor: pointer;
+}
+
+.home-page__main--ongoing-float-gap {
+  /* Clear the fixed card + dots + safe gap while scrolling */
+  padding-bottom: min(240px, 42vh);
+}
+
 .home-ongoing-section__header {
   display: flex;
   flex-wrap: wrap;
@@ -991,130 +1109,94 @@
   margin: 8px 0;
 }
 
-/* `GET /patient/dashboard` → `ahc: true` (Flutter `showAhcDashboardCard`) */
-.home-ahc-card {
-  display: block;
-  width: 100%;
+/* Patient-app `DashboardHomeScreen._DashboardPromoCard` row (AHC when `ahc` + gym). */
+.home-promo-row {
   margin: 0 0 12px;
-  padding: 0;
-  overflow: hidden;
-  text-align: left;
-  border: 1px solid rgba(255, 82, 36, 0.4);
-  border-radius: 16px;
-  background: #0f172a;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-  cursor: pointer;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.home-ahc-card:active {
+.home-promo-row__inner {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: clamp(6px, 2cqw, 10px);
+}
+
+.home-promo-card {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: clamp(9px, 2.6cqw, 12px) clamp(10px, 3cqw, 14px) clamp(8px, 2.4cqw, 11px);
+  text-align: left;
+  font: inherit;
+  color: #111111;
+  cursor: pointer;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-orange) 25%, #e8e8e8);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-brand-orange) 12%, #ffffff) 0%,
+    color-mix(in srgb, var(--color-brand-orange) 4%, #ffffff) 100%
+  );
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.home-promo-card:active {
+  opacity: 0.92;
   transform: scale(0.99);
 }
 
-/* Image(s) behind copy; text sits above via stacking */
-.home-ahc-card__stack {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  min-height: clamp(88px, 22vw, 112px);
-  border-radius: inherit;
-  overflow: hidden;
-}
-
-.home-ahc-card__bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-.home-ahc-card__banner-scroll {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.home-ahc-card__banner-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.home-ahc-card__banner-slide {
-  position: relative;
-  flex: 0 0 100%;
-  min-width: 100%;
-  height: 100%;
-  min-height: 100%;
-  scroll-snap-align: start;
-  box-sizing: border-box;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: #1e293b;
-}
-
-.home-ahc-card__banner-slide--fallback {
-  width: 100%;
-}
-
-.home-ahc-card__scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(15, 23, 42, 0.08) 0%,
-    rgba(15, 23, 42, 0.35) 42%,
-    rgba(15, 23, 42, 0.82) 100%
-  );
-}
-
-.home-ahc-card__content {
-  position: relative;
-  z-index: 2;
+.home-promo-card__top {
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px 13px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: clamp(5px, 1.6cqw, 8px);
 }
 
-.home-ahc-card__copy {
-  flex: 1;
-  min-width: 0;
-}
-
-.home-ahc-card__title {
-  margin: 0 0 3px;
-  font-size: 15px;
-  font-weight: 700;
-  color: #ffffff;
-  line-height: 1.2;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-
-.home-ahc-card__subtitle {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-}
-
-.home-ahc-card__chev {
-  flex-shrink: 0;
+.home-promo-card__icon-wrap {
   display: flex;
-  color: #ffffff;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  align-items: center;
+  justify-content: center;
+  width: clamp(26px, 7.5cqw, 30px);
+  height: clamp(26px, 7.5cqw, 30px);
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-brand-orange) 12%, #ffffff);
+  color: var(--color-brand-orange);
+}
+
+.home-promo-card__icon-svg {
+  display: block;
+}
+
+.home-promo-card__chev {
+  display: flex;
+  color: var(--color-brand-orange);
+  flex-shrink: 0;
+  margin-top: -2px;
+}
+
+.home-promo-card__title {
+  margin: 0 0 2px;
+  font-size: clamp(11.5px, calc(12.5 * 100cqw / 375), 13px);
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-promo-card__subtitle {
+  margin: 0;
+  font-size: clamp(9.5px, calc(10.5 * 100cqw / 375), 11px);
+  line-height: 1.25;
+  color: #616161;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Figma: radius 15px, hairline #6C6C6C, shadow 2 / 2 / 4 @ 10% black */

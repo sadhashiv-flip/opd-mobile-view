@@ -1,9 +1,11 @@
-import type { BmiCategory } from "@/api/patientProfile";
+import { useEffect, useState } from "react";
+import { resolveProfileImageUrl, type BmiCategory } from "@/api/patientProfile";
 import { bmiToneClass } from "./profilePageUtils";
 
 type ProfileHeaderProps = Readonly<{
   name: string;
-  imageUrl: string | null;
+  /** Raw `profile.image` from API; resolved inside this component. */
+  profileImage: string | null;
   initials: string;
   email: string | null;
   subline: string | null;
@@ -37,7 +39,7 @@ function IconGear() {
 
 export function ProfileHeader({
   name,
-  imageUrl,
+  profileImage,
   initials,
   email,
   subline,
@@ -48,17 +50,26 @@ export function ProfileHeader({
   onOpenSettings,
 }: ProfileHeaderProps) {
   const bmiClass = bmiToneClass(bmiCategory);
+  const resolvedAvatarUrl = resolveProfileImageUrl(profileImage);
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [profileImage]);
+
+  const showAvatarImage = resolvedAvatarUrl != null && !imageFailed;
 
   return (
     <header className="profile-page__hero-compact" aria-labelledby="profile-name">
       <div className="profile-page__hero-compact-main">
         <div className="profile-page__avatar-wrap profile-page__avatar-wrap--sm">
-          {imageUrl ? (
+          {showAvatarImage ? (
             <img
               className="profile-page__avatar profile-page__avatar--sm"
-              src={imageUrl}
+              src={resolvedAvatarUrl}
               alt={name}
               decoding="async"
+              onError={() => setImageFailed(true)}
             />
           ) : (
             <div

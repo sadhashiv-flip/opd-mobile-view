@@ -17,6 +17,8 @@ export type SupportTicketFeedbackDialogProps = Readonly<{
   onDescriptionChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   onClose: () => void;
   onSubmit: () => void;
+  /** Pre-existing feedback data to display (read-only mode) */
+  existingFeedback?: { rating: number | null; description: string | null } | null;
 }>;
 
 export function SupportTicketFeedbackDialog({
@@ -29,11 +31,16 @@ export function SupportTicketFeedbackDialog({
   onDescriptionChange,
   onClose,
   onSubmit,
+  existingFeedback,
 }: SupportTicketFeedbackDialogProps) {
   if (!open) return null;
 
+  const isReadOnly = Boolean(existingFeedback);
+  const displayRating = existingFeedback?.rating ?? feedbackRating;
+  const displayDescription = existingFeedback?.description ?? feedbackDescription;
+
   const summaryLabel =
-    feedbackRating > 0 && feedbackRating <= 5 ? FEEDBACK_RATING_LABELS[feedbackRating] : "";
+    displayRating > 0 && displayRating <= 5 ? FEEDBACK_RATING_LABELS[displayRating] : "";
 
   return (
     <dialog className="support-chat__feedback-dialog" open aria-labelledby="support-feedback-title">
@@ -56,10 +63,15 @@ export function SupportTicketFeedbackDialog({
             {ticketIdHint}
           </p>
         ) : null}
-        <p className="support-chat__feedback-lead">How was your experience with this ticket? Both a star rating and a short note are required.</p>
+        <p className="support-chat__feedback-lead">
+          {isReadOnly
+            ? "Your feedback for this ticket:"
+            : "How was your experience with this ticket? Both a star rating and a short note are required."
+          }
+        </p>
         <div className="support-chat__feedback-field">
           <span className="support-chat__feedback-section-label" id="support-feedback-rating-label">
-            Tap a star to rate
+            {isReadOnly ? "Rating" : "Tap a star to rate"}
           </span>
           <div className="support-chat__stars feedback-stars" role="radiogroup" aria-labelledby="support-feedback-rating-label">
             {FEEDBACK_RATINGS.map((n) => (
@@ -67,43 +79,57 @@ export function SupportTicketFeedbackDialog({
                 key={n}
                 type="button"
                 role="radio"
-                className={`support-chat__star${feedbackRating >= n ? " support-chat__star--on" : ""}`}
-                onClick={() => onRatingChange(n)}
-                disabled={feedbackBusy}
+                className={`support-chat__star${displayRating >= n ? " support-chat__star--on" : ""}`}
+                disabled={feedbackBusy || isReadOnly}
                 aria-label={`${n} out of 5 stars`}
-                aria-checked={feedbackRating === n}
+                aria-checked={displayRating === n}
+                onClick={isReadOnly ? undefined : () => onRatingChange(n)}
               >
                 ★
               </button>
             ))}
           </div>
-          {feedbackRating > 0 ? (
+          {displayRating > 0 ? (
             <p className="support-chat__feedback-selected-summary" aria-live="polite">
-              <strong>{feedbackRating}</strong> of 5 · {summaryLabel}
+              <strong>{displayRating}</strong> of 5 · {summaryLabel}
             </p>
           ) : (
-            <p className="support-chat__feedback-star-hint">Choose 1 (lowest) through 5 (best).</p>
+            !isReadOnly && (
+              <p className="support-chat__feedback-star-hint">Choose 1 (lowest) through 5 (best).</p>
+            )
           )}
         </div>
         <label className="support-chat__feedback-field support-chat__feedback-field--block">
-          <span className="support-chat__feedback-section-label">Comments (required)</span>
-          <span className="support-chat__feedback-microcopy">Share what went well or what we can improve.</span>
+          <span className="support-chat__feedback-section-label">
+            {isReadOnly ? "Comments" : "Comments (required)"}
+          </span>
+          {!isReadOnly && (
+            <span className="support-chat__feedback-microcopy">Share what went well or what we can improve.</span>
+          )}
           <textarea
             className="support-chat__feedback-textarea"
             rows={4}
-            value={feedbackDescription}
-            onChange={onDescriptionChange}
-            placeholder="e.g. Response was quick and helpful…"
-            disabled={feedbackBusy}
-            required
+            value={displayDescription || ""}
+            onChange={isReadOnly ? undefined : onDescriptionChange}
+            placeholder={isReadOnly ? "" : "e.g. Response was quick and helpful…"}
+            disabled={feedbackBusy || isReadOnly}
+            required={!isReadOnly}
+            readOnly={isReadOnly}
           />
         </label>
         <div className="support-chat__feedback-actions support-chat__feedback-actions--stack">
-          <button type="button" className="support-chat__feedback-submit" onClick={onSubmit} disabled={feedbackBusy}>
-            {feedbackBusy ? "Submitting…" : "Submit feedback"}
-          </button>
-          <button type="button" className="support-chat__feedback-cancel support-chat__feedback-cancel--ghost" onClick={onClose} disabled={feedbackBusy}>
-            Not now
+          {!isReadOnly && (
+            <button type="button" className="support-chat__feedback-submit" onClick={onSubmit} disabled={feedbackBusy}>
+              {feedbackBusy ? "Submitting…" : "Submit feedback"}
+            </button>
+          )}
+          <button
+            type="button"
+            className={`support-chat__feedback-cancel${isReadOnly ? "" : " support-chat__feedback-cancel--ghost"}`}
+            onClick={onClose}
+            disabled={feedbackBusy}
+          >
+            {isReadOnly ? "Close" : "Not now"}
           </button>
         </div>
       </section>

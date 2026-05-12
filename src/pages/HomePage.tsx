@@ -54,7 +54,15 @@ import {
   diagnosticsSingleVisibleSlug,
 } from "@/lib/subscriptionDashboardModules";
 import { consultationSingleVisibleType } from "@/lib/moduleGatesFromProfile";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "@/components/home/HomeSearchOverlay.css";
 import "./HomePage.css";
@@ -153,17 +161,15 @@ export function HomePage() {
   const toast = useToast();
   const {
     apiBanners,
-    ahcBanners,
     notificationCount,
     primaryAddressLine,
     ongoing,
     ahc,
+    loading: dashboardLoading,
   } = useHomeDashboard();
   const mod = useProfileModuleGates();
   /** Diagnostics card: `plan.modules.Lab` / `Diagnostic` + subscription gates from profile (cached in localStorage, then refreshed). */
   const showDiagnosticsTile = mod.showLabDiagnosticsTile;
-  const showAhcSubscription =
-    !mod.loaded || mod.showAhcBanner;
   const showDiagSheetHealthCheckups =
     !mod.loaded ||
     !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_HEALTH_CHECKUPS);
@@ -192,6 +198,7 @@ export function HomePage() {
   }, []);
 
   const ongoingCount = ongoing.length;
+  const showOngoingDashboardChrome = dashboardLoading || ongoingCount > 0;
   const apiBannerCount = apiBanners.length;
   const homeCarouselCount = apiBannerCount;
   const {
@@ -235,10 +242,12 @@ export function HomePage() {
   }, [apiBanners]);
 
   const {
+    activeIndex: activeOngoingIndex,
     extendedPos: ongoingExtendedPos,
     extendedCount: ongoingExtendedCount,
     translatePercent: ongoingTranslatePercent,
     instantMove: ongoingInstantMove,
+    goTo: goToOngoingCarousel,
     onTouchStart: onOngoingCarouselTouchStart,
     onTouchEnd: onOngoingCarouselTouchEnd,
     onTrackTransitionEnd: onOngoingTrackTransitionEnd,
@@ -266,6 +275,11 @@ export function HomePage() {
   const [homeSearchFocused, setHomeSearchFocused] = useState(false);
   const [homeRecentSearches, setHomeRecentSearches] = useState<string[]>(() => loadHomeRecentSearches());
   const homeSearchInputRef = useRef<HTMLInputElement>(null);
+  /** Patient-app `DashboardMainScreen`: hide bottom bar on scroll down, reveal on scroll up / near top. */
+  const [bottomNavVisible, setBottomNavVisible] = useState(true);
+  const lastWindowScrollY = useRef(0);
+  const scrollSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefersReducedMotionRef = useRef(false);
 
   const dashboardHalfTiles = useMemo(() => selectDashboardHalfTiles(mod), [mod]);
   const navigateDashboardHalfTile = useCallback(
@@ -382,25 +396,77 @@ export function HomePage() {
     saveHomeRecentSearches([]);
   }, []);
 
-  const ahcBannerScrollRef = useRef<HTMLDivElement>(null);
-  const ahcBannerSlideCount = ahcBanners.length;
+  /** Patient-app `DashboardController.openSponsoredHealthCheckup` + compact promo card. */
+  const handlePromoAhcClick = useCallback(() => {
+    void navigate(
+      `${generatePath(ROUTES.diagnosticsSelectPeople, {
+        type: "health-checkups",
+      })}?sponsored=1&ahc=1`,
+    );
+  }, [navigate]);
 
-  /** AHC banner strip: auto-advance when multiple API slides. */
+  /** Patient-app `DashboardController.onTapGymCard` (subscription gate). */
+  const handlePromoGymClick = useCallback(() => {
+    if (mod.loaded && !mod.serviceHub.gym) {
+      toast.error("Gym is not available on your current plan.");
+      return;
+    }
+    void navigate(ROUTES.gymMembership);
+  }, [mod.loaded, mod.serviceHub.gym, navigate, toast]);
+
   useEffect(() => {
-    if (!ahc || ahcBannerSlideCount <= 1) return;
-    const id = window.setInterval(() => {
-      const el = ahcBannerScrollRef.current;
-      if (!el) return;
-      const slides = el.querySelectorAll<HTMLElement>("[data-ahc-banner-slide]");
-      if (slides.length === 0) return;
-      const gap = 12;
-      const w = slides[0].offsetWidth;
-      const cur = Math.max(0, Math.round(el.scrollLeft / Math.max(1, w + gap)));
-      const next = (cur + 1) % slides.length;
-      el.scrollTo({ left: next * (w + gap), behavior: "smooth" });
-    }, 3000);
-    return () => clearInterval(id);
-  }, [ahc, ahcBannerSlideCount]);
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => {
+      prefersReducedMotionRef.current = mq.matches;
+      if (mq.matches) setBottomNavVisible(true);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    lastWindowScrollY.current = window.scrollY || document.documentElement.scrollTop;
+    const onWindowScroll = () => {
+      if (prefersReducedMotionRef.current) {
+        setBottomNavVisible(true);
+        return;
+      }
+      if (homeSearchFocused) {
+        setBottomNavVisible(true);
+        return;
+      }
+      const y = window.scrollY || document.documentElement.scrollTop;
+      const delta = y - lastWindowScrollY.current;
+      lastWindowScrollY.current = y;
+      if (y <= 0) {
+        setBottomNavVisible(true);
+      } else if (delta > 6) {
+        setBottomNavVisible(false);
+      } else if (delta < -6) {
+        setBottomNavVisible(true);
+      }
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
+      scrollSettleTimer.current = setTimeout(() => {
+        const yy = window.scrollY || document.documentElement.scrollTop;
+        if (yy < 80) setBottomNavVisible(true);
+      }, 160);
+    };
+    window.addEventListener("scroll", onWindowScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onWindowScroll);
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
+    };
+  }, [homeSearchFocused]);
+
+  const ongoingFloatBottomStyle = useMemo<CSSProperties>(
+    () => ({
+      bottom: bottomNavVisible
+        ? "calc(var(--home-bottom-nav-spacer-height) + 8px)"
+        : "calc(12px + env(safe-area-inset-bottom, 0px))",
+    }),
+    [bottomNavVisible],
+  );
 
   /** Hub sheets only — address sheet locks scroll inside {@link AddressBottomSheet} (avoid nested body locks). */
   useEffect(() => {
@@ -642,23 +708,93 @@ export function HomePage() {
         </div>
       </div>
 
-      <main className="home-page__main">
-        {/* {gym?.gymModule ? (
-          <div className="home-gym-row">
-            <button
-              type="button"
-              className="home-dash-pill home-dash-pill--gym"
-              onClick={() => navigate(ROUTES.gymMembership)}
-            >
-              {gym.packageName ? `Gym · ${gym.packageName}` : "Gym membership"}
-            </button>
-          </div>
-        ) : null} */}
-
+      <main
+        className={`home-page__main${showOngoingDashboardChrome ? " home-page__main--ongoing-float-gap" : ""}`}
+      >
         <section className="home-section" aria-labelledby="services-heading">
           <h2 id="services-heading" className="visually-hidden">
             Medical services
           </h2>
+
+          {/* Patient-app `DashboardHomeScreen`: `_DashboardPromoCard` row (AHC when `ahc` + gym). */}
+          <div className="home-promo-row">
+            <div className="home-promo-row__inner">
+              {ahc ? (
+                <button
+                  type="button"
+                  className="home-promo-card"
+                  aria-label="Annual Health Checkup — Book your sponsored health checkup"
+                  onClick={handlePromoAhcClick}
+                >
+                  <div className="home-promo-card__top">
+                    <span className="home-promo-card__icon-wrap" aria-hidden>
+                      <svg className="home-promo-card__icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M12 2L4 6v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V6l-8-4z"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M12 8v8M8 12h8"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </span>
+                    <span className="home-promo-card__chev" aria-hidden>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M9 6l6 6-6 6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  </div>
+                  <h3 className="home-promo-card__title">Annual Health Checkup</h3>
+                  <p className="home-promo-card__subtitle">Book your sponsored health checkup</p>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="home-promo-card home-promo-card--gym"
+                aria-label="Gym Membership — Buy Gym memberships"
+                onClick={handlePromoGymClick}
+              >
+                <div className="home-promo-card__top">
+                  <span className="home-promo-card__icon-wrap" aria-hidden>
+                    <svg className="home-promo-card__icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <circle cx="7" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                      <circle cx="17" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                      <path
+                        d="M9.5 12h5"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="home-promo-card__chev" aria-hidden>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M9 6l6 6-6 6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
+                <h3 className="home-promo-card__title">Gym Membership</h3>
+                <p className="home-promo-card__subtitle">Buy Gym memberships</p>
+              </button>
+            </div>
+          </div>
 
           {homeCarouselCount > 0 ? (
             <section
@@ -715,193 +851,6 @@ export function HomePage() {
                 </div>
               </div>
               {homeCarouselPagination}
-            </section>
-          ) : null}
-
-          {ahc && showAhcSubscription ? (
-            <button
-              type="button"
-              className="home-ahc-card"
-              aria-label="Annual Health Checkup — Book your sponsored health checkup"
-              onClick={() =>
-                navigate(
-                  `${generatePath(ROUTES.diagnosticsSelectPeople, {
-                    type: "health-checkups",
-                  })}?sponsored=1&ahc=1`,
-                )
-              }
-            >
-              <div className="home-ahc-card__stack">
-                <div className="home-ahc-card__bg" aria-hidden>
-                  {ahcBanners.length > 0 ? (
-                    <div
-                      className="home-ahc-card__banner-scroll"
-                      ref={ahcBannerScrollRef}
-                    >
-                      {ahcBanners.map((slide, index) => (
-                        <div
-                          key={slide.id ?? `ahc-${slide.image}-${index}`}
-                          className="home-ahc-card__banner-slide"
-                          data-ahc-banner-slide
-                          style={{
-                            backgroundImage: cssBackgroundUrl(slide.image),
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      className="home-ahc-card__banner-slide home-ahc-card__banner-slide--fallback"
-                      style={{
-                        backgroundImage: cssBackgroundUrl(HOME_IMAGE_URLS.diagnostics),
-                      }}
-                    />
-                  )}
-                </div>
-                <div className="home-ahc-card__scrim" aria-hidden />
-                <div className="home-ahc-card__content">
-                  <div className="home-ahc-card__copy">
-                    <h3 className="home-ahc-card__title">Annual Health Checkup</h3>
-                    <p className="home-ahc-card__subtitle">Book your sponsored health checkup</p>
-                  </div>
-                  <span className="home-ahc-card__chev" aria-hidden>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M9 6l6 6-6 6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </div>
-              </div>
-            </button>
-          ) : null}
-
-          {ongoingCount > 0 ? (
-            <section className="home-ongoing-section" aria-labelledby="ongoing-orders-heading">
-              <div className="home-ongoing-section__header">
-                <h2 id="ongoing-orders-heading" className="home-ongoing-section__title">
-                  Ongoing orders{" "}
-                  <span className="home-ongoing-section__count">({ongoingCount})</span>
-                </h2>
-                <button
-                  type="button"
-                  className="home-ongoing-section__view-all"
-                  onClick={() =>
-                    navigate(ROUTES.orders, { state: { dashboardOngoing: ongoing } })
-                  }
-                >
-                  View all
-                </button>
-              </div>
-              <div className="home-ongoing-section__body">
-                <div
-                  className="home-ongoing-carousel-viewport"
-                  onTouchStart={onOngoingCarouselTouchStart}
-                  onTouchEnd={onOngoingCarouselTouchEnd}
-                  aria-roledescription="carousel"
-                  aria-label="Ongoing orders, swipe sideways"
-                >
-                  <div
-                    className={`home-ongoing-carousel__track${ongoingInstantMove ? " home-ongoing-carousel__track--instant" : ""}`}
-                    style={{
-                      width: `${ongoingExtendedCount * 100}%`,
-                      transform: `translateX(${ongoingTranslatePercent}%)`,
-                    }}
-                    onTransitionEnd={(e) => {
-                      if (e.propertyName !== "transform") return;
-                      onOngoingTrackTransitionEnd();
-                    }}
-                  >
-                    {ongoingSlides.map(({ key, item }, index) => (
-                      <div
-                        key={key}
-                        className="home-ongoing-carousel__slide"
-                        style={{ flex: `0 0 ${100 / ongoingExtendedCount}%` }}
-                        aria-hidden={index !== ongoingExtendedPos}
-                      >
-                        <div className="home-ongoing-dash-card">
-                          <button
-                            type="button"
-                            className="home-ongoing-dash-card__main"
-                            onClick={() =>
-                              navigate(
-                                generatePath(ROUTES.ordersDetail, {
-                                  orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
-                                  invoiceId: item.invoiceId,
-                                }),
-                              )
-                            }
-                          >
-                            <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
-                              <OrderCategoryIcon
-                                categoryKey={item.orderCategoryIconKey}
-                                width={18}
-                                height={18}
-                              />
-                            </span>
-                            <span className="home-ongoing-dash-card__content">
-                              <span className="home-ongoing-dash-card__row1">
-                                <span className="home-ongoing-dash-card__category">
-                                  {item.displayCategory}
-                                </span>
-                                <span
-                                  className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClassForItem(item)}`}
-                                >
-                                  {item.statusLabel}
-                                </span>
-                              </span>
-                              <span className="home-ongoing-dash-card__row2">
-                                <span className="home-ongoing-dash-card__patient">
-                                  {item.patientLine}
-                                </span>
-                                {item.memberCount > 1 ? (
-                                  <span className="home-ongoing-dash-card__members">
-                                    +{item.memberCount - 1} members
-                                  </span>
-                                ) : null}
-                              </span>
-                              <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
-                              {item.visitTypeLabel ? (
-                                <span className="home-ongoing-dash-card__visit-type">
-                                  {item.visitTypeLabel}
-                                </span>
-                              ) : null}
-                            </span>
-                            <span className="home-ongoing-dash-card__chev" aria-hidden>
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path
-                                  d="M9 6l6 6-6 6"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </span>
-                          </button>
-                          {item.canJoinVideoCall ? (
-                            <button
-                              type="button"
-                              className="home-ongoing-dash-card__join-call"
-                              onClick={() =>
-                                navigate(
-                                  generatePath(ROUTES.videoCall, { appointmentId: item.id }),
-                                )
-                              }
-                            >
-                              Join call
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </section>
           ) : null}
 
@@ -1307,7 +1256,177 @@ export function HomePage() {
         </dialog>
       ) : null}
 
-      <HomeBottomNav />
+      {showOngoingDashboardChrome ? (
+        <div
+          className="home-ongoing-float"
+          style={ongoingFloatBottomStyle}
+          role="region"
+          aria-labelledby="ongoing-orders-float-heading"
+        >
+          <div className="home-ongoing-float__header">
+            <h2 id="ongoing-orders-float-heading" className="home-ongoing-section__title">
+              Ongoing orders{" "}
+              {dashboardLoading ? null : (
+                <span className="home-ongoing-section__count">({ongoingCount})</span>
+              )}
+            </h2>
+            <button
+              type="button"
+              className="home-ongoing-section__view-all"
+              disabled={dashboardLoading && ongoingCount === 0}
+              onClick={() =>
+                navigate(ROUTES.orders, { state: { dashboardOngoing: ongoing } })
+              }
+            >
+              View all
+            </button>
+          </div>
+
+          {dashboardLoading && ongoingCount === 0 ? (
+            <div className="home-ongoing-float__skeleton" aria-busy="true" aria-live="polite">
+              <div className="home-ongoing-float__sk-row">
+                <span className="home-ongoing-float__sk-pill" />
+                <span className="home-ongoing-float__sk-pill home-ongoing-float__sk-pill--sm" />
+              </div>
+              <div className="home-ongoing-float__sk-card" />
+            </div>
+          ) : (
+            <>
+              <div
+                className="home-ongoing-carousel-viewport home-ongoing-float__viewport"
+                onTouchStart={onOngoingCarouselTouchStart}
+                onTouchEnd={onOngoingCarouselTouchEnd}
+                aria-roledescription="carousel"
+                aria-label="Ongoing orders, swipe sideways"
+              >
+                <div
+                  className={`home-ongoing-carousel__track${ongoingInstantMove ? " home-ongoing-carousel__track--instant" : ""}`}
+                  style={{
+                    width: `${ongoingExtendedCount * 100}%`,
+                    transform: `translateX(${ongoingTranslatePercent}%)`,
+                  }}
+                  onTransitionEnd={(e) => {
+                    if (e.propertyName !== "transform") return;
+                    onOngoingTrackTransitionEnd();
+                  }}
+                >
+                  {ongoingSlides.map(({ key, item }, index) => (
+                    <div
+                      key={key}
+                      className="home-ongoing-carousel__slide"
+                      style={{ flex: `0 0 ${100 / ongoingExtendedCount}%` }}
+                      aria-hidden={index !== ongoingExtendedPos}
+                    >
+                      <div className="home-ongoing-dash-card">
+                        <button
+                          type="button"
+                          className="home-ongoing-dash-card__main"
+                          onClick={() =>
+                            navigate(
+                              generatePath(ROUTES.ordersDetail, {
+                                orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
+                                invoiceId: item.invoiceId,
+                              }),
+                            )
+                          }
+                        >
+                          <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
+                            <OrderCategoryIcon
+                              categoryKey={item.orderCategoryIconKey}
+                              width={18}
+                              height={18}
+                            />
+                          </span>
+                          <span className="home-ongoing-dash-card__content">
+                            <span className="home-ongoing-dash-card__row1">
+                              <span className="home-ongoing-dash-card__category">
+                                {item.displayCategory}
+                              </span>
+                              <span
+                                className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClassForItem(item)}`}
+                              >
+                                {item.statusLabel}
+                              </span>
+                            </span>
+                            <span className="home-ongoing-dash-card__row2">
+                              <span className="home-ongoing-dash-card__patient">
+                                {item.patientLine}
+                              </span>
+                              {item.memberCount > 1 ? (
+                                <span className="home-ongoing-dash-card__members">
+                                  +{item.memberCount - 1} members
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
+                            {item.visitTypeLabel ? (
+                              <span className="home-ongoing-dash-card__visit-type">
+                                {item.visitTypeLabel}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="home-ongoing-dash-card__chev" aria-hidden>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                              <path
+                                d="M9 6l6 6-6 6"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </span>
+                        </button>
+                        {item.canJoinVideoCall ? (
+                          <button
+                            type="button"
+                            className="home-ongoing-dash-card__join-call"
+                            onClick={() =>
+                              navigate(
+                                generatePath(ROUTES.videoCall, { appointmentId: item.id }),
+                              )
+                            }
+                          >
+                            Join call
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {ongoingCount > 1 ? (
+                <div className="home-ongoing-float__dots-row">
+                  <div className="home-ongoing-float__dots" role="tablist" aria-label="Choose order">
+                    {ongoing.map((o, i) => (
+                      <button
+                        key={`ongoing-dot-${o.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={i === activeOngoingIndex}
+                        className={`home-ongoing-float__dot${i === activeOngoingIndex ? " home-ongoing-float__dot--active" : ""}`}
+                        onClick={() => goToOngoingCarousel(i)}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="home-ongoing-float__more"
+                    onClick={() =>
+                      navigate(ROUTES.orders, { state: { dashboardOngoing: ongoing } })
+                    }
+                  >
+                    +{ongoingCount - 1} more
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      ) : null}
+
+      <HomeBottomNav visible={bottomNavVisible} />
     </div>
   );
 }

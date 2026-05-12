@@ -11,6 +11,7 @@ import {
 } from "@/constants/virtualConsultationSessionStorage";
 import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
@@ -22,7 +23,6 @@ import {
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -71,23 +71,18 @@ export function ConsultationSpecialtiesPage() {
   const [virtualSearchQuery, setVirtualSearchQuery] = useState("");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
 
-  const filteredHospitalSpecs = useMemo(() => {
-    const q = hospitalSearchQuery.trim().toLowerCase();
-    if (!q) return hospitalSpecs;
-    return hospitalSpecs.filter((s) => s.name.toLowerCase().includes(q));
-  }, [hospitalSpecs, hospitalSearchQuery]);
+  // Debounce search queries for API calls (300ms delay)
+  const debouncedHospitalSearch = useDebouncedValue(hospitalSearchQuery, 300);
 
-  const filteredVirtualIssues = useMemo(() => {
-    const q = virtualSearchQuery.trim().toLowerCase();
-    if (!q) return virtualIssues;
-    return virtualIssues.filter((i) => i.title.toLowerCase().includes(q));
-  }, [virtualIssues, virtualSearchQuery]);
+  // Remove local filtering - we'll use API search instead
+  const displayedHospitalSpecs = hospitalSpecs;
+  const displayedVirtualIssues = virtualIssues;
 
   useEffect(() => {
-    if (selectedIssueId && !filteredVirtualIssues.some(i => String(i.id) === selectedIssueId)) {
+    if (selectedIssueId && !displayedVirtualIssues.some(i => String(i.id) === selectedIssueId)) {
       setSelectedIssueId(null);
     }
-  }, [filteredVirtualIssues, selectedIssueId]);
+  }, [displayedVirtualIssues, selectedIssueId]);
 
   useEffect(() => {
     if (!isHospital) return;
@@ -108,7 +103,7 @@ export function ConsultationSpecialtiesPage() {
     nextHospitalPageRef.current = 1;
     hasMoreHospitalRef.current = true;
     loadingMoreHospitalRef.current = false;
-    void fetchHospitalSpecialities({ page: 1, limit: DEFAULT_LIST_PAGE_SIZE })
+    void fetchHospitalSpecialities({ page: 1, limit: DEFAULT_LIST_PAGE_SIZE }, debouncedHospitalSearch || null)
       .then((list) => {
         if (cancelled) return;
         setHospitalSpecs(list);
@@ -131,7 +126,7 @@ export function ConsultationSpecialtiesPage() {
     return () => {
       cancelled = true;
     };
-  }, [isHospital, toast, location.key]);
+  }, [isHospital, toast, location.key, debouncedHospitalSearch]);
 
   const loadMoreHospital = useCallback(async () => {
     if (!hasMoreHospitalRef.current || hospitalLoad !== "ok") return;
@@ -140,7 +135,7 @@ export function ConsultationSpecialtiesPage() {
     setLoadingMoreHospital(true);
     try {
       const page = nextHospitalPageRef.current;
-      const list = await fetchHospitalSpecialities({ page, limit: DEFAULT_LIST_PAGE_SIZE });
+      const list = await fetchHospitalSpecialities({ page, limit: DEFAULT_LIST_PAGE_SIZE }, debouncedHospitalSearch || null);
       if (list.length === 0) {
         hasMoreHospitalRef.current = false;
         return;
@@ -318,7 +313,7 @@ export function ConsultationSpecialtiesPage() {
     hospitalSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties available right now.</div>
     );
-  } else if (filteredHospitalSpecs.length === 0) {
+  } else if (displayedHospitalSpecs.length === 0) {
     hospitalSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties match your search.</div>
     );
@@ -331,7 +326,7 @@ export function ConsultationSpecialtiesPage() {
           aria-label="Common specialties"
           onScroll={onHospitalScroll}
         >
-          {filteredHospitalSpecs.map((s) => {
+          {displayedHospitalSpecs.map((s) => {
             const idStr = String(s.id);
             return (
               <li key={s.id}>
@@ -402,7 +397,7 @@ export function ConsultationSpecialtiesPage() {
     virtualSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties available right now.</div>
     );
-  } else if (filteredVirtualIssues.length === 0) {
+  } else if (displayedVirtualIssues.length === 0) {
     virtualSpecialtiesBody = (
       <div className="csp-issues-msg">No issues found</div>
     );
@@ -410,7 +405,7 @@ export function ConsultationSpecialtiesPage() {
     virtualSpecialtiesBody = (
       <>
         <ul className="csp-virtual-grid" aria-label="Issues">
-          {filteredVirtualIssues.map((issue) => {
+          {displayedVirtualIssues.map((issue) => {
             const imgUrl = resolveProfileImageUrl(issue.image);
             return (
               <li key={issue.id} className="csp-virtual-grid__cell">
@@ -604,7 +599,7 @@ export function ConsultationSpecialtiesPage() {
             disabled={!selectedIssueId}
             onClick={() => {
               if (!selectedIssueId) return;
-              const issue = filteredVirtualIssues.find(i => String(i.id) === selectedIssueId);
+              const issue = displayedVirtualIssues.find(i => String(i.id) === selectedIssueId);
               if (!issue) return;
               clearVirtualFollowUpAppointmentId();
               let langRaw = "";

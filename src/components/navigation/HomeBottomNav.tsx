@@ -36,18 +36,26 @@ function useHubBottomNavActive(): Readonly<{
   return { services, help, medicalRecords };
 }
 
+type HomeBottomNavProps = Readonly<{
+  /**
+   * When false, the bar slides off-screen (patient-app `DashboardMainScreen` scroll behavior on the home shell).
+   * Other screens omit this prop so the bar stays visible.
+   */
+  visible?: boolean;
+}>;
+
 /**
  * Bottom tab bar: My Orders, Services, Home FAB, Need Help?, Medical Records.
  * Curved bar with notched “cradle” around Home (transparent gap); solid white bar.
  */
-export function HomeBottomNav() {
+export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
   const { services: servicesTabActive, help: helpTabActive, medicalRecords: medicalTabActive } =
     useHubBottomNavActive();
   const uid = useId().replace(/:/g, "");
   const notchMaskId = `home-nav-notch-${uid}`;
 
   return (
-    <>
+    <div className={`home-nav-shell${visible ? "" : " home-nav-shell--hidden"}`}>
       <div className="home-nav-spacer" aria-hidden="true" />
       <nav className="home-nav" aria-label="Primary">
         <div className="home-nav__plate">
@@ -150,6 +158,6 @@ export function HomeBottomNav() {
           </div>
         </div>
       </nav>
-    </>
+    </div>
   );
 }
