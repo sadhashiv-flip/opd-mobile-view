@@ -1,0 +1,217 @@
+.profile-photo-sheet__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  animation: profile-photo-sheet-fade-in 0.2s ease;
+}
+
+@keyframes profile-photo-sheet-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.profile-photo-sheet__panel {
+  width: 100%;
+  max-width: 400px;
+  padding: 20px 18px 22px;
+  border-radius: 20px 20px 16px 16px;
+  background: #ffffff;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
+  font-family: "Poppins", system-ui, sans-serif;
+}
+
+.profile-photo-sheet__grab {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 16px;
+  border-radius: 2px;
+  background: #e0e0e0;
+}
+
+.profile-photo-sheet__title {
+  margin: 0 0 16px;
+  font-size: clamp(15px, calc(17 * 100cqw / 375), 17px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111111;
+  text-align: center;
+}
+
+.profile-photo-sheet__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-photo-sheet__option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: clamp(14px, calc(15 * 100cqw / 375), 15px);
+  font-weight: 600;
+  color: #212121;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    background 0.18s ease;
+}
+
+.profile-photo-sheet__option:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
+.profile-photo-sheet__option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-orange) 12%, #ffffff);
+  color: var(--color-brand-orange);
+  flex-shrink: 0;
+}
+
+.profile-photo-sheet__option-icon svg {
+  flex-shrink: 0;
+}
+
+.profile-photo-sheet__option-chevron {
+  margin-left: auto;
+  font-size: 14px;
+  color: #bdbdbd;
+}
+
+.profile-photo-sheet__cancel {
+  margin-top: 12px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #757575;
+  cursor: pointer;
+}
+
+.profile-photo-sheet__hidden-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Live capture after permission — full viewport width; video edge-to-edge horizontally */
+.profile-photo-sheet__camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: #0a0a0a;
+  font-family: "Poppins", system-ui, sans-serif;
+}
+
+.profile-photo-sheet__camera-title {
+  margin: 0 0 12px;
+  padding-inline: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fafafa;
+  text-align: center;
+  letter-spacing: -0.02em;
+  box-sizing: border-box;
+}
+
+.profile-photo-sheet__camera-video-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  background: #000000;
+}
+
+.profile-photo-sheet__camera-video {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.profile-photo-sheet__camera-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-shrink: 0;
+  padding-inline: 16px;
+  box-sizing: border-box;
+}
+
+.profile-photo-sheet__camera-btn {
+  flex: 1;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+
+.profile-photo-sheet__camera-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  transform: none;
+}
+
+.profile-photo-sheet__camera-btn--ghost {
+  background: rgba(255, 255, 255, 0.12);
+  color: #eeeeee;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.profile-photo-sheet__camera-btn--primary {
+  background: var(--color-brand-orange);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(var(--color-brand-orange-rgb), 0.35);
+}
+
+.profile-photo-sheet__camera-btn--primary:not(:disabled):active,
+.profile-photo-sheet__camera-btn--ghost:not(:disabled):active {
+  transform: scale(0.98);
+}

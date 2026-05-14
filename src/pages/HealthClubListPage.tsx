@@ -101,23 +101,6 @@ export function HealthClubListPage() {
           </svg>
         </button>
         <h1 className="dd-screen-header__title">Health Club</h1>
-        <button
-          type="button"
-          className="hc-list-page__refresh"
-          aria-label="Refresh articles"
-          disabled={loading}
-          onClick={() => void load()}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M4 12a8 8 0 0113.657-5.657M20 12a8 8 0 01-13.657 5.657M4 12H1m19 0h3M12 4V1m0 19v3"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
       </header>
 
       <main className="hc-list-page__main">{body}</main>

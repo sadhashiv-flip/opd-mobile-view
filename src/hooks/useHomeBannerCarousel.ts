@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const AUTO_ADVANCE_MS = 6000;
+const DEFAULT_AUTO_ADVANCE_MS = 6000;
 const SWIPE_THRESHOLD_PX = 45;
 
 type UseHomeBannerCarouselOptions = Readonly<{
   slideCount: number;
+  /**
+   * Autoplay interval when `slideCount > 1`. Patient-app API banners use 6s;
+   * `DashboardPromoCarousel` uses 4s.
+   */
+  autoAdvanceMs?: number;
 }>;
 
 function realIndexFromExtendedPos(pos: number, slideCount: number): number {
@@ -18,7 +23,10 @@ function realIndexFromExtendedPos(pos: number, slideCount: number): number {
  * Carousel index, autoplay (timer resets on slideCount change), dots, swipe.
  * When `slideCount > 1`, clones first/last slides for seamless infinite looping + animated slides.
  */
-export function useHomeBannerCarousel({ slideCount }: UseHomeBannerCarouselOptions) {
+export function useHomeBannerCarousel({
+  slideCount,
+  autoAdvanceMs = DEFAULT_AUTO_ADVANCE_MS,
+}: UseHomeBannerCarouselOptions) {
   const infinite = slideCount > 1;
   const extendedCount = infinite ? slideCount + 2 : Math.max(1, slideCount);
 
@@ -86,9 +94,9 @@ export function useHomeBannerCarousel({ slideCount }: UseHomeBannerCarouselOptio
     if (slideCount <= 1) return;
     const id = globalThis.setInterval(() => {
       stepNext();
-    }, AUTO_ADVANCE_MS);
+    }, autoAdvanceMs);
     return () => globalThis.clearInterval(id);
-  }, [slideCount, stepNext]);
+  }, [slideCount, stepNext, autoAdvanceMs]);
 
   const onTrackTransitionEnd = useCallback(() => {
     if (!infinite || slideCount <= 1) return;

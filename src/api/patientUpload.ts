@@ -207,6 +207,50 @@ export async function uploadConsultationRefDocumentFile(
   return parsed;
 }
 
+/**
+ * POST `{upload base}/upload` — multipart: `type` (default `profile`, override with `VITE_PROFILE_UPLOAD_TYPE`),
+ * `file`, `token`, `app_name` header. Returns parsed JSON; caller extracts `path` / `image` when linking to profile.
+ */
+export async function uploadProfileImageFileRaw(file: File): Promise<unknown> {
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+
+  const uploadType =
+    typeof import.meta.env.VITE_PROFILE_UPLOAD_TYPE === "string" &&
+    import.meta.env.VITE_PROFILE_UPLOAD_TYPE.trim()
+      ? import.meta.env.VITE_PROFILE_UPLOAD_TYPE.trim()
+      : "profile";
+
+  const fd = new FormData();
+  fd.append("type", uploadType);
+  fd.append("file", file, file.name);
+  fd.append("token", token);
+
+  const appName =
+    typeof import.meta.env.VITE_UPLOAD_APP_NAME === "string" && import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      ? import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      : "co-flip-health";
+
+  const res = await patientFetchUploadChecked("upload", {
+    method: "POST",
+    body: fd,
+    headers: { app_name: appName },
+  });
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty upload response");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid upload response");
+  }
+  if (parsed === null || typeof parsed !== "object") {
+    throw new Error("Upload response must be a JSON object");
+  }
+  return parsed;
+}
+
 export async function uploadSupportDocumentFile(file: File): Promise<unknown> {
   const token = await getAccessToken();
   if (!token) throw new Error("Not signed in");

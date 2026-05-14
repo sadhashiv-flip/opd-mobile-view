@@ -14,7 +14,6 @@ export function ServiceHubCard({
   icon,
   title,
   description,
-  badge,
   selected,
   onClick,
 }: ServiceHubCardProps) {

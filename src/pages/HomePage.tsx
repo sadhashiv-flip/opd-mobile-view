@@ -7,9 +7,11 @@ import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import BorderGlow from "@/components/borderGlow/BorderGlow";
+import { HomePromoCarousel } from "@/components/home/HomePromoCarousel";
 import { HomeSearchOverlay } from "@/components/home/HomeSearchOverlay";
 import TextType from "@/components/textType/TextType";
-import { HealthClubSection } from "@/components/healthClub/HealthClubSection";
+import blogPromoImg from "@/assets/images/blog.png";
+import digitalDiaryPromoImg from "@/assets/images/digitaldiary.png";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
@@ -68,6 +70,14 @@ import "@/components/home/HomeSearchOverlay.css";
 import "./HomePage.css";
 import "./DigitalDiaryPages.css";
 import "./ServicesHubPage.css";
+
+/** Home — blogs teaser (routes to {@link ROUTES.healthClub}). */
+const HOME_BLOG_PROMO_COPY = {
+  title: "Learn, Read & Stay Healthy",
+  description:
+    "Stay informed with expert-written blogs on wellness, medicine, and lifestyle.",
+  cta: "Discover More",
+} as const;
 
 /** BorderGlow — diagnostics featured card only. */
 const HOME_CARD_BORDER_GLOW_PROPS = {
@@ -716,85 +726,12 @@ export function HomePage() {
             Medical services
           </h2>
 
-          {/* Patient-app `DashboardHomeScreen`: `_DashboardPromoCard` row (AHC when `ahc` + gym). */}
-          <div className="home-promo-row">
-            <div className="home-promo-row__inner">
-              {ahc ? (
-                <button
-                  type="button"
-                  className="home-promo-card"
-                  aria-label="Annual Health Checkup — Book your sponsored health checkup"
-                  onClick={handlePromoAhcClick}
-                >
-                  <div className="home-promo-card__top">
-                    <span className="home-promo-card__icon-wrap" aria-hidden>
-                      <svg className="home-promo-card__icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M12 2L4 6v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V6l-8-4z"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinejoin="round"
-                        />
-                        <path
-                          d="M12 8v8M8 12h8"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </span>
-                    <span className="home-promo-card__chev" aria-hidden>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M9 6l6 6-6 6"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
-                  </div>
-                  <h3 className="home-promo-card__title">Annual Health Checkup</h3>
-                  <p className="home-promo-card__subtitle">Book your sponsored health checkup</p>
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="home-promo-card home-promo-card--gym"
-                aria-label="Gym Membership — Buy Gym memberships"
-                onClick={handlePromoGymClick}
-              >
-                <div className="home-promo-card__top">
-                  <span className="home-promo-card__icon-wrap" aria-hidden>
-                    <svg className="home-promo-card__icon-svg" width="15" height="15" viewBox="0 0 24 24" fill="none">
-                      <circle cx="7" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-                      <circle cx="17" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-                      <path
-                        d="M9.5 12h5"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="home-promo-card__chev" aria-hidden>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M9 6l6 6-6 6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </div>
-                <h3 className="home-promo-card__title">Gym Membership</h3>
-                <p className="home-promo-card__subtitle">Buy Gym memberships</p>
-              </button>
-            </div>
-          </div>
+          {/* Patient-app `DashboardHomeScreen`: `DashboardPromoCarousel` (AHC when `ahc` + gym). */}
+          <HomePromoCarousel
+            showAhc={ahc}
+            onAhcClick={handlePromoAhcClick}
+            onGymClick={handlePromoGymClick}
+          />
 
           {homeCarouselCount > 0 ? (
             <section
@@ -970,48 +907,87 @@ export function HomePage() {
             </div>
           </div>
 
-          <Link to={ROUTES.services} className="home-view-more">
-            VIEW MORE
-          </Link>
+          {mod.loaded && mod.gateOk ? (
+            <Link to={ROUTES.services} className="home-view-more">
+              VIEW MORE
+            </Link>
+          ) : null}
 
-          <Link to={ROUTES.digitalDiary} className="home-digital-diary">
-            <div className="home-digital-diary__inner">
-              <div className="home-digital-diary__copy">
-                <h3 className="home-digital-diary__title">
-                  {DIGITAL_DIARY_COPY.dashboardActivitiesTitle}
-                </h3>
-                <p className="home-digital-diary__desc">
-                  {DIGITAL_DIARY_COPY.dashboardActivitiesSubtitle}
-                </p>
-                <span className="home-digital-diary__cta">
-                  {DIGITAL_DIARY_COPY.dashboardActivitiesCta}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M9 6l6 6-6 6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              </div>
-              <div className="home-digital-diary__art" aria-hidden>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M8 6h13v13H8z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
+          <div className="home-promo-cards">
+            <Link
+              to={ROUTES.digitalDiary}
+              className="home-promo-card"
+              aria-label={`${DIGITAL_DIARY_COPY.dashboardActivitiesTitle}: ${DIGITAL_DIARY_COPY.dashboardActivitiesCta}`}
+            >
+              <div className="home-promo-card__inner">
+                <div className="home-promo-card__copy">
+                  <h3 className="home-promo-card__title">
+                    {DIGITAL_DIARY_COPY.dashboardActivitiesTitle}
+                  </h3>
+                  <p className="home-promo-card__desc">
+                    {DIGITAL_DIARY_COPY.dashboardActivitiesSubtitle}
+                  </p>
+                  <span className="home-promo-card__cta">
+                    {DIGITAL_DIARY_COPY.dashboardActivitiesCta}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M9 6l6 6-6 6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
+                <div className="home-promo-card__art" aria-hidden>
+                  <img
+                    src={digitalDiaryPromoImg}
+                    alt=""
+                    width={112}
+                    height={112}
+                    draggable={false}
+                    className="home-promo-card__img"
                   />
-                  <path d="M6 8H5a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-1" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M11 11h6M11 14h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
+                </div>
               </div>
-            </div>
-          </Link>
+            </Link>
 
-          <HealthClubSection />
+            <Link
+              to={ROUTES.healthClub}
+              className="home-promo-card"
+              aria-label={`${HOME_BLOG_PROMO_COPY.title}: ${HOME_BLOG_PROMO_COPY.cta}`}
+            >
+              <div className="home-promo-card__inner">
+                <div className="home-promo-card__copy">
+                  <h3 className="home-promo-card__title">{HOME_BLOG_PROMO_COPY.title}</h3>
+                  <p className="home-promo-card__desc">{HOME_BLOG_PROMO_COPY.description}</p>
+                  <span className="home-promo-card__cta">
+                    {HOME_BLOG_PROMO_COPY.cta}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M9 6l6 6-6 6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                </div>
+                <div className="home-promo-card__art" aria-hidden>
+                  <img
+                    src={blogPromoImg}
+                    alt=""
+                    width={112}
+                    height={112}
+                    draggable={false}
+                    className="home-promo-card__img"
+                  />
+                </div>
+              </div>
+            </Link>
+          </div>
         </section>
       </main>
 
@@ -1265,10 +1241,7 @@ export function HomePage() {
         >
           <div className="home-ongoing-float__header">
             <h2 id="ongoing-orders-float-heading" className="home-ongoing-section__title">
-              Ongoing orders{" "}
-              {dashboardLoading ? null : (
-                <span className="home-ongoing-section__count">({ongoingCount})</span>
-              )}
+              Ongoing Orders
             </h2>
             <button
               type="button"
@@ -1278,7 +1251,16 @@ export function HomePage() {
                 navigate(ROUTES.orders, { state: { dashboardOngoing: ongoing } })
               }
             >
-              View all
+              <span>View All</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M9 6l6 6-6 6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
 
@@ -1318,78 +1300,70 @@ export function HomePage() {
                       aria-hidden={index !== ongoingExtendedPos}
                     >
                       <div className="home-ongoing-dash-card">
-                        <button
-                          type="button"
-                          className="home-ongoing-dash-card__main"
-                          onClick={() =>
-                            navigate(
-                              generatePath(ROUTES.ordersDetail, {
-                                orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
-                                invoiceId: item.invoiceId,
-                              }),
-                            )
-                          }
-                        >
-                          <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
-                            <OrderCategoryIcon
-                              categoryKey={item.orderCategoryIconKey}
-                              width={18}
-                              height={18}
-                            />
-                          </span>
-                          <span className="home-ongoing-dash-card__content">
-                            <span className="home-ongoing-dash-card__row1">
+                        <div className="home-ongoing-dash-card__layout">
+                          <button
+                            type="button"
+                            className="home-ongoing-dash-card__primary"
+                            onClick={() =>
+                              navigate(
+                                generatePath(ROUTES.ordersDetail, {
+                                  orderKind: orderDetailKindInUrlFromDashboardOngoing(item),
+                                  invoiceId: item.invoiceId,
+                                }),
+                              )
+                            }
+                          >
+                            <span className="home-ongoing-dash-card__icon-wrap" aria-hidden>
+                              <OrderCategoryIcon
+                                categoryKey={item.orderCategoryIconKey}
+                                width={20}
+                                height={20}
+                              />
+                            </span>
+                            <span className="home-ongoing-dash-card__content">
                               <span className="home-ongoing-dash-card__category">
                                 {item.displayCategory}
                               </span>
-                              <span
-                                className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClassForItem(item)}`}
-                              >
-                                {item.statusLabel}
+                              <span className="home-ongoing-dash-card__meta-row">
+                                <span className="home-ongoing-dash-card__patient">
+                                  {item.patientLine}
+                                </span>
+                                <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
                               </span>
-                            </span>
-                            <span className="home-ongoing-dash-card__row2">
-                              <span className="home-ongoing-dash-card__patient">
-                                {item.patientLine}
-                              </span>
+                              {item.visitTypeLabel ? (
+                                <span className="home-ongoing-dash-card__visit-type">
+                                  {item.visitTypeLabel}
+                                </span>
+                              ) : null}
                               {item.memberCount > 1 ? (
                                 <span className="home-ongoing-dash-card__members">
                                   +{item.memberCount - 1} members
                                 </span>
                               ) : null}
                             </span>
-                            <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
-                            {item.visitTypeLabel ? (
-                              <span className="home-ongoing-dash-card__visit-type">
-                                {item.visitTypeLabel}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="home-ongoing-dash-card__chev" aria-hidden>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                              <path
-                                d="M9 6l6 6-6 6"
-                                stroke="currentColor"
-                                strokeWidth="2.2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </span>
-                        </button>
-                        {item.canJoinVideoCall ? (
-                          <button
-                            type="button"
-                            className="home-ongoing-dash-card__join-call"
-                            onClick={() =>
-                              navigate(
-                                generatePath(ROUTES.videoCall, { appointmentId: item.id }),
-                              )
-                            }
-                          >
-                            Join call
                           </button>
-                        ) : null}
+                          <div className="home-ongoing-dash-card__aside">
+                            <span
+                              className={`home-ongoing-dash-card__status ${ongoingStatusBadgeClassForItem(item)}`}
+                            >
+                              {item.statusLabel}
+                            </span>
+                            {item.canJoinVideoCall ? (
+                              <button
+                                type="button"
+                                className="home-ongoing-dash-card__join-call"
+                                aria-label="Join video call"
+                                onClick={() =>
+                                  navigate(
+                                    generatePath(ROUTES.videoCall, { appointmentId: item.id }),
+                                  )
+                                }
+                              >
+                                JOIN
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}

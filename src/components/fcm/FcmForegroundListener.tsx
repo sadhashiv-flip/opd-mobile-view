@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type { MessagePayload } from "firebase/messaging";
 import { useNavigate } from "react-router-dom";
 import { getFirebaseApp } from "@/lib/firebase";
-import { resolveSupportTicketPathFromFcmPayload } from "@/lib/fcmSupportTicketNavigation";
+import { showWebPushFromFcmPayload } from "@/lib/fcmNotificationDisplay";
 
 function devFcmNavLog(...args: unknown[]): void {
   if (import.meta.env.DEV) console.log("[FCM]", ...args);
@@ -20,8 +20,8 @@ function logFcmForegroundMessage(payload: MessagePayload): void {
 }
 
 /**
- * Foreground FCM: navigate to {@link ROUTES.servicesSupportTicketChat} when `data` resolves to a ticket path.
- * Also handles SW {@link notificationclick} → postMessage `{ type: 'FCM_NAVIGATE', path }`.
+ * Foreground FCM: show a notification on receive; navigate only when the user taps it
+ * (service worker {@link notificationclick} → postMessage `{ type: 'FCM_NAVIGATE', path }`).
  */
 export function FcmForegroundListener(): null {
   const navigate = useNavigate();
@@ -61,14 +61,7 @@ export function FcmForegroundListener(): null {
         console.info("[FCM] foreground onMessage listener registered");
         unsubRef.current = onMessage(messaging, (payload) => {
           logFcmForegroundMessage(payload);
-
-          const path = resolveSupportTicketPathFromFcmPayload(payload);
-          if (path) {
-            console.info("[FCM] navigating to resolved ticket path", { path });
-            navigate(path);
-          } else {
-            console.info("[FCM] no support-ticket path in payload; skipping navigation");
-          }
+          void showWebPushFromFcmPayload(payload);
         });
       } catch (e) {
         devFcmNavLog("onMessage setup failed:", e);

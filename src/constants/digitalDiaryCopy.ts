@@ -6,12 +6,12 @@ export const DIGITAL_DIARY_COPY = {
   /** `kDigitalDiaryAppBarTitle` */
   appBarTitle: "Digital diary",
   /** `kDashboardActivitiesTitle` */
-  dashboardActivitiesTitle: "Your digital diary",
+  dashboardActivitiesTitle: "Your Digital Diary",
   /** `kDashboardActivitiesSubtitle` */
   dashboardActivitiesSubtitle:
-    "Jot down vitals, water, workouts, mood, and medicines—your day-to-day health story, organised in one place.",
+    "Jot down vitals, water, workouts, mood and medicines - your day to day health story, organised in one place",
   /** `kDashboardActivitiesCta` */
-  dashboardActivitiesCta: "Open diary",
+  dashboardActivitiesCta: "Open Diary",
   /** `kActivitiesHubIntro` */
   hubIntro:
     "Pick a category to review your history by day. Everything is grouped so you can find it quickly.",

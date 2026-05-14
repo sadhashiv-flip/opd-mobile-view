@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./BlogCoverImage.css";
 
 export function BlogCoverImage({
   url,

@@ -1,4 +1,5 @@
-import { patientJson } from "@/api/patientHttp";
+import { patientFetchChecked, patientJson } from "@/api/patientHttp";
+import { uploadProfileImageFileRaw } from "@/api/patientUpload";
 import { saveCachedProfileRaw } from "@/lib/profileCacheStorage";
 
 /** WHO-style bands for BMI coloring on the profile screen. */
@@ -230,6 +231,105 @@ export function resolveProfileImageUrl(image: string | null): string | null {
   }
   const origin = raw.replace(/\/?patient\/?$/i, "").replace(/\/$/, "");
   return `${origin}/${path}`;
+}
+
+function pickStrFromUpload(...candidates: readonly unknown[]): string | null {
+  for (const v of candidates) {
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (t) return t;
+    } else if (typeof v === "number" && Number.isFinite(v)) {
+      return String(v);
+    }
+  }
+  return null;
+}
+
+/**
+ * Reads a relative image path (or absolute URL) from a typical `POST /upload` JSON body
+ * after a profile photo upload.
+ */
+export function extractProfileImagePathFromUploadResponse(body: unknown): string | null {
+  const root =
+    body !== null && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : null;
+  if (!root) return null;
+  const data =
+    root.data !== null && typeof root.data === "object" && !Array.isArray(root.data)
+      ? (root.data as Record<string, unknown>)
+      : root;
+  const fileObj =
+    data.file !== null && typeof data.file === "object" && !Array.isArray(data.file)
+      ? (data.file as Record<string, unknown>)
+      : null;
+  const attachmentObj =
+    data.attachment !== null &&
+    typeof data.attachment === "object" &&
+    !Array.isArray(data.attachment)
+      ? (data.attachment as Record<string, unknown>)
+      : null;
+  const nestedFile = fileObj ?? attachmentObj;
+
+  return (
+    pickStrFromUpload(
+      data.path,
+      data.image,
+      data.logo,
+      root.path,
+      root.image,
+      nestedFile?.path,
+      nestedFile?.image,
+      nestedFile?.url,
+    ) ?? null
+  );
+}
+
+/**
+ * Updates the signed-in patient's profile photo: tries multipart `PATCH /patient/profile`
+ * (field from `VITE_PROFILE_IMAGE_FIELD`, default `image`), then `POST /upload` with
+ * `VITE_PROFILE_UPLOAD_TYPE` (default `profile`) and optional JSON `PATCH` with `{ image }`
+ * when the upload response includes a path. Always ends with `GET /patient/profile`.
+ */
+export async function updatePatientProfileImage(file: File): Promise<ProfileDisplay> {
+  const field =
+    typeof import.meta.env.VITE_PROFILE_IMAGE_FIELD === "string" &&
+    import.meta.env.VITE_PROFILE_IMAGE_FIELD.trim()
+      ? import.meta.env.VITE_PROFILE_IMAGE_FIELD.trim()
+      : "image";
+
+  try {
+    const fd = new FormData();
+    fd.append(field, file, file.name);
+    const res = await patientFetchChecked("profile", { method: "PATCH", body: fd });
+    const text = await res.text();
+    if (text.trim()) {
+      try {
+        const raw = JSON.parse(text) as unknown;
+        saveCachedProfileRaw(raw);
+        return normalizeProfileResponse(raw);
+      } catch {
+        /* empty or non-JSON — refresh below */
+      }
+    }
+  } catch {
+    const rawUpload = await uploadProfileImageFileRaw(file);
+    const path = extractProfileImagePathFromUploadResponse(rawUpload);
+    if (path && !/^https?:\/\//i.test(path)) {
+      try {
+        await patientJson<unknown>("profile", {
+          method: "PATCH",
+          body: JSON.stringify({ image: path }),
+        });
+      } catch {
+        /* server may attach image from upload session alone */
+      }
+    }
+  }
+
+  const raw = await patientJson<unknown>("profile", { method: "GET" });
+  saveCachedProfileRaw(raw);
+  return normalizeProfileResponse(raw);
 }
 
 /** GET /patient/profile (Bearer token via interceptor). */

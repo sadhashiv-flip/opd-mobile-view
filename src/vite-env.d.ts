@@ -10,6 +10,16 @@ interface ImportMetaEnv {
   readonly VITE_API_UPLOAD_URL?: string;
   /** `app_name` header for `POST /upload` (e.g. document uploads). Defaults to `co-flip-health`. */
   readonly VITE_UPLOAD_APP_NAME?: string;
+  /**
+   * Multipart field name for `PATCH /patient/profile` when updating the profile photo from the app.
+   * Defaults to `image`.
+   */
+  readonly VITE_PROFILE_IMAGE_FIELD?: string;
+  /**
+   * `type` form field for `POST /upload` when refreshing the profile photo via the upload host
+   * (used if multipart `PATCH /patient/profile` is not supported). Defaults to `profile`.
+   */
+  readonly VITE_PROFILE_UPLOAD_TYPE?: string;
   /** Base URL for relative profile image paths (no trailing slash required). */
   readonly VITE_IMAGE_URL?: string;
   /** ≥16 chars; used to encrypt auth payload in localStorage (required for prod build). */

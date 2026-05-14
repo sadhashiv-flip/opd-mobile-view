@@ -201,7 +201,66 @@
 }
 
 .profile-page__avatar-wrap--sm {
+  margin-top: 0;
+}
+
+.profile-page__avatar-block {
+  position: relative;
+  flex-shrink: 0;
   margin-top: 2px;
+}
+
+.profile-page__avatar-btn {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 0.14s ease;
+}
+
+.profile-page__avatar-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.profile-page__avatar-btn:disabled {
+  cursor: default;
+}
+
+.profile-page__avatar-busy {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  animation: profile-avatar-spin 0.65s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes profile-avatar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.profile-page__avatar-edit-badge {
+  position: absolute;
+  right: -2px;
+  bottom: 2px;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-brand-orange);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
 }
 
 .profile-page__avatar {

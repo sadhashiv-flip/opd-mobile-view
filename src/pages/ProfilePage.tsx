@@ -4,11 +4,16 @@ import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBan
 import { fetchAllPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
-import { fetchPatientProfile, type ProfileDisplay } from "@/api/patientProfile";
+import {
+  fetchPatientProfile,
+  updatePatientProfileImage,
+  type ProfileDisplay,
+} from "@/api/patientProfile";
 import { DeleteAccountModal } from "@/components/profile";
 import { InfoGrid, type InfoGridItem } from "@/components/profile/page/InfoGrid";
 import { ProfileCard } from "@/components/profile/page/ProfileCard";
 import { ProfileHeader } from "@/components/profile/page/ProfileHeader";
+import { ProfilePhotoSourceSheet } from "@/components/profile/page/ProfilePhotoSourceSheet";
 import {
   SettingsList,
   type ManageLinkItem,
@@ -179,6 +184,8 @@ export function ProfilePage() {
   const [manageExtras, setManageExtras] = useState({ bank: false, address: false });
   const [manageOpen, setManageOpen] = useState(true);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [profileImageBusy, setProfileImageBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -263,6 +270,22 @@ export function ProfilePage() {
     });
   }, []);
 
+  const handleProfilePhotoPicked = useCallback(
+    async (file: File) => {
+      setProfileImageBusy(true);
+      try {
+        const next = await updatePatientProfileImage(file);
+        setProfile(next);
+        toast.success("Profile photo updated.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not update profile photo");
+      } finally {
+        setProfileImageBusy(false);
+      }
+    },
+    [toast],
+  );
+
   return (
     <div className="profile-page">
       <header className="profile-page__top">
@@ -322,6 +345,8 @@ export function ProfilePage() {
               bmiCategory={profile.bmiCategory}
               editTo={ROUTES.userDetailsPersonal}
               onOpenSettings={openAccountSettings}
+              onChangeProfilePhoto={() => setPhotoSheetOpen(true)}
+              profileImageBusy={profileImageBusy}
             />
 
             {infoItems.length > 0 ? (
@@ -366,6 +391,12 @@ export function ProfilePage() {
           </>
         ) : null}
       </main>
+
+      <ProfilePhotoSourceSheet
+        open={photoSheetOpen}
+        onClose={() => setPhotoSheetOpen(false)}
+        onPicked={(file) => void handleProfilePhotoPicked(file)}
+      />
 
       <DeleteAccountModal
         open={deleteAccountOpen}

@@ -14,6 +14,10 @@ type ProfileHeaderProps = Readonly<{
   bmiCategory: BmiCategory | null;
   editTo: string;
   onOpenSettings: () => void;
+  /** Opens photo source picker (camera / files). */
+  onChangeProfilePhoto?: () => void;
+  /** While a new profile image is uploading. */
+  profileImageBusy?: boolean;
 }>;
 
 function IconGear() {
@@ -48,6 +52,8 @@ export function ProfileHeader({
   bmiCategory,
   editTo: _editTo,
   onOpenSettings,
+  onChangeProfilePhoto,
+  profileImageBusy = false,
 }: ProfileHeaderProps) {
   const bmiClass = bmiToneClass(bmiCategory);
   const resolvedAvatarUrl = resolveProfileImageUrl(profileImage);
@@ -62,23 +68,55 @@ export function ProfileHeader({
   return (
     <header className="profile-page__hero-compact" aria-labelledby="profile-name">
       <div className="profile-page__hero-compact-main">
-        <div className="profile-page__avatar-wrap profile-page__avatar-wrap--sm">
-          {showAvatarImage ? (
-            <img
-              className="profile-page__avatar profile-page__avatar--sm"
-              src={resolvedAvatarUrl}
-              alt={name}
-              decoding="async"
-              onError={() => setImageFailed(true)}
-            />
-          ) : (
-            <div
-              className="profile-page__avatar profile-page__avatar--sm profile-page__avatar--initials"
-              aria-hidden
-            >
-              {initials}
+        <div className="profile-page__avatar-block">
+          <button
+            type="button"
+            className="profile-page__avatar-btn"
+            aria-label="Update profile photo"
+            disabled={profileImageBusy || !onChangeProfilePhoto}
+            onClick={() => onChangeProfilePhoto?.()}
+          >
+            <div className="profile-page__avatar-wrap profile-page__avatar-wrap--sm">
+              {showAvatarImage ? (
+                <img
+                  className="profile-page__avatar profile-page__avatar--sm"
+                  src={resolvedAvatarUrl}
+                  alt=""
+                  decoding="async"
+                  onError={() => setImageFailed(true)}
+                />
+              ) : (
+                <div
+                  className="profile-page__avatar profile-page__avatar--sm profile-page__avatar--initials"
+                  aria-hidden
+                >
+                  {initials}
+                </div>
+              )}
             </div>
-          )}
+            {profileImageBusy ? (
+              <span className="profile-page__avatar-busy" aria-hidden />
+            ) : null}
+          </button>
+          {onChangeProfilePhoto && !profileImageBusy ? (
+            <span className="profile-page__avatar-edit-badge" aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M4.5 19.5h15M4 16l2-2m0 0l7-7 3 3-7 7H6v-3z"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          ) : null}
         </div>
         <div className="profile-page__hero-compact-copy">
           <div className="profile-page__hero-compact-title-row">

@@ -3,7 +3,7 @@
  * Mirrors Flutter {@link NotificationPayload} patterns: optional JSON `details`, `ticket_id` / `ticketId`.
  */
 
-function mergeFcmDataWithDetails(data: Record<string, string>): Record<string, string> {
+export function mergeFcmDataWithDetails(data: Record<string, string>): Record<string, string> {
   const merged = { ...data };
   const detailsRaw = merged.details;
   if (!detailsRaw || typeof detailsRaw !== "string") return merged;
