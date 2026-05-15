@@ -71,6 +71,9 @@
 .hco-back {
   grid-column: 1;
   justify-self: start;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,6 +88,10 @@
   margin: 0;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hco-orders {
@@ -800,17 +807,38 @@
 }
 
 .lt-card__body {
-  padding-left: 2px;
+  /* Align with title column (25px icon + 10px gap), same as lab review cards */
+  margin-left: 35px;
+  padding-left: 0;
+}
+
+.lt-addr-plain__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .lt-addr-plain__tag {
+  min-width: 0;
   font-size: 12px;
   font-weight: 700;
   color: #111111;
 }
 
+.lt-addr-plain__change {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ff541e;
+  cursor: pointer;
+}
+
 .lt-addr-plain__lines {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   font-size: 12px;
   line-height: 1.35;
   color: #6f6f6f;
@@ -1323,8 +1351,12 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, #f6f6f6 70%, transparent);
+  z-index: 10;
+  margin-top: auto;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: #f6f6f6;
+  border-top: 1px solid #ececec;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
 }
 
 .lt-footer__btn {

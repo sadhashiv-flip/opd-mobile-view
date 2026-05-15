@@ -632,20 +632,32 @@ export function HealthCheckupsOverviewPage() {
   );
 
   const formattedScheduleDate = useMemo(() => {
-    if (!dateLabel) return "April 10, 2024";
+    if (!dateLabel.trim()) return "";
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateLabel)) {
       const d = new Date(`${dateLabel}T12:00:00`);
       return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
     }
-    return dateLabel;
+    return dateLabel.trim();
   }, [dateLabel]);
 
   const dateTimeDisplay = useMemo(() => {
-    if (slotLabel) {
-      return `${formattedScheduleDate} • ${slotLabel}`;
-    }
-    return `${formattedScheduleDate} • 2PM-3PM`;
+    const datePart = formattedScheduleDate;
+    const timePart = slotLabel.trim();
+    if (datePart && timePart) return `${datePart} • ${timePart}`;
+    if (datePart) return datePart;
+    if (timePart) return timePart;
+    return "";
   }, [slotLabel, formattedScheduleDate]);
+
+  const healthAddressTagLabel = useMemo(() => {
+    if (!labOverview) return "";
+    const fromApi = labOverview.addressTag?.trim() ?? "";
+    if (fromApi) return fromApi;
+    if (labOverview.addressLine.trim() || locAddrLine.trim()) {
+      return fallbackAddrTag?.trim() || "HOME";
+    }
+    return "";
+  }, [labOverview, locAddrLine, fallbackAddrTag]);
 
   const successScheduleDisplay = useMemo(() => {
     if (isLabTests && labOverview) {
@@ -653,6 +665,13 @@ export function HealthCheckupsOverviewPage() {
       const t = labOverview.formattedSlotTimeRange;
       if (d && t) return `${d} • ${t}`;
       if (d) return t ? `${d} • ${t}` : d;
+    }
+    if (!isLabTests && labOverview) {
+      const d = labOverview.formattedSlotDate?.trim() ?? "";
+      const t = labOverview.formattedSlotTimeRange?.trim() ?? "";
+      if (d && t) return `${d} • ${t}`;
+      if (d) return d;
+      if (t) return t;
     }
     return dateTimeDisplay;
   }, [isLabTests, labOverview, dateTimeDisplay]);
@@ -1044,11 +1063,17 @@ export function HealthCheckupsOverviewPage() {
               <div className="lt-overview">
                 <LtCard icon={LT_IC_PIN} title="Address" accentIcon>
                   <div className="lt-addr-plain">
-                    <div className="lt-addr-plain__tag">
-                      {labOverview.addressTag?.trim() ||
-                        (labOverview.addressLine.trim() || locAddrLine.trim()
-                          ? fallbackAddrTag || "HOME"
-                          : "")}
+                    <div className="lt-addr-plain__head">
+                      <div className="lt-addr-plain__tag">
+                        {healthAddressTagLabel.trim() || "Delivery address"}
+                      </div>
+                      <button
+                        type="button"
+                        className="lt-addr-plain__change"
+                        onClick={() => setAddrSheetOpen(true)}
+                      >
+                        Change
+                      </button>
                     </div>
                     <p className="lt-addr-plain__lines">
                       {labOverview.addressLine.trim() ||

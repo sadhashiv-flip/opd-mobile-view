@@ -1,6 +1,7 @@
 /* Patient-app `DashboardPromoCarousel`: aspect 1528/712, radius 14, border, dot row under card. */
 .home-promo-carousel {
   margin: 0 0 12px;
+  flex-shrink: 0;
 }
 
 .home-promo-carousel__viewport {
@@ -8,8 +9,11 @@
   width: 100%;
   border-radius: 14px;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  touch-action: pan-y pinch-zoom;
-  aspect-ratio: 1528 / 382;
+  touch-action: pan-x pan-y;
+  aspect-ratio: 1528 / 712;
+  /* Match Flutter `AspectRatio(1528/712)`; floor height from frame width minus home gutters so
+   * nested flex (`mobile-frame__routes` → page column) cannot squeeze the strip shorter. */
+  min-height: calc(max(0px, 100cqi - 2 * var(--page-pad-x, 12px)) * 712 / 1528);
   box-sizing: border-box;
   background: #ececec;
 }
@@ -19,7 +23,7 @@
   flex-direction: row;
   flex-wrap: nowrap;
   height: 100%;
-  min-height: 0;
+  min-height: 100%;
   transition: transform 0.48s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }
@@ -40,7 +44,7 @@
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: 100%;
   padding: 0;
   border: none;
   border-radius: 14px;

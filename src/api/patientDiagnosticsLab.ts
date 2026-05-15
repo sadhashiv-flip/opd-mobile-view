@@ -146,9 +146,55 @@ export type HealthCheckupPackageRow = Readonly<{
   category: string;
   fastingTime: string;
   tat: string;
+  /** Optional artwork from API (`image`, `thumbnail`, nested `info`, `pricing.vendor.logo`, …). */
+  packageImagePath: string | null;
 }>;
 
-/** Special / AHC packages for a member — same query shape as patient_app `getPackages`. */
+function packageImagePathFromDiagnosticsRow(o: Record<string, unknown>): string | null {
+  const directKeys = [
+    "image",
+    "icon",
+    "thumbnail",
+    "product_image",
+    "package_image",
+    "banner",
+    "image_url",
+    "img",
+    "photo",
+    "picture",
+    "logo_url",
+  ] as const;
+  for (const k of directKeys) {
+    const s = nonEmptyStr(o[k]);
+    if (s) return s;
+  }
+  const info = asRecord(o.info);
+  if (info) {
+    for (const k of ["image", "icon", "thumbnail", "banner"] as const) {
+      const s = nonEmptyStr(info[k]);
+      if (s) return s;
+    }
+  }
+  const pricing = asRecord(o.pricing);
+  if (pricing) {
+    for (const k of ["image", "thumbnail", "icon"] as const) {
+      const s = nonEmptyStr(pricing[k]);
+      if (s) return s;
+    }
+    const vendor = asRecord(pricing.vendor);
+    if (vendor) {
+      const s = nonEmptyStr(vendor.logo) ?? nonEmptyStr(vendor.image);
+      if (s) return s;
+    }
+  }
+  return null;
+}
+
+/** Special / AHC packages for a member — same query shape as patient_app `getPackages`.
+ *
+ * **Flow:** `GET /patient/member` supplies `AHCAvailable` per person; select-people + `writeHealthSponsoredFlag`
+ * set `sponsored`; this call runs on the plan step as `GET …/diagnostics/packages?user=<id>&type=special&sponsored=<bool>`.
+ */
 export async function fetchHealthCheckupPackages(params: Readonly<{
   userId: number;
   type?: string;
@@ -170,6 +216,7 @@ export async function fetchHealthCheckupPackages(params: Readonly<{
     if (id == null) continue;
     const pricing = asRecord(o.pricing);
     const pricingIdRaw = pricing != null ? num(pricing.id) : null;
+    const packageImagePath = packageImagePathFromDiagnosticsRow(o);
     out.push({
       id,
       pricingId: pricingIdRaw != null && pricingIdRaw > 0 ? pricingIdRaw : null,
@@ -178,6 +225,7 @@ export async function fetchHealthCheckupPackages(params: Readonly<{
       category: str(o.category) || "pathology",
       fastingTime: diagnosticMetaString(o.fasting_time),
       tat: diagnosticMetaString(o.tat),
+      packageImagePath,
     });
   }
   return out;

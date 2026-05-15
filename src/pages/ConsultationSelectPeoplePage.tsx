@@ -112,7 +112,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [virtualLangSheetOpen, setVirtualLangSheetOpen] = useState(false);
-  /** Ephemeral â€” cleared whenever the language sheet opens, closes, or after Continue. */
+  /** Ephemeral — cleared whenever the language sheet opens, closes, or after Continue. */
   const [virtualLangChoice, setVirtualLangChoice] = useState("");
 
   const openVirtualLanguageSheet = () => {
@@ -136,6 +136,16 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     if (!filterAhcDashboardEntry) return rows;
     return rows.filter((r) => r.ahcAvailable);
   }, [rows, isHealthCheckupsDiagnostics, filterAhcDashboardEntry]);
+
+  /**
+   * Prime `localStorage` sponsored flag for the plan step (`GET diagnostics/packages?…&sponsored=`).
+   * Dashboard / deep link uses `?sponsored=1` / `?ahc=1`; general diagnostics clears stale `true` until Continue
+   * sets it again from `AHCAvailable` (patient_app `applyEntryArguments` / `continueWithMemberSelection`).
+   */
+  useEffect(() => {
+    if (!isHealthCheckupsDiagnostics) return;
+    writeHealthSponsoredFlag(filterAhcDashboardEntry);
+  }, [isHealthCheckupsDiagnostics, filterAhcDashboardEntry, location.key]);
 
   const loadMembers = async () => {
     const [list, canAct] = await Promise.all([
@@ -444,7 +454,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
         {loading ? (
           <p className="hc-member-loading" aria-busy="true">
-            Loading membersâ€¦
+            Loading members…
           </p>
         ) : null}
 

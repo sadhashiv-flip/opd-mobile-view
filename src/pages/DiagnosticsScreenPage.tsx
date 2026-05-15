@@ -123,18 +123,22 @@ export function DiagnosticsScreenPage() {
     void loadHealthPricing();
   }, [isLabTests, loadHealthPricing, selectedAddressId]);
 
-  const goHealthSlots = useCallback(() => {
-    const hp = healthPricing;
-    if (!hp) return;
-    writeHealthVendorMeta({
-      needPathology: hp.pathologyCategoryExists,
-      needRadiology: hp.radiologyCategoryExists,
-      pathVendorCode: hp.pathologyCategoryExists ? pathVendorCode ?? "unknown" : "unknown",
-      radVendorCode: hp.radiologyCategoryExists ? radVendorCode ?? "unknown" : "unknown",
-    });
-    clearHealthSlotSessionKeys();
-    navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
-  }, [healthPricing, pathVendorCode, radVendorCode, navigate, type]);
+  const goHealthSlots = useCallback(
+    (opts?: { replace?: boolean }) => {
+      const hp = healthPricing;
+      if (!hp) return;
+      writeHealthVendorMeta({
+        needPathology: hp.pathologyCategoryExists,
+        needRadiology: hp.radiologyCategoryExists,
+        pathVendorCode: hp.pathologyCategoryExists ? pathVendorCode ?? "unknown" : "unknown",
+        radVendorCode: hp.radiologyCategoryExists ? radVendorCode ?? "unknown" : "unknown",
+      });
+      clearHealthSlotSessionKeys();
+      const path = generatePath(ROUTES.diagnosticsSlots, { type });
+      navigate(path, opts?.replace ? { replace: true } : undefined);
+    },
+    [healthPricing, pathVendorCode, radVendorCode, navigate, type],
+  );
 
   /** Health (Dart `continueToVendorSelection`): no selectable pathology/radiology vendors → skip vendor UI, open slots. */
   useEffect(() => {
@@ -147,7 +151,8 @@ export function DiagnosticsScreenPage() {
     const autoKey = `${selectedAddressId}|${JSON.stringify(readHealthUsersPackages())}|p${healthPricing.pathologyCategoryExists ? 1 : 0}r${healthPricing.radiologyCategoryExists ? 1 : 0}`;
     if (healthAutoSlotsKeyRef.current === autoKey) return;
     healthAutoSlotsKeyRef.current = autoKey;
-    goHealthSlots();
+    /** Replace so "Back" from slots does not remount vendors and re-run this auto-skip (would feel broken). */
+    goHealthSlots({ replace: true });
   }, [
     goHealthSlots,
     healthError,
@@ -207,17 +212,21 @@ export function DiagnosticsScreenPage() {
   }, [isLabTests, selectedAddressId]);
 
   /** Lab (Dart `LabSelectionScreen`): no vendors → skip picker and open slots; vendor_code falls back to `unknown` like health slots. */
-  const goLabSlotsWithUnknownVendor = useCallback(() => {
-    try {
-      globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorId", "unknown");
-      globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
-      globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_CODE_KEY, "unknown");
-      globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_NAME_KEY, "");
-    } catch {
-      // ignore
-    }
-    navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
-  }, [navigate, type]);
+  const goLabSlotsWithUnknownVendor = useCallback(
+    (opts?: { replace?: boolean }) => {
+      try {
+        globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorId", "unknown");
+        globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
+        globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_CODE_KEY, "unknown");
+        globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_NAME_KEY, "");
+      } catch {
+        // ignore
+      }
+      const path = generatePath(ROUTES.diagnosticsSlots, { type });
+      navigate(path, opts?.replace ? { replace: true } : undefined);
+    },
+    [navigate, type],
+  );
 
   useEffect(() => {
     if (!isLabTests) return;
@@ -230,7 +239,7 @@ export function DiagnosticsScreenPage() {
     }
     if (labEmptySlotsSkipRef.current) return;
     labEmptySlotsSkipRef.current = true;
-    goLabSlotsWithUnknownVendor();
+    goLabSlotsWithUnknownVendor({ replace: true });
   }, [
     goLabSlotsWithUnknownVendor,
     isLabTests,
@@ -391,7 +400,7 @@ export function DiagnosticsScreenPage() {
             }
             onClick={() => {
               if (labApiVendors.length === 0) {
-                goLabSlotsWithUnknownVendor();
+                goLabSlotsWithUnknownVendor({ replace: true });
                 return;
               }
               const v = labApiVendors.find((x) => x.code === labSelectedCode);

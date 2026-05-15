@@ -273,9 +273,13 @@ export function DiagnosticsSlotsPage() {
     <div className="cas-page">
       <header className="cas-top">
         <Link
-          to={generatePath(ROUTES.diagnosticsVendors, { type })}
+          to={
+            isLabTests
+              ? generatePath(ROUTES.diagnosticsVendors, { type })
+              : generatePath(ROUTES.diagnosticsPlan, { type })
+          }
           className="cas-back"
-          aria-label="Back to vendors"
+          aria-label={isLabTests ? "Back to lab partners" : "Back to plan"}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path

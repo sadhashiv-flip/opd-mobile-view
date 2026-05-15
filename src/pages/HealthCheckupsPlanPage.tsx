@@ -25,7 +25,7 @@ import {
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import Lottie from "lottie-react";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import medicineLottie from "@/assets/lotties/medicine.json";
+import chemistryLabLottie from "@/assets/lotties/chemistry_lab.json";
 import "./HealthCheckupsPlanPage.css";
 
 function labMetaLine(fastingTime: string, tat: string): string {
@@ -44,63 +44,43 @@ function capitalizeCategoryWord(s: string): string {
   return `${t[0].toUpperCase()}${t.slice(1).toLowerCase()}`;
 }
 
-/** Mirrors Flutter `_selectedCategories`: group = combined pathology+radiology; at most one package per category slice per member. */
-function pkgCategoryKind(cat: string): "group" | "pathology" | "radiology" | "other" {
-  const c = cat.trim().toLowerCase();
-  if (c === "group") return "group";
-  if (c === "pathology") return "pathology";
-  if (c === "radiology") return "radiology";
-  return "other";
-}
-
-function toggleHealthPackagesForMember(
+/**
+ * Single package per member — matches patient_app `HealthCheckupsController.togglePackageForMember`
+ * (tap same package clears; tap another replaces).
+ */
+function toggleHealthPackageForMemberSingle(
   prev: Record<string, number[]>,
   memberId: string,
-  pkg: HealthCheckupPackageRow,
-  catalog: readonly HealthCheckupPackageRow[],
+  packageId: number,
 ): Record<string, number[]> {
   const cur = prev[memberId] ?? [];
-  const byId = new Map(catalog.map((p) => [p.id, p]));
-
-  if (cur.includes(pkg.id)) {
-    return { ...prev, [memberId]: cur.filter((id) => id !== pkg.id) };
+  if (cur.includes(packageId)) {
+    return { ...prev, [memberId]: [] };
   }
-
-  const kind = pkgCategoryKind(pkg.category);
-
-  if (kind === "group") {
-    return { ...prev, [memberId]: [pkg.id] };
-  }
-
-  let next = cur.filter((id) => pkgCategoryKind(byId.get(id)?.category ?? "") !== "group");
-
-  if (kind === "pathology") {
-    next = next.filter((id) => pkgCategoryKind(byId.get(id)?.category ?? "") !== "pathology");
-  } else if (kind === "radiology") {
-    next = next.filter((id) => pkgCategoryKind(byId.get(id)?.category ?? "") !== "radiology");
-  } else {
-    next = next.filter((id) => pkgCategoryKind(byId.get(id)?.category ?? "") !== "other");
-  }
-
-  return { ...prev, [memberId]: [...next, pkg.id] };
+  return { ...prev, [memberId]: [packageId] };
 }
 
-const HCP_PKG_CARD_ICON = (
-  <svg className="hcp-pkg-card__lab-ic" width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden>
-    <circle cx="24" cy="24" r="22" fill="rgba(255, 84, 30, 0.08)" />
+/** patient_app `SelectPlanPage._PackageCard`: `assets/lotties/chemistry_lab.json` 48×48 only (no API image in Flutter). */
+const PACKAGE_LEAD_LOTTIE = (
+  <span className="hcp-pkg-card__lottie48" aria-hidden>
+    <Lottie animationData={chemistryLabLottie} loop style={{ width: 48, height: 48 }} />
+  </span>
+);
+
+const HCP_IC_DINING = (
+  <svg className="hcp-info-chip__ic" width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
     <path
-      d="M24 10v6M18 14l4 4M30 14l-4 4M14 24h6M28 24h6M18 34l4-4M30 34l-4-4M24 28v10"
-      stroke="#FF541E"
+      d="M3 3v18M8 3v6M8 15v6M13 3v18M18 8v8"
+      stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
     />
-    <path
-      d="M20 22h8l-1 10h-6l-1-10z"
-      stroke="#c63d16"
-      strokeWidth="1.5"
-      strokeLinejoin="round"
-      fill="rgba(255,255,255,0.9)"
-    />
+  </svg>
+);
+const HCP_IC_SCHEDULE = (
+  <svg className="hcp-info-chip__ic" width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+    <path d="M12 7v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
   </svg>
 );
 
@@ -180,10 +160,13 @@ export function HealthCheckupsPlanPage() {
     setHealthErr(null);
   }, [type]);
 
+  /** URL can only promote sponsored — never force `false` (would wipe member-based flag set on Continue). */
   useEffect(() => {
     if (type !== "health-checkups") return;
     const sp = new URLSearchParams(location.search);
-    writeHealthSponsoredFlag(sp.get("sponsored") === "1" || sp.get("ahc") === "1");
+    if (sp.get("sponsored") === "1" || sp.get("ahc") === "1") {
+      writeHealthSponsoredFlag(true);
+    }
   }, [type, location.search]);
 
   const activeHealthMember = healthMembers[activeMemberIdx] ?? null;
@@ -224,7 +207,7 @@ export function HealthCheckupsPlanPage() {
     return () => {
       cancelled = true;
     };
-  }, [type, activeHealthMember?.id, activeMemberIdx, toast]);
+  }, [type, activeHealthMember?.id, activeMemberIdx, toast, location.key, location.search]);
 
   useEffect(() => {
     if (type !== "lab-tests") return;
@@ -343,7 +326,9 @@ export function HealthCheckupsPlanPage() {
   };
 
   return (
-    <div className="hcp-page">
+    <div
+      className={`hcp-page${type === "health-checkups" ? " hcp-page--health-plan-viewport" : ""}`}
+    >
       <header className="hcp-top">
         <Link
           to={generatePath(ROUTES.diagnosticsType, { type })}
@@ -525,57 +510,6 @@ export function HealthCheckupsPlanPage() {
               </div>
             ) : (
               <>
-                <div className="hcp-member-strip">
-                  <div className="hcp-member-tabs" role="tablist" aria-label="Members">
-                    {healthMembers.map((m, i) => {
-                      const hasPkg = memberHasPackages(m.id);
-                      const initial = (m.name.trim()?.[0] ?? "?").toUpperCase();
-                      const active = i === activeMemberIdx;
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          role="tab"
-                          className={`hcp-member-tab${active ? " hcp-member-tab--active" : ""}${hasPkg ? " hcp-member-tab--done" : ""}`}
-                          aria-selected={active}
-                          onClick={() => setActiveMemberIdx(i)}
-                        >
-                          <span className="hcp-member-tab__avatar" aria-hidden>
-                            {hasPkg && !active ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                                <path
-                                  d="M20 6L9 17l-5-5"
-                                  stroke="currentColor"
-                                  strokeWidth="2.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            ) : (
-                              initial
-                            )}
-                          </span>
-                          <span className="hcp-member-tab__name">{m.name.trim() || "Member"}</span>
-                          {hasPkg && active ? (
-                            <span className="hcp-member-tab__done-ic" aria-hidden>
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="10" fill="currentColor" />
-                                <path
-                                  d="M16.5 8.5l-5 5L9 11"
-                                  stroke="#ffffff"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 <div className="hcp-plans-scroll">
                   {healthErr && !healthLoading ? (
                     <p className="hcp-plan-err" role="alert">
@@ -586,22 +520,18 @@ export function HealthCheckupsPlanPage() {
                   {healthLoading ? (
                     <div className="hcp-plan-loading">
                       <output className="hcp-plan-loading__spinner" aria-live="polite">
-                        Loading…
+                        Loading
                       </output>
                     </div>
                   ) : activeHealthMember && healthPkgs.length === 0 && !healthErr ? (
                     <div className="hcp-plan-empty">
                       <div className="hcp-plan-empty__lottie" aria-hidden>
-                        <Lottie animationData={medicineLottie} loop style={{ width: 180, height: 180 }} />
+                        <Lottie animationData={chemistryLabLottie} loop style={{ width: 180, height: 180 }} />
                       </div>
                       <p className="hcp-plan-empty__msg">No packages available</p>
                     </div>
                   ) : activeHealthMember ? (
-                    <div className="hcp-plan-stack" role="group" aria-label="Select packages for this person">
-                      <p className="hcp-plan-multi-hint" role="note">
-                        Select one or more packages. Combined &quot;group&quot; packages replace other picks; at most
-                        one pathology and one radiology package each.
-                      </p>
+                    <div className="hcp-plan-stack" role="list" aria-label="Packages">
                       {healthPkgs.map((pkg) => {
                         const sel = (pkgByMemberKey[activeHealthMember.id] ?? []).includes(pkg.id);
                         const catLower = pkg.category.trim().toLowerCase();
@@ -612,44 +542,59 @@ export function HealthCheckupsPlanPage() {
                               ? "hcp-cat-chip--radiology"
                               : "hcp-cat-chip--default";
                         return (
-                          <div key={pkg.id} className={`hcp-pkg-card${sel ? " hcp-pkg-card--selected" : ""}`}>
+                          <div key={pkg.id} className={`hcp-pkg-card${sel ? " hcp-pkg-card--selected" : ""}`} role="listitem">
                             <button
                               type="button"
                               className="hcp-pkg-card__tap"
                               aria-pressed={sel}
                               onClick={() =>
                                 setPkgByMemberKey((prev) =>
-                                  toggleHealthPackagesForMember(prev, activeHealthMember.id, pkg, healthPkgs),
+                                  toggleHealthPackageForMemberSingle(prev, activeHealthMember.id, pkg.id),
                                 )
                               }
                             >
-                              <span className="hcp-pkg-card__icon-wrap">{HCP_PKG_CARD_ICON}</span>
+                              <span className="hcp-pkg-card__icon-wrap">{PACKAGE_LEAD_LOTTIE}</span>
                               <div className="hcp-pkg-card__body">
                                 <h2 className="hcp-pkg-card__title">{pkg.name}</h2>
                                 <div className="hcp-pkg-card__chips">
                                   {pkg.fastingTime.trim() ? (
-                                    <span className="hcp-pkg-card__meta">{pkg.fastingTime}</span>
+                                    <span className="hcp-info-chip">
+                                      {HCP_IC_DINING}
+                                      <span className="hcp-info-chip__text">{pkg.fastingTime.trim()}</span>
+                                    </span>
                                   ) : null}
                                   {pkg.tat.trim() ? (
-                                    <span className="hcp-pkg-card__meta">{pkg.tat}</span>
+                                    <span className="hcp-info-chip">
+                                      {HCP_IC_SCHEDULE}
+                                      <span className="hcp-info-chip__text">{pkg.tat.trim()}</span>
+                                    </span>
                                   ) : null}
-                                  <span className={`hcp-cat-chip ${catChipClass}`}>
-                                    {capitalizeCategoryWord(pkg.category)}
-                                  </span>
+                                  {catLower === "group" ? (
+                                    <>
+                                      <span className="hcp-cat-chip hcp-cat-chip--pathology">Pathology</span>
+                                      <span className="hcp-cat-chip hcp-cat-chip--radiology">Radiology</span>
+                                    </>
+                                  ) : (
+                                    <span className={`hcp-cat-chip ${catChipClass}`}>
+                                      {capitalizeCategoryWord(pkg.category)}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
-                              <span className={`hcp-pkg-card__radio${sel ? " hcp-pkg-card__radio--on" : ""}`} aria-hidden>
-                                {sel ? (
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                    <path
-                                      d="M20 6L9 17l-5-5"
-                                      stroke="#ffffff"
-                                      strokeWidth="2.5"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                ) : null}
+                              <span className="hcp-pkg-card__radio-slot" aria-hidden>
+                                <span className={`hcp-pkg-card__radio${sel ? " hcp-pkg-card__radio--on" : ""}`}>
+                                  {sel ? (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                      <path
+                                        d="M20 6L9 17l-5-5"
+                                        stroke="#ffffff"
+                                        strokeWidth="2.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  ) : null}
+                                </span>
                               </span>
                             </button>
                             {pkg.pricingId != null ? (
