@@ -28,16 +28,8 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import medicineLottie from "@/assets/lotties/medicine.json";
 import "./HealthCheckupsPlanPage.css";
 
-function labFastingLabel(hours: number | null): string {
-  if (hours != null && hours > 0) return `${hours} hrs Fasting Required`;
-  return "Fasting not required";
-}
-
-function labReportsLabel(tat: number | null): string {
-  if (tat == null) return "Reports time on confirm";
-  const days = Math.max(1, Math.round(tat / 24));
-  if (days === 1) return "Reports in 1 day";
-  return `Reports in ${days} days`;
+function labMetaLine(fastingTime: string, tat: string): string {
+  return [fastingTime, tat].map((s) => s.trim()).filter(Boolean).join(" · ");
 }
 
 function memberNumericId(m: DiagnosticsSelectedMemberSnapshot): number | null {
@@ -466,9 +458,9 @@ export function HealthCheckupsPlanPage() {
                       </span>
                       <div className="lt-row__body">
                         <div className="lt-row__title">{t.name}</div>
-                        <div className="lt-row__meta">
-                          {labFastingLabel(t.fastingTime)} · {labReportsLabel(t.tat)}
-                        </div>
+                        {labMetaLine(t.fastingTime, t.tat) ? (
+                          <div className="lt-row__meta">{labMetaLine(t.fastingTime, t.tat)}</div>
+                        ) : null}
                       </div>
                       <label className="lt-row__cb-wrap">
                         <input
@@ -619,7 +611,6 @@ export function HealthCheckupsPlanPage() {
                             : catLower === "radiology"
                               ? "hcp-cat-chip--radiology"
                               : "hcp-cat-chip--default";
-                        const tatLine = labReportsLabel(pkg.tat);
                         return (
                           <div key={pkg.id} className={`hcp-pkg-card${sel ? " hcp-pkg-card--selected" : ""}`}>
                             <button
@@ -636,25 +627,11 @@ export function HealthCheckupsPlanPage() {
                               <div className="hcp-pkg-card__body">
                                 <h2 className="hcp-pkg-card__title">{pkg.name}</h2>
                                 <div className="hcp-pkg-card__chips">
-                                  <span className="hcp-info-chip">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-                                      <path
-                                        d="M8 3v3M16 3v3M5 9h14M6 19h12a2 2 0 002-2V9H4v8a2 2 0 002 2z"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                      />
-                                    </svg>
-                                    {labFastingLabel(pkg.fastingTime)}
-                                  </span>
-                                  {tatLine ? (
-                                    <span className="hcp-info-chip">
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-                                        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-                                        <path d="M12 7v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                      </svg>
-                                      {tatLine}
-                                    </span>
+                                  {pkg.fastingTime.trim() ? (
+                                    <span className="hcp-pkg-card__meta">{pkg.fastingTime}</span>
+                                  ) : null}
+                                  {pkg.tat.trim() ? (
+                                    <span className="hcp-pkg-card__meta">{pkg.tat}</span>
                                   ) : null}
                                   <span className={`hcp-cat-chip ${catChipClass}`}>
                                     {capitalizeCategoryWord(pkg.category)}

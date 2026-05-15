@@ -1,66 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { fetchAllPatientBankRecords, hasAnyPatientBanks } from "@/api/patientBankDetails";
-import { fetchAllPatientAddresses, hasAnySavedAddresses } from "@/api/patientAddress";
-import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { fetchPatientProfile, updatePatientProfileImage, type ProfileDisplay } from "@/api/patientProfile";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
-import {
-  fetchPatientProfile,
-  updatePatientProfileImage,
-  type ProfileDisplay,
-} from "@/api/patientProfile";
+import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { DeleteAccountModal } from "@/components/profile";
 import { InfoGrid, type InfoGridItem } from "@/components/profile/page/InfoGrid";
 import { ProfileCard } from "@/components/profile/page/ProfileCard";
 import { ProfileHeader } from "@/components/profile/page/ProfileHeader";
+import { ProfileNavList, type ProfileNavItem } from "@/components/profile/page/ProfileNavList";
 import { ProfilePhotoSourceSheet } from "@/components/profile/page/ProfilePhotoSourceSheet";
 import {
-  SettingsList,
-  type ManageLinkItem,
-} from "@/components/profile/page/SettingsList";
-import {
-  formatDobAgeGenderLine,
-  formatGender,
-  formatLabel,
+  formatProfileDob,
+  formatProfilePhone,
   initialsFromName,
 } from "@/components/profile/page/profilePageUtils";
+import accountAddressBookSvg from "@/assets/icons/patient-app/hub/account_management/address_book.svg";
+import accountFamilyAccountsSvg from "@/assets/icons/patient-app/hub/account_management/family_account.svg";
+import accountSubscriptionsSvg from "@/assets/icons/patient-app/hub/account_management/subscriptions.svg";
+import helpFaqSvg from "@/assets/icons/patient-app/hub/help_and_support/faq.svg";
+import helpPrivacyAndPoliciesSvg from "@/assets/icons/patient-app/hub/help_and_support/privacy_policy.svg";
+import helpTandCSvg from "@/assets/icons/patient-app/hub/help_and_support/terms_and_conditions.svg";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
-import {
-  clearClientStorageOnUnauthorized,
-} from "@/lib/authStorage";
+import { clearClientStorageOnUnauthorized } from "@/lib/authStorage";
 import "./ProfilePage.css";
-
-function IconPhone() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6.5 3h3l1.5 4.5-2 1.5a12 12 0 006 6l1.5-2L21 14.5V18a2 2 0 01-2.2 2A17 17 0 013 5.2 2 2 0 015 3h1.5z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconCalendar() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="3"
-        y="5"
-        width="18"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function IconUser() {
   return (
@@ -72,6 +35,15 @@ function IconUser() {
         strokeWidth="1.6"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function IconCalendar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -89,101 +61,104 @@ function IconDroplet() {
   );
 }
 
-function IconBriefcase() {
+function IconPhone() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="3"
-        y="8"
-        width="18"
-        height="11"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <path d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
-}
-
-function IconGlobe() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
       <path
-        d="M3 12h18M12 3a16 16 0 010 18M12 3a16 16 0 000 18"
+        d="M6.5 3h3l1.5 4.5-2 1.5a12 12 0 006 6l1.5-2L21 14.5V18a2 2 0 01-2.2 2A17 17 0 013 5.2 2 2 0 015 3h1.5z"
         stroke="currentColor"
         strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-function buildInfoGridItems(profile: ProfileDisplay): InfoGridItem[] {
-  const rows: (InfoGridItem | null)[] = [
-    profile.phone
-      ? {
-          key: "phone",
-          icon: <IconPhone />,
-          label: "Phone",
-          value: profile.phone,
-        }
-      : null,
-    formatDobAgeGenderLine(profile.dob, profile.age)
-      ? {
-          key: "dob",
-          icon: <IconCalendar />,
-          label: "Birth",
-          value: formatDobAgeGenderLine(profile.dob, profile.age) ?? "",
-        }
-      : null,
-    formatGender(profile.gender)
-      ? {
-          key: "gender",
-          icon: <IconUser />,
-          label: "Gender",
-          value: formatGender(profile.gender) ?? "",
-        }
-      : null,
-    profile.bloodGroup
-      ? {
-          key: "blood",
-          icon: <IconDroplet />,
-          label: "Blood",
-          value: profile.bloodGroup,
-        }
-      : null,
-    profile.occupation
-      ? {
-          key: "occupation",
-          icon: <IconBriefcase />,
-          label: "Work",
-          value: profile.occupation,
-        }
-      : null,
-    formatLabel(profile.language)
-      ? {
-          key: "language",
-          icon: <IconGlobe />,
-          label: "Language",
-          value: formatLabel(profile.language) ?? "",
-        }
-      : null,
+function IconEnvelope() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3 8l9 6 9-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconLogout() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function buildPersonalInfoItems(profile: ProfileDisplay): InfoGridItem[] {
+  const rows: InfoGridItem[] = [
+    {
+      key: "name",
+      icon: <IconUser />,
+      label: "Full Name",
+      value: profile.name,
+    },
   ];
-  return rows.filter((r): r is InfoGridItem => r != null);
+
+  const dob = formatProfileDob(profile.dob);
+  if (dob) {
+    rows.push({
+      key: "dob",
+      icon: <IconCalendar />,
+      label: "Date of Birth",
+      value: dob,
+    });
+  }
+
+  if (profile.bloodGroup) {
+    rows.push({
+      key: "blood",
+      icon: <IconDroplet />,
+      label: "Blood Group",
+      value: profile.bloodGroup,
+      valueTone: "blood",
+    });
+  }
+
+  const phone = formatProfilePhone(profile.phone);
+  if (phone) {
+    rows.push({
+      key: "phone",
+      icon: <IconPhone />,
+      label: "Mobile Number",
+      value: phone,
+      valueTone: "contact",
+    });
+  }
+
+  if (profile.email) {
+    rows.push({
+      key: "email",
+      icon: <IconEnvelope />,
+      label: "Email Address",
+      value: profile.email,
+      valueTone: "contact",
+    });
+  }
+
+  return rows;
 }
 
 export function ProfilePage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const accountAnchorRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<ProfileDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [manageExtras, setManageExtras] = useState({ bank: false, address: false });
-  const [manageOpen, setManageOpen] = useState(true);
-  const [accountOpen, setAccountOpen] = useState(false);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
   const [profileImageBusy, setProfileImageBusy] = useState(false);
 
@@ -191,29 +166,12 @@ export function ProfilePage() {
     setLoading(true);
     setError(null);
     try {
-      const [profRes, banksRes, addrRes] = await Promise.allSettled([
-        fetchPatientProfile(),
-        fetchAllPatientBankRecords(),
-        fetchAllPatientAddresses(),
-      ]);
-
-      if (profRes.status === "rejected") {
-        const err = profRes.reason;
-        throw err instanceof Error ? err : new Error(String(err));
-      }
-      setProfile(profRes.value);
-
-      const banks = banksRes.status === "fulfilled" ? banksRes.value : [];
-      const addresses = addrRes.status === "fulfilled" ? addrRes.value : [];
-      setManageExtras({
-        bank: hasAnyPatientBanks(banks),
-        address: hasAnySavedAddresses(addresses),
-      });
+      const prof = await fetchPatientProfile();
+      setProfile(prof);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not load profile";
       setError(msg);
       setProfile(null);
-      setManageExtras({ bank: false, address: false });
     } finally {
       setLoading(false);
     }
@@ -223,52 +181,55 @@ export function ProfilePage() {
     void load();
   }, [load]);
 
-  const bankSaved = manageExtras.bank;
-  const addressSaved = manageExtras.address;
+  const infoItems = useMemo(() => (profile ? buildPersonalInfoItems(profile) : []), [profile]);
 
-  const infoItems = useMemo(
-    () => (profile ? buildInfoGridItems(profile) : []),
-    [profile],
-  );
-
-  const subline = useMemo(() => {
-    if (!profile) return null;
-    return formatLabel(profile.relationship);
-  }, [profile]);
-
-  const manageLinks: ManageLinkItem[] = useMemo(
+  const accountNavItems: ProfileNavItem[] = useMemo(
     () => [
       {
-        to: ROUTES.profileBank,
-        title: "Bank details",
-        meta: bankSaved ? "Saved on device" : null,
-      },
-      {
+        key: "address",
+        title: "Saved Address",
         to: ROUTES.profileAddress,
-        title: "Address",
-        meta: addressSaved ? "Saved on device" : null,
+        iconSrc: accountAddressBookSvg,
       },
       {
-        to: ROUTES.profileMembers,
-        title: "Members",
-        meta: "Family & dependents",
-      },
-      {
-        to: ROUTES.profileSubscriptions,
+        key: "subscriptions",
         title: "Subscriptions",
-        meta: "Plans & billing",
+        to: ROUTES.profileSubscriptions,
+        iconSrc: accountSubscriptionsSvg,
+      },
+      {
+        key: "members",
+        title: "Members",
+        to: ROUTES.profileMembers,
+        iconSrc: accountFamilyAccountsSvg,
       },
     ],
-    [addressSaved, bankSaved],
+    [],
   );
 
-  const openAccountSettings = useCallback(() => {
-    setAccountOpen(true);
-    setManageOpen(false);
-    requestAnimationFrame(() => {
-      accountAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }, []);
+  const supportNavItems: ProfileNavItem[] = useMemo(
+    () => [
+      {
+        key: "faq",
+        title: "FAQs",
+        to: ROUTES.servicesHelpTab,
+        iconSrc: helpFaqSvg,
+      },
+      {
+        key: "terms",
+        title: "Terms & Conditions",
+        to: ROUTES.servicesHelpTab,
+        iconSrc: helpTandCSvg,
+      },
+      {
+        key: "privacy",
+        title: "Privacy Policy",
+        to: ROUTES.servicesHelpTab,
+        iconSrc: helpPrivacyAndPoliciesSvg,
+      },
+    ],
+    [],
+  );
 
   const handleProfilePhotoPicked = useCallback(
     async (file: File) => {
@@ -286,14 +247,16 @@ export function ProfilePage() {
     [toast],
   );
 
+  const handleLogout = useCallback(() => {
+    clearClientStorageOnUnauthorized();
+    toast.success("You have been logged out.");
+    navigate(ROUTES.login, { replace: true });
+  }, [navigate, toast]);
+
   return (
     <div className="profile-page">
       <header className="profile-page__top">
-        <Link
-          to={ROUTES.dashboard}
-          className="profile-page__back"
-          aria-label="Back to home"
-        >
+        <Link to={ROUTES.dashboard} className="profile-page__back" aria-label="Back to home">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -312,13 +275,13 @@ export function ProfilePage() {
         {loading ? (
           <div className="profile-page__state profile-page__state--skeleton" aria-busy="true">
             <div className="profile-page__skeleton-row">
-              <div className="profile-page__skeleton profile-page__skeleton--avatar-sm" />
+              <div className="profile-page__skeleton profile-page__skeleton--avatar" />
               <div className="profile-page__skeleton-col">
                 <div className="profile-page__skeleton profile-page__skeleton--line lg" />
                 <div className="profile-page__skeleton profile-page__skeleton--line sm" />
               </div>
             </div>
-            <div className="profile-page__skeleton profile-page__skeleton--grid" />
+            <div className="profile-page__skeleton profile-page__skeleton--sheet" />
             <div className="profile-page__skeleton profile-page__skeleton--sheet" />
           </div>
         ) : null}
@@ -338,56 +301,35 @@ export function ProfilePage() {
               name={profile.name}
               profileImage={profile.image}
               initials={initialsFromName(profile.name)}
-              email={profile.email}
-              subline={subline}
               empId={profile.empId}
-              bmiValue={profile.bmi}
-              bmiCategory={profile.bmiCategory}
-              editTo={ROUTES.userDetailsPersonal}
-              onOpenSettings={openAccountSettings}
               onChangeProfilePhoto={() => setPhotoSheetOpen(true)}
               profileImageBusy={profileImageBusy}
             />
 
-            {infoItems.length > 0 ? (
-              <ProfileCard ariaLabel="Contact and health details">
-                <InfoGrid items={infoItems} />
-              </ProfileCard>
-            ) : null}
+            <ProfileCard title="Personal Information" titleId="profile-personal-info-title">
+              <InfoGrid items={infoItems} />
+            </ProfileCard>
 
-            <div ref={accountAnchorRef}>
-              <ProfileCard className="profile-page__sheet--flush">
-                <SettingsList
-                  manageOpen={manageOpen}
-                  onManageOpenChange={setManageOpen}
-                  manageLinks={manageLinks}
-                  accountOpen={accountOpen}
-                  onAccountOpenChange={setAccountOpen}
-                  accountActions={
-                    <>
-                      <button
-                        type="button"
-                        className="profile-page__account-btn profile-page__account-btn--logout"
-                        onClick={() => {
-                          clearClientStorageOnUnauthorized();
-                          toast.success("You have been logged out.");
-                          navigate(ROUTES.login, { replace: true });
-                        }}
-                      >
-                        Log out
-                      </button>
-                      <button
-                        type="button"
-                        className="profile-page__account-btn profile-page__account-btn--danger"
-                        onClick={() => setDeleteAccountOpen(true)}
-                      >
-                        Delete account
-                      </button>
-                    </>
-                  }
-                />
-              </ProfileCard>
-            </div>
+            <ProfileCard title="Account & Settings" titleId="profile-account-settings-title">
+              <ProfileNavList items={accountNavItems} />
+            </ProfileCard>
+
+            <ProfileCard title="Support" titleId="profile-support-title">
+              <ProfileNavList items={supportNavItems} />
+            </ProfileCard>
+
+            <button type="button" className="profile-page__logout-btn" onClick={handleLogout}>
+              <IconLogout />
+              Logout
+            </button>
+
+            {/* <button
+              type="button"
+              className="profile-page__delete-link"
+              onClick={() => setDeleteAccountOpen(true)}
+            >
+              Delete account
+            </button> */}
           </>
         ) : null}
       </main>
@@ -419,3 +361,4 @@ export function ProfilePage() {
     </div>
   );
 }
+

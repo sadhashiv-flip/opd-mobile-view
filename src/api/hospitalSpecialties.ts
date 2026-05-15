@@ -5,6 +5,7 @@ import { patientJson, patientJsonList } from "@/api/patientHttp";
 export type HospitalSpeciality = Readonly<{
   id: number;
   name: string;
+  image: string | null;
   consultation_time: number | null;
   consultation_price: number | null;
   consultation_type: number | null;
@@ -32,6 +33,7 @@ function normalizeHospitalSpeciality(raw: unknown): HospitalSpeciality | null {
   if (id === null) return null;
   const name = typeof r.name === "string" ? r.name.trim() : "";
   if (!name) return null;
+  const image = typeof r.image === "string" && r.image.trim() ? r.image.trim() : null;
   const status = typeof r.status === "number" && Number.isFinite(r.status) ? r.status : null;
   if (status != null && status !== 1) return null;
 
@@ -43,6 +45,7 @@ function normalizeHospitalSpeciality(raw: unknown): HospitalSpeciality | null {
   return {
     id,
     name,
+    image,
     consultation_time: ct,
     consultation_price: cp,
     consultation_type: ctype,

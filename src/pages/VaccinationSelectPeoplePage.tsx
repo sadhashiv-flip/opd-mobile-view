@@ -1,20 +1,16 @@
 import { ROUTES } from "@/constants";
 import { clearVaccinationFlowState, writeVaccinationFlowState } from "@/constants/vaccinationFlowStorage";
+import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
-import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
-import selectSvg from "@/assets/icons/Dashboard/Select.svg";
-import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
-import {
-  defaultGymMemberSelection,
-  HC_PERSON_ADD_CTA_DISABLED_TOOLTIP,
-  HC_PERSON_ADD_CTA_TOOLTIP,
-  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
-  memberShowsSubscriptionActivateCta,
-  MEMBER_NOT_ACTIVATED_LABEL,
-  patientMembersToGymRows,
-  type GymMemberListRow,
-} from "@/lib/gymMemberDisplay";
+import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
+import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
+import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import { defaultSingleSelectHint, SELECT_PEOPLE_COPY } from "@/lib/selectPeopleShared";
+import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -25,13 +21,31 @@ export function VaccinationSelectPeoplePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const mod = useProfileModuleGates();
+  const canAddFamily = mod.planDependents.dependentAddAllowed;
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [addrSheetOpen, setAddrSheetOpen] = useState(false);
+  const hcLocAddrRaw = useSelectedAddressLine("");
+  const returnPath = `${location.pathname}${location.search}`;
+
+  const memberListConfig = useMemo(
+    () => ({
+      showAhcSponsorSubtitle: false,
+      restrictToAhcSelection: false,
+      isDiagnosticsFlow: false,
+    }),
+    [],
+  );
 
   useEffect(() => {
     clearVaccinationFlowState();
+  }, []);
+
+  useEffect(() => {
+    void ensureDefaultSelectedAddressIfNeeded();
   }, []);
 
   useEffect(() => {
@@ -61,71 +75,45 @@ export function VaccinationSelectPeoplePage() {
     };
   }, [toast, location.key]);
 
-  const maxSelectable = 1;
-
   useEffect(() => {
     if (rows.length === 0) {
       setSelectedIds([]);
       return;
     }
-    setSelectedIds((prev) => {
-      let next = prev.filter((id) => {
+    setSelectedIds((prev) =>
+      prev.filter((id) => {
         const r = rows.find((x) => x.id === id);
         return Boolean(r?.isSubscribed);
-      });
-      if (next.length === 0) next = defaultGymMemberSelection(rows);
-      if (next.length > maxSelectable) next = next.slice(0, maxSelectable);
-      return next;
-    });
+      }),
+    );
   }, [rows]);
 
-  const selfMembers = useMemo(() => rows.filter((m) => m.section === "self"), [rows]);
-  const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
+  const hasAddress = hcLocAddrRaw.trim() !== "";
+  const canContinue =
+    selectedIds.length > 0 && !loading && !fetchError && rows.length > 0 && hasAddress;
 
   const toggleMember = (memberId: string) => {
-    const row = rows.find((r) => r.id === memberId);
-    if (!row?.isSubscribed) return;
-    setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
+    setSelectedIds(toggleSelectPeopleMember(memberId, rows, { allowDeselect: true }));
   };
 
   const goProfileSubscriptions = () => {
     void navigate(ROUTES.profileSubscriptions, {
-      state: { returnPath: `${location.pathname}${location.search}` },
+      state: { returnPath },
     });
   };
 
-  const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
-    const isSelected = selectedIds.includes(member.id);
-    if (isSelected) {
-      return (
-        <span className="hc-person__cta hc-person__cta--added" aria-hidden="true">
-          <img src={selectSvg} alt="" width={18} height={18} draggable={false} />
-        </span>
-      );
+  const continueButtonLabel = (() => {
+    if (!hasAddress) {
+      return selectedIds.length === 0
+        ? SELECT_PEOPLE_COPY.addAddressAndSelectMembers
+        : SELECT_PEOPLE_COPY.addAddressToContinue;
     }
-    if (memberShowsSubscriptionActivateCta(member)) {
-      return <SubscriptionActivateCtaButton onClick={goProfileSubscriptions} />;
-    }
-    const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
-    const addTitle =
-      member.isSubscribed && !rowDisabled
-        ? HC_PERSON_ADD_CTA_TOOLTIP
-        : member.isSubscribed && rowDisabled
-          ? HC_PERSON_ADD_CTA_DISABLED_TOOLTIP
-          : undefined;
-    return (
-      <span
-        className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
-        aria-hidden="true"
-        title={ctaLabel === "Add" ? addTitle : HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP}
-      >
-        {ctaLabel}
-      </span>
-    );
-  };
+    if (selectedIds.length === 0) return SELECT_PEOPLE_COPY.selectMemberToContinue;
+    return "Continue";
+  })();
 
   const onContinue = () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0 || !hasAddress) return;
     const id = selectedIds[0];
     if (!id) return;
     const row = rows.find((r) => r.id === id) ?? null;
@@ -144,8 +132,6 @@ export function VaccinationSelectPeoplePage() {
     void navigate(ROUTES.vaccinationChooseType);
   };
 
-  const canContinue = selectedIds.length > 0 && !loading && !fetchError && rows.length > 0;
-
   return (
     <div className="hc-page">
       <header className="hco-top">
@@ -160,11 +146,46 @@ export function VaccinationSelectPeoplePage() {
             />
           </svg>
         </Link>
-        <h1 className="hco-title">Select family member</h1>
+        <h1 className="hco-title">Vaccination</h1>
         <span className="hco-top__spacer" aria-hidden />
       </header>
 
       <main className="hc-main">
+        <div className="hc-loc-wrap">
+          <button
+            type="button"
+            className="hc-select-loc"
+            aria-label={hcLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+            onClick={() => setAddrSheetOpen(true)}
+          >
+            <span className="hc-select-loc__pin" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z" fill="#FF541E" />
+                <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
+              </svg>
+            </span>
+            <AddressStripLabels
+              layout="pipe"
+              addrRaw={hcLocAddrRaw}
+              titleClassName="hc-select-loc__title"
+              sepClassName="hc-select-loc__sep"
+              addrClassName="hc-select-loc__addr"
+              promptClassName="hc-select-loc__addr hc-select-loc__addr--prompt"
+            />
+            <span className="hc-select-loc__chev" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </button>
+        </div>
+
         {loading ? (
           <p className="hc-member-loading" aria-busy="true">
             Loading members…
@@ -207,104 +228,26 @@ export function VaccinationSelectPeoplePage() {
         ) : null}
 
         {!loading && !fetchError && rows.length > 0 ? (
-          <>
-            <section className="hc-block">
-              <h2 className="hc-block__title">For you</h2>
-              {selfMembers.map((member) => {
-                const canSubActivate = memberShowsSubscriptionActivateCta(member);
-                const notActivated = !member.isSubscribed;
-                const rowDisabled = notActivated;
-                const showInactiveTag = notActivated && !canSubActivate;
-                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
-                const body = (
-                  <>
-                    <span className="hc-person__avatar" aria-hidden="true">
-                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                    </span>
-                    <span className="hc-person__info">
-                      <span className="hc-person__name">{member.name}</span>
-                      {showInactiveTag ? (
-                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                      ) : null}
-                      <span className="hc-person__sub">{member.subtitle}</span>
-                    </span>
-                    {renderTrailing(member, rowDisabled)}
-                  </>
-                );
-                if (canSubActivate) {
-                  return (
-                    <div key={member.id} className={rowClass}>
-                      {body}
-                    </div>
-                  );
-                }
-                return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    disabled={rowDisabled}
-                    className={rowClass}
-                    onClick={() => toggleMember(member.id)}
-                  >
-                    {body}
-                  </button>
-                );
-              })}
-            </section>
-
-            <section className="hc-block">
-              <h2 className="hc-block__title">For your family</h2>
-              {familyMembersList.map((member) => {
-                const canSubActivate = memberShowsSubscriptionActivateCta(member);
-                const notActivated = !member.isSubscribed;
-                const rowDisabled = notActivated;
-                const showInactiveTag = notActivated && !canSubActivate;
-                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
-                const body = (
-                  <>
-                    <span className="hc-person__avatar" aria-hidden="true">
-                      <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                    </span>
-                    <span className="hc-person__info">
-                      <span className="hc-person__name">{member.name}</span>
-                      {showInactiveTag ? (
-                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                      ) : null}
-                      <span className="hc-person__sub">{member.subtitle}</span>
-                    </span>
-                    {renderTrailing(member, rowDisabled)}
-                  </>
-                );
-                if (canSubActivate) {
-                  return (
-                    <div key={member.id} className={rowClass}>
-                      {body}
-                    </div>
-                  );
-                }
-                return (
-                  <button
-                    key={member.id}
-                    type="button"
-                    disabled={rowDisabled}
-                    className={rowClass}
-                    onClick={() => toggleMember(member.id)}
-                  >
-                    {body}
-                  </button>
-                );
-              })}
-            </section>
-          </>
+          <SelectPeopleMemberList
+            members={rows}
+            selectedIds={selectedIds}
+            onToggle={toggleMember}
+            onNavigateSubscriptions={goProfileSubscriptions}
+            config={memberListConfig}
+            selectionHint={defaultSingleSelectHint()}
+            canAddFamily={canAddFamily}
+            returnPath={returnPath}
+          />
         ) : null}
-
       </main>
 
       <footer className="hc-footer">
         <button type="button" className="bottom-continue" disabled={!canContinue} onClick={onContinue}>
-          Continue
+          {continueButtonLabel}
         </button>
       </footer>
+
+      <AddressBottomSheet open={addrSheetOpen} onClose={() => setAddrSheetOpen(false)} />
     </div>
   );
 }

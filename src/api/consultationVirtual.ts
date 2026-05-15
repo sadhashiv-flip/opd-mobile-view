@@ -19,6 +19,7 @@ export type SpecialityDoctor = Readonly<{
   name: string;
   qualification: string | null;
   image: string | null;
+  gender: string | null;
   experience: string | number | null;
   speciality: { name: string; id: number } | null;
 }>;
@@ -44,6 +45,8 @@ function normalizeDoctor(raw: unknown): SpecialityDoctor | null {
     typeof r.qualification === "string" ? r.qualification.trim() : null;
   const image =
     typeof r.image === "string" && r.image.trim() ? r.image.trim() : null;
+  const gender =
+    typeof r.gender === "string" && r.gender.trim() ? r.gender.trim() : null;
   const exp = r.experience;
   const specRaw = asRecord(r.speciality);
   const specId = specRaw ? asFiniteId(specRaw.id) : null;
@@ -56,6 +59,7 @@ function normalizeDoctor(raw: unknown): SpecialityDoctor | null {
     name: name || "Doctor",
     qualification,
     image,
+    gender,
     experience: exp as string | number | null,
     speciality,
   };

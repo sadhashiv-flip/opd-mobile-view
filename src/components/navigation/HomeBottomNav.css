@@ -32,7 +32,7 @@
   --home-nav-fab-overlap: 31px;
   --home-nav-chrome-bottom: 14px;
   /* Scales with mobile-frame width (100cqw); caps at design height 76px */
-  --home-nav-plate-h: min(76px, calc(100cqw * 76 / 430));
+  --home-nav-plate-h: min(20px, calc(100cqw * 76 / 430));
   --home-bottom-nav-spacer-height: calc(
     var(--home-nav-fab-overlap) + var(--home-nav-plate-h) + var(--home-nav-chrome-bottom) +
       env(safe-area-inset-bottom, 0px)

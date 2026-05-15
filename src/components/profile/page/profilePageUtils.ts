@@ -33,16 +33,46 @@ export function ageFromDob(dob: string | null): number | null {
   return years;
 }
 
+/** e.g. `02-02-1979` */
+export function formatProfileDob(dob: string | null): string | null {
+  const dobTrim = dob?.trim() ?? "";
+  if (!dobTrim) return null;
+
+  const iso = /^\d{4}-\d{2}-\d{2}/.exec(dobTrim);
+  if (iso) {
+    const d = new Date(dobTrim);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+  }
+
+  return dobTrim;
+}
+
 /** e.g. `1994-04-09 (31 Years Old)` */
 export function formatDobAgeGenderLine(
   dob: string | null,
   _age: string | null,
 ): string | null {
-  const dobTrim = dob?.trim() ?? "";
+  return formatProfileDob(dob);
+}
 
-  let line = dobTrim;
-
-  return line.length > 0 ? line : null;
+/** Display phone with spacing when possible. */
+export function formatProfilePhone(phone: string | null): string | null {
+  const raw = phone?.trim() ?? "";
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+  if (digits.length === 12 && digits.startsWith("91")) {
+    const local = digits.slice(2);
+    return `+91 ${local.slice(0, 5)} ${local.slice(5)}`;
+  }
+  return raw;
 }
 
 export function formatLabel(s: string | null): string | null {

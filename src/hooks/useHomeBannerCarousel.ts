@@ -91,7 +91,7 @@ export function useHomeBannerCarousel({
   }, [slideCount, infinite]);
 
   useEffect(() => {
-    if (slideCount <= 1) return;
+    if (slideCount <= 1 || autoAdvanceMs <= 0) return;
     const id = globalThis.setInterval(() => {
       stepNext();
     }, autoAdvanceMs);

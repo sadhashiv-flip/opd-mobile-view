@@ -9,18 +9,10 @@ import {
   writeConsultSelectedMembersSnapshots,
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
-import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
-import {
-  defaultGymMemberSelection,
-  HC_PERSON_ADD_CTA_TOOLTIP,
-  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
-  memberShowsSubscriptionActivateCta,
-  MEMBER_NOT_ACTIVATED_LABEL,
-  patientMembersToGymRows,
-  type GymMemberListRow,
-} from "@/lib/gymMemberDisplay";
-import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
-import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
+import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
+import { defaultSingleSelectHint } from "@/lib/selectPeopleShared";
+import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
 import "@/components/address/AddressBottomSheet.css";
@@ -54,8 +46,16 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const returnPath = `${location.pathname}${location.search}`;
 
-  const maxSelectable = 1;
+  const memberListConfig = useMemo(
+    () => ({
+      showAhcSponsorSubtitle: false,
+      restrictToAhcSelection: false,
+      isDiagnosticsFlow: false,
+    }),
+    [],
+  );
 
   const loadMembers = useCallback(async () => {
     const [list, canAct] = await Promise.all([
@@ -95,8 +95,8 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
   }, [open, toast]);
 
   useEffect(() => {
-    if (rows.length === 0) {
-      setSelectedIds([]);
+    if (!open || rows.length === 0) {
+      if (!open) setSelectedIds([]);
       return;
     }
     setSelectedIds((prev) => {
@@ -110,12 +110,10 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
           const storedRow = rows.find((r) => r.id === stored);
           if (storedRow?.isSubscribed) next = [stored];
         }
-        if (next.length === 0) next = defaultGymMemberSelection(rows);
       }
-      if (next.length > maxSelectable) next = next.slice(0, maxSelectable);
-      return next;
+      return next.length > 1 ? next.slice(0, 1) : next;
     });
-  }, [rows]);
+  }, [open, rows]);
 
   useEffect(() => {
     if (!open) return;
@@ -126,44 +124,14 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
     };
   }, [open]);
 
-  const selfMembers = useMemo(() => rows.filter((m) => m.section === "self"), [rows]);
-  const familyMembersList = useMemo(() => rows.filter((m) => m.section === "family"), [rows]);
-
   const toggleMember = (memberId: string) => {
-    const row = rows.find((r) => r.id === memberId);
-    if (!row?.isSubscribed) return;
-    setSelectedIds((prev) => (prev.includes(memberId) ? prev : [memberId]));
+    setSelectedIds(toggleSelectPeopleMember(memberId, rows, { allowDeselect: true }));
   };
 
   const goProfileSubscriptions = () => {
     void navigate(ROUTES.profileSubscriptions, {
-      state: { returnPath: `${location.pathname}${location.search}` },
+      state: { returnPath },
     });
-  };
-
-  const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
-    const isSelected = selectedIds.includes(member.id);
-    if (isSelected) {
-      return (
-        <span className="hc-person__cta hc-person__cta--added" aria-hidden="true">
-          <img src={selectSvg} alt="" width={18} height={18} draggable={false} />
-        </span>
-      );
-    }
-    if (memberShowsSubscriptionActivateCta(member)) {
-      return <SubscriptionActivateCtaButton onClick={goProfileSubscriptions} />;
-    }
-    return (
-      <span
-        className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
-        aria-hidden="true"
-        title={
-          rowDisabled ? HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP : HC_PERSON_ADD_CTA_TOOLTIP
-        }
-      >
-        {rowDisabled ? MEMBER_NOT_ACTIVATED_LABEL : "Add"}
-      </span>
-    );
   };
 
   const canContinue = selectedIds.length > 0 && !loading && !fetchError && rows.length > 0;
@@ -254,113 +222,20 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
           ) : null}
 
           {!loading && !fetchError && rows.length > 0 ? (
-            <>
-              <section className="hc-block">
-                <h2 className="hc-block__title">For you</h2>
-                {selfMembers.map((member) => {
-                  const canSubActivate = memberShowsSubscriptionActivateCta(member);
-                  const notActivated = !member.isSubscribed;
-                  const rowDisabled = notActivated;
-                  const showInactiveTag = notActivated && !canSubActivate;
-                  const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
-                  const body = (
-                    <>
-                      <span className="hc-person__avatar" aria-hidden="true">
-                        <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                      </span>
-                      <span className="hc-person__info">
-                        <span className="hc-person__name">{member.name}</span>
-                        {showInactiveTag ? (
-                          <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                        ) : null}
-                        <span className="hc-person__sub">{member.subtitle}</span>
-                      </span>
-                      {renderTrailing(member, rowDisabled)}
-                    </>
-                  );
-                  if (canSubActivate) {
-                    return (
-                      <div key={member.id} className={rowClass}>
-                        {body}
-                      </div>
-                    );
-                  }
-                  return (
-                    <button
-                      key={member.id}
-                      type="button"
-                      disabled={rowDisabled}
-                      className={rowClass}
-                      onClick={() => toggleMember(member.id)}
-                    >
-                      {body}
-                    </button>
-                  );
-                })}
-              </section>
-
-              <section className="hc-block">
-                <h2 className="hc-block__title">For your family</h2>
-                {familyMembersList.map((member) => {
-                  const canSubActivate = memberShowsSubscriptionActivateCta(member);
-                  const notActivated = !member.isSubscribed;
-                  const rowDisabled = notActivated;
-                  const showInactiveTag = notActivated && !canSubActivate;
-                  const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
-                  const body = (
-                    <>
-                      <span className="hc-person__avatar" aria-hidden="true">
-                        <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
-                      </span>
-                      <span className="hc-person__info">
-                        <span className="hc-person__name">{member.name}</span>
-                        {showInactiveTag ? (
-                          <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
-                        ) : null}
-                        <span className="hc-person__sub">{member.subtitle}</span>
-                      </span>
-                      {renderTrailing(member, rowDisabled)}
-                    </>
-                  );
-                  if (canSubActivate) {
-                    return (
-                      <div key={member.id} className={rowClass}>
-                        {body}
-                      </div>
-                    );
-                  }
-                  return (
-                    <button
-                      key={member.id}
-                      type="button"
-                      disabled={rowDisabled}
-                      className={rowClass}
-                      onClick={() => toggleMember(member.id)}
-                    >
-                      {body}
-                    </button>
-                  );
-                })}
-
-                {canAddFamily ? (
-                  <button
-                    type="button"
-                    className="hc-add-family"
-                    onClick={() => {
-                      onClose();
-                      navigate(ROUTES.profileMembersAdd, {
-                        state: { returnPath: `${location.pathname}${location.search}` },
-                      });
-                    }}
-                  >
-                    <span className="hc-add-family__ic" aria-hidden="true">
-                      +
-                    </span>
-                    <span> Add new family member</span>
-                  </button>
-                ) : null}
-              </section>
-            </>
+            <SelectPeopleMemberList
+              members={rows}
+              selectedIds={selectedIds}
+              onToggle={toggleMember}
+              onNavigateSubscriptions={goProfileSubscriptions}
+              config={memberListConfig}
+              selectionHint={defaultSingleSelectHint()}
+              canAddFamily={canAddFamily}
+              returnPath={returnPath}
+              onAddFamily={() => {
+                onClose();
+                navigate(ROUTES.profileMembersAdd, { state: { returnPath } });
+              }}
+            />
           ) : null}
         </main>
 

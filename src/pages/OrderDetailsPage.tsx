@@ -102,8 +102,11 @@ import {
 } from "@/constants/consultationSelectedMemberStorage";
 import { useAttachmentFilePreviewGallery } from "@/hooks/useAttachmentFilePreviewGallery";
 import { useToast } from "@/hooks/useToast";
-import { orderDetailKindInUrlFromCategoryKey } from "@/lib/orderDetailRoutes";
-import { generatePath, useNavigate, useParams, type NavigateFunction } from "react-router-dom";
+import {
+  isOrderDetailFromBookingSuccess,
+  orderDetailKindInUrlFromCategoryKey,
+} from "@/lib/orderDetailRoutes";
+import { generatePath, useLocation, useNavigate, useParams, type NavigateFunction } from "react-router-dom";
 import "./OrderDetailsPage.css";
 
 function inferVisionBookingSuccessType(
@@ -433,6 +436,7 @@ export function OrderDetailsPage() {
     invoiceId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [detail, setDetail] = useState<InvoiceDetailModel | null>(null);
   const [consultationCompleted, setConsultationCompleted] =
@@ -646,9 +650,12 @@ export function OrderDetailsPage() {
     if (!detail || !invoiceId) return;
     const canonical = orderDetailKindInUrlFromCategoryKey(detail.categoryKey);
     if (orderKindFromUrl !== canonical) {
-      navigate(generatePath(ROUTES.ordersDetail, { orderKind: canonical, invoiceId }), { replace: true });
+      navigate(generatePath(ROUTES.ordersDetail, { orderKind: canonical, invoiceId }), {
+        replace: true,
+        state: location.state,
+      });
     }
-  }, [detail, invoiceId, navigate, orderKindFromUrl]);
+  }, [detail, invoiceId, navigate, orderKindFromUrl, location.state]);
 
   const canCancelOrder = useMemo(() => {
     if (!detail) return false;
@@ -1211,6 +1218,10 @@ export function OrderDetailsPage() {
   const showFollowUpFooter = !loading && !error && detail != null && cc?.followUp != null;
 
   const goBack = () => {
+    if (isOrderDetailFromBookingSuccess(location.state)) {
+      navigate(ROUTES.orders, { replace: true });
+      return;
+    }
     if (globalThis.history.length > 1) {
       navigate(-1);
     } else {

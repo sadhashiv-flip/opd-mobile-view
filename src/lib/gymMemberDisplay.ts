@@ -26,6 +26,13 @@ export const HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP =
 export const HC_PERSON_ACTIVATE_CTA_TOOLTIP =
   "Your plan has open member slots. Opens Subscriptions so you can assign this person to the plan.";
 
+/** patient_app `FamilyMember.isChildBlocked` — blocks diagnostics & consultation pickers. */
+export const DIAGNOSTICS_CHILD_AGE_BLOCK_REASON = "Not eligible (age 7 or below)";
+
+export function isDiagnosticsChildBlocked(age: number): boolean {
+  return age > 0 && age <= 7;
+}
+
 export function memberShowsSubscriptionActivateCta(row: GymMemberListRow): boolean {
   return !row.isSubscribed && row.subscriptionCanActivate;
 }
@@ -43,6 +50,10 @@ export type GymMemberListRow = Readonly<{
   dob?: string;
   gender?: string;
   bloodGroup?: string;
+  /** Member age when known (API or derived from DOB). */
+  age: number;
+  /** True when age is 1–7 — not selectable for diagnostics (patient_app). */
+  isChildBlocked: boolean;
   /** Sponsored AHC eligibility from members API (`AHCAvailable`). */
   ahcAvailable: boolean;
   /** From members API `isSubscribed` — false means plan not active for this member. */
@@ -86,6 +97,8 @@ export function patientMembersToGymRows(
     dob: m.dob ?? undefined,
     gender: m.gender ?? undefined,
     bloodGroup: m.bloodGroup ?? undefined,
+    age: m.age,
+    isChildBlocked: isDiagnosticsChildBlocked(m.age),
     ahcAvailable: m.ahcAvailable,
     isSubscribed: m.isSubscribed,
     subscriptionCanActivate,

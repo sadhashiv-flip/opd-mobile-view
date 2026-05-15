@@ -19,6 +19,15 @@ function nonEmptyStr(v: unknown): string | null {
   return null;
 }
 
+/** API `fasting_time` / `tat` — show as returned (patient-app string fields). */
+function diagnosticMetaString(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  if (typeof v === "boolean") return String(v);
+  return "";
+}
+
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
@@ -29,8 +38,8 @@ export type DiagnosticCatalogRow = Readonly<{
   name: string;
   type: string;
   category: string;
-  fastingTime: number | null;
-  tat: number | null;
+  fastingTime: string;
+  tat: string;
 }>;
 
 export async function fetchDiagnosticPackages(params: Readonly<{
@@ -59,8 +68,8 @@ export async function fetchDiagnosticPackages(params: Readonly<{
       name: str(o.name) || "Test",
       type: str(o.type) || "test",
       category: str(o.category) || "pathology",
-      fastingTime: num(o.fasting_time),
-      tat: num(o.tat),
+      fastingTime: diagnosticMetaString(o.fasting_time),
+      tat: diagnosticMetaString(o.tat),
     });
   }
   return out;
@@ -135,8 +144,8 @@ export type HealthCheckupPackageRow = Readonly<{
   name: string;
   type: string;
   category: string;
-  fastingTime: number | null;
-  tat: number | null;
+  fastingTime: string;
+  tat: string;
 }>;
 
 /** Special / AHC packages for a member — same query shape as patient_app `getPackages`. */
@@ -167,8 +176,8 @@ export async function fetchHealthCheckupPackages(params: Readonly<{
       name: str(o.name) || "Package",
       type: str(o.type) || "special",
       category: str(o.category) || "pathology",
-      fastingTime: num(o.fasting_time),
-      tat: num(o.tat),
+      fastingTime: diagnosticMetaString(o.fasting_time),
+      tat: diagnosticMetaString(o.tat),
     });
   }
   return out;

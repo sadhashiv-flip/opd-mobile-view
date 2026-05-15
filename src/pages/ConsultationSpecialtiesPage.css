@@ -184,6 +184,10 @@ button.csp-back {
 }
 
 .csp-main--virtual {
+  padding-bottom: 24px;
+}
+
+.csp-page:has(.csp-vrtl-ft) .csp-main--virtual {
   padding-bottom: 96px;
 }
 
@@ -547,7 +551,24 @@ button.csp-back {
   color: #9a9a9a;
 }
 
-/* Virtual issues: 3-column grid (Flutter SelectSpecialityScreen online) */
+/* Virtual issues: row-based 3-column grid (Flutter SelectSpecialityScreen online) */
+.csp-virtual-issues {
+  padding: 0 2px 24px;
+}
+
+.csp-virtual-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.csp-virtual-row-gap {
+  height: 12px;
+}
+
 .csp-virtual-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -595,9 +616,19 @@ button.csp-back {
 
 .csp-virtual-tile--selected {
   border-color: #ff541e;
-  border-width: 2px;
+  border-width: 1.5px;
   background: rgba(255, 84, 30, 0.08);
-  box-shadow: 0 0 0 1px rgba(255, 84, 30, 0.2);
+  box-shadow: none;
+}
+
+.csp-virtual-tile--selected .csp-virtual-tile__title {
+  font-weight: 600;
+  color: #ff541e;
+}
+
+.csp-virtual-grid__cell--empty {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .csp-virtual-tile:focus-visible {
@@ -633,6 +664,12 @@ button.csp-back {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.csp-virtual-tile__fallback--letter {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .csp-virtual-tile__title {

@@ -1,6 +1,20 @@
 import { categoryKeyFromLabel } from "@/api/patientInvoices";
 import { ROUTES } from "@/constants";
-import { generatePath } from "react-router-dom";
+import { generatePath, type NavigateFunction } from "react-router-dom";
+
+/** Passed via `navigate(..., { state })` when opening detail from a booking-success screen. */
+export type OrderDetailLocationState = Readonly<{
+  fromBookingSuccess?: boolean;
+}>;
+
+export const ORDER_DETAIL_FROM_BOOKING_SUCCESS: OrderDetailLocationState = {
+  fromBookingSuccess: true,
+};
+
+export function isOrderDetailFromBookingSuccess(state: unknown): boolean {
+  if (state == null || typeof state !== "object" || Array.isArray(state)) return false;
+  return (state as OrderDetailLocationState).fromBookingSuccess === true;
+}
 
 /** Path param `orderKind` for {@link ROUTES.ordersDetail} (kebab-case where needed). */
 export type OrderDetailKindInUrl =
@@ -37,6 +51,17 @@ export function pathToOrderDetail(categoryKey: string, invoiceId: string): strin
   return generatePath(ROUTES.ordersDetail, {
     orderKind: orderDetailKindInUrlFromCategoryKey(categoryKey),
     invoiceId,
+  });
+}
+
+/** Order success “View order details” — back on detail should land on orders, not success. */
+export function navigateToOrderDetailFromBookingSuccess(
+  navigate: NavigateFunction,
+  path: string,
+): void {
+  void navigate(path, {
+    replace: true,
+    state: ORDER_DETAIL_FROM_BOOKING_SUCCESS,
   });
 }
 

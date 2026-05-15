@@ -1,6 +1,6 @@
 import { ROUTES } from "@/constants";
 import type { BookingSuccessLocationState, BookingSuccessSummaryRow } from "@/constants/bookingSuccessNavigation";
-import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
+import { navigateToOrderDetailFromBookingSuccess, pathToOrderDetail } from "@/lib/orderDetailRoutes";
 import { useNavigate } from "react-router-dom";
 import "./BookingSuccessWithSummary.css";
 
@@ -79,7 +79,7 @@ export function BookingSuccessWithSummary({ state }: BookingSuccessWithSummaryPr
   const onViewOrder = () => {
     const override = state.viewOrderDetailPath?.trim();
     if (override) {
-      void navigate(override, { replace: true });
+      navigateToOrderDetailFromBookingSuccess(navigate, override);
       return;
     }
     const inv = state.orderDetailInvoiceId?.trim();
@@ -88,7 +88,7 @@ export function BookingSuccessWithSummary({ state }: BookingSuccessWithSummaryPr
       return;
     }
     const cat = state.orderDetailCategoryKey?.trim() || "lab";
-    void navigate(pathToOrderDetail(cat, inv), { replace: true });
+    navigateToOrderDetailFromBookingSuccess(navigate, pathToOrderDetail(cat, inv));
   };
 
   const onDone = () => {

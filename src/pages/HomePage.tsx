@@ -14,6 +14,7 @@ import blogPromoImg from "@/assets/images/blog.png";
 import digitalDiaryPromoImg from "@/assets/images/digitaldiary.png";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
+import { DashboardHalfTileFeatures } from "@/components/dashboard/DashboardHalfTileFeatures";
 import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import type { DashboardOngoingItem } from "@/api/patientDashboard";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
@@ -46,6 +47,7 @@ import { useHomeDashboard } from "@/hooks/useHomeDashboard";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { DashboardHalfTileGraphic } from "@/lib/dashboardHalfTileGraphic";
 import {
+  DASHBOARD_DIAGNOSTICS_CARD_COPY,
   DASHBOARD_HALF_TILE_COPY,
   selectDashboardHalfTiles,
   type DashboardHalfTileKind,
@@ -62,7 +64,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 import { generatePath, Link, useNavigate } from "react-router-dom";
@@ -261,7 +262,7 @@ export function HomePage() {
     onTouchStart: onOngoingCarouselTouchStart,
     onTouchEnd: onOngoingCarouselTouchEnd,
     onTrackTransitionEnd: onOngoingTrackTransitionEnd,
-  } = useHomeBannerCarousel({ slideCount: ongoingCount });
+  } = useHomeBannerCarousel({ slideCount: ongoingCount, autoAdvanceMs: 0 });
 
   const ongoingSlides = useMemo(() => {
     if (ongoing.length <= 1) {
@@ -285,11 +286,6 @@ export function HomePage() {
   const [homeSearchFocused, setHomeSearchFocused] = useState(false);
   const [homeRecentSearches, setHomeRecentSearches] = useState<string[]>(() => loadHomeRecentSearches());
   const homeSearchInputRef = useRef<HTMLInputElement>(null);
-  /** Patient-app `DashboardMainScreen`: hide bottom bar on scroll down, reveal on scroll up / near top. */
-  const [bottomNavVisible, setBottomNavVisible] = useState(true);
-  const lastWindowScrollY = useRef(0);
-  const scrollSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prefersReducedMotionRef = useRef(false);
 
   const dashboardHalfTiles = useMemo(() => selectDashboardHalfTiles(mod), [mod]);
   const navigateDashboardHalfTile = useCallback(
@@ -423,60 +419,6 @@ export function HomePage() {
     }
     void navigate(ROUTES.gymMembership);
   }, [mod.loaded, mod.serviceHub.gym, navigate, toast]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => {
-      prefersReducedMotionRef.current = mq.matches;
-      if (mq.matches) setBottomNavVisible(true);
-    };
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  useEffect(() => {
-    lastWindowScrollY.current = window.scrollY || document.documentElement.scrollTop;
-    const onWindowScroll = () => {
-      if (prefersReducedMotionRef.current) {
-        setBottomNavVisible(true);
-        return;
-      }
-      if (homeSearchFocused) {
-        setBottomNavVisible(true);
-        return;
-      }
-      const y = window.scrollY || document.documentElement.scrollTop;
-      const delta = y - lastWindowScrollY.current;
-      lastWindowScrollY.current = y;
-      if (y <= 0) {
-        setBottomNavVisible(true);
-      } else if (delta > 6) {
-        setBottomNavVisible(false);
-      } else if (delta < -6) {
-        setBottomNavVisible(true);
-      }
-      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
-      scrollSettleTimer.current = setTimeout(() => {
-        const yy = window.scrollY || document.documentElement.scrollTop;
-        if (yy < 80) setBottomNavVisible(true);
-      }, 160);
-    };
-    window.addEventListener("scroll", onWindowScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onWindowScroll);
-      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
-    };
-  }, [homeSearchFocused]);
-
-  const ongoingFloatBottomStyle = useMemo<CSSProperties>(
-    () => ({
-      bottom: bottomNavVisible
-        ? "calc(var(--home-bottom-nav-spacer-height) + 8px)"
-        : "calc(12px + env(safe-area-inset-bottom, 0px))",
-    }),
-    [bottomNavVisible],
-  );
 
   /** Hub sheets only — address sheet locks scroll inside {@link AddressBottomSheet} (avoid nested body locks). */
   useEffect(() => {
@@ -815,7 +757,7 @@ export function HomePage() {
               }}
             >
               <div className="home-card__body">
-                <h3 className="home-card__title">Diagnostics</h3>
+                <h3 className="home-card__title">{DASHBOARD_DIAGNOSTICS_CARD_COPY.title}</h3>
                 <div className="home-card__slot-row">
                   <span className="home-card__slot-ic" aria-hidden="true">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -834,7 +776,9 @@ export function HomePage() {
                       />
                     </svg>
                   </span>
-                  <span className="home-card__slot-text">SAME DAY SLOT BOOKING</span>
+                  <span className="home-card__slot-text">
+                    {DASHBOARD_DIAGNOSTICS_CARD_COPY.sameDaySlot}
+                  </span>
                 </div>
                 <div className="home-card__loc-row">
                   <span className="home-card__loc-item">
@@ -848,7 +792,7 @@ export function HomePage() {
                         />
                       </svg>
                     </span>
-                    home collection
+                    {DASHBOARD_DIAGNOSTICS_CARD_COPY.homeCollection}
                   </span>
                   <span className="home-card__loc-sep" aria-hidden="true">
                     ·
@@ -865,10 +809,12 @@ export function HomePage() {
                         />
                       </svg>
                     </span>
-                    at center
+                    {DASHBOARD_DIAGNOSTICS_CARD_COPY.atCenter}
                   </span>
                 </div>
-                <span className="home-badge home-badge--soft">UP TO 20% OFF</span>
+                <span className="home-badge home-badge--soft">
+                  {DASHBOARD_DIAGNOSTICS_CARD_COPY.badgeText}
+                </span>
               </div>
               <div
                 className="home-card__media home-card__media--lg"
@@ -898,7 +844,12 @@ export function HomePage() {
                       {copy.meta ? (
                         <p className="home-card__meta">{copy.meta}</p>
                       ) : null}
-                      <span className="home-badge home-badge--sm">UP TO 30% OFF</span>
+                      {copy.features && copy.features.length > 0 ? (
+                        <DashboardHalfTileFeatures features={copy.features} />
+                      ) : null}
+                      {copy.badgeText ? (
+                        <span className="home-badge home-badge--sm">{copy.badgeText}</span>
+                      ) : null}
                     </div>
                     <DashboardHalfTileGraphic kind={kind} />
                   </button>
@@ -1235,7 +1186,6 @@ export function HomePage() {
       {showOngoingDashboardChrome ? (
         <div
           className="home-ongoing-float"
-          style={ongoingFloatBottomStyle}
           role="region"
           aria-labelledby="ongoing-orders-float-heading"
         >
@@ -1400,7 +1350,7 @@ export function HomePage() {
         </div>
       ) : null}
 
-      <HomeBottomNav visible={bottomNavVisible} />
+      <HomeBottomNav />
     </div>
   );
 }

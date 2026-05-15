@@ -247,6 +247,13 @@
   align-items: center;
 }
 
+.hcp-pkg-card__meta {
+  font-size: max(10px, calc(11 * 100cqw / 375));
+  font-weight: 600;
+  color: #6f6f6f;
+  line-height: 1.35;
+}
+
 .hcp-info-chip {
   display: inline-flex;
   align-items: center;

@@ -22,6 +22,8 @@ export type MemberDisplay = Readonly<{
   /** Numeric id for booking payloads when API provides `patient_id` or numeric `id`. */
   patientNumericId: number | null;
   email: string | null;
+  /** From members API `age` when provided; otherwise derived from `dob` when possible. */
+  age: number;
   /** From members API `AHCAvailable` — eligible for sponsored annual health checkup (patient_app). */
   ahcAvailable: boolean;
   /**
@@ -146,6 +148,24 @@ function healthScoreDetailsRow(o: Record<string, unknown>): Record<string, unkno
   return asRecord(hs.details);
 }
 
+function ageFromDob(dob: string | null): number {
+  if (!dob) return 0;
+  const t = Date.parse(dob);
+  if (Number.isNaN(t)) return 0;
+  const now = new Date();
+  const born = new Date(t);
+  let age = now.getFullYear() - born.getFullYear();
+  const m = now.getMonth() - born.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < born.getDate())) age -= 1;
+  return age > 0 ? age : 0;
+}
+
+function deriveMemberAge(o: Record<string, unknown>, dob: string | null): number {
+  const fromApi = coerceFiniteNumber(o.age);
+  if (fromApi != null && fromApi > 0) return Math.floor(fromApi);
+  return ageFromDob(dob);
+}
+
 function deriveIsSubscribed(o: Record<string, unknown>): boolean {
   const raw =
     o.isSubscribed ??
@@ -195,6 +215,7 @@ function normalizeMember(
     `member-${index}`;
   const name = str(o.name) ?? str(o.full_name) ?? str(o.fullName);
   if (!name) return null;
+  const dob = str(o.dob) ?? str(o.date_of_birth) ?? str(o.dateOfBirth);
   const hsd = healthScoreDetailsRow(o);
   const heightFromHealth = hsd ? str(hsd.height) : null;
   const weightFromHealth = hsd ? str(hsd.weight) : null;
@@ -203,7 +224,8 @@ function normalizeMember(
     name,
     relationship: str(o.relationship) ?? str(o.relation),
     phone: str(o.phone) ?? str(o.mobile) ?? str(o.phone_number),
-    dob: str(o.dob) ?? str(o.date_of_birth) ?? str(o.dateOfBirth),
+    dob,
+    age: deriveMemberAge(o, dob),
     gender: str(o.gender) ?? str(o.sex),
     statusLabel: deriveStatusLabel(o),
     memberKind: deriveMemberKind(o, id, primaryMemberId),

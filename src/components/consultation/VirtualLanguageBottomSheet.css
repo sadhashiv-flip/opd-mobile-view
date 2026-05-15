@@ -95,15 +95,19 @@
 }
 
 .virt-lang-sheet__choice:hover {
-  border-color: rgba(255, 84, 30, 0.4);
-  background: #ffffff;
+  border-color: #bdbdbd;
+  /* background: #ffffff; */
 }
 
 .virt-lang-sheet__choice--selected {
-  border-color: #ff541e;
-  background: rgba(255, 84, 30, 0.07);
-  color: #111111;
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
   padding-right: 26px;
+}
+
+.virt-lang-sheet__choice--selected .virt-lang-sheet__choice-label {
+  color: #ffffff;
 }
 
 .virt-lang-sheet__choice-label {
@@ -117,7 +121,7 @@
   top: 4px;
   right: 5px;
   display: flex;
-  color: #ff541e;
+  color: #ffffff;
   pointer-events: none;
 }
 
@@ -136,12 +140,13 @@
   font-weight: 800;
   font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.08px));
   color: #ffffff;
-  background: linear-gradient(90deg, #dc2626 0%, #ea580c 100%);
+  background: #111111;
   cursor: pointer;
 }
 
 .virt-lang-sheet__continue:disabled {
-  opacity: 0.45;
+  background: #c4c4c4;
+  color: #ffffff;
   cursor: not-allowed;
 }
 

@@ -33,21 +33,89 @@ export const DASHBOARD_HALF_TILE_ORDER: readonly DashboardHalfTileKind[] = [
   "claim",
 ] as const;
 
-export const DASHBOARD_HALF_TILE_COPY: Record<
-  DashboardHalfTileKind,
-  Readonly<{ title: string; meta?: string }>
-> = {
-  consultation: { title: "Consultation", meta: "BOOK APPOINTMENT" },
-  dental: { title: "Dental", meta: "DENTAL BOOKING" },
-  pharmacy: { title: "Pharmacy" },
-  vaccination: { title: "Vaccination", meta: "BOOK AT HOME / CENTER" },
-  vision: { title: "Vision" },
-  mental: { title: "Mental Wellness", meta: "BOOK SESSIONS" },
-  chronic: { title: "Chronic Management", meta: "MEDICATION & REFILLS" },
-  nutrition: { title: "Nutrition", meta: "DIETICIAN SUPPORT" },
-  gym: { title: "Gym & Fitness", meta: "MEMBERSHIP" },
-  claim: { title: "Claims", meta: "OPD REIMBURSEMENT" },
+/** Feature chip on a half-tile — `ServiceFeature` / `service_grid.dart`. */
+export type DashboardHalfTileFeature = Readonly<{
+  label: string;
+  icon?: "virtual" | "at-hospital";
+  tone?: "green" | "brand" | "muted";
+}>;
+
+/** Half-tile labels — aligned with patient_app `service_grid.dart` + `string_define.dart`. */
+export type DashboardHalfTileCopy = Readonly<{
+  title: string;
+  /** Subtitle under title (`CommonDashboardServiceCard.subtitle`). */
+  meta?: string;
+  /** Shown only when set (e.g. Consultation `k10Mins`); not a generic discount badge. */
+  badgeText?: string;
+  /** Option rows (Virtual / At Hospital, Prescribed / OTC, etc.). */
+  features?: readonly DashboardHalfTileFeature[];
+}>;
+
+export const DASHBOARD_HALF_TILE_COPY: Record<DashboardHalfTileKind, DashboardHalfTileCopy> = {
+  consultation: {
+    title: "Consultation",
+    meta: "INSTANT APPOINTMENT",
+    badgeText: "10 MINS",
+    features: [
+      { label: "Virtual", icon: "virtual", tone: "green" },
+      { label: "At Hospital", icon: "at-hospital", tone: "brand" },
+    ],
+  },
+  dental: {
+    title: "Dental",
+    meta: "DENTAL BOOKING",
+    features: [{ label: "At Hospital", icon: "at-hospital", tone: "brand" }],
+  },
+  pharmacy: {
+    title: "Pharmacy",
+    features: [
+      { label: "Prescribed", tone: "muted" },
+      { label: "OTC Products", tone: "muted" },
+    ],
+  },
+  vaccination: {
+    title: "Vaccination",
+    features: [{ label: "Vaccination Center", tone: "muted" }],
+  },
+  vision: {
+    title: "Vision",
+    features: [
+      { label: "Eye Checkup", tone: "muted" },
+      { label: "Glasses/Lens", tone: "muted" },
+    ],
+  },
+  mental: {
+    title: "Mental Wellness",
+    features: [{ label: "Mental Wellness", tone: "muted" }],
+  },
+  chronic: {
+    title: "Chronic",
+    features: [{ label: "Chronic", tone: "muted" }],
+  },
+  nutrition: {
+    title: "Nutrition",
+    features: [{ label: "Nutrition", tone: "muted" }],
+  },
+  gym: {
+    title: "Gym Membership",
+    meta: "Buy Gym memberships",
+    features: [{ label: "Gym Membership", tone: "muted" }],
+  },
+  claim: {
+    title: "Claims",
+    meta: "Raise claims, check status",
+    features: [{ label: "Claims", tone: "muted" }],
+  },
 };
+
+/** Featured diagnostics card — `DashboardController.services` + `ServiceCard` options. */
+export const DASHBOARD_DIAGNOSTICS_CARD_COPY = {
+  title: "Diagnostics",
+  sameDaySlot: "SAME DAY SLOT BOOKING",
+  homeCollection: "Home Collection",
+  atCenter: "At Center",
+  badgeText: "UP TO 20% OFF",
+} as const;
 
 function gateForKind(
   kind: DashboardHalfTileKind,

@@ -1,0 +1,53 @@
+.home-card--tile .home-card__features {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 0 6px;
+  max-width: 100%;
+}
+
+.home-card--tile .home-card__feature {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.home-card--tile .home-card__feature-label {
+  font-size: max(7px, calc(8 * 100cqw / 375));
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-card--tile .home-card__feature--green .home-card__feature-label {
+  color: #43a047;
+}
+
+.home-card--tile .home-card__feature--brand .home-card__feature-label {
+  color: var(--color-brand-orange, #ff541e);
+}
+
+.home-card--tile .home-card__feature--muted .home-card__feature-label {
+  color: #757575;
+}
+
+.home-card--tile .home-card__feature-ic {
+  flex-shrink: 0;
+}
+
+.home-card--tile .home-card__feature-ic--img {
+  display: block;
+  object-fit: contain;
+}
+
+.home-card--tile .home-card__feature-ic--dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #9e9e9e;
+}

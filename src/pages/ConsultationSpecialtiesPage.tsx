@@ -1,5 +1,11 @@
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
-import type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
+import {
+  fetchAllSpecialityDoctors,
+  type SpecialityDoctor,
+  type VirtualSpecialtySlotsState,
+} from "@/api/consultationVirtual";
+import { HospitalSpecialtyGrid } from "@/components/consultation/HospitalSpecialtyGrid";
+import { VirtualSpecialtyIssuesGrid } from "@/components/consultation/VirtualSpecialtyIssuesGrid";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { ROUTES } from "@/constants";
@@ -11,8 +17,7 @@ import {
 } from "@/constants/virtualConsultationSessionStorage";
 import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { fetchHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
+import { fetchAllHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
 import {
@@ -23,14 +28,13 @@ import {
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
-  type UIEvent,
 } from "react";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { useToast } from "@/hooks/useToast";
-import consultationAtHospitalSvg from "@/assets/icons/common/ConsultationAtHospital.svg";
 import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationSpecialtiesPage.css";
 
@@ -54,12 +58,6 @@ export function ConsultationSpecialtiesPage() {
     isHospital ? "loading" : "ok",
   );
   const [hospitalError, setHospitalError] = useState<string | null>(null);
-  const [loadingMoreHospital, setLoadingMoreHospital] = useState(false);
-  const nextHospitalPageRef = useRef(1);
-  const hasMoreHospitalRef = useRef(true);
-  const loadingMoreHospitalRef = useRef(false);
-  const hospitalScrollRef = useRef<HTMLUListElement | null>(null);
-
   const [loadingMoreVirtual, setLoadingMoreVirtual] = useState(false);
   const nextVirtualPageRef = useRef(1);
   const hasMoreVirtualRef = useRef(true);
@@ -69,20 +67,74 @@ export function ConsultationSpecialtiesPage() {
   const cspLocAddrRaw = useSelectedAddressLine("");
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
   const [virtualSearchQuery, setVirtualSearchQuery] = useState("");
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [onlineDoctors, setOnlineDoctors] = useState<readonly SpecialityDoctor[]>([]);
+  const [doctorsLoad, setDoctorsLoad] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const doctorsRequestRef = useRef(0);
 
-  // Debounce search queries for API calls (300ms delay)
-  const debouncedHospitalSearch = useDebouncedValue(hospitalSearchQuery, 300);
+  /** patient_app: client-side filter (`searchOfflineSpecialities` / `searchIssues`). */
+  const filteredHospitalSpecs = useMemo(() => {
+    const q = hospitalSearchQuery.trim().toLowerCase();
+    if (!q) return hospitalSpecs;
+    return hospitalSpecs.filter((s) => s.name.toLowerCase().includes(q));
+  }, [hospitalSpecs, hospitalSearchQuery]);
 
-  // Remove local filtering - we'll use API search instead
-  const displayedHospitalSpecs = hospitalSpecs;
-  const displayedVirtualIssues = virtualIssues;
+  /** patient_app: client-side filter on loaded issues (`searchIssues`). */
+  const filteredVirtualIssues = useMemo(() => {
+    const q = virtualSearchQuery.trim().toLowerCase();
+    if (!q) return virtualIssues;
+    return virtualIssues.filter((issue) => issue.title.toLowerCase().includes(q));
+  }, [virtualIssues, virtualSearchQuery]);
 
   useEffect(() => {
-    if (selectedIssueId && !displayedVirtualIssues.some(i => String(i.id) === selectedIssueId)) {
+    if (selectedIssueId && !filteredVirtualIssues.some((i) => String(i.id) === selectedIssueId)) {
       setSelectedIssueId(null);
+      setOnlineDoctors([]);
+      setDoctorsLoad("idle");
     }
-  }, [displayedVirtualIssues, selectedIssueId]);
+  }, [filteredVirtualIssues, selectedIssueId]);
+
+  const handleSelectVirtualIssue = useCallback(
+    (issue: PatientIssue) => {
+      const id = String(issue.id);
+      setSelectedIssueId(id);
+      setOnlineDoctors([]);
+      setDoctorsLoad("loading");
+      const reqId = ++doctorsRequestRef.current;
+      void fetchAllSpecialityDoctors(issue.parent)
+        .then((docs) => {
+          if (doctorsRequestRef.current !== reqId) return;
+          setOnlineDoctors(docs);
+          setDoctorsLoad("ok");
+        })
+        .catch((e: unknown) => {
+          if (doctorsRequestRef.current !== reqId) return;
+          setOnlineDoctors([]);
+          setDoctorsLoad("error");
+          toast.error(e instanceof Error ? e.message : "Failed to load doctors");
+        });
+    },
+    [toast],
+  );
+
+  const selectedVirtualRowIndex = useMemo(() => {
+    if (!selectedIssueId) return null;
+    const idx = filteredVirtualIssues.findIndex((i) => String(i.id) === selectedIssueId);
+    if (idx < 0) return null;
+    return Math.floor(idx / 3);
+  }, [filteredVirtualIssues, selectedIssueId]);
+
+  const showVirtualContinueFooter =
+    Boolean(selectedIssueId) && doctorsLoad === "ok" && onlineDoctors.length > 0;
+
+  const showHospitalContinueFooter = Boolean(selectedHospitalId);
+
+  useEffect(() => {
+    if (selectedHospitalId && !filteredHospitalSpecs.some((s) => String(s.id) === selectedHospitalId)) {
+      setSelectedHospitalId(null);
+    }
+  }, [filteredHospitalSpecs, selectedHospitalId]);
 
   useEffect(() => {
     if (!isHospital) return;
@@ -100,18 +152,10 @@ export function ConsultationSpecialtiesPage() {
     setHospitalLoad("loading");
     setHospitalError(null);
     setHospitalSpecs([]);
-    nextHospitalPageRef.current = 1;
-    hasMoreHospitalRef.current = true;
-    loadingMoreHospitalRef.current = false;
-    void fetchHospitalSpecialities({ page: 1, limit: DEFAULT_LIST_PAGE_SIZE }, debouncedHospitalSearch || null)
+    void fetchAllHospitalSpecialities()
       .then((list) => {
         if (cancelled) return;
         setHospitalSpecs(list);
-        if (list.length === 0) {
-          hasMoreHospitalRef.current = false;
-        } else {
-          nextHospitalPageRef.current = 2;
-        }
         setHospitalLoad("ok");
       })
       .catch((e: unknown) => {
@@ -126,57 +170,7 @@ export function ConsultationSpecialtiesPage() {
     return () => {
       cancelled = true;
     };
-  }, [isHospital, toast, location.key, debouncedHospitalSearch]);
-
-  const loadMoreHospital = useCallback(async () => {
-    if (!hasMoreHospitalRef.current || hospitalLoad !== "ok") return;
-    if (loadingMoreHospitalRef.current) return;
-    loadingMoreHospitalRef.current = true;
-    setLoadingMoreHospital(true);
-    try {
-      const page = nextHospitalPageRef.current;
-      const list = await fetchHospitalSpecialities({ page, limit: DEFAULT_LIST_PAGE_SIZE }, debouncedHospitalSearch || null);
-      if (list.length === 0) {
-        hasMoreHospitalRef.current = false;
-        return;
-      }
-      setHospitalSpecs((prev) => {
-        const prevIds = new Set(prev.map((s) => s.id));
-        const fresh = list.filter((s) => !prevIds.has(s.id));
-        if (fresh.length === 0) {
-          hasMoreHospitalRef.current = false;
-          return prev;
-        }
-        if (list.length < DEFAULT_LIST_PAGE_SIZE) {
-          hasMoreHospitalRef.current = false;
-        }
-        nextHospitalPageRef.current = page + 1;
-        return [...prev, ...fresh];
-      });
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Could not load more specialties");
-    } finally {
-      loadingMoreHospitalRef.current = false;
-      setLoadingMoreHospital(false);
-    }
-  }, [hospitalLoad, toast]);
-
-  const onHospitalScroll = useCallback(
-    (e: UIEvent<HTMLUListElement>) => {
-      const el = e.currentTarget;
-      const thresholdPx = 80;
-      if (el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx) void loadMoreHospital();
-    },
-    [loadMoreHospital],
-  );
-
-  useEffect(() => {
-    if (!isHospital || hospitalLoad !== "ok" || hospitalSpecs.length === 0) return;
-    if (!hasMoreHospitalRef.current || loadingMoreHospitalRef.current) return;
-    const el = hospitalScrollRef.current;
-    if (!el) return;
-    if (el.scrollHeight <= el.clientHeight + 2) void loadMoreHospital();
-  }, [isHospital, hospitalLoad, hospitalSpecs.length, loadMoreHospital]);
+  }, [isHospital, toast, location.key]);
 
   useEffect(() => {
     if (isHospital) return;
@@ -313,74 +307,17 @@ export function ConsultationSpecialtiesPage() {
     hospitalSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties available right now.</div>
     );
-  } else if (displayedHospitalSpecs.length === 0) {
+  } else if (filteredHospitalSpecs.length === 0) {
     hospitalSpecialtiesBody = (
-      <div className="csp-issues-msg">No specialties match your search.</div>
+      <div className="csp-issues-msg">No specialities found</div>
     );
   } else {
     hospitalSpecialtiesBody = (
-      <>
-        <ul
-          ref={hospitalScrollRef}
-          className="csp-list"
-          aria-label="Common specialties"
-          onScroll={onHospitalScroll}
-        >
-          {displayedHospitalSpecs.map((s) => {
-            const idStr = String(s.id);
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className="csp-item csp-item--hospital"
-                  onClick={() => {
-                    rememberHospitalSpecialtyName(idStr, s.name);
-                    navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: idStr }));
-                  }}
-                >
-                  <div className="csp-item__ic csp-item__ic--hospital" aria-hidden="true">
-                    <img
-                      src={consultationAtHospitalSvg}
-                      alt=""
-                      className="csp-item__ic-hospital-img"
-                      width={22}
-                      height={22}
-                      draggable={false}
-                    />
-                  </div>
-                  <div className="csp-item__text">
-                    <div className="csp-item__label">{s.name}</div>
-                    {typeof s.consultation_time === "number" ? (
-                      <div className="csp-item__meta">{s.consultation_time} min</div>
-                    ) : null}
-                  </div>
-                  {/* {typeof s.consultation_price === "number" ? (
-                    <span className="csp-item__price-pill">
-                      ₹{s.consultation_price.toLocaleString("en-IN")}
-                    </span>
-                  ) : null} */}
-                  <span className="csp-item__chev" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M9 18l6-6-6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {loadingMoreHospital ? (
-          <div className="csp-list-more" aria-busy="true">
-            Loading more…
-          </div>
-        ) : null}
-      </>
+      <HospitalSpecialtyGrid
+        specialties={filteredHospitalSpecs}
+        selectedId={selectedHospitalId}
+        onSelect={(spec) => setSelectedHospitalId(String(spec.id))}
+      />
     );
   }
 
@@ -397,59 +334,22 @@ export function ConsultationSpecialtiesPage() {
     virtualSpecialtiesBody = (
       <div className="csp-issues-msg">No specialties available right now.</div>
     );
-  } else if (displayedVirtualIssues.length === 0) {
+  } else if (filteredVirtualIssues.length === 0) {
     virtualSpecialtiesBody = (
       <div className="csp-issues-msg">No issues found</div>
     );
   } else {
     virtualSpecialtiesBody = (
       <>
-        <ul className="csp-virtual-grid" aria-label="Issues">
-          {displayedVirtualIssues.map((issue) => {
-            const imgUrl = resolveProfileImageUrl(issue.image);
-            return (
-              <li key={issue.id} className="csp-virtual-grid__cell">
-                <button
-                  type="button"
-                  className={`csp-virtual-tile${selectedIssueId === String(issue.id) ? ' csp-virtual-tile--selected' : ''}`}
-                  onClick={() => setSelectedIssueId(String(issue.id))}
-              >
-                <div className="csp-virtual-tile__media" aria-hidden="true">
-                  {imgUrl ? (
-                    <img
-                      src={imgUrl}
-                      alt=""
-                      className="csp-virtual-tile__thumb"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <span className="csp-virtual-tile__fallback">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path
-                          d="M14 8a2 2 0 10-4 0v2H8a1 1 0 00-1 1v1a1 1 0 001 1h2v2a2 2 0 104 0v-2h2a1 1 0 001-1v-1a1 1 0 00-1-1h-2V8z"
-                          fill="currentColor"
-                        />
-                        <path
-                          d="M7 18h10a2 2 0 002-2v-1H5v1a2 2 0 002 2z"
-                          fill="currentColor"
-                          opacity="0.85"
-                        />
-                      </svg>
-                    </span>
-                  )}
-                </div>
-                <div className="csp-virtual-tile__title">{issue.title}</div>
-              </button>
-              </li>
-            );
-          })}
-        </ul>
-        {loadingMoreVirtual ? (
-          <div className="csp-list-more" aria-busy="true">
-            Loading more…
-          </div>
-        ) : null}
+        <VirtualSpecialtyIssuesGrid
+          issues={filteredVirtualIssues}
+          selectedIssueId={selectedIssueId}
+          selectedRowIndex={selectedVirtualRowIndex}
+          doctorsLoad={doctorsLoad}
+          onlineDoctors={onlineDoctors}
+          loadingMore={loadingMoreVirtual}
+          onSelectIssue={handleSelectVirtualIssue}
+        />
       </>
     );
   }
@@ -473,7 +373,7 @@ export function ConsultationSpecialtiesPage() {
           </svg>
         </Link>
         <h1 className="csp-title">
-          {isHospital ? "At Hospital Consultation" : "Doctor Consultation - Virtual"}
+          {isHospital ? "At Hospital Consultation" : "Virtual Consultation"}
         </h1>
       </header>
 
@@ -520,18 +420,20 @@ export function ConsultationSpecialtiesPage() {
       ) : null}
 
       {isHospital ? (
-        <div className="csp-banner-container">
+        <div className="csp-banner-container csp-banner-container--virtual">
           <img
-            className="csp-banner__art"
+            className="csp-banner__art csp-banner__art--virtual-overlap"
             src={networkDoctorsHospitalSvg}
             alt=""
-            width={64}
-            height={44}
+            width={60}
+            height={60}
             draggable={false}
             aria-hidden
           />
-          <div className="csp-banner">
-            <span className="csp-banner__text">Consult Top Doctors In-Clinic</span>
+          <div className="csp-banner csp-banner--virtual-strip">
+            <span className="csp-banner__text csp-banner__text--virtual">
+              Consult Top Doctors <span className="csp-banner__online">In-Clinic</span>
+            </span>
           </div>
         </div>
       ) : (
@@ -553,11 +455,13 @@ export function ConsultationSpecialtiesPage() {
         </div>
       )}
 
-      <main className={`csp-main${isHospital ? "" : " csp-main--virtual"}`}>
+      <main
+        className={`csp-main${showVirtualContinueFooter || showHospitalContinueFooter ? " csp-main--virtual" : ""}`}
+      >
         {topArea}
 
         {isHospital ? (
-          <div className="csp-search">
+          <div className="csp-search csp-search--virtual-issues">
             <span className="csp-search__ic" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
@@ -572,8 +476,8 @@ export function ConsultationSpecialtiesPage() {
             <input
               type="search"
               className="csp-search__input"
-              placeholder="Search specialties"
-              aria-label="Search specialties"
+              placeholder="Search Specialities"
+              aria-label="Search specialities"
               value={hospitalSearchQuery}
               onChange={(e) => setHospitalSearchQuery(e.target.value)}
               autoComplete="off"
@@ -583,23 +487,38 @@ export function ConsultationSpecialtiesPage() {
           </div>
         ) : null}
 
-        <div className={`csp-section${isHospital ? "" : " csp-section--virtual-issues"}`}>
-          {isHospital ? (
-            <div className="csp-section__title">Common specialties</div>
-          ) : null}
+        <div className="csp-section csp-section--virtual-issues">
           {isHospital ? hospitalSpecialtiesBody : virtualSpecialtiesBody}
         </div>
       </main>
 
-      {!isHospital && (
+      {showHospitalContinueFooter ? (
         <footer className="csp-vrtl-ft">
           <button
             type="button"
             className="csp-vrtl-ft__btn"
-            disabled={!selectedIssueId}
+            onClick={() => {
+              if (!selectedHospitalId) return;
+              const spec = filteredHospitalSpecs.find((s) => String(s.id) === selectedHospitalId);
+              if (!spec) return;
+              const idStr = String(spec.id);
+              rememberHospitalSpecialtyName(idStr, spec.name);
+              navigate(generatePath(ROUTES.consultationHospitalResults, { specialtyId: idStr }));
+            }}
+          >
+            Continue
+          </button>
+        </footer>
+      ) : null}
+
+      {showVirtualContinueFooter ? (
+        <footer className="csp-vrtl-ft">
+          <button
+            type="button"
+            className="csp-vrtl-ft__btn"
             onClick={() => {
               if (!selectedIssueId) return;
-              const issue = displayedVirtualIssues.find(i => String(i.id) === selectedIssueId);
+              const issue = filteredVirtualIssues.find((i) => String(i.id) === selectedIssueId);
               if (!issue) return;
               clearVirtualFollowUpAppointmentId();
               let langRaw = "";
@@ -635,7 +554,7 @@ export function ConsultationSpecialtiesPage() {
             Continue
           </button>
         </footer>
-      )}
+      ) : null}
     </div>
   );
 }

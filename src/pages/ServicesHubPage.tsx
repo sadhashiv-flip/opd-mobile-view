@@ -788,7 +788,7 @@ export function ServicesHubPage() {
                   />
                 }
                 title="Lab Tests"
-                description="Fully sponsored"
+                description="Fully Sponsored"
                 onClick={() => {
                   setDiagnosticsSheetOpen(false);
                   void navigate(generatePath(ROUTES.diagnosticsType, { type: "lab-tests" }));
@@ -846,7 +846,7 @@ export function ServicesHubPage() {
                   />
                 }
                 title="At Hospital"
-                description="Book Your OPD Consultations Here"
+                description={"Visit a doctor\nat the hospital"}
                 onClick={() => {
                   setConsultationSheetOpen(false);
                   void navigate(generatePath(ROUTES.consultation, { type: "at_hospital" }));
@@ -866,7 +866,7 @@ export function ServicesHubPage() {
                   />
                 }
                 title="Virtual"
-                description="Connecting Care, Virtually Everywhere"
+                description={"Consult a doctor\nonline from home"}
                 onClick={() => {
                   setConsultationSheetOpen(false);
                   void navigate(generatePath(ROUTES.consultation, { type: "virtual" }));

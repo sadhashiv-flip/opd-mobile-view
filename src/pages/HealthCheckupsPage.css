@@ -272,6 +272,15 @@
   color: #1b5e20;
 }
 
+.hc-person__sub--muted {
+  color: #757575;
+}
+
+.hc-person__sub--sponsored {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
 .hc-selection-hint {
   display: flex;
   align-items: flex-start;

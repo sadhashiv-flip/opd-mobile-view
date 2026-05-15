@@ -1,5 +1,5 @@
 import { ROUTES } from "@/constants";
-import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
+import { ORDER_DETAIL_FROM_BOOKING_SUCCESS, pathToOrderDetail } from "@/lib/orderDetailRoutes";
 import {
   pharmacyKindUi,
   pharmacySuccessSubtitle,
@@ -142,7 +142,11 @@ export function PharmacyOrderSuccessPage() {
       </main>
 
       <div className="ph-footer-dual">
-        <Link to={viewOrderHref} className="ph-footer-dual__outline">
+        <Link
+          to={viewOrderHref}
+          state={hasInvoice ? ORDER_DETAIL_FROM_BOOKING_SUCCESS : undefined}
+          className="ph-footer-dual__outline"
+        >
           {viewOrderLabel}
         </Link>
         <Link to={ROUTES.dashboard} className="ph-footer-dual__solid">
