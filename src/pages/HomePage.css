@@ -309,8 +309,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 4px 2px 0;
-  margin-top: 2px;
+  /* padding: 4px 2px 0;
+  margin-top: 2px; */
 }
 
 .home-ongoing-float__dots {
@@ -408,14 +408,14 @@
   width: 100%;
   border-radius: 12px;
   touch-action: pan-x pan-y;
-  min-height: 100px;
+  min-height: 75px;
 }
 
 .home-ongoing-carousel__track {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  min-height: 100px;
+  min-height: 75px;
   transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform;
 }

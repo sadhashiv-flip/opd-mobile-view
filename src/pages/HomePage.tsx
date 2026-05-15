@@ -1272,24 +1272,24 @@ export function HomePage() {
                             </span>
                             <span className="home-ongoing-dash-card__content">
                               <span className="home-ongoing-dash-card__category">
-                                {item.displayCategory}
-                              </span>
-                              <span className="home-ongoing-dash-card__meta-row">
-                                <span className="home-ongoing-dash-card__patient">
-                                  {item.patientLine}
-                                </span>
-                                <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
-                              </span>
-                              {item.visitTypeLabel ? (
+                                {item.displayCategory}  {item.visitTypeLabel ? (
                                 <span className="home-ongoing-dash-card__visit-type">
                                   {item.visitTypeLabel}
                                 </span>
                               ) : null}
-                              {item.memberCount > 1 ? (
+                              </span>
+                              <span className="home-ongoing-dash-card__meta-row">
+                                {/* <span className="home-ongoing-dash-card__patient">
+                                  {item.patientLine}
+                                </span> */}
+                                <span className="home-ongoing-dash-card__when">{item.whenLine}</span>
+                              </span>
+                             
+                              {/* {item.memberCount > 1 ? (
                                 <span className="home-ongoing-dash-card__members">
                                   +{item.memberCount - 1} members
                                 </span>
-                              ) : null}
+                              ) : null} */}
                             </span>
                           </button>
                           <div className="home-ongoing-dash-card__aside">

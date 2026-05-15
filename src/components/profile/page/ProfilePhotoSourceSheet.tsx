@@ -49,6 +49,32 @@ function stopMediaStream(stream: MediaStream | null): void {
   }
 }
 
+/** `getUserMedia` works only in a secure context in modern browsers. */
+function canUseLiveCamera(): boolean {
+  return Boolean(navigator.mediaDevices?.getUserMedia) && globalThis.isSecureContext;
+}
+
+/**
+ * `enumerateDevices()` often returns no `videoinput` until the user has granted
+ * camera permission once, so we also treat touch / narrow viewports as likely
+ * camera-capable and still offer "Take a picture" (fails gracefully if absent).
+ */
+function likelyHasPhysicalCamera(devices: MediaDeviceInfo[]): boolean {
+  return devices.some((d) => d.kind === "videoinput");
+}
+
+/** Phone / tablet: offer "Take a picture" even when enumerateDevices is empty (pre-permission) or over HTTP. */
+function isLikelyPhoneOrTablet(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (navigator.maxTouchPoints > 0) return true;
+  if (typeof globalThis.matchMedia === "function") {
+    if (globalThis.matchMedia("(pointer: coarse)").matches) return true;
+    if (globalThis.matchMedia("(max-width: 768px)").matches) return true;
+  }
+  const ua = navigator.userAgent || "";
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+}
+
 async function waitForVideoFrameSize(video: HTMLVideoElement, timeoutMs: number): Promise<void> {
   if (video.videoWidth >= 2 && video.videoHeight >= 2) return;
   await new Promise<void>((resolve, reject) => {
@@ -128,8 +154,13 @@ async function videoFrameToJpegFile(
 export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhotoSourceSheetProps) {
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Opens the OS camera app when live `getUserMedia` preview is not available (e.g. HTTP dev URL on phone). */
+  const cameraCaptureInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [cameraAvailable, setCameraAvailable] = useState(true);
+  /** Show "Take a picture": live preview when possible, else native capture input on mobile. */
+  const [cameraAvailable, setCameraAvailable] = useState(
+    () => isLikelyPhoneOrTablet() || canUseLiveCamera(),
+  );
   const [cameraPermissionBusy, setCameraPermissionBusy] = useState(false);
   const [inlineCaptureStream, setInlineCaptureStream] = useState<MediaStream | null>(null);
   const [captureBusy, setCaptureBusy] = useState(false);
@@ -148,20 +179,37 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    if (!navigator.mediaDevices?.enumerateDevices) {
-      setCameraAvailable(false);
+
+    const mobileOrTablet = isLikelyPhoneOrTablet();
+
+    if (!canUseLiveCamera()) {
+      // HTTP / non-secure: still offer native camera via `<input capture>` on phones.
+      setCameraAvailable(mobileOrTablet);
       return () => {
         cancelled = true;
       };
     }
-    void navigator.mediaDevices
+
+    const md = navigator.mediaDevices;
+    if (!md?.enumerateDevices) {
+      setCameraAvailable(mobileOrTablet || true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void md
       .enumerateDevices()
       .then((devices) => {
         if (cancelled) return;
-        setCameraAvailable(devices.some((d) => d.kind === "videoinput"));
+        if (likelyHasPhysicalCamera(devices)) {
+          setCameraAvailable(true);
+          return;
+        }
+        setCameraAvailable(mobileOrTablet);
       })
       .catch(() => {
-        if (!cancelled) setCameraAvailable(true);
+        if (!cancelled) setCameraAvailable(mobileOrTablet || true);
       });
     return () => {
       cancelled = true;
@@ -219,7 +267,7 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
       return;
     }
     if (!globalThis.isSecureContext) {
-      toast.error("Camera needs a secure page (HTTPS).");
+      toast.error("Live camera preview needs HTTPS. Use “Take a picture” on a secure site, or choose an image.");
       return;
     }
 
@@ -298,6 +346,19 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
     }
   }, [inlineCaptureStream, onClose, onPicked, toast]);
 
+  const handleTakePicture = useCallback(() => {
+    if (canUseLiveCamera()) {
+      void requestCameraAndShowPreview();
+      return;
+    }
+    // Non-secure context or older environments: OS camera via file input `capture`.
+    if (cameraCaptureInputRef.current) {
+      cameraCaptureInputRef.current.click();
+      return;
+    }
+    toast.error("Camera is not available in this browser.");
+  }, [requestCameraAndShowPreview, toast]);
+
   if (!open) return null;
 
   return (
@@ -315,6 +376,13 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
             <h2 id="profile-photo-sheet-title" className="profile-photo-sheet__title">
               Update profile photo
             </h2>
+            {cameraAvailable ? (
+              <p className="profile-photo-sheet__hint">
+                {canUseLiveCamera()
+                  ? "You can take a new picture with the camera preview, or choose an existing image."
+                  : "Take a new photo with your camera, or choose an image from your gallery (use HTTPS for in-app camera preview)."}
+              </p>
+            ) : null}
             <div className="profile-photo-sheet__actions">
               {cameraAvailable ? (
                 <button
@@ -322,12 +390,12 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
                   className="profile-photo-sheet__option"
                   disabled={cameraPermissionBusy}
                   aria-busy={cameraPermissionBusy}
-                  onClick={() => void requestCameraAndShowPreview()}
+                  onClick={handleTakePicture}
                 >
                   <span className="profile-photo-sheet__option-icon" aria-hidden>
                     <IconCamera />
                   </span>
-                  {cameraPermissionBusy ? "Requesting camera…" : "Take photo"}
+                  {cameraPermissionBusy ? "Requesting camera…" : "Take a picture"}
                   <span className="profile-photo-sheet__option-chevron" aria-hidden>
                     ›
                   </span>
@@ -354,6 +422,16 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              className="profile-photo-sheet__hidden-input"
+              tabIndex={-1}
+              aria-hidden
+              onChange={handleChange}
+            />
+            <input
+              ref={cameraCaptureInputRef}
+              type="file"
+              accept="image/*"
+              capture="user"
               className="profile-photo-sheet__hidden-input"
               tabIndex={-1}
               aria-hidden

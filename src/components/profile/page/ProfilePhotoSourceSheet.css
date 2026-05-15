@@ -46,6 +46,16 @@
   text-align: center;
 }
 
+.profile-photo-sheet__hint {
+  margin: -8px 0 14px;
+  padding: 0 4px;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), 13px);
+  font-weight: 400;
+  line-height: 1.45;
+  color: #616161;
+  text-align: center;
+}
+
 .profile-photo-sheet__actions {
   display: flex;
   flex-direction: column;
