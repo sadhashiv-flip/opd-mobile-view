@@ -18,7 +18,8 @@ import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HeaderTexts } from "@/constants/HeaderTexts";
 import { useToast } from "@/hooks/useToast";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import "./ConsultationAppointmentSlotsPage.css";
 
 type DayChip = Readonly<{ day: string; date: string; dow: string }>;
@@ -95,7 +96,7 @@ export function DiagnosticsSlotsPage() {
 
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const hSlotsLocRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
   const [labVendorCode, setLabVendorCode] = useState(() => {
     try {
@@ -298,7 +299,7 @@ export function DiagnosticsSlotsPage() {
         <button
           type="button"
           className="cas-loc-bar"
-          aria-label={hSlotsLocRaw.trim() ? "Choose address" : "Add delivery address"}
+          aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
           onClick={() => setAddrSheetOpen(true)}
         >
           <span className="cas-loc-bar__pin" aria-hidden="true">
@@ -310,7 +311,6 @@ export function DiagnosticsSlotsPage() {
           <span className="cas-loc-bar__body">
             <AddressStripLabels
               layout="stack"
-              addrRaw={hSlotsLocRaw}
               titleClassName="cas-loc-bar__title"
               addrClassName="cas-loc-bar__addr"
               promptClassName="cas-loc-bar__addr cas-loc-bar__addr--prompt"

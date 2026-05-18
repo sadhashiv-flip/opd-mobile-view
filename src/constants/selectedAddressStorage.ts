@@ -65,3 +65,21 @@ export function writeSelectedAddress(snapshot: SelectedAddressSnapshot): void {
   }
   notifySelectedAddressListeners();
 }
+
+/** Removes persisted selection (e.g. user has no saved addresses on the server). */
+export function clearSelectedAddress(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // ignore
+  }
+  notifySelectedAddressListeners();
+}
+
+export function hasSelectedDeliveryAddress(): boolean {
+  return Boolean(readSelectedAddress()?.displayLine?.trim());
+}
+
+export function deliveryAddressChooserAriaLabel(hasSavedAddress: boolean): string {
+  return hasSavedAddress ? "Choose address" : "Add delivery address";
+}

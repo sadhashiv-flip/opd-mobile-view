@@ -2,7 +2,8 @@ import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
 import { addLabProductToCart, fetchLabCart, removeLabCartItem } from "@/api/patientLabCart";
 import {
@@ -98,7 +99,7 @@ export function HealthCheckupsPlanPage() {
   const [healthErr, setHealthErr] = useState<string | null>(null);
   const [pkgByMemberKey, setPkgByMemberKey] = useState<Record<string, number[]>>({});
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const hcpLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const selectedAddressId = useSyncExternalStore(
     subscribeSelectedAddress,
     () => readSelectedAddress()?.id?.trim() ?? "",
@@ -355,7 +356,7 @@ export function HealthCheckupsPlanPage() {
             <button
               type="button"
               className="hcp-loc"
-              aria-label={hcpLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+              aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
               onClick={() => setAddrSheetOpen(true)}
             >
               <span className="hcp-loc__pin" aria-hidden="true">
@@ -369,7 +370,6 @@ export function HealthCheckupsPlanPage() {
               </span>
               <AddressStripLabels
                 layout="pipe"
-                addrRaw={hcpLocAddrRaw}
                 titleClassName="hcp-loc__title"
                 sepClassName="hcp-loc__sep"
                 addrClassName="hcp-loc__addr"

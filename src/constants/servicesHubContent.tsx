@@ -26,9 +26,6 @@ import accountOrdersSvg from "@/assets/icons/patient-app/hub/account_management/
 import accountDeleteAccountSvg from "@/assets/icons/patient-app/hub/account_management/delete_account.svg";
 
 import hubTabHelpSupportSvg from "@/assets/icons/patient-app/hub/help_and_support/support.svg";
-import helpFaqSvg from "@/assets/icons/patient-app/hub/help_and_support/faq.svg";
-import helpTandCSvg from "@/assets/icons/patient-app/hub/help_and_support/terms_and_conditions.svg";
-import helpPrivacyAndPoliciesSvg from "@/assets/icons/patient-app/hub/help_and_support/privacy_policy.svg";
 import hubTabMedicalRecordsSvg from "@/assets/icons/patient-app/hub/medical_records.svg";
 import mrAppointmentsSvg from "@/assets/icons/patient-app/hub/medical_records/my_appointments.svg";
 import helpLabReportsSvg from "@/assets/icons/patient-app/hub/medical_records/lab_reports.svg";
@@ -209,32 +206,8 @@ export const ACCOUNT_ITEMS: readonly HubCardItem[] = [
   },
 ];
 
-export const HELP_ITEMS: readonly HubCardItem[] = [
-  {
-    id: "support",
-    title: "Support",
-    description: "For any queries or support tickets",
-    iconSrc: hubTabHelpSupportSvg,
-  },
-  {
-    id: "faq",
-    title: "FAQ",
-    description: "Refer FAQs here",
-    iconSrc: helpFaqSvg,
-  },
-  {
-    id: "tc",
-    title: "T&C",
-    description: "Read all the Terms & Conditions here",
-    iconSrc: helpTandCSvg,
-  },
-  {
-    id: "privacy",
-    title: "Privacy Policies",
-    description: "Refer all the privacy policies here",
-    iconSrc: helpPrivacyAndPoliciesSvg,
-  },
-];
+/** Help tab has no hub cards — tickets UI is rendered directly on {@link ServicesHubPage}. */
+export const HELP_ITEMS: readonly HubCardItem[] = [];
 
 export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
   {

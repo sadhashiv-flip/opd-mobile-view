@@ -6,7 +6,11 @@ import {
   formatAddressLines,
   type PatientAddressRecord,
 } from "@/api/patientAddress";
-import { readSelectedAddress, writeSelectedAddress } from "@/constants/selectedAddressStorage";
+import {
+  ADD_DELIVERY_ADDRESS_PROMPT,
+  readSelectedAddress,
+  writeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
 import "./AddressBottomSheet.css";
 
@@ -126,7 +130,10 @@ export function AddressBottomSheet({ open, onClose, onSelectionChange }: Address
         ) : null}
 
         {!loading && !error && list.length === 0 ? (
-          <p className="addr-sheet__empty">No saved addresses yet.</p>
+          <div className="addr-sheet__empty">
+            <p className="addr-sheet__empty-title">{ADD_DELIVERY_ADDRESS_PROMPT}</p>
+            <p className="addr-sheet__empty-hint">Add an address to use for deliveries and bookings.</p>
+          </div>
         ) : null}
 
         {!loading && !error && list.length > 0 ? (

@@ -1,7 +1,8 @@
 import { HomeNotificationIcon, HomeProfileIcon, HomeVoiceRecordIcon, HomeSearchIcon, HomeWalletIcon } from "@/assets/icons/react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
 import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
@@ -173,7 +174,6 @@ export function HomePage() {
   const {
     apiBanners,
     notificationCount,
-    primaryAddressLine,
     ongoing,
     ahc,
     loading: dashboardLoading,
@@ -202,7 +202,7 @@ export function HomePage() {
     });
   }, [mod.diagnosticsHiddenSubSlugs]);
 
-  const addrRaw = useSelectedAddressLine(primaryAddressLine ?? "");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
   useEffect(() => {
     void ensureDefaultSelectedAddressIfNeeded();
@@ -518,7 +518,7 @@ export function HomePage() {
           <button
             type="button"
             className="home-loc"
-            aria-label={addrRaw.trim() ? "Choose address" : "Add delivery address"}
+            aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="home-loc__pin" aria-hidden="true">
@@ -533,7 +533,6 @@ export function HomePage() {
             <div className="home-loc__body">
               <AddressStripLabels
                 layout="pipe"
-                addrRaw={addrRaw}
                 titleClassName="home-loc__title"
                 sepClassName="home-loc__sep"
                 addrClassName="home-loc__addr"

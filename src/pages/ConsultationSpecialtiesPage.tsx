@@ -15,7 +15,8 @@ import {
   clearVirtualFollowUpAppointmentId,
   VIRTUAL_CONSULT_LANGUAGE_KEY,
 } from "@/constants/virtualConsultationSessionStorage";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchAllHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
@@ -64,7 +65,7 @@ export function ConsultationSpecialtiesPage() {
   const loadingMoreVirtualRef = useRef(false);
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const cspLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
   const [virtualSearchQuery, setVirtualSearchQuery] = useState("");
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
@@ -382,7 +383,7 @@ export function ConsultationSpecialtiesPage() {
           <button
             type="button"
             className="csp-loc"
-            aria-label={cspLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+            aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="csp-loc__pin" aria-hidden="true">
@@ -396,7 +397,6 @@ export function ConsultationSpecialtiesPage() {
             </span>
             <AddressStripLabels
               layout="pipe"
-              addrRaw={cspLocAddrRaw}
               titleClassName="csp-loc__title"
               sepClassName="csp-loc__sep"
               addrClassName="csp-loc__addr"

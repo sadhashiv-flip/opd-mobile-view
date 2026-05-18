@@ -10,7 +10,8 @@ import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberD
 import { defaultSingleSelectHint, SELECT_PEOPLE_COPY } from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -28,7 +29,7 @@ export function VaccinationSelectPeoplePage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const hcLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const returnPath = `${location.pathname}${location.search}`;
 
   const memberListConfig = useMemo(
@@ -88,7 +89,7 @@ export function VaccinationSelectPeoplePage() {
     );
   }, [rows]);
 
-  const hasAddress = hcLocAddrRaw.trim() !== "";
+  const hasAddress = hasDeliveryAddress;
   const canContinue =
     selectedIds.length > 0 && !loading && !fetchError && rows.length > 0 && hasAddress;
 
@@ -155,7 +156,7 @@ export function VaccinationSelectPeoplePage() {
           <button
             type="button"
             className="hc-select-loc"
-            aria-label={hcLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+            aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="hc-select-loc__pin" aria-hidden="true">
@@ -166,7 +167,6 @@ export function VaccinationSelectPeoplePage() {
             </span>
             <AddressStripLabels
               layout="pipe"
-              addrRaw={hcLocAddrRaw}
               titleClassName="hc-select-loc__title"
               sepClassName="hc-select-loc__sep"
               addrClassName="hc-select-loc__addr"

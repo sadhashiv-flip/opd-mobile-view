@@ -1,6 +1,10 @@
 import { fetchAllListPages, type ListPaginationOpts } from "@/api/listPagination";
 import { patientFetchChecked, patientJsonList } from "@/api/patientHttp";
-import { readSelectedAddress, writeSelectedAddress } from "@/constants/selectedAddressStorage";
+import {
+  clearSelectedAddress,
+  readSelectedAddress,
+  writeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
 
 /** Normalized address row from GET /patient/address (`addressess` array, etc.). */
 export type PatientAddressRecord = Readonly<{
@@ -209,7 +213,10 @@ export function hasAnySavedAddresses(list: readonly PatientAddressRecord[]): boo
 export async function ensureDefaultSelectedAddressIfNeeded(): Promise<void> {
   try {
     const data = await fetchAllPatientAddresses();
-    if (data.length === 0) return;
+    if (data.length === 0) {
+      clearSelectedAddress();
+      return;
+    }
     const stored = readSelectedAddress();
     const match = stored ? data.find((a) => a.id === stored.id) : undefined;
     if (match) return;

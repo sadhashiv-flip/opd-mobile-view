@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import {
   DEFAULT_LOCATION_ADDRESS_LINE,
   getSelectedAddressSyncSnapshot,
+  hasSelectedDeliveryAddress,
   readSelectedAddress,
   subscribeSelectedAddress,
   type SelectedAddressSnapshot,
@@ -9,13 +10,22 @@ import {
 
 /**
  * Live-updating address line for location strips (syncs when user picks a radio in {@link AddressBottomSheet}).
- * @param fallback - Merged when nothing is stored (e.g. dashboard `primaryAddressLine` from API only — never a fake street).
+ * @param fallback - Optional line when nothing is stored in {@link readSelectedAddress}; keep empty so UI shows “Add delivery address”.
  */
 export function useSelectedAddressLine(fallback: string = DEFAULT_LOCATION_ADDRESS_LINE): string {
   return useSyncExternalStore(
     subscribeSelectedAddress,
-    () => readSelectedAddress()?.displayLine ?? fallback,
+    () => readSelectedAddress()?.displayLine?.trim() ?? fallback,
     () => fallback,
+  );
+}
+
+/** True only when the user has a saved address selected in {@link readSelectedAddress}. */
+export function useHasSelectedDeliveryAddress(): boolean {
+  return useSyncExternalStore(
+    subscribeSelectedAddress,
+    hasSelectedDeliveryAddress,
+    () => false,
   );
 }
 

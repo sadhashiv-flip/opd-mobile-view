@@ -44,19 +44,6 @@ export function ServiceHubCard({
         <h3 className="service-hub-card__title">{title}</h3>
         <p className="service-hub-card__desc">{description}</p>
       </div>
-      {onClick ? (
-        <span className="service-hub-card__action" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M9 6l6 6-6 6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      ) : null}
     </article>
   );
 }

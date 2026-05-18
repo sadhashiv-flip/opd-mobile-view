@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import "./VaccinationAddressBar.css";
 
 export function VaccinationAddressBar() {
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const addrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
   return (
     <>
       <button
         type="button"
         className="vac-flow-loc"
-        aria-label={addrRaw.trim() ? "Choose address" : "Add delivery address"}
+        aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
         onClick={() => setAddrSheetOpen(true)}
       >
         <span className="vac-flow-loc__pin" aria-hidden="true">
@@ -28,7 +29,6 @@ export function VaccinationAddressBar() {
         <span className="vac-flow-loc__body">
           <AddressStripLabels
             layout="pipe"
-            addrRaw={addrRaw}
             titleClassName="vac-flow-loc__title"
             sepClassName="vac-flow-loc__sep"
             addrClassName="vac-flow-loc__addr"

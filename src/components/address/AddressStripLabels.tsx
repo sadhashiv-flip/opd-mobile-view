@@ -1,9 +1,10 @@
-import { useSelectedAddressSnapshot } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress, useSelectedAddressSnapshot } from "@/hooks/useSelectedAddressLine";
 import { ADD_DELIVERY_ADDRESS_PROMPT } from "@/constants/selectedAddressStorage";
 
 type PipeLayout = Readonly<{
   layout: "pipe";
-  addrRaw: string;
+  /** @deprecated Ignored for display; kept for call-site compatibility. */
+  addrRaw?: string;
   titleClassName: string;
   sepClassName: string;
   addrClassName: string;
@@ -12,7 +13,8 @@ type PipeLayout = Readonly<{
 
 type StackLayout = Readonly<{
   layout: "stack";
-  addrRaw: string;
+  /** @deprecated Ignored for display; kept for call-site compatibility. */
+  addrRaw?: string;
   titleClassName: string;
   addrClassName: string;
   promptClassName?: string;
@@ -21,15 +23,16 @@ type StackLayout = Readonly<{
 export type AddressStripLabelsProps = PipeLayout | StackLayout;
 
 /**
- * Renders tag | line from {@link readSelectedAddress} when {@link addrRaw} is non-empty;
- * otherwise shows {@link ADD_DELIVERY_ADDRESS_PROMPT} (no static demo addresses).
+ * Top-bar copy from {@link readSelectedAddress} only — never appointment or demo text.
+ * Shows {@link ADD_DELIVERY_ADDRESS_PROMPT} when the user has no saved delivery address.
  */
 export function AddressStripLabels(props: AddressStripLabelsProps) {
-  const has = props.addrRaw.trim().length > 0;
   const snap = useSelectedAddressSnapshot();
+  const hasSaved = useHasSelectedDeliveryAddress();
   const promptCn = props.promptClassName ?? props.addrClassName;
+  const displayLine = snap?.displayLine?.trim() ?? "";
 
-  if (!has) {
+  if (!hasSaved || !displayLine) {
     return <span className={promptCn}>{ADD_DELIVERY_ADDRESS_PROMPT}</span>;
   }
 
@@ -42,7 +45,7 @@ export function AddressStripLabels(props: AddressStripLabelsProps) {
         <span className={props.sepClassName} aria-hidden>
           |
         </span>
-        <span className={props.addrClassName}>{props.addrRaw}</span>
+        <span className={props.addrClassName}>{displayLine}</span>
       </>
     );
   }
@@ -50,7 +53,7 @@ export function AddressStripLabels(props: AddressStripLabelsProps) {
   return (
     <>
       <span className={props.titleClassName}>{tag}</span>
-      <span className={props.addrClassName}>{props.addrRaw}</span>
+      <span className={props.addrClassName}>{displayLine}</span>
     </>
   );
 }

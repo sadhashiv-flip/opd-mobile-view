@@ -7,7 +7,8 @@ import {
 } from "@/constants/diagnosticsLabFlowStorage";
 import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { getPatientApiRootBase } from "@/api/patientClient";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
 import {
   fetchDiagnosticVendorsPricing,
@@ -249,7 +250,7 @@ export function DiagnosticsScreenPage() {
     selectedAddressId,
   ]);
 
-  const dsLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
   if (isLabTests) {
     return (
@@ -278,7 +279,7 @@ export function DiagnosticsScreenPage() {
           <button
             type="button"
             className="ds-location"
-            aria-label={dsLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+            aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="ds-location__pin" aria-hidden="true">
@@ -292,7 +293,6 @@ export function DiagnosticsScreenPage() {
             </span>
             <AddressStripLabels
               layout="pipe"
-              addrRaw={dsLocAddrRaw}
               titleClassName="ds-location__title"
               sepClassName="ds-location__sep"
               addrClassName="ds-location__addr"
@@ -495,7 +495,7 @@ export function DiagnosticsScreenPage() {
           <button
             type="button"
             className="ds-location"
-            aria-label={dsLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+            aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
             onClick={() => setAddrSheetOpen(true)}
           >
             <span className="ds-location__pin" aria-hidden="true">
@@ -509,7 +509,6 @@ export function DiagnosticsScreenPage() {
             </span>
             <AddressStripLabels
               layout="pipe"
-              addrRaw={dsLocAddrRaw}
               titleClassName="ds-location__title"
               sepClassName="ds-location__sep"
               addrClassName="ds-location__addr"

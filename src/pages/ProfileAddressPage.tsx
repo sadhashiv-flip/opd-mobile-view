@@ -10,6 +10,7 @@ import {
 } from "@/api/patientAddress";
 import { DeleteAddressConfirmModal } from "@/components/address/DeleteAddressConfirmModal";
 import { ROUTES } from "@/constants";
+import { clearSelectedAddress } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
 import "./ProfileManagePage.css";
 import "./ProfileAddressPage.css";
@@ -73,6 +74,7 @@ export function ProfileAddressPage() {
     try {
       const data = await fetchAllPatientAddresses();
       setList(data);
+      if (data.length === 0) clearSelectedAddress();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load addresses");
       setList([]);

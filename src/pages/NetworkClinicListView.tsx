@@ -5,7 +5,8 @@ import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import type { DentalNetworkClinicRow } from "@/api/networkList";
 import { useToast } from "@/hooks/useToast";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import clinicDistanceIcon from "@/assets/icons/common/ClinicDistance.svg";
 import "@/pages/HealthCheckupsPage.css";
 import "./DentalNetworkListPage.css";
@@ -27,7 +28,7 @@ export function NetworkClinicListView({
 }: NetworkClinicListViewProps) {
   const navigate = useNavigate();
   const toast = useToast();
-  const addrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [addrEpoch, setAddrEpoch] = useState(0);
   const [clinics, setClinics] = useState<DentalNetworkClinicRow[]>([]);
@@ -96,7 +97,7 @@ export function NetworkClinicListView({
       <button
         type="button"
         className="dnl-loc"
-        aria-label={addrRaw.trim() ? "Choose address" : "Add delivery address"}
+        aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
         onClick={() => setAddrSheetOpen(true)}
       >
         <span className="dnl-loc__pin" aria-hidden="true">
@@ -110,7 +111,6 @@ export function NetworkClinicListView({
         </span>
         <AddressStripLabels
           layout="pipe"
-          addrRaw={addrRaw}
           titleClassName="dnl-loc__title"
           sepClassName="dnl-loc__sep"
           addrClassName="dnl-loc__addr"

@@ -159,8 +159,7 @@ export function ServicesHubPage() {
   );
 
   const heading = getHubHeading(tabId);
-  // Help tab: 4-column grid; other tabs keep the shared hub layout.
-  const gridCols = tabId === "help" ? 4 : 2;
+  const gridCols = 2;
 
   const supportTicketsFiltered = useMemo(() => {
     const filtered = supportTickets.filter((ticket) => {
@@ -377,6 +376,7 @@ export function ServicesHubPage() {
 
       <main className="services-hub__main">
         <h1 className="services-hub__title">{heading}</h1>
+        {hubItems.length > 0 ? (
         <div
           className={`service-hub-grid service-hub-grid--cols-${gridCols}`}
         >
@@ -400,11 +400,8 @@ export function ServicesHubPage() {
               iconNode = <Icon aria-hidden />;
             }
 
-            const isHelpSupportCard = tabId === "help" && item.id === "support";
             let cardAction: (() => void) | undefined;
-            if (isHelpSupportCard) {
-              cardAction = () => supportSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-            } else if (tabId === "services" && item.id === "diag") {
+            if (tabId === "services" && item.id === "diag") {
               cardAction = () => {
                 const slug = diagnosticsSingleVisibleSlug(mod.diagnosticsHiddenSubSlugs);
                 if (slug) {
@@ -523,6 +520,7 @@ export function ServicesHubPage() {
             );
           })}
         </div>
+        ) : null}
         {tabId === "help" ? (
           <section className="services-hub__support" ref={supportSectionRef}>
             <div className="services-hub__support-header">

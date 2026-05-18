@@ -32,7 +32,8 @@ import {
 } from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
 import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -129,7 +130,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       // ignore
     }
   };
-  const hcLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
   const selectionBasisRows = useMemo(() => {
     if (!isHealthCheckupsDiagnostics) return rows;
@@ -255,13 +256,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     });
   }, [selectionBasisRows, isDiagnosticsFlow, rows, flow, type]);
 
-  const hasAddress = hcLocAddrRaw.trim() !== "";
   const canContinue =
     selectedIds.length > 0 &&
     !loading &&
     !fetchError &&
     selectionBasisRows.length > 0 &&
-    (!requiresAddressSelection || hasAddress);
+    (!requiresAddressSelection || hasDeliveryAddress);
 
   const toggleMember = (memberId: string) => {
     setSelectedIds(
@@ -417,7 +417,13 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             <button
               type="button"
               className="hc-select-loc"
-              aria-label={hcLocAddrRaw.trim() ? "Choose address" : isConsultationAtHospital ? "Select hospital location" : "Add delivery address"}
+              aria-label={
+                hasDeliveryAddress
+                  ? deliveryAddressChooserAriaLabel(true)
+                  : isConsultationAtHospital
+                    ? "Select hospital location"
+                    : deliveryAddressChooserAriaLabel(false)
+              }
               onClick={() => setAddrSheetOpen(true)}
             >
               <span className="hc-select-loc__pin" aria-hidden="true">
@@ -431,7 +437,6 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
               </span>
               <AddressStripLabels
                 layout="pipe"
-                addrRaw={hcLocAddrRaw}
                 titleClassName="hc-select-loc__title"
                 sepClassName="hc-select-loc__sep"
                 addrClassName="hc-select-loc__addr"

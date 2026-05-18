@@ -1,7 +1,8 @@
 import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsOverviewPage.css";
@@ -118,7 +119,7 @@ export function GymSelectClinicPage() {
   );
 
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
-  const gscLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
   useEffect(() => {
     if (!planId) {
@@ -175,7 +176,7 @@ export function GymSelectClinicPage() {
         <button
           type="button"
           className="hco-loc"
-          aria-label={gscLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+          aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
           onClick={() => setAddrSheetOpen(true)}
         >
           <span className="hco-loc__pin" aria-hidden="true">
@@ -189,7 +190,6 @@ export function GymSelectClinicPage() {
           </span>
           <AddressStripLabels
             layout="pipe"
-            addrRaw={gscLocAddrRaw}
             titleClassName="hco-loc__title"
             sepClassName="hco-loc__sep"
             addrClassName="hco-loc__addr"

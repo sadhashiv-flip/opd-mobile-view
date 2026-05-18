@@ -3,7 +3,8 @@ import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
-import { useSelectedAddressLine } from "@/hooks/useSelectedAddressLine";
+import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
+import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { readHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import {
@@ -44,7 +45,7 @@ export function ConsultationHospitalResultsPage() {
   const toast = useToast();
   const params = useParams();
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
-  const chrLocAddrRaw = useSelectedAddressLine("");
+  const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortId, setSortId] = useState<SortOptionId>("relevance");
   const [doctors, setDoctors] = useState<readonly NetworkListDoctorRow[]>([]);
@@ -344,7 +345,7 @@ export function ConsultationHospitalResultsPage() {
       <button
         type="button"
         className="chr-loc"
-        aria-label={chrLocAddrRaw.trim() ? "Choose address" : "Add delivery address"}
+        aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
         onClick={() => setAddrSheetOpen(true)}
       >
         <span className="chr-loc__pin" aria-hidden="true">
@@ -358,7 +359,6 @@ export function ConsultationHospitalResultsPage() {
         </span>
         <AddressStripLabels
           layout="pipe"
-          addrRaw={chrLocAddrRaw}
           titleClassName="chr-loc__title"
           sepClassName="chr-loc__sep"
           addrClassName="chr-loc__addr"
