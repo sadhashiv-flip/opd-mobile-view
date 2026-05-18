@@ -38,6 +38,8 @@ import { ProfileBankFormPage } from "@/pages/ProfileBankFormPage";
 import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
 import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
 import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
+import { ProfileFaqPage } from "@/pages/ProfileFaqPage";
+import { ProfilePrivacyPolicyPage, ProfileTermsPage } from "@/pages/ProfileLegalHtmlPage";
 import { ConsultationVirtualAppointmentOverviewPage } from "@/pages/ConsultationVirtualAppointmentOverviewPage";
 import {
   ConsultationSelectPeoplePage,
@@ -136,6 +138,9 @@ export function AppRoutes() {
       <Route path={ROUTES.profileMembersAdd} element={<ProfileMembersAddPage />} />
       <Route path={ROUTES.profileMembersEdit} element={<ProfileMembersAddPage />} />
       <Route path={ROUTES.profileSubscriptions} element={<ProfileSubscriptionsPage />} />
+      <Route path={ROUTES.profileFaq} element={<ProfileFaqPage />} />
+      <Route path={ROUTES.profilePrivacyPolicy} element={<ProfilePrivacyPolicyPage />} />
+      <Route path={ROUTES.profileTerms} element={<ProfileTermsPage />} />
       <Route path="/home" element={<Navigate to={ROUTES.dashboard} replace />} />
       <Route path={ROUTES.services} element={<ServicesHubPage />} />
       <Route path={ROUTES.servicesSupportTicketChat} element={<SupportTicketChatPage />} />

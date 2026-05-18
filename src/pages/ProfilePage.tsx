@@ -212,19 +212,19 @@ export function ProfilePage() {
       {
         key: "faq",
         title: "FAQs",
-        to: ROUTES.servicesHelpTab,
+        to: ROUTES.profileFaq,
         iconSrc: helpFaqSvg,
       },
       {
         key: "terms",
         title: "Terms & Conditions",
-        to: ROUTES.servicesHelpTab,
+        to: ROUTES.profileTerms,
         iconSrc: helpTandCSvg,
       },
       {
         key: "privacy",
         title: "Privacy Policy",
-        to: ROUTES.servicesHelpTab,
+        to: ROUTES.profilePrivacyPolicy,
         iconSrc: helpPrivacyAndPoliciesSvg,
       },
     ],

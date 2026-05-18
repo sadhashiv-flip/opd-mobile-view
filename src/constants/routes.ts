@@ -36,6 +36,9 @@ export const ROUTES = {
   profileMembersAdd: "/profile/members/add",
   profileMembersEdit: "/profile/members/edit/:memberId",
   profileSubscriptions: "/profile/subscriptions",
+  profileFaq: "/profile/faq",
+  profilePrivacyPolicy: "/profile/privacy-policy",
+  profileTerms: "/profile/terms-and-conditions",
   services: "/services",
   /** Services hub, Help & Support tab — same screen as bottom nav “Need Help?”. */
   servicesHelpTab: "/services?tab=help",

@@ -17,6 +17,7 @@ import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
+import { useSelectedAddressSnapshot } from "@/hooks/useSelectedAddressLine";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./PharmacyPages.css";
@@ -26,9 +27,6 @@ type NavState = Readonly<{ returnPath?: string }>;
 
 /** Copy aligned with Flutter `AppString` / `PharmacyMainScreen`. */
 const MAIN_COPY = {
-  heroPill: "Delivery in 24-48 hours",
-  heroTitle: "Medicines, delivered to your door",
-  heroNote: "Medicines will be delivered within 24-48 hours of placing order",
   disclaimer:
     "Medicine delivery timelines vary depending on factors like location, type of medication, order timing, and quantity ordered.",
   orderMedsTitle: "Order your medicines",
@@ -37,11 +35,17 @@ const MAIN_COPY = {
   uploadSub: "Image or File",
   flipTitle: "Fliphealth Prescription",
   flipSub: "Use a prescription from your consultations",
+  dontHavePrescription: "Don't have a prescription?",
   safeNote: "Your prescription is safe with us",
-  otcSectionTitle: "Need OTC products?",
+  otcSectionTitle: "Need Over The Counter(OTC) Products?",
   otcSectionSub: "No prescription needed",
   otcTitle: "Request OTC Products",
   otcSub: "No prescription needed",
+  addressLoadingTitle: "Loading addresses",
+  addressLoadingBody: "Please wait while we load your saved addresses.",
+  addressRequiredTitle: "Delivery address required",
+  noAddressSelected: "No delivery address selected. Add one to continue.",
+  addAddressToContinue: "Add an address to continue",
 } as const;
 
 const BENEFITS: readonly { readonly id: string; readonly label: string }[] = [
@@ -122,6 +126,13 @@ export function PharmacyDeliveryPage() {
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(null);
+  const [showFlipHealth, setShowFlipHealth] = useState(false);
+  const [addressesBootstrapped, setAddressesBootstrapped] = useState(false);
+  const selectedAddress = useSelectedAddressSnapshot();
+
+  const addressesLoading = !addressesBootstrapped;
+  const deliveryAddressReady =
+    addressesBootstrapped && Boolean(selectedAddress?.id?.trim());
 
   const passState = useMemo(() => ({ returnPath: hubReturn } satisfies NavState), [hubReturn]);
 
@@ -132,10 +143,23 @@ export function PharmacyDeliveryPage() {
     return `${flow.patientName}${suffix}`;
   }, [flow, members]);
 
+  const ensurePharmacyAddress = useCallback((): boolean => {
+    if (addressesLoading) {
+      toast.error("Please wait — loading addresses…");
+      return false;
+    }
+    if (!deliveryAddressReady) {
+      toast.error(MAIN_COPY.noAddressSelected);
+      return false;
+    }
+    return true;
+  }, [addressesLoading, deliveryAddressReady, toast]);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       await ensureDefaultSelectedAddressIfNeeded();
+      if (!cancelled) setAddressesBootstrapped(true);
       const existing = readPharmacyFlowState();
       if (existing) {
         const synced = flowWithSyncedAddress(existing);
@@ -236,12 +260,25 @@ export function PharmacyDeliveryPage() {
       toast.error("Select who you are ordering for.");
       return;
     }
+    if (!ensurePharmacyAddress()) return;
     writePharmacyReviewDraft({ kind: "OTC" });
     void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "OTC" as const } });
-  }, [navigate, passState, toast]);
+  }, [ensurePharmacyAddress, navigate, passState, toast]);
+
+  const goToUpload = useCallback(() => {
+    if (!ensurePharmacyAddress()) return;
+    void navigate(ROUTES.pharmacyUpload, { state: passState });
+  }, [ensurePharmacyAddress, navigate, passState]);
+
+  const goToFlipHealth = useCallback(() => {
+    if (!ensurePharmacyAddress()) return;
+    void navigate(ROUTES.pharmacySelectPrescription, { state: passState });
+  }, [ensurePharmacyAddress, navigate, passState]);
+
+  const showAddressBanner = flow && (addressesLoading || !deliveryAddressReady);
 
   return (
-    <div className="ph-page">
+    <div className="ph-page ph-page--dart-main">
       <header className="ph-top-wrap ph-top-wrap--dart-main">
         <div className="ph-top ph-top--dart-main">
           <Link to={hubReturn} className="ph-back" aria-label="Back">
@@ -297,32 +334,6 @@ export function PharmacyDeliveryPage() {
               </span>
             </button>
 
-            <section className="ph-main-hero" aria-labelledby="ph-main-hero-title">
-              <div className="ph-main-hero__inner">
-                <div className="ph-main-hero__copy">
-                  <div className="ph-main-hero__pill">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"
-                        fill="currentColor"
-                        stroke="currentColor"
-                        strokeWidth="1"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span>{MAIN_COPY.heroPill}</span>
-                  </div>
-                  <h2 id="ph-main-hero-title" className="ph-main-hero__title">
-                    {MAIN_COPY.heroTitle}
-                  </h2>
-                  <p className="ph-main-hero__note">{MAIN_COPY.heroNote}</p>
-                </div>
-                <div className="ph-main-hero__art" aria-hidden>
-                  <img src={PHARMACY_IMAGES.medicineDelivery} alt="" width={110} height={110} />
-                </div>
-              </div>
-            </section>
-
             <ul className="ph-main-benefits">
               {BENEFITS.map((b) => (
                 <li key={b.id} className="ph-main-benefits__chip">
@@ -334,17 +345,54 @@ export function PharmacyDeliveryPage() {
 
             <p className="ph-main-disclaimer">{MAIN_COPY.disclaimer}</p>
 
+            {showAddressBanner ? (
+              <div
+                className={`ph-main-address-banner${addressesLoading ? " ph-main-address-banner--info" : " ph-main-address-banner--warn"}`}
+                role="status"
+              >
+                <span className="ph-main-address-banner__icon" aria-hidden>
+                  {addressesLoading ? (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 21s7-4.5 7-11a7 7 0 10-14 0c0 6.5 7 11 7 11z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                      />
+                      <circle cx="12" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M12 14v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  )}
+                </span>
+                <span className="ph-main-address-banner__text">
+                  <span className="ph-main-address-banner__title">
+                    {addressesLoading
+                      ? MAIN_COPY.addressLoadingTitle
+                      : MAIN_COPY.addressRequiredTitle}
+                  </span>
+                  <span className="ph-main-address-banner__body">
+                    {addressesLoading
+                      ? MAIN_COPY.addressLoadingBody
+                      : MAIN_COPY.noAddressSelected}
+                  </span>
+                </span>
+              </div>
+            ) : null}
+
             <header className="ph-main-section-head">
               <h2 className="ph-main-section-head__title">{MAIN_COPY.orderMedsTitle}</h2>
               <p className="ph-main-section-head__sub">{MAIN_COPY.orderMedsSub}</p>
             </header>
 
-            <div className="ph-main-options">
-              <button
-                type="button"
-                className="ph-main-opt-tile"
-                onClick={() => void navigate(ROUTES.pharmacyUpload, { state: passState })}
-              >
+            <div
+              className={`ph-main-options${deliveryAddressReady ? "" : " ph-main-options--dimmed"}`}
+            >
+              <button type="button" className="ph-main-opt-tile" onClick={goToUpload}>
                 <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                     <path
@@ -368,39 +416,55 @@ export function PharmacyDeliveryPage() {
                 </span>
               </button>
 
-              <button
-                type="button"
-                className="ph-main-opt-tile"
-                onClick={() => void navigate(ROUTES.pharmacySelectPrescription, { state: passState })}
-              >
-                <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              {showFlipHealth ? (
+                <button type="button" className="ph-main-opt-tile" onClick={goToFlipHealth}>
+                  <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 4v4m6 2v6a6 6 0 01-12 0V10m12 0a6 6 0 10-12 0"
+                        stroke="#ff541e"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                      />
+                      <path d="M10 14h4" stroke="#ff541e" strokeWidth="1.75" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                  <span className="ph-main-opt-tile__text">
+                    <span className="ph-main-opt-tile__title">{MAIN_COPY.flipTitle}</span>
+                    <span className="ph-main-opt-tile__sub">{MAIN_COPY.flipSub}</span>
+                  </span>
+                  <span className="ph-main-opt-tile__arrow" aria-hidden>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 18l6-6-6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="ph-main-flip-reveal"
+                  onClick={() => setShowFlipHealth(true)}
+                >
+                  <span>{MAIN_COPY.dontHavePrescription}</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
-                      d="M12 4v4m6 2v6a6 6 0 01-12 0V10m12 0a6 6 0 10-12 0"
-                      stroke="#ff541e"
-                      strokeWidth="1.75"
+                      d="M6 9l6 6 6-6"
+                      stroke="currentColor"
+                      strokeWidth="2"
                       strokeLinecap="round"
+                      strokeLinejoin="round"
                     />
-                    <path d="M10 14h4" stroke="#ff541e" strokeWidth="1.75" strokeLinecap="round" />
                   </svg>
-                </span>
-                <span className="ph-main-opt-tile__text">
-                  <span className="ph-main-opt-tile__title">{MAIN_COPY.flipTitle}</span>
-                  <span className="ph-main-opt-tile__sub">{MAIN_COPY.flipSub}</span>
-                </span>
-                <span className="ph-main-opt-tile__arrow" aria-hidden>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 18l6-6-6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </button>
+                </button>
+              )}
 
               <div className="ph-main-safe">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
-                    d="M12 2l8 4v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V6l8-4z"
+                    d="M8 11V8a4 4 0 118 0v3M7 11h10v9H7V11z"
                     stroke="#1976d2"
                     strokeWidth="1.6"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                   />
                 </svg>
@@ -413,7 +477,22 @@ export function PharmacyDeliveryPage() {
               <p className="ph-main-section-head__sub">{MAIN_COPY.otcSectionSub}</p>
             </header>
 
-            <button type="button" className="ph-main-otc-tile" onClick={() => goToOtcReview()}>
+            {!deliveryAddressReady && !addressesLoading ? (
+              <p className="ph-main-otc-cue" role="status">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M12 8v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="12" cy="16" r="0.75" fill="currentColor" />
+                </svg>
+                <span>{MAIN_COPY.addAddressToContinue}</span>
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className={`ph-main-otc-tile${deliveryAddressReady ? "" : " ph-main-otc-tile--dimmed"}`}
+              onClick={() => goToOtcReview()}
+            >
               <span className="ph-main-opt-tile__icon-wrap" aria-hidden>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path
