@@ -280,7 +280,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   };
 
   const continueButtonLabel = (() => {
-    if (requiresAddressSelection && !hasAddress) {
+    if (requiresAddressSelection && !hasDeliveryAddress) {
       if (selectedIds.length === 0) {
         return isConsultationAtHospital
           ? SELECT_PEOPLE_COPY.selectHospitalLocationToContinue
@@ -522,7 +522,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
           disabled={!canContinue}
           onClick={onContinue}
           title={
-            requiresAddressSelection && !hasAddress
+            requiresAddressSelection && !hasDeliveryAddress
               ? isConsultationAtHospital
                 ? "Please select a hospital location"
                 : "Please add a delivery address"
