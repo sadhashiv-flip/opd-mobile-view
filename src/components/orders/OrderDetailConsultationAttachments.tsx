@@ -34,9 +34,14 @@ export type ConsultationManagedFilesTabsProps = Readonly<{
   onPickReports: () => void;
   onAttachmentFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onReportFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  /** patient_app `canAddAttachment` — when false, hide Add controls (read-only managed view). */
+  canAddAttachments?: boolean;
+  canAddReports?: boolean;
+  /** Consultation orders: attachments only (no Reports tab). Defaults to reports present or add allowed. */
+  showReportsTab?: boolean;
 }>;
 
-function AttachmentListRow({
+export function AttachmentListRow({
   rows,
   item,
   index,
@@ -95,6 +100,9 @@ export function ConsultationManagedFilesTabs({
   onPickReports,
   onAttachmentFileChange,
   onReportFileChange,
+  canAddAttachments = false,
+  canAddReports = false,
+  showReportsTab = reports.length > 0 || canAddReports,
 }: ConsultationManagedFilesTabsProps) {
   const [tab, setTab] = useState<ConsultationUploadRefType>("ATTACHMENT");
   const [listKind, setListKind] = useState<ConsultationUploadRefType | null>(null);
@@ -111,51 +119,62 @@ export function ConsultationManagedFilesTabs({
     }
   }, [listKind]);
 
-  const items = tab === "ATTACHMENT" ? attachments : reports;
+  const activeTab: ConsultationUploadRefType = showReportsTab ? tab : "ATTACHMENT";
+  const items = activeTab === "ATTACHMENT" ? attachments : reports;
   const listItems = listKind === "REPORT" ? reports : attachments;
   const listHeading = listKind === "REPORT" ? "Reports" : "Attachments";
-  const uploadBusy = tab === "ATTACHMENT" ? attachmentAddBusy : reportUploadBusy;
-  const addDisabled = !refId?.trim() || uploadBusy;
-  const rowKeyPrefix = tab === "ATTACHMENT" ? "att" : "rep";
+  const uploadBusy = activeTab === "ATTACHMENT" ? attachmentAddBusy : reportUploadBusy;
+  const canAddCurrentTab = activeTab === "ATTACHMENT" ? canAddAttachments : canAddReports;
+  const addDisabled = !canAddCurrentTab || !refId?.trim() || uploadBusy;
+  const rowKeyPrefix = activeTab === "ATTACHMENT" ? "att" : "rep";
 
   return (
     <>
-      <section className="od-card od-card--attach od-card--attach-managed od-card--attach-tabs" aria-label="Files">
-        <div className="od-attach-tabs" role="tablist" aria-label="Attachments or reports">
-          <button
-            type="button"
-            role="tab"
-            className="od-attach-tabs__tab"
-            aria-selected={tab === "ATTACHMENT"}
-            onClick={() => setTab("ATTACHMENT")}
-          >
-            Attachments
-            {attachments.length > 0 ? (
-              <span className="od-attach-tabs__count">{attachments.length}</span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className="od-attach-tabs__tab"
-            aria-selected={tab === "REPORT"}
-            onClick={() => setTab("REPORT")}
-          >
-            Reports
-            {reports.length > 0 ? <span className="od-attach-tabs__count">{reports.length}</span> : null}
-          </button>
-        </div>
-        <div className="od-attach-tabs__panel" role="tabpanel">
-          <div className="od-attach-tabs__toolbar">
+      <section
+        className={`od-card od-card--attach od-card--attach-managed${showReportsTab ? " od-card--attach-tabs" : ""}`}
+        aria-label={showReportsTab ? "Files" : "Attachments"}
+      >
+        {showReportsTab ? (
+          <div className="od-attach-tabs" role="tablist" aria-label="Attachments or reports">
             <button
               type="button"
-              className="od-attach-add-btn"
-              disabled={addDisabled}
-              onClick={() => (tab === "ATTACHMENT" ? onPickAttachments() : onPickReports())}
+              role="tab"
+              className="od-attach-tabs__tab"
+              aria-selected={tab === "ATTACHMENT"}
+              onClick={() => setTab("ATTACHMENT")}
             >
-              {uploadBusy ? "Adding…" : "Add"}
+              Attachments
+              {attachments.length > 0 ? (
+                <span className="od-attach-tabs__count">{attachments.length}</span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="od-attach-tabs__tab"
+              aria-selected={tab === "REPORT"}
+              onClick={() => setTab("REPORT")}
+            >
+              Reports
+              {reports.length > 0 ? <span className="od-attach-tabs__count">{reports.length}</span> : null}
             </button>
           </div>
+        ) : (
+          <h3 className="od-card__title">Attachments</h3>
+        )}
+        <div className="od-attach-tabs__panel" role={showReportsTab ? "tabpanel" : undefined}>
+          {canAddCurrentTab ? (
+            <div className="od-attach-tabs__toolbar">
+              <button
+                type="button"
+                className="od-attach-add-btn"
+                disabled={addDisabled}
+                onClick={() => (activeTab === "ATTACHMENT" ? onPickAttachments() : onPickReports())}
+              >
+                {uploadBusy ? "Adding…" : "Add"}
+              </button>
+            </div>
+          ) : null}
           <input
             ref={attachmentFileInputRef}
             type="file"
@@ -165,15 +184,17 @@ export function ConsultationManagedFilesTabs({
             aria-label="Add consultation attachment"
             onChange={(e) => void onAttachmentFileChange(e)}
           />
-          <input
-            ref={reportFileInputRef}
-            type="file"
-            className="od-attach-file-input"
-            accept="image/*,.pdf,.doc,.docx,application/pdf"
-            multiple
-            aria-label="Add consultation report"
-            onChange={(e) => void onReportFileChange(e)}
-          />
+          {showReportsTab ? (
+            <input
+              ref={reportFileInputRef}
+              type="file"
+              className="od-attach-file-input"
+              accept="image/*,.pdf,.doc,.docx,application/pdf"
+              multiple
+              aria-label="Add consultation report"
+              onChange={(e) => void onReportFileChange(e)}
+            />
+          ) : null}
           <div className="od-attach-strip">
             <div className="od-attach-strip__icons">
               {items.length === 0 ? (
@@ -182,7 +203,7 @@ export function ConsultationManagedFilesTabs({
                 items.slice(0, 8).map((a, i) => {
                   const k = attachmentIconKindFromUrlAndName(a.url, a.label);
                   const hasUrl = Boolean(a.url?.trim());
-                  const rows = tab === "ATTACHMENT" ? attachments : reports;
+                  const rows = activeTab === "ATTACHMENT" ? attachments : reports;
                   const name = a.label?.trim() || "Attachment";
                   return (
                     <button
@@ -201,7 +222,11 @@ export function ConsultationManagedFilesTabs({
                 })
               )}
             </div>
-            <button type="button" className="od-attach-strip__cta" onClick={() => setListKind(tab)}>
+            <button
+              type="button"
+              className="od-attach-strip__cta"
+              onClick={() => setListKind(showReportsTab ? tab : "ATTACHMENT")}
+            >
               {items.length > 0 ? `View list (${items.length})` : "Open list"}
             </button>
           </div>

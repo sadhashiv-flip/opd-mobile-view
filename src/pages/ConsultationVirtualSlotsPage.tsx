@@ -1,24 +1,22 @@
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { readVirtualFollowUpAppointmentId } from "@/constants/virtualConsultationSessionStorage";
+import { VirtualConsultationSlotSelector } from "@/components/consultation/VirtualConsultationSlotSelector";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  doctorImageUrl,
   fetchAllAvailableSlots,
-  fetchAllSpecialityDoctors,
-  formatExperience,
   formatLocalYmd,
   type AvailableSlot,
-  type SpecialityDoctor,
   type VirtualSpecialtySlotsState,
 } from "@/api/consultationVirtual";
+import {
+  maxIsoDate,
+  parseSlotDateYmd,
+  todayYmd,
+} from "@/utils/consultationVirtualSlotRules";
 import "./ConsultationVirtualSlotsPage.css";
 
 const STORAGE_PREFIX = "opd-mobile-view.virtualSlots.";
-
-/** Later of two `YYYY-MM-DD` strings (valid ISO dates). */
-function maxIsoDate(a: string, b: string): string {
-  return a >= b ? a : b;
-}
 
 export type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
 
@@ -77,167 +75,68 @@ export function ConsultationVirtualSlotsPage() {
     sessionStorage.setItem(`${STORAGE_PREFIX}${issueId}`, JSON.stringify(meta));
   }, [meta, issueId]);
 
-  const [doctors, setDoctors] = useState<readonly SpecialityDoctor[]>([]);
-  const [doctorsLoad, setDoctorsLoad] = useState<"idle" | "loading" | "error" | "ok">("idle");
-  const [doctorsErr, setDoctorsErr] = useState<string | null>(null);
-
-  const [slotDate, setSlotDate] = useState(() => formatLocalYmd(new Date()));
+  const [slotDate, setSlotDate] = useState(() => todayYmd());
   const [slots, setSlots] = useState<readonly AvailableSlot[]>([]);
   const [slotsLoad, setSlotsLoad] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [slotsErr, setSlotsErr] = useState<string | null>(null);
   const [selectedSlotKey, setSelectedSlotKey] = useState<string>("");
   const navigate = useNavigate();
 
+  const isFollowUp = Boolean(readVirtualFollowUpAppointmentId());
+  const followUpAppointmentId = readVirtualFollowUpAppointmentId();
   const slotsLanguage = meta?.language ?? "English";
 
-  const canContinue = Boolean(selectedSlotKey);
+  const selectedDay = useMemo(() => {
+    return parseSlotDateYmd(slotDate) ?? new Date();
+  }, [slotDate]);
 
-  const loadDoctors = useCallback(async () => {
-    if (!meta) return;
-    setDoctorsLoad("loading");
-    setDoctorsErr(null);
-    try {
-      const list = await fetchAllSpecialityDoctors(meta.parent);
-      setDoctors(list);
-      setDoctorsLoad("ok");
-    } catch (e: unknown) {
-      setDoctorsLoad("error");
-      setDoctorsErr(e instanceof Error ? e.message : "Could not load doctors");
-    }
-  }, [meta]);
+  const canContinue = Boolean(selectedSlotKey);
 
   const loadSlots = useCallback(async () => {
     if (!meta) return;
     setSlotsLoad("loading");
     setSlotsErr(null);
+    setSelectedSlotKey("");
     try {
       const list = await fetchAllAvailableSlots({
         date: slotDate,
         spid: meta.spid,
         language: slotsLanguage,
+        appointmentId: followUpAppointmentId,
       });
       setSlots(list);
       setSlotsLoad("ok");
-      setSelectedSlotKey("");
     } catch (e: unknown) {
       setSlotsLoad("error");
       setSlotsErr(e instanceof Error ? e.message : "Could not load slots");
+      setSlots([]);
     }
-  }, [meta, slotDate, slotsLanguage]);
-
-  useEffect(() => {
-    void loadDoctors();
-  }, [loadDoctors]);
+  }, [meta, slotDate, slotsLanguage, followUpAppointmentId]);
 
   useEffect(() => {
     void loadSlots();
   }, [loadSlots]);
 
-  /** Keep selected date on or after today (local calendar). */
   useEffect(() => {
-    const today = formatLocalYmd(new Date());
-    setSlotDate((prev) => maxIsoDate(prev, today));
+    setSlotDate((prev) => maxIsoDate(prev, todayYmd()));
   }, []);
-
-  const minSelectableDate = formatLocalYmd(new Date());
 
   const backToSpecialties = generatePath(ROUTES.consultationSpecialties, { type: "virtual" });
 
-  let doctorsBlock: ReactNode = null;
-  let slotsBlock: ReactNode = null;
-  if (meta) {
-    if (doctorsLoad === "loading" || doctorsLoad === "idle") {
-      doctorsBlock = <div className="cvsl-msg">Loading doctors…</div>;
-    } else if (doctorsLoad === "error") {
-      doctorsBlock = (
-        <div className="cvsl-msg cvsl-msg--err" role="alert">
-          {doctorsErr ?? "Could not load doctors"}
-        </div>
-      );
-    } else if (doctors.length === 0) {
-      doctorsBlock = <div className="cvsl-msg">No doctors available for this speciality.</div>;
-    } else {
-      doctorsBlock = (
-        <div className="cvsl-slider" aria-label="Doctors">
-          {doctors.map((d) => {
-            const img = doctorImageUrl(d);
-            const exp = formatExperience(d.experience);
-            return (
-              <div key={d.id} className="cvsl-slide">
-                <div className="cvsl-doc">
-                  <div className="cvsl-doc__avatar" aria-hidden="true">
-                    {img ? (
-                      <img src={img} alt="" className="cvsl-doc__img" loading="lazy" />
-                    ) : null}
-                  </div>
-                  <div className="cvsl-doc__meta">
-                    <div className="cvsl-doc__name">{d.name}</div>
-                    <div className="cvsl-doc__deg">
-                      {d.qualification ?? d.speciality?.name ?? ""}
-                    </div>
-                  </div>
-                </div>
-                {exp ? <div className="cvsl-doc__tag">{exp}</div> : null}
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    if (slotsLoad === "loading" || slotsLoad === "idle") {
-      slotsBlock = <div className="cvsl-msg">Loading slots…</div>;
-    } else if (slotsLoad === "error") {
-      slotsBlock = (
-        <div className="cvsl-msg cvsl-msg--err" role="alert">
-          {slotsErr ?? "Could not load slots"}
-        </div>
-      );
-    } else if (slots.length === 0) {
-      slotsBlock = <div className="cvsl-msg">No slots for this date.</div>;
-    } else {
-      slotsBlock = (
-        <div className="cvsl-slots" role="radiogroup" aria-label="Time slots">
-          {slots.map((s) => {
-            const key = `${s.date}|${s.time}`;
-            const disabled = s.available === "0" || s.available === "false";
-            const active = selectedSlotKey === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                disabled={disabled}
-                className={`cvsl-slot${active ? " cvsl-slot--active" : ""}${disabled ? " cvsl-slot--disabled" : ""}`}
-                onClick={() => !disabled && setSelectedSlotKey(key)}
-              >
-                <span className="cvsl-slot__time">{s.displayTime}</span>
-                <span className="cvsl-slot__avail">Available: {s.available}</span>
-              </button>
-            );
-          })}
-        </div>
-      );
-    }
-  }
+  const pageTitle = meta
+    ? isFollowUp
+      ? `Appointment - ${meta.issueTitle}`
+      : "Select slot"
+    : "Select slot";
 
   if (!meta) {
     return (
       <div className="cvsl-page">
         <header className="cvsl-top">
           <Link to={backToSpecialties} className="cvsl-back" aria-label="Back">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <BackIcon />
           </Link>
-          <h1 className="cvsl-title">Slots</h1>
+          <h1 className="cvsl-title">Select slot</h1>
         </header>
         <main className="cvsl-main">
           <p className="cvsl-msg cvsl-msg--err">Select a specialty again to continue.</p>
@@ -252,57 +151,35 @@ export function ConsultationVirtualSlotsPage() {
   return (
     <div className="cvsl-page">
       <header className="cvsl-top">
-        <Link to={backToSpecialties} className="cvsl-back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
-        <h1 className="cvsl-title">{meta.issueTitle}</h1>
+        {isFollowUp ? (
+          <button
+            type="button"
+            className="cvsl-back"
+            aria-label="Back"
+            onClick={() => navigate(-1)}
+          >
+            <BackIcon />
+          </button>
+        ) : (
+          <Link to={backToSpecialties} className="cvsl-back" aria-label="Back">
+            <BackIcon />
+          </Link>
+        )}
+        <h1 className="cvsl-title">{pageTitle}</h1>
       </header>
 
       <main className="cvsl-main">
-        <div className="cvsl-note">
-          Note : Flip Health will call and try to schedule your appointment in your preferred slot
-          or the next available slot
-        </div>
-
-        <section className="cvsl-topdocs" aria-label="Top Doctors">
-          <div className="cvsl-topdocs__title">Top Doctors</div>
-          {doctorsBlock}
-        </section>
-
-        <div className="cvsl-row">
-          <div className="cvsl-row__left">
-            <span className="cvsl-row__ic" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
-                <path d="M12 7v6l3 2" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-            <span>choose date and time</span>
-          </div>
-          <label className="cvsl-datewrap">
-            <span className="cvsl-sr">Date</span>
-            <input
-              type="date"
-              className="cvsl-date"
-              min={minSelectableDate}
-              value={slotDate}
-              onChange={(e) => setSlotDate(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <section className="cvsl-slotssec" aria-label="Available slots">
-          <div className="cvsl-slotssec__head">Available slots</div>
-          <div className="cvsl-slotssec__box">{slotsBlock}</div>
-        </section>
+        <VirtualConsultationSlotSelector
+          selectedDay={selectedDay}
+          onSelectDay={(d) => {
+            setSlotDate(formatLocalYmd(d));
+          }}
+          selectedSlotKey={selectedSlotKey}
+          onSelectSlotKey={setSelectedSlotKey}
+          slots={slots}
+          slotsLoading={slotsLoad === "loading" || slotsLoad === "idle"}
+          slotsError={slotsLoad === "error" ? slotsErr : null}
+        />
       </main>
 
       <footer className="cvsl-footer">
@@ -317,19 +194,30 @@ export function ConsultationVirtualSlotsPage() {
                 "opd-mobile-view.virtualBooking.selectedSlotKey",
                 selectedSlotKey,
               );
-              sessionStorage.setItem(
-                "opd-mobile-view.virtualBooking.slotDate",
-                slotDate,
-              );
+              sessionStorage.setItem("opd-mobile-view.virtualBooking.slotDate", slotDate);
             } catch {
               // ignore
             }
             navigate(generatePath(ROUTES.consultationVirtualOverview, { issueId }));
           }}
         >
-          Book Appointment
+          {canContinue ? "Confirm" : "Select Slot"}
         </button>
       </footer>
     </div>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M15 18l-6-6 6-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

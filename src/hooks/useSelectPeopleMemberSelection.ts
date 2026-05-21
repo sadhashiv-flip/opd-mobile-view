@@ -16,6 +16,8 @@ export type UseSelectPeopleMemberSelectionOpts = Readonly<{
   allowDeselect?: boolean;
   /** Optional stored id to restore (e.g. consultation sheet). */
   restoreStoredId?: string | null;
+  /** When true (dental), keep selections without subscription / child-age gates. */
+  relaxMemberRestrictions?: boolean;
   enabled?: boolean;
 }>;
 
@@ -27,6 +29,7 @@ export function useSelectPeopleMemberSelection({
   skipAutoPick = false,
   allowDeselect = false,
   restoreStoredId = null,
+  relaxMemberRestrictions = false,
   enabled = true,
 }: UseSelectPeopleMemberSelectionOpts): void {
   const basis = selectionBasisRows ?? rows;
@@ -40,14 +43,20 @@ export function useSelectPeopleMemberSelection({
     setSelectedIds((prev) => {
       let next = prev.filter((id) => {
         const r = rows.find((x) => x.id === id);
-        if (!r?.isSubscribed || r.isChildBlocked) return false;
+        if (!r) return false;
+        if (!relaxMemberRestrictions && !r.isSubscribed) {
+          return false;
+        }
         return basis.some((s) => s.id === id);
       });
       if (next.length === 0 && !skipAutoPick) {
         const stored = restoreStoredId?.trim() ?? "";
         if (stored) {
           const storedRow = rows.find((r) => r.id === stored);
-          if (storedRow?.isSubscribed && !storedRow.isChildBlocked) {
+          const storedOk =
+            storedRow &&
+            (relaxMemberRestrictions || storedRow.isSubscribed);
+          if (storedOk) {
             next = [stored];
           }
         }
@@ -63,6 +72,7 @@ export function useSelectPeopleMemberSelection({
     maxSelectable,
     skipAutoPick,
     restoreStoredId,
+    relaxMemberRestrictions,
     enabled,
   ]);
 
@@ -75,11 +85,16 @@ export function toggleSelectPeopleMember(
     allowDeselect: boolean;
     restrictToAhcSelection?: boolean;
     isHealthCheckupsDiagnostics?: boolean;
+    /** When true (dental), skip subscription and child-age gates. */
+    relaxMemberRestrictions?: boolean;
   }>,
 ): (prev: string[]) => string[] {
   return (prev) => {
     const row = rows.find((r) => r.id === memberId);
-    if (!row?.isSubscribed || row.isChildBlocked) return prev;
+    if (!row) return prev;
+    if (!opts.relaxMemberRestrictions && !row.isSubscribed) {
+      return prev;
+    }
     if (
       opts.isHealthCheckupsDiagnostics &&
       opts.restrictToAhcSelection &&

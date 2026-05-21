@@ -60,7 +60,7 @@
   display: grid;
   place-items: center;
   font-weight: 700;
-  background: #ff5a1f;
+  background: var(--color-btn-primary-bg, #111111);
   color: #fff;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
 }
@@ -71,7 +71,7 @@
 }
 
 .ud-step__index--done {
-  background: #ff5a1f;
+  background: var(--color-btn-primary-bg, #111111);
   color: #fff;
 }
 
@@ -182,7 +182,7 @@
 
 .ud-primary--wide {
   margin-top: 16px;
-  background: #ff5a1f;
+  background: var(--color-btn-primary-bg, #111111);
 }
 
 .ud-gender-row {
@@ -506,7 +506,7 @@
 }
 
 .ud-result-page__consult {
-  background: #ff5a1f;
+  background: var(--color-btn-primary-bg, #111111);
 }
 
 .ud-result-page__skip {

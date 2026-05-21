@@ -1,7 +1,9 @@
 .chr-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: #ffffff;
   color: #111111;
   gap: 10px;
@@ -12,8 +14,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px 8px;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 20;
   background: #ffffff;
   border-bottom: 1px solid #ececec;
@@ -41,10 +42,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0 var(--page-pad-x, 14px);
   padding: 10px 12px;
   border: 1px solid #ececec;
   border-radius: 10px;
   background: #ffffff;
+  flex-shrink: 0;
 }
 
 .chr-loc__pin {
@@ -88,12 +91,14 @@
 
 .chr-banner-container {
   height: 50px;
-  width: 100%;
+  width: calc(100% - 2 * var(--page-pad-x, 14px));
+  margin: 0 var(--page-pad-x, 14px);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .chr-banner {
@@ -127,19 +132,24 @@
 
 .chr-main {
   flex: 1;
-  padding: 0 14px 14px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 var(--page-pad-x, 14px) calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 .chr-search {
-   margin: 0 0 12px;
-    border: 1px solid #e5e5e5;
-    border-radius: 10px;
-    padding: 10px 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #ffffff;
-  }
+  flex-shrink: 0;
+  margin: 0 0 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 10px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+}
 
 .chr-search__ic {
   display: inline-flex;
@@ -248,7 +258,11 @@
 }
 
 .chr-dlist {
-  margin-top: 0px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
 }
 
 .chr-dlist-more {
@@ -272,9 +286,19 @@
 }
 
 .chr-dscroll {
-  max-height: 52dvh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding-right: 10px;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chr-dscroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .chr-dcard {
@@ -571,8 +595,8 @@
   height: 44px;
   border: none;
   border-radius: 10px;
-  background: #ff541e;
-  color: #ffffff;
+  background: var(--color-btn-primary-bg);
+  color: var(--color-btn-primary-fg);
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   cursor: pointer;

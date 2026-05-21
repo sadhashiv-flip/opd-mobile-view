@@ -24,6 +24,12 @@
   color: #16a34a;
 }
 
+.bss-icon--medical {
+  width: 96px;
+  height: 96px;
+  background: color-mix(in srgb, #16a34a 14%, #ffffff);
+}
+
 .bss-icon__svg {
   display: block;
 }
@@ -64,7 +70,16 @@
 .bss-summary__divider {
   height: 1px;
   background: #ebebeb;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+}
+
+.bss-summary__ref {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #757575;
+  line-height: 1.35;
+  word-break: break-all;
 }
 
 .bss-summary__rows {
@@ -110,6 +125,11 @@
   word-break: break-word;
 }
 
+.bss-summary__value--small {
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .bss-footer {
   flex-shrink: 0;
   padding: 12px 18px calc(18px + env(safe-area-inset-bottom, 0));
@@ -150,4 +170,125 @@
 
 .bss-btn--primary:active {
   opacity: 0.94;
+}
+
+/* patient_app ConsultationPaymentSuccessScreen — virtual consult booking */
+.bss-page--virtual-consult .bss-scroll {
+  padding: 24px 24px 16px;
+}
+
+.bss-page--virtual-consult .bss-icon--medical {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 24px;
+  background: color-mix(in srgb, #1aad0d 12%, #ffffff);
+  color: #1aad0d;
+}
+
+.bss-page--virtual-consult .bss-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bss-page--virtual-consult .bss-sub {
+  margin-top: 12px;
+  max-width: 100%;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #626262;
+  line-height: 1.45;
+}
+
+.bss-summary--vc {
+  margin-top: 28px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #ededed;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  text-align: left;
+}
+
+.bss-summary--vc .bss-summary__heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #000000;
+  text-align: left;
+}
+
+.bss-summary--vc .bss-summary__divider {
+  margin: 14px 0 10px;
+  background: #e8e8e8;
+}
+
+.bss-summary--vc .bss-summary__ref {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8e8e8e;
+  line-height: 1.35;
+  text-align: left;
+  word-break: break-all;
+}
+
+.bss-summary--vc .bss-summary__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* patient_app _SummaryRow: label 110px, value column left-aligned */
+.bss-summary__row--vc {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+}
+
+.bss-summary--vc .bss-summary__label {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8e8e8e;
+  line-height: 1.5;
+}
+
+.bss-summary--vc .bss-summary__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000;
+  line-height: 1.5;
+  text-align: left;
+  word-break: break-word;
+}
+
+.bss-summary--vc .bss-summary__value--multiline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.bss-footer--vc {
+  padding: 10px 24px calc(6px + env(safe-area-inset-bottom, 0));
+  gap: 12px;
+  border-top: 1px solid #ededed;
+}
+
+.bss-btn--outline-vc {
+  height: 48px;
+  border: 1.5px solid #16222e;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #ff5224;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.bss-page--virtual-consult .bss-btn--primary {
+  height: 48px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
 }

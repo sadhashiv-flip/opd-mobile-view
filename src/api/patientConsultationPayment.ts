@@ -1,3 +1,4 @@
+import { readAppointmentResponseMessage } from "@/api/appointmentBook";
 import { patientFetch } from "@/api/patientHttp";
 import { readPatientApiError } from "@/api/patientClient";
 
@@ -8,7 +9,13 @@ export type AppointmentPaymentVerifyBody = Readonly<{
   signature: string;
 }>;
 
-export async function verifyAppointmentPayment(body: AppointmentPaymentVerifyBody): Promise<void> {
+export type AppointmentPaymentVerifyResult = Readonly<{
+  message: string | undefined;
+}>;
+
+export async function verifyAppointmentPayment(
+  body: AppointmentPaymentVerifyBody,
+): Promise<AppointmentPaymentVerifyResult> {
   const res = await patientFetch("appointment/paymentverify", {
     method: "PATCH",
     body: JSON.stringify({
@@ -20,4 +27,11 @@ export async function verifyAppointmentPayment(body: AppointmentPaymentVerifyBod
   if (!res.ok) {
     throw new Error(await readPatientApiError(res));
   }
+  let json: unknown = null;
+  try {
+    json = await res.json();
+  } catch {
+    // empty body is ok
+  }
+  return { message: readAppointmentResponseMessage(json) };
 }

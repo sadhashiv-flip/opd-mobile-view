@@ -18,7 +18,7 @@
   max-width: calc(100cqw - 32px);
   max-height: min(90dvh, 640px);
   background: transparent;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   /* Top-layer dialog: ensure text/inputs are visible if UA/theme omits inherited color */
   color: #111111;
 }

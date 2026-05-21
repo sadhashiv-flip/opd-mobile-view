@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants";
 import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
-import { defaultSingleSelectHint } from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import type { GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
@@ -43,6 +42,7 @@ export function PharmacyOrderingMemberSheet({
       showAhcSponsorSubtitle: false,
       restrictToAhcSelection: false,
       isDiagnosticsFlow: false,
+      relaxMemberRestrictions: false,
     }),
     [],
   );
@@ -147,7 +147,6 @@ export function PharmacyOrderingMemberSheet({
               onToggle={toggleMember}
               onNavigateSubscriptions={goProfileSubscriptions}
               config={memberListConfig}
-              selectionHint={defaultSingleSelectHint()}
               canAddFamily={canAddFamily}
               returnPath={returnPath}
               onAddFamily={() => {

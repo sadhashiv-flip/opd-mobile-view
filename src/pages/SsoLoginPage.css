@@ -65,7 +65,7 @@
 .sso-login-page__title {
   margin: 0 auto 10px;
   max-width: 22em;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   font-weight: 700;
   line-height: 1.35;
@@ -76,7 +76,7 @@
 .sso-login-page__subtitle {
   margin: 0 auto;
   max-width: 24em;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 400;
   line-height: 1.45;
@@ -85,7 +85,7 @@
 
 .sso-login-page__message {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 400;
   line-height: 1.5;
@@ -144,7 +144,7 @@
   margin: clamp(16px, 4cqw, 22px) auto 0;
   padding: 6px 12px;
   border-radius: 999px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(10px, calc(11 * 100cqw / 375), 12px);
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -177,14 +177,14 @@
 
 .sso-login-page__mock-text {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
   color: #616161;
 }
 
 .sso-login-page__code {
-  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-family: var(--font-family-app);
   font-size: 0.85em;
   word-break: break-all;
   color: #424242;
@@ -208,7 +208,7 @@
   border: none;
   border-radius: 10px;
   background: var(--color-brand-orange);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #ffffff;
@@ -226,7 +226,7 @@
 .sso-login-page__footer-hint {
   margin: 0;
   text-align: center;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(10px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   line-height: 1.45;
   color: #9e9e9e;

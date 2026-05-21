@@ -7,7 +7,7 @@ import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
-import { defaultSingleSelectHint, SELECT_PEOPLE_COPY } from "@/lib/selectPeopleShared";
+import { SELECT_PEOPLE_COPY } from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
@@ -37,6 +37,7 @@ export function VaccinationSelectPeoplePage() {
       showAhcSponsorSubtitle: false,
       restrictToAhcSelection: false,
       isDiagnosticsFlow: false,
+      relaxMemberRestrictions: false,
     }),
     [],
   );
@@ -99,7 +100,7 @@ export function VaccinationSelectPeoplePage() {
 
   const goProfileSubscriptions = () => {
     void navigate(ROUTES.profileSubscriptions, {
-      state: { returnPath },
+      state: { returnPath: `${location.pathname}${location.search}` },
     });
   };
 
@@ -234,7 +235,6 @@ export function VaccinationSelectPeoplePage() {
             onToggle={toggleMember}
             onNavigateSubscriptions={goProfileSubscriptions}
             config={memberListConfig}
-            selectionHint={defaultSingleSelectHint()}
             canAddFamily={canAddFamily}
             returnPath={returnPath}
           />

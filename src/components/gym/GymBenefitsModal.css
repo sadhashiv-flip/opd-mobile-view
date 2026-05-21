@@ -7,7 +7,7 @@
   justify-content: center;
   padding: max(16px, env(safe-area-inset-top)) 20px max(16px, env(safe-area-inset-bottom));
   box-sizing: border-box;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: var(--font-family-app);
 }
 
 .gbm-backdrop {

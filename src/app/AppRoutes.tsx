@@ -21,6 +21,7 @@ import { MedicalRecordsPage } from "@/pages/MedicalRecordsPage";
 import { MedicalRecordsConsultationChatPage } from "@/pages/MedicalRecordsConsultationChatPage";
 import { UnknownRouteRedirect } from "@/app/UnknownRouteRedirect";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
+import { HelpSupportTicketsPage } from "@/pages/HelpSupportTicketsPage";
 import { SupportTicketChatPage } from "@/pages/SupportTicketChatPage";
 import { GymMembershipPage } from "@/pages/GymMembershipPage";
 import { GymMembershipContactPage } from "@/pages/GymMembershipContactPage";
@@ -143,6 +144,7 @@ export function AppRoutes() {
       <Route path={ROUTES.profileTerms} element={<ProfileTermsPage />} />
       <Route path="/home" element={<Navigate to={ROUTES.dashboard} replace />} />
       <Route path={ROUTES.services} element={<ServicesHubPage />} />
+      <Route path={ROUTES.servicesHelpSupport} element={<HelpSupportTicketsPage />} />
       <Route path={ROUTES.servicesSupportTicketChat} element={<SupportTicketChatPage />} />
 
       {/* Diagnostics flows (Health Checkups, Lab Tests, etc.) */}

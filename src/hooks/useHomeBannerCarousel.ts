@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_AUTO_ADVANCE_MS = 6000;
 const SWIPE_THRESHOLD_PX = 45;
+const DRAG_ACTIVATE_PX = 8;
+const WHEEL_DELTA_THRESHOLD = 48;
+const WHEEL_COOLDOWN_MS = 380;
 
 type UseHomeBannerCarouselOptions = Readonly<{
   slideCount: number;
@@ -34,6 +37,11 @@ export function useHomeBannerCarousel({
   /** Disables transform transition for instant wrap after landing on a clone slide */
   const [instantMove, setInstantMove] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const pointerStartX = useRef<number | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const pointerDragging = useRef(false);
+  const suppressClickRef = useRef(false);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const extendedPosRef = useRef(extendedPos);
   extendedPosRef.current = extendedPos;
 
@@ -109,6 +117,22 @@ export function useHomeBannerCarousel({
     });
   }, [infinite, slideCount]);
 
+  const applySwipeDelta = useCallback(
+    (dx: number) => {
+      if (slideCount <= 1) return false;
+      if (dx < -SWIPE_THRESHOLD_PX) {
+        stepNext();
+        return true;
+      }
+      if (dx > SWIPE_THRESHOLD_PX) {
+        stepPrev();
+        return true;
+      }
+      return false;
+    },
+    [slideCount, stepNext, stepPrev],
+  );
+
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
   }, []);
@@ -120,14 +144,120 @@ export function useHomeBannerCarousel({
       const endX = e.changedTouches[0].clientX;
       const dx = endX - touchStartX.current;
       touchStartX.current = null;
-      if (dx < -SWIPE_THRESHOLD_PX) {
-        stepNext();
-      } else if (dx > SWIPE_THRESHOLD_PX) {
-        stepPrev();
+      applySwipeDelta(dx);
+    },
+    [slideCount, applySwipeDelta],
+  );
+
+  const resetPointerDrag = useCallback(() => {
+    pointerStartX.current = null;
+    pointerIdRef.current = null;
+    pointerDragging.current = false;
+  }, []);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (slideCount <= 1 || e.button !== 0) return;
+      pointerStartX.current = e.clientX;
+      pointerIdRef.current = e.pointerId;
+      pointerDragging.current = false;
+      suppressClickRef.current = false;
+    },
+    [slideCount],
+  );
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerStartX.current == null || pointerIdRef.current !== e.pointerId) return;
+    const dx = e.clientX - pointerStartX.current;
+    if (!pointerDragging.current && Math.abs(dx) >= DRAG_ACTIVATE_PX) {
+      pointerDragging.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+  }, []);
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (pointerStartX.current == null || pointerIdRef.current !== e.pointerId) return;
+      const dx = e.clientX - pointerStartX.current;
+      const wasDragging = pointerDragging.current;
+      if (wasDragging) {
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          /* already released */
+        }
+      }
+      resetPointerDrag();
+      if (!wasDragging) return;
+      if (applySwipeDelta(dx)) {
+        suppressClickRef.current = true;
       }
     },
-    [slideCount, stepNext, stepPrev],
+    [applySwipeDelta, resetPointerDrag],
   );
+
+  const onPointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (pointerIdRef.current !== e.pointerId) return;
+      if (pointerDragging.current) {
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          /* already released */
+        }
+      }
+      resetPointerDrag();
+    },
+    [resetPointerDrag],
+  );
+
+  const onViewportClickCapture = useCallback((e: React.MouseEvent) => {
+    if (!suppressClickRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    suppressClickRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el || slideCount <= 1) return;
+
+    let wheelAccum = 0;
+    let wheelLocked = false;
+    let unlockTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+    const onWheelNative = (e: WheelEvent) => {
+      const delta =
+        Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (Math.abs(delta) < 1) return;
+
+      if (wheelLocked) {
+        e.preventDefault();
+        return;
+      }
+
+      wheelAccum += delta;
+      if (Math.abs(wheelAccum) < WHEEL_DELTA_THRESHOLD) return;
+
+      e.preventDefault();
+      wheelLocked = true;
+      if (wheelAccum > 0) stepNext();
+      else stepPrev();
+      wheelAccum = 0;
+
+      if (unlockTimer != null) globalThis.clearTimeout(unlockTimer);
+      unlockTimer = globalThis.setTimeout(() => {
+        wheelLocked = false;
+        unlockTimer = null;
+      }, WHEEL_COOLDOWN_MS);
+    };
+
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheelNative);
+      if (unlockTimer != null) globalThis.clearTimeout(unlockTimer);
+    };
+  }, [slideCount, stepNext, stepPrev]);
 
   return {
     activeIndex,
@@ -138,8 +268,14 @@ export function useHomeBannerCarousel({
     goTo,
     stepNext,
     stepPrev,
+    viewportRef,
     onTouchStart,
     onTouchEnd,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+    onViewportClickCapture,
     onTrackTransitionEnd,
   };
 }

@@ -1,4 +1,4 @@
-import { ServiceHubCard } from "@/components/services/ServiceHubCard";
+﻿import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   getHubHeading,
@@ -19,23 +19,10 @@ import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
 import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { ROUTES, VISION_ROUTE_TYPE, WELLNESS_SESSION_KIND } from "@/constants";
-import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
-import { SupportTicketFeedbackDialog, FEEDBACK_RATINGS } from "@/components/support/SupportTicketFeedbackDialog";
 import { DeleteAccountModal } from "@/components/profile";
-import { postSupportFeedback } from "@/api/patientFeedback";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import { useToast } from "@/hooks/useToast";
-import {
-  createSupportTicket,
-  fetchAllSupportTickets,
-  isSupportTicketClosedTabStatus,
-  isSupportTicketInactiveStatus,
-  parseSupportTicketFeedbackDisplay,
-  supportTicketHasFeedback,
-  type SupportTicket,
-  type SupportTicketFeedbackDisplay,
-} from "@/api/supportTicket";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, generatePath, useNavigate, useSearchParams } from "react-router-dom";
 import "@/pages/HomePage.css";
 import "./ServicesHubPage.css";
@@ -125,28 +112,8 @@ export function ServicesHubPage() {
 
   const navigate = useNavigate();
   const toast = useToast();
-  const supportSectionRef = useRef<HTMLDivElement | null>(null);
 
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
-  const [supportLoading, setSupportLoading] = useState(false);
-  const [supportError, setSupportError] = useState<string | null>(null);
-  const [supportFilter, setSupportFilter] = useState<"open" | "closed">("open");
-  const [supportPage, setSupportPage] = useState(1);
-  const [supportDialogOpen, setSupportDialogOpen] = useState(false);
-  const [supportMessage, setSupportMessage] = useState("");
-  const [supportLanguage, setSupportLanguage] = useState("English");
-  const [supportBusy, setSupportBusy] = useState(false);
-  const [hubFeedbackOpen, setHubFeedbackOpen] = useState(false);
-  const [hubFeedbackTicketId, setHubFeedbackTicketId] = useState<string | null>(null);
-  const [hubFeedbackRating, setHubFeedbackRating] = useState<(typeof FEEDBACK_RATINGS)[number] | 0>(0);
-  const [hubFeedbackDescription, setHubFeedbackDescription] = useState("");
-  const [hubFeedbackBusy, setHubFeedbackBusy] = useState(false);
-  const [hubViewFeedbackOpen, setHubViewFeedbackOpen] = useState(false);
-  const [hubViewFeedbackData, setHubViewFeedbackData] = useState<{
-    id: string;
-    display: SupportTicketFeedbackDisplay;
-  } | null>(null);
   const [visionSheetOpen, setVisionSheetOpen] = useState(false);
   const [diagnosticsSheetOpen, setDiagnosticsSheetOpen] = useState(false);
   const [consultationSheetOpen, setConsultationSheetOpen] = useState(false);
@@ -161,77 +128,6 @@ export function ServicesHubPage() {
   const heading = getHubHeading(tabId);
   const gridCols = 2;
 
-  const supportTicketsFiltered = useMemo(() => {
-    const filtered = supportTickets.filter((ticket) => {
-      const isClosed = isSupportTicketClosedTabStatus(ticket.status ?? null);
-      return supportFilter === "open" ? !isClosed : isClosed;
-    });
-    if (supportFilter === "closed") {
-      return [...filtered].sort((a, b) => {
-        const pending = (t: SupportTicket) =>
-          isSupportTicketInactiveStatus(t.status ?? null) && !supportTicketHasFeedback(t.feedback)
-            ? 1
-            : 0;
-        return pending(b) - pending(a);
-      });
-    }
-    return filtered;
-  }, [supportFilter, supportTickets]);
-
-  const supportStatusLabel = useCallback((status: string | null) => {
-    const normalized = (status ?? "").trim().toLowerCase();
-    if (normalized === "0" || normalized === "created") return "Created";
-    if (normalized === "1" || normalized === "active") return "Active";
-    if (normalized === "2" || normalized === "Closed") return "Closed";
-    if (normalized === "closed") return "Closed";
-    if (normalized === "resolved") return "Resolved";
-    if (normalized === "completed") return "Completed";
-    return status?.trim() || (supportFilter === "open" ? "Open" : "Closed");
-  }, [supportFilter]);
-
-  const supportVisibleTickets = useMemo(() => {
-    const pageSize = 5;
-    return supportTicketsFiltered.slice(0, supportPage * pageSize);
-  }, [supportPage, supportTicketsFiltered]);
-
-  const supportHasMore = supportVisibleTickets.length < supportTicketsFiltered.length;
-
-  const supportPendingCount = useMemo(
-    () =>
-      supportTickets.filter((ticket) => !isSupportTicketClosedTabStatus(ticket.status ?? null)).length,
-    [supportTickets],
-  );
-
-  const supportClosedCount = useMemo(
-    () =>
-      supportTickets.filter((ticket) => isSupportTicketClosedTabStatus(ticket.status ?? null)).length,
-    [supportTickets],
-  );
-
-  const loadSupportTickets = useCallback(async () => {
-    setSupportError(null);
-    setSupportLoading(true);
-    try {
-      const tickets = await fetchAllSupportTickets();
-      setSupportTickets(tickets);
-    } catch (e) {
-      setSupportTickets([]);
-      setSupportError(e instanceof Error ? e.message : "Could not load tickets");
-    } finally {
-      setSupportLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (tabId === "help") {
-      void loadSupportTickets();
-    }
-  }, [tabId, loadSupportTickets]);
-
-  useEffect(() => {
-    setSupportPage(1);
-  }, [supportFilter, supportTicketsFiltered.length]);
-
   useEffect(() => {
     const anySheet =
       visionSheetOpen || diagnosticsSheetOpen || consultationSheetOpen;
@@ -242,79 +138,6 @@ export function ServicesHubPage() {
       document.body.style.overflow = prevOverflow;
     };
   }, [visionSheetOpen, diagnosticsSheetOpen, consultationSheetOpen]);
-
-  const handleLoadMore = useCallback(() => {
-    setSupportPage((current) => current + 1);
-  }, []);
-
-  const handleRaiseTicket = useCallback(async () => {
-    if (!supportMessage.trim()) {
-      toast.error("Enter your issue description.");
-      return;
-    }
-    setSupportBusy(true);
-    try {
-      await createSupportTicket({
-        message: supportMessage.trim(),
-        language: supportLanguage,
-      });
-      setSupportDialogOpen(false);
-      setSupportMessage("");
-      setSupportLanguage("English");
-      toast.success("Ticket raised successfully.");
-      await loadSupportTickets();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not raise ticket");
-    } finally {
-      setSupportBusy(false);
-    }
-  }, [supportLanguage, supportMessage, toast, loadSupportTickets]);
-
-  const openHubFeedbackSheet = useCallback((ticketId: string) => {
-    setHubFeedbackTicketId(ticketId);
-    setHubFeedbackRating(0);
-    setHubFeedbackDescription("");
-    setHubFeedbackOpen(true);
-  }, []);
-
-  const openHubViewFeedback = useCallback((ticket: SupportTicket) => {
-    setHubViewFeedbackData({
-      id: ticket.id,
-      display: parseSupportTicketFeedbackDisplay(ticket.feedback),
-    });
-    setHubViewFeedbackOpen(true);
-  }, []);
-
-  const submitHubFeedback = useCallback(async () => {
-    if (!hubFeedbackTicketId) return;
-    if (hubFeedbackRating < 1) {
-      toast.error("Select a star rating.");
-      return;
-    }
-    if (!hubFeedbackDescription.trim()) {
-      toast.error("Enter your feedback.");
-      return;
-    }
-    setHubFeedbackBusy(true);
-    try {
-      await postSupportFeedback({
-        src: "support",
-        src_id: hubFeedbackTicketId,
-        rating: String(hubFeedbackRating) as "1" | "2" | "3" | "4" | "5",
-        description: hubFeedbackDescription.trim(),
-      });
-      setHubFeedbackOpen(false);
-      setHubFeedbackTicketId(null);
-      setHubFeedbackRating(0);
-      setHubFeedbackDescription("");
-      toast.success("Thank you for your feedback.");
-      await loadSupportTickets();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit feedback");
-    } finally {
-      setHubFeedbackBusy(false);
-    }
-  }, [hubFeedbackDescription, hubFeedbackRating, hubFeedbackTicketId, loadSupportTickets, toast]);
 
   return (
     <div className="services-hub">
@@ -490,6 +313,25 @@ export function ServicesHubPage() {
                   state: { returnPath: `${ROUTES.services}?tab=opd-claims` },
                 });
               };
+            } else if (tabId === "help") {
+              const helpReturn = `${ROUTES.services}?tab=help`;
+              if (item.id === "support") {
+                cardAction = () => {
+                  void navigate(ROUTES.servicesHelpSupport, { state: { returnPath: helpReturn } });
+                };
+              } else if (item.id === "faq") {
+                cardAction = () => {
+                  void navigate(ROUTES.profileFaq, { state: { returnPath: helpReturn } });
+                };
+              } else if (item.id === "tc") {
+                cardAction = () => {
+                  void navigate(ROUTES.profileTerms, { state: { returnPath: helpReturn } });
+                };
+              } else if (item.id === "privacy") {
+                cardAction = () => {
+                  void navigate(ROUTES.profilePrivacyPolicy, { state: { returnPath: helpReturn } });
+                };
+              }
             } else if (isMedical) {
               cardAction = () => {
                 if (item.id === "appts") {
@@ -520,201 +362,6 @@ export function ServicesHubPage() {
             );
           })}
         </div>
-        ) : null}
-        {tabId === "help" ? (
-          <section className="services-hub__support" ref={supportSectionRef}>
-            <div className="services-hub__support-header">
-              <div>
-                <h2>Your Tickets</h2>
-                <p>View tickets, raise a new issue, or switch between open and closed requests.</p>
-              </div>
-              <button
-                type="button"
-                className="services-hub__support-raise"
-                onClick={() => setSupportDialogOpen(true)}
-              >
-                + Raise Ticket
-              </button>
-            </div>
-
-            <div className="services-hub__support-tabs">
-              <button
-                type="button"
-                className={`services-hub__support-tab${supportFilter === "open" ? " services-hub__support-tab--active" : ""}`}
-                onClick={() => setSupportFilter("open")}
-              >
-                Open ({supportPendingCount})
-              </button>
-              <button
-                type="button"
-                className={`services-hub__support-tab${supportFilter === "closed" ? " services-hub__support-tab--active" : ""}`}
-                onClick={() => setSupportFilter("closed")}
-              >
-                Closed ({supportClosedCount})
-              </button>
-            </div>
-
-            {supportError ? (
-              <div className="services-hub__support-error">{supportError}</div>
-            ) : null}
-
-            <div className="services-hub__support-list">
-              {supportLoading && (
-                <div className="services-hub__support-empty">Loading tickets…</div>
-              )}
-              {!supportLoading && supportTicketsFiltered.length === 0 && (
-                <div className="services-hub__support-empty">
-                  No {supportFilter} tickets found.
-                </div>
-              )}
-              {!supportLoading && supportVisibleTickets.length > 0 &&
-                supportVisibleTickets.map((ticket) => {
-                  const statusText = supportStatusLabel(ticket.status ?? "");
-                  const badgeClass = `services-hub__support-badge--${statusText.toLowerCase()}`;
-                  const feedbackPending =
-                    supportFilter === "closed" &&
-                    isSupportTicketInactiveStatus(ticket.status ?? null) &&
-                    !supportTicketHasFeedback(ticket.feedback);
-                  const hasSavedFeedback = supportTicketHasFeedback(ticket.feedback);
-                  return (
-                    <div key={ticket.id} className="services-hub__support-card">
-                      <div className="services-hub__support-card-row">
-                        <button
-                          type="button"
-                          className="services-hub__support-card-main"
-                          onClick={() =>
-                            void navigate(
-                              generatePath(ROUTES.servicesSupportTicketChat, { ticketId: ticket.id }),
-                              { state: { ticketFeedback: ticket.feedback } },
-                            )
-                          }
-                        >
-                          <div className="services-hub__support-card-header">
-                            <span className="services-hub__support-card-id">{ticket.id} [<span>{ticket.language ?? "English"}</span>]</span>
-                            <span className={`services-hub__support-badge ${badgeClass}`}>{statusText}</span>
-                          </div>
-                          <div className="services-hub__support-card-body">
-                            <p className="services-hub__support-card-message">{ticket.message ?? "No message available."}</p>
-                            <div className="services-hub__support-card-meta">
-                              <span>
-                                {ticket.createdAt
-                                  ? new Date(ticket.createdAt).toLocaleString("en-IN", {
-                                      month: "short",
-                                      day: "2-digit",
-                                      year: "numeric",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
-                                  : ""}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                      {feedbackPending ? (
-                        <button
-                          type="button"
-                          className="services-hub__support-card-provide-feedback"
-                          onClick={() => openHubFeedbackSheet(ticket.id)}
-                          aria-label="Provide feedback for this ticket"
-                        >
-                          <span className="services-hub__support-card-provide-feedback-icon" aria-hidden>
-                            ★
-                          </span>
-                          <span>Provide feedback</span>
-                        </button>
-                      ) : null}
-                      {hasSavedFeedback ? (
-                        <button
-                          type="button"
-                          className="services-hub__support-card-view-details"
-                          onClick={() => openHubViewFeedback(ticket)}
-                        >
-                          <span className="services-hub__support-card-view-details-icon" aria-hidden>
-                            ★
-                          </span>{" "}
-                          <span>View feedback details</span>
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              {!supportLoading && supportHasMore && (
-                <button
-                  type="button"
-                  className="services-hub__support-load-more"
-                  onClick={handleLoadMore}
-                >
-                  Load More Tickets
-                </button>
-              )}
-            </div>
-
-            {supportDialogOpen ? (
-              <dialog
-                className="services-hub__support-sheet-dialog"
-                open
-                aria-labelledby="support-ticket-title"
-              >
-                <section className="services-hub__support-sheet">
-                  <div className="services-hub__support-dialog-header">
-                    <h3 id="support-ticket-title">Raise Support Ticket</h3>
-                    <button
-                      type="button"
-                      className="services-hub__support-dialog-close"
-                      onClick={() => setSupportDialogOpen(false)}
-                      aria-label="Close"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <label className="services-hub__support-field">
-                    <span>Message</span>
-                    <textarea
-                      value={supportMessage}
-                      onChange={(e) => setSupportMessage(e.target.value)}
-                      rows={4}
-                      placeholder="Describe your issue"
-                      disabled={supportBusy}
-                    />
-                  </label>
-                  <label className="services-hub__support-field">
-                    <span>Language</span>
-                    <select
-                      value={supportLanguage}
-                      onChange={(e) => setSupportLanguage(e.target.value)}
-                      disabled={supportBusy}
-                    >
-                      <option>English</option>
-                      <option>Hindi</option>
-                      <option>Tamil</option>
-                      <option>Telugu</option>
-                      <option>Malayalam</option>
-                      <option>Kannada</option>
-                    </select>
-                  </label>
-                  <div className="services-hub__support-dialog-actions">
-                    <button
-                      type="button"
-                      className="services-hub__support-dialog-cancel"
-                      onClick={() => setSupportDialogOpen(false)}
-                      disabled={supportBusy}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="services-hub__support-dialog-submit"
-                      onClick={() => void handleRaiseTicket()}
-                      disabled={supportBusy}
-                    >
-                      {supportBusy ? "Raising…" : "Raise Ticket"}
-                    </button>
-                  </div>
-                </section>
-              </dialog>
-            ) : null}
-          </section>
         ) : null}
       </main>
 
@@ -973,35 +620,6 @@ export function ServicesHubPage() {
         onConfirmDelete={async (feedback) => {
           await requestProfileDeletion({ feedback });
           toast.success("Account deletion requested.");
-        }}
-      />
-
-      <SupportTicketFeedbackDialog
-        open={hubFeedbackOpen}
-        ticketIdHint={hubFeedbackTicketId}
-        feedbackRating={hubFeedbackRating}
-        feedbackDescription={hubFeedbackDescription}
-        feedbackBusy={hubFeedbackBusy}
-        onRatingChange={setHubFeedbackRating}
-        onDescriptionChange={(e) => setHubFeedbackDescription(e.target.value)}
-        onClose={() => {
-          if (!hubFeedbackBusy) {
-            setHubFeedbackOpen(false);
-            setHubFeedbackTicketId(null);
-          }
-        }}
-        onSubmit={() => {
-          submitHubFeedback().catch(() => {});
-        }}
-      />
-
-      <SupportTicketFeedbackViewDialog
-        open={Boolean(hubViewFeedbackOpen && hubViewFeedbackData)}
-        ticketIdHint={hubViewFeedbackData?.id ?? null}
-        display={hubViewFeedbackData?.display ?? { rating: null, description: null }}
-        onClose={() => {
-          setHubViewFeedbackOpen(false);
-          setHubViewFeedbackData(null);
         }}
       />
     </div>

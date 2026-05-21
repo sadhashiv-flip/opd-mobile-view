@@ -48,7 +48,7 @@
 
 .wallet-screen-header__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   text-align: center;
@@ -142,14 +142,14 @@
   }
 }
 
-/* Balance card */
+/* Balance card — patient-app `WalletScreen._buildBalanceHeroCard` */
 .wallet-balance-card {
   margin-top: 4px;
   margin-bottom: 22px;
-  padding: 18px 18px 16px;
-  border-radius: 24px;
-  background: linear-gradient(145deg, #1e293b 0%, #111827 55%, #0f172a 100%);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+  padding: 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #16222e 0%, rgba(22, 34, 46, 0.85) 100%);
+  box-shadow: 0 6px 16px rgba(22, 34, 46, 0.25);
   color: #ffffff;
 }
 
@@ -165,47 +165,53 @@
 
 .wallet-balance-card__icon-wrap {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(249, 115, 22, 0.22);
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255, 82, 36, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .wallet-balance-card__icon-img {
+  display: block;
   filter: brightness(1.15);
+}
+
+.wallet-balance-card__avail {
+  min-width: 0;
+  flex: 1;
 }
 
 .wallet-balance-card__avail-label {
   display: block;
-  font-size: clamp(0.75rem, 3.1vw, 0.8125rem);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.62);
-  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2px;
 }
 
 .wallet-balance-card__avail-value {
   margin: 0;
-  font-size: clamp(1.5rem, 6.2vw, 1.85rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.375rem, 5.8vw, 1.625rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: #ffffff;
 }
 
 .wallet-balance-card__bar {
-  margin-top: 16px;
+  margin-top: 18px;
   height: 6px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
 }
 
 .wallet-balance-card__bar-fill {
   height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
-  min-width: 4%;
+  border-radius: 6px;
+  background: #ff5224;
+  min-width: 0;
   transform-origin: left center;
 }
 
@@ -214,69 +220,48 @@
   animation: wallet-bar-fill-grow 0.88s cubic-bezier(0.22, 1, 0.36, 1) 0.28s forwards;
 }
 
-.wallet-balance-card__days {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+.wallet-balance-card__divider {
   margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.wallet-balance-card__days--urgent {
-  background: rgba(251, 191, 36, 0.14);
-  border-color: rgba(251, 191, 36, 0.32);
-}
-
-.wallet-balance-card__days-icon {
-  flex-shrink: 0;
-  margin-top: 1px;
-  color: rgba(253, 224, 171, 0.95);
-}
-
-.wallet-balance-card__days--urgent .wallet-balance-card__days-icon {
-  color: #fcd34d;
-}
-
-.wallet-balance-card__days-text {
-  margin: 0;
-  font-size: clamp(0.6875rem, 2.95vw, 0.75rem);
-  font-weight: 500;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.88);
-  text-align: left;
-}
-
-.wallet-balance-card__days--urgent .wallet-balance-card__days-text {
-  color: rgba(255, 251, 235, 0.96);
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .wallet-balance-card__bottom {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-top: 18px;
+  margin-top: 0;
   gap: 12px;
 }
 
-.wallet-balance-card__bottom-right {
-  text-align: right;
+.wallet-balance-card__stat {
+  min-width: 0;
 }
 
 .wallet-balance-card__meta-label {
   display: block;
-  font-size: clamp(0.6875rem, 2.9vw, 0.75rem);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
-  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.54);
+  margin-bottom: 2px;
 }
 
 .wallet-balance-card__meta-value {
   margin: 0;
-  font-size: clamp(0.8125rem, 3.4vw, 0.9375rem);
+  font-size: 13px;
   font-weight: 600;
+  color: #ffffff;
+}
+
+.wallet-balance-card__partner-logo {
+  flex-shrink: 0;
+  max-width: 140px;
+  max-height: 25px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 /* Module breakup */
@@ -481,7 +466,7 @@
   border-radius: 999px;
   background: rgba(255, 82, 36, 0.12);
   color: #ff5224;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(0.6875rem, 2.9vw, 0.75rem);
   font-weight: 600;
   white-space: nowrap;
@@ -613,7 +598,7 @@
   padding: 10px 20px;
   border-radius: 12px;
   border: none;
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
   font-weight: 600;
   font-family: inherit;
@@ -784,7 +769,7 @@
   border: none;
   background: none;
   padding: 8px 12px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(0.75rem, 3.1vw, 0.8125rem);
   font-weight: 600;
   color: #ff5224;
@@ -817,7 +802,7 @@
   flex: 1;
   padding: 12px 14px;
   border-radius: 12px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(0.8125rem, 3.4vw, 0.875rem);
   font-weight: 600;
   border: none;
@@ -835,7 +820,7 @@
 }
 
 .wallet-filter-btn--apply {
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
 }
 
@@ -873,7 +858,7 @@
   border: 1px solid #d1d5db;
   background: #ffffff;
   color: #000000;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(0.75rem, 3.1vw, 0.8125rem);
   font-weight: 500;
   cursor: pointer;

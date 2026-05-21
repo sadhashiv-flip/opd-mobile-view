@@ -164,6 +164,8 @@ export const ROUTES = {
   chronic: "/services/chronic",
   chronicCondition: "/services/chronic/condition/:conditionId",
   chronicDetail: "/services/chronic/:conditionId",
+  /** Help & Support — ticket list (patient_app `HelpScreen`). */
+  servicesHelpSupport: "/services/help-support",
   /** Help tab: open ticket thread (chat + attachments). */
   servicesSupportTicketChat: "/services/support/ticket/:ticketId",
   cartOverview: "/cart-overview",

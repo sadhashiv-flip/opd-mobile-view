@@ -56,7 +56,7 @@
   align-items: center;
   gap: 4px;
   min-width: 64px;
-  max-width: 100px;
+  /* max-width: 100px; */
   padding: 6px 6px 10px;
   border: none;
   border-bottom: 2px solid transparent;
@@ -233,6 +233,20 @@
   margin-top: 24px;
 }
 
+.services-hub__support-back {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #f85358;
+  font: inherit;
+  font-size: clamp(12px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .services-hub__support-header {
   display: flex;
   justify-content: space-between;
@@ -256,7 +270,7 @@
 
 .services-hub__support-raise {
   flex-shrink: 0;
-  background: #f85358;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
   border: none;
   border-radius: 999px;

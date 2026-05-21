@@ -26,6 +26,9 @@ import accountOrdersSvg from "@/assets/icons/patient-app/hub/account_management/
 import accountDeleteAccountSvg from "@/assets/icons/patient-app/hub/account_management/delete_account.svg";
 
 import hubTabHelpSupportSvg from "@/assets/icons/patient-app/hub/help_and_support/support.svg";
+import helpFaqSvg from "@/assets/icons/patient-app/hub/help_and_support/faq.svg";
+import helpPrivacyPoliciesSvg from "@/assets/icons/patient-app/hub/help_and_support/privacy_policy.svg";
+import helpTermsSvg from "@/assets/icons/patient-app/hub/help_and_support/terms_and_conditions.svg";
 import hubTabMedicalRecordsSvg from "@/assets/icons/patient-app/hub/medical_records.svg";
 import mrAppointmentsSvg from "@/assets/icons/patient-app/hub/medical_records/my_appointments.svg";
 import helpLabReportsSvg from "@/assets/icons/patient-app/hub/medical_records/lab_reports.svg";
@@ -62,13 +65,13 @@ export type HubTab = Readonly<{
 export const HUB_TABS: readonly HubTab[] = [
   { id: "services", label: "Services", iconSrc: viewServicesSvg },
   { id: "opd-claims", label: "OPD Claims", iconSrc: hubTabOpdClaimsSvg },
-  { id: "account", label: "Account Management", iconSrc: hubTabAccountSvg },
-  { id: "help", label: "Help & Support", iconSrc: hubTabHelpSupportSvg },
   {
     id: "medical-records",
-    label: "medical Records",
+    label: "My Records",
     iconSrc: hubTabMedicalRecordsSvg,
   },
+  { id: "account", label: "Account Management", iconSrc: hubTabAccountSvg },
+  { id: "help", label: "Help & Support", iconSrc: hubTabHelpSupportSvg },
 ];
 
 export type HubCardItem = Readonly<{
@@ -126,17 +129,17 @@ export const SERVICES_MAIN_ITEMS: readonly HubCardItem[] = [
     iconSrc: mentalWellnessSvg,
   },
   {
-    id: "chronic",
-    title: "Chronic",
-    description: "Chronic medication and buy chronic medicine",
-    iconSrc: chronicManagementSvg,
-    badge: "new",
-  },
-  {
     id: "nutrition",
     title: "Nutrition",
     description: "Nutrition and dietician expert service",
     iconSrc: nutritionServicesSvg,
+  },
+  {
+    id: "chronic",
+    title: "Chronic Management",
+    description: "Chronic medication and buy chronic medicine",
+    iconSrc: chronicManagementSvg,
+    badge: "new",
   },
   {
     id: "fitness",
@@ -198,21 +201,45 @@ export const ACCOUNT_ITEMS: readonly HubCardItem[] = [
     description: "Check order status",
     iconSrc: accountOrdersSvg,
   },
-  {
-    id: "delete",
-    title: "Delete Account",
-    description: "Delete your and family accounts",
-    iconSrc: accountDeleteAccountSvg,
-  },
+  // {
+  //   id: "delete",
+  //   title: "Delete Account",
+  //   description: "Delete your and family accounts",
+  //   iconSrc: accountDeleteAccountSvg,
+  // },
 ];
 
-/** Help tab has no hub cards — tickets UI is rendered directly on {@link ServicesHubPage}. */
-export const HELP_ITEMS: readonly HubCardItem[] = [];
+export const HELP_ITEMS: readonly HubCardItem[] = [
+  {
+    id: "support",
+    title: "Support",
+    description: "For any queries or support tickets",
+    iconSrc: hubTabHelpSupportSvg,
+  },
+  {
+    id: "faq",
+    title: "FAQ's",
+    description: "Refer FAQs here",
+    iconSrc: helpFaqSvg,
+  },
+  {
+    id: "tc",
+    title: "T&C",
+    description: "Read all the Terms & Conditions here",
+    iconSrc: helpTermsSvg,
+  },
+  {
+    id: "privacy",
+    title: "Privacy Policies",
+    description: "Refer all the privacy policies here",
+    iconSrc: helpPrivacyPoliciesSvg,
+  },
+];
 
 export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
   {
     id: "appts",
-    title: "My Appointments",
+    title: "Appointments",
     description: "Check your appointments history/status here",
     iconSrc: mrAppointmentsSvg,
   },
@@ -224,7 +251,7 @@ export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
   },
   {
     id: "rx",
-    title: "My Prescriptions",
+    title: "Prescriptions",
     description: "Check your prescriptions here",
     iconSrc: helpMyPrescriptionsSvg,
     badge: "new",

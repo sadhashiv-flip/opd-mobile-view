@@ -9,18 +9,17 @@ import {
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
-import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { SelectPeopleAddedCta } from "@/components/select-people/SelectPeopleAddedCta";
 import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
 import {
   defaultGymMemberSelection,
   HC_PERSON_ADD_CTA_TOOLTIP,
   HC_PERSON_ADD_GYM_MAX_TOOLTIP,
-  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
   memberShowsSubscriptionActivateCta,
-  MEMBER_NOT_ACTIVATED_LABEL,
   patientMembersToGymRows,
   type GymMemberListRow,
 } from "@/lib/gymMemberDisplay";
+import { selectPeopleMemberLine } from "@/lib/selectPeopleShared";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -183,41 +182,27 @@ export function GymMembershipSelectPeoplePage() {
   }
 
   const renderTrailing = (member: GymMemberListRow) => {
-    const isSelected = selectedIds.includes(member.id);
-    const inactive = !member.isSubscribed;
-    const atMax = !isSelected && selectedIds.length >= maxSelectable && !inactive;
-
-    if (isSelected) {
-      return (
-        <span className="hc-person__cta hc-person__cta--added" aria-hidden="true">
-          <img
-            src={selectSvg}
-            alt=""
-            width={18}
-            height={18}
-            draggable={false}
-          />
-        </span>
-      );
+    if (member.isChildBlocked) {
+      return null;
     }
-
+    const isSelected = selectedIds.includes(member.id);
+    if (isSelected) {
+      return <SelectPeopleAddedCta />;
+    }
     if (memberShowsSubscriptionActivateCta(member)) {
       return <SubscriptionActivateCtaButton onClick={goProfileSubscriptions} />;
     }
-
+    if (!member.isSubscribed) {
+      return null;
+    }
+    const atMax = selectedIds.length >= maxSelectable;
     return (
       <span
-        className={`hc-person__cta${inactive || atMax ? " hc-person__cta--disabled" : ""}`}
+        className={`hc-person__cta${atMax ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
-        title={
-          inactive
-            ? HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP
-            : atMax
-              ? HC_PERSON_ADD_GYM_MAX_TOOLTIP
-              : HC_PERSON_ADD_CTA_TOOLTIP
-        }
+        title={atMax ? HC_PERSON_ADD_GYM_MAX_TOOLTIP : HC_PERSON_ADD_CTA_TOOLTIP}
       >
-        {inactive ? MEMBER_NOT_ACTIVATED_LABEL : "Add"}
+        Add
       </span>
     );
   };
@@ -313,22 +298,23 @@ export function GymMembershipSelectPeoplePage() {
 
               {selfMembers.map((member) => {
                 const canSubActivate = memberShowsSubscriptionActivateCta(member);
-                const inactive = !member.isSubscribed;
-                const rowDisabled = inactive;
-                const showInactiveTag = inactive && !canSubActivate;
-                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                const notActivated = !member.isSubscribed;
+                const rowDisabled = notActivated;
+                const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
+                  relaxMemberRestrictions: false,
+                });
+                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked ? " hc-person--age-blocked" : ""}`;
                 const body = (
                   <>
-                    <MultiSelectCheckbox memberId={member.id} />
+                    {!member.isChildBlocked ? <MultiSelectCheckbox memberId={member.id} /> : null}
                     <span className="hc-person__avatar" aria-hidden="true">
                       <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
-                      {showInactiveTag ? (
-                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      {subtitle ? (
+                        <span className={`hc-person__sub${subClass}`}>{subtitle}</span>
                       ) : null}
-                      <span className="hc-person__sub">{member.subtitle}</span>
                     </span>
                     {renderTrailing(member)}
                   </>
@@ -369,26 +355,23 @@ export function GymMembershipSelectPeoplePage() {
 
               {familyMembersList.map((member) => {
                 const canSubActivate = memberShowsSubscriptionActivateCta(member);
-                const inactive = !member.isSubscribed;
-                const rowDisabled = inactive;
-                const showInactiveTag = inactive && !canSubActivate;
-                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+                const notActivated = !member.isSubscribed;
+                const rowDisabled = notActivated;
+                const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
+                  relaxMemberRestrictions: false,
+                });
+                const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked ? " hc-person--age-blocked" : ""}`;
                 const body = (
                   <>
-                    <MultiSelectCheckbox memberId={member.id} />
+                    {!member.isChildBlocked ? <MultiSelectCheckbox memberId={member.id} /> : null}
                     <span className="hc-person__avatar" aria-hidden="true">
                       <img src={profileSvg} alt="" width={22} height={22} draggable={false} />
                     </span>
                     <span className="hc-person__info">
                       <span className="hc-person__name">{member.name}</span>
-                      {showInactiveTag ? (
-                        <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+                      {subtitle ? (
+                        <span className={`hc-person__sub${subClass}`}>{subtitle}</span>
                       ) : null}
-                      <span
-                        className={`hc-person__sub${member.section === "family" ? " hc-person__sub--muted" : ""}`}
-                      >
-                        {member.subtitle}
-                      </span>
                     </span>
                     {renderTrailing(member)}
                   </>

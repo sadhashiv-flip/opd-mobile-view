@@ -7,7 +7,7 @@
   gap: 14px;
   background: #ffffff;
   color: #64748b;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
 }
 
 .prelogin-notice-gate__spinner {

@@ -24,12 +24,7 @@ import {
   patientMembersToGymRows,
   type GymMemberListRow,
 } from "@/lib/gymMemberDisplay";
-import {
-  diagnosticsSelectionHint,
-  defaultSingleSelectHint,
-  parseBoolSearchParam,
-  SELECT_PEOPLE_COPY,
-} from "@/lib/selectPeopleShared";
+import { parseBoolSearchParam, SELECT_PEOPLE_COPY } from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
@@ -91,8 +86,11 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     visionOption === "eye-checkup" ? "Eye Checkup" : visionOption === "glasses-lens" ? "Glasses/Lens" : null;
 
   const isDiagnosticsFlow = flow === "diagnostics";
+  const isDentalFlow = flow === "dental";
   const isHealthCheckupsDiagnostics = isDiagnosticsFlow && type === "health-checkups";
   const isConsultationAtHospital = flow === "consultation" && type === "at_hospital";
+  /** Dental: no age or subscription picker gates (patient_app dental member screen). */
+  const relaxMemberRestrictions = isDentalFlow;
   /** patient_app: diagnostics, at-hospital consultation, dental, vision require address. */
   const requiresAddressSelection =
     isDiagnosticsFlow ||
@@ -198,30 +196,14 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const restrictToAhcSelection =
     isHealthCheckupsDiagnostics && (filterAhcDashboardEntry || hasSelectedAhcMember);
 
-  const selectionHint = useMemo(
-    () =>
-      isDiagnosticsFlow
-        ? diagnosticsSelectionHint({
-            filterAhcEligibleOnly: filterAhcDashboardEntry,
-            restrictToAhcSelection,
-            showAhcSponsorSubtitle,
-          })
-        : defaultSingleSelectHint(),
-    [
-      isDiagnosticsFlow,
-      filterAhcDashboardEntry,
-      restrictToAhcSelection,
-      showAhcSponsorSubtitle,
-    ],
-  );
-
   const memberListConfig = useMemo(
     () => ({
       showAhcSponsorSubtitle,
       restrictToAhcSelection,
       isDiagnosticsFlow,
+      relaxMemberRestrictions,
     }),
-    [showAhcSponsorSubtitle, restrictToAhcSelection, isDiagnosticsFlow],
+    [showAhcSponsorSubtitle, restrictToAhcSelection, isDiagnosticsFlow, relaxMemberRestrictions],
   );
 
   const returnPath = `${location.pathname}${location.search}`;
@@ -237,7 +219,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     setSelectedIds((prev) => {
       let next = prev.filter((id) => {
         const r = rows.find((x) => x.id === id);
-        if (!r?.isSubscribed || r.isChildBlocked) return false;
+        if (!r) return false;
+        if (!relaxMemberRestrictions && !r.isSubscribed) {
+          return false;
+        }
         return selectionBasisRows.some((s) => s.id === id);
       });
       /** User must pick a member explicitly (no default selection). */
@@ -254,7 +239,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       }
       return next;
     });
-  }, [selectionBasisRows, isDiagnosticsFlow, rows, flow, type]);
+  }, [selectionBasisRows, isDiagnosticsFlow, rows, flow, type, relaxMemberRestrictions]);
 
   const canContinue =
     selectedIds.length > 0 &&
@@ -269,6 +254,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         allowDeselect: true,
         restrictToAhcSelection,
         isHealthCheckupsDiagnostics,
+        relaxMemberRestrictions,
       }),
     );
   };
@@ -507,7 +493,6 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             onToggle={toggleMember}
             onNavigateSubscriptions={goProfileSubscriptions}
             config={memberListConfig}
-            selectionHint={selectionHint}
             canAddFamily={canAddFamily}
             hideAddFamily={hideAddFamilyOnPicker}
             returnPath={returnPath}

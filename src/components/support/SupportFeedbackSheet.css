@@ -77,7 +77,7 @@
   margin: 0 0 10px;
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-family-app);
   color: #6b7280;
   overflow: hidden;
   text-overflow: ellipsis;

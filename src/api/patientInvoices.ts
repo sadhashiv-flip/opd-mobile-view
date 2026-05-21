@@ -2,6 +2,10 @@ import type { VirtualSpecialtySlotsState } from "@/api/consultationVirtual";
 import { fetchConsultationReportPdfBlob, triggerConsultationReportPdfDownload } from "@/api/patientConsultationReport";
 import { patientJson } from "@/api/patientHttp";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
+import {
+  computeConsultationAttachmentUiRules,
+  computeConsultationCanJoinCall,
+} from "@/lib/orderDetailConsultationRules";
 
 /**
  * Query `type` for `GET /invoice` — align with backend `transaction_type` filters
@@ -868,6 +872,18 @@ export type InvoiceDetailModel = Readonly<{
   consultationAttachments: readonly ConsultationAttachmentRow[];
   /** From `info.reports` for consultation invoices only. */
   consultationReports: readonly ConsultationAttachmentRow[];
+  /** patient_app `showAttachmentsBody` — show attachments card (may be read-only). */
+  consultationAttachmentsSectionVisible: boolean;
+  /** patient_app `canAddAttachment` — show Add control on consultation order detail. */
+  consultationAttachmentsCanAdd: boolean;
+  /** patient_app `canDeleteAttachment` — reserved for future delete UI. */
+  consultationAttachmentsCanDelete: boolean;
+  /** patient_app `canJoinCall` — FLIPHEALTH virtual consultation, status 5, before slot + 10 min. */
+  canJoinOnlineConsultation: boolean;
+  /** Appointment id for {@link ROUTES.videoCall} / `PATCH …/joincall/:id`. */
+  videoAppointmentId: string | null;
+  /** Consultation slot start (ms) from `info.date` + `info.time` — join early-window check. */
+  consultationSlotStartMs: number | null;
   serviceTypeLabel: string;
   categoryKey: string;
   orderDateTimeDisplay: string;
@@ -912,7 +928,7 @@ export type InvoiceDetailModel = Readonly<{
   labInfoStatusTextLine: string | null;
   labTrackingUrl: string | null;
   labReportUrl: string | null;
-  /** Shown on status banner when status is cancelled (Flutter). */
+  /** Shown on status banner when cancelled (lab + vision/dental/vaccine service requests). */
   labCancellationReason: string | null;
   /**
    * Home / pickup collection address — only when visit type is not self-visit-at-center-only.
@@ -1233,9 +1249,106 @@ function bannerCopy(tone: InvoiceDetailBannerTone): { title: string; subtitle: s
 }
 
 /**
- * Order-detail banner title = {@link consultationInfoStatusLabelOffline} (`info.status` codes 1–5 + default).
- * Subtitle is a short line matched to that status.
- * Vision + status `5` uses the same “Confirmed” treatment as other non-consultation services.
+ * patient_app `consultation_order_detail_screen.dart` → `_consultationStatusLabel`.
+ * Detail banner title (not orders-list “Confirmed” for status 5).
+ */
+export function consultationOrderDetailStatusLabel(
+  info: Record<string, unknown>,
+  slotExpired = false,
+): string {
+  const source = str(info.source)?.trim();
+  const raw = num(info.status);
+  const st = raw == null || Number.isNaN(raw) ? -1 : Math.trunc(raw);
+
+  if (source && source.toUpperCase() !== "FLIPHEALTH") {
+    switch (st) {
+      case 0:
+        return "Waiting for confirmation";
+      case 1:
+        return "Completed";
+      case 2:
+        return "Cancelled";
+      case 3:
+        return "Confirm changes";
+      case 4:
+        return "Payment pending";
+      case 5:
+        return "Upcoming appointment";
+      default:
+        return "Pending";
+    }
+  }
+
+  const slotStart = consultationSlotStartMsFromInfo(info);
+  const isPastSlot =
+    slotExpired || (slotStart != null && Date.now() > slotStart + 10 * 60 * 1000);
+
+  switch (st) {
+    case 0:
+      return "Waiting for confirmation";
+    case 1:
+      return "Completed";
+    case 2:
+      return "Cancelled";
+    case 3:
+      return "Confirm changes";
+    case 4:
+      return "Payment pending";
+    case 5:
+      return isPastSlot ? "Expired" : "Upcoming appointment";
+    case 6:
+      return "In progress";
+    case 7:
+    case 8:
+      return "Pending";
+    case 9:
+      return "Expired";
+    default:
+      return "Upcoming appointment";
+  }
+}
+
+/**
+ * Consultation order-detail hero banner — title + subtitle (patient_app status card copy).
+ * Vision orders keep the generic partner “Confirmed” treatment for status 5.
+ */
+export function consultationOrderDetailBannerCopy(
+  info: Record<string, unknown>,
+  opts?: Readonly<{ isVisionOrder?: boolean; slotExpired?: boolean }>,
+): { title: string; subtitle: string } {
+  if (opts?.isVisionOrder === true) {
+    return consultationInfoStatusBannerCopy(info.status, { isVisionOrder: true });
+  }
+
+  const title = consultationOrderDetailStatusLabel(info, opts?.slotExpired === true);
+  const raw = num(info.status);
+  const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
+
+  switch (n) {
+    case 1:
+      return { title, subtitle: "Your consultation is complete" };
+    case 2:
+      return { title, subtitle: "This appointment was cancelled" };
+    case 3:
+      return { title, subtitle: "Please review and confirm the updates" };
+    case 4:
+      return { title, subtitle: "Complete payment to continue with this booking" };
+    case 5:
+      return opts?.slotExpired === true
+        ? { title, subtitle: "This virtual consultation time slot has ended" }
+        : { title, subtitle: "Your appointment is coming up" };
+    case 6:
+      return { title, subtitle: "Your consultation is in progress" };
+    case 9:
+      return { title, subtitle: "This appointment has expired" };
+    default:
+      return { title, subtitle: "We're updating this appointment" };
+  }
+}
+
+/**
+ * Legacy helper — vision + generic service banners. Consultation detail uses
+ * {@link consultationOrderDetailBannerCopy} instead.
  */
 export function consultationInfoStatusBannerCopy(
   status: unknown,
@@ -1290,7 +1403,7 @@ export function consultationInfoStatusLabelOffline(status: unknown): string {
     case 4:
       return "Payment pending";
     case 5:
-      return "Upcoming Appointment";
+      return "Upcoming appointment";
     default:
       return "Pending";
   }
@@ -2772,6 +2885,24 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     isConsultationInvoice && infoForStatus != null && !isVisionInvoiceDetail
       ? consultationSlotStartMsFromInfo(infoForStatus)
       : null;
+  const consultationSlotEndMs =
+    slotStartMs != null && isConsultationInvoice && isOnline ? slotStartMs + 10 * 60 * 1000 : null;
+  const consultationVideoAppointmentId =
+    isConsultationInvoice && !isVisionInvoiceDetail
+      ? videoAppointmentIdFromRow(o, infoForStatus, dataPayload)
+      : null;
+  const consultationInfoSource =
+    infoForStatus != null
+      ? (str(infoForStatus.source)?.trim().toUpperCase() ?? "FLIPHEALTH")
+      : null;
+  const canJoinOnlineConsultationDetail = computeConsultationCanJoinCall({
+    isConsultationOrder: isConsultationInvoice,
+    consultationPlaceTag,
+    consultationInfoStatus,
+    infoSource: consultationInfoSource,
+    slotEndMs: consultationSlotEndMs,
+    videoAppointmentId: consultationVideoAppointmentId,
+  });
   const isExpiredVirtual =
     isConsultationInvoice &&
     !isVisionInvoiceDetail &&
@@ -2802,16 +2933,22 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   }
 
   const bannerTone = mapStatusToneToBanner(statusValueTone);
-  const bannerTitle = statusLabel;
-  const bannerSubtitle = isExpiredVirtual
-    ? "This virtual consultation time slot has ended"
-    : categoryKey === "lab" && infoForStatus != null && infoStatusTrunc !== null
-      ? labBannerSubtitleForBookingStatus(infoStatusTrunc)
-      : infoForStatus != null && infoStatusTrunc !== null
-        ? consultationInfoStatusBannerCopy(infoForStatus.status, {
-            isVisionOrder: isVisionInvoiceDetail,
-          }).subtitle
-        : bannerCopy(bannerTone).subtitle;
+  const consultationDetailBanner =
+    isConsultationInvoice && !isVisionInvoiceDetail && infoForStatus != null
+      ? consultationOrderDetailBannerCopy(infoForStatus, { slotExpired: isExpiredVirtual })
+      : null;
+  const bannerTitle = consultationDetailBanner?.title ?? (isExpiredVirtual ? "Expired" : statusLabel);
+  const bannerSubtitle =
+    consultationDetailBanner?.subtitle ??
+    (isExpiredVirtual
+      ? "This virtual consultation time slot has ended"
+      : categoryKey === "lab" && infoForStatus != null && infoStatusTrunc !== null
+        ? labBannerSubtitleForBookingStatus(infoStatusTrunc)
+        : infoForStatus != null && infoStatusTrunc !== null
+          ? consultationInfoStatusBannerCopy(infoForStatus.status, {
+              isVisionOrder: isVisionInvoiceDetail,
+            }).subtitle
+          : bannerCopy(bannerTone).subtitle);
 
   const patientName = detailPatientName(o);
   const bookedForName = bookedForNameFromInvoice(o, patientName);
@@ -2880,6 +3017,14 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus != null ? parseConsultationAttachments(infoForStatus) : [];
   const consultationReports =
     isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
+  const consultationAttachmentUi =
+    isConsultationInvoice && infoForStatus != null
+      ? computeConsultationAttachmentUiRules({
+          infoStatus: consultationInfoStatus,
+          placeTag: consultationPlaceTag,
+          attachmentCount: consultationAttachments.length,
+        })
+      : { sectionVisible: false, canAdd: false, canDelete: false };
   const labLocParsed =
     categoryKey === "lab" ? parseLabOrderLocationCardUi(o, infoForStatus, categoryKey) : null;
   const labVisitNormForCard = (visitTypeRaw ?? visitTypeFallback ?? "").trim().toUpperCase();
@@ -2979,7 +3124,11 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
       ? nonEmptyTrimmed(infoForStatus.report_url) ?? nonEmptyTrimmed(infoForStatus.reportUrl)
       : null;
   const labCancellationReason =
-    categoryKey === "lab" && infoForStatus != null
+    infoForStatus != null &&
+    (categoryKey === "lab" ||
+      categoryKey === "dental" ||
+      categoryKey === "vision" ||
+      categoryKey === "vaccine")
       ? nonEmptyTrimmed(infoForStatus.cancellation_reason) ??
         nonEmptyTrimmed(infoForStatus.cancellationReason)
       : null;
@@ -3022,6 +3171,12 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationOrderDoctor,
     consultationAttachments,
     consultationReports,
+    consultationAttachmentsSectionVisible: consultationAttachmentUi.sectionVisible,
+    consultationAttachmentsCanAdd: consultationAttachmentUi.canAdd,
+    consultationAttachmentsCanDelete: consultationAttachmentUi.canDelete,
+    canJoinOnlineConsultation: canJoinOnlineConsultationDetail,
+    videoAppointmentId: consultationVideoAppointmentId,
+    consultationSlotStartMs: slotStartMs,
     serviceTypeLabel,
     categoryKey,
     orderDateTimeDisplay,

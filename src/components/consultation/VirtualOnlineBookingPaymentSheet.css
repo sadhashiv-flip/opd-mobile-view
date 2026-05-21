@@ -1,0 +1,50 @@
+.vc-pay-sheet {
+  max-height: min(92dvh, 640px);
+}
+
+.vc-pay-sheet__scroll {
+  padding-bottom: 4px;
+}
+
+.vc-pay-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.vc-pay-row--total {
+  padding-top: 10px;
+}
+
+.vc-pay-row__k {
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-weight: 500;
+  color: #111111;
+}
+
+.vc-pay-row__v {
+  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-weight: 700;
+  color: #111111;
+  text-align: right;
+}
+
+.vc-pay-divider {
+  height: 1px;
+  background: #ececec;
+  margin: 8px 0;
+}
+
+.vc-pay-note {
+  margin: 12px 0 0;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 500;
+  line-height: 1.35;
+  color: #757575;
+}
+
+.vc-pay-sheet__cta {
+  margin-top: 16px;
+}

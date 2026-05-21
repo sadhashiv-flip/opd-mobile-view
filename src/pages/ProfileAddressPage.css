@@ -13,7 +13,7 @@
   padding: 12px 20px;
   border: none;
   border-radius: 12px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   cursor: pointer;
@@ -125,7 +125,7 @@
   padding: 8px 12px;
   border: none;
   border-radius: 8px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   cursor: pointer;

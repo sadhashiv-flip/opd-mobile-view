@@ -76,6 +76,7 @@ import { AttachmentFilePreview, type AttachmentFilePreviewViewer } from "@/compo
 import {
   ConsultationAttachReportsReadOnlyTabs,
   ConsultationManagedFilesTabs,
+  AttachmentListRow,
 } from "@/components/orders/OrderDetailConsultationAttachments";
 import {
   ORDER_DETAIL_LINE_ITEMS_PREVIEW,
@@ -101,6 +102,13 @@ import {
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
 import { useAttachmentFilePreviewGallery } from "@/hooks/useAttachmentFilePreviewGallery";
+import {
+  isConsultationJoinCallWithinEarlyWindow,
+  isPartnerOrderAttachmentsSectionVisible,
+  isServiceRequestOrderCategory,
+  isStandardOrderCancelAllowed,
+  showOfflineConsultationPrescriptionsSection,
+} from "@/lib/orderDetailConsultationRules";
 import { useToast } from "@/hooks/useToast";
 import {
   isOrderDetailFromBookingSuccess,
@@ -478,7 +486,8 @@ export function OrderDetailsPage() {
   /** Lab collection schedule — confirm center API runs only after user accepts this dialog. */
   const [labSubOrderConfirmDialogId, setLabSubOrderConfirmDialogId] = useState<string | null>(null);
   const [labRescheduleRow, setLabRescheduleRow] = useState<LabSubOrderDetailRow | null>(null);
-  const [labCancelPhase, setLabCancelPhase] = useState<"reason" | "confirm">("reason");
+  /** Lab + vision/dental/vaccine: reason step then confirm (patient_app bottom sheet). */
+  const [cancelSheetPhase, setCancelSheetPhase] = useState<"reason" | "confirm">("reason");
   const [confirmLabSubOrderBusyId, setConfirmLabSubOrderBusyId] = useState<string | null>(null);
   /** `order_id` for payment verify when returned on confirm; else Razorpay order id. */
   const pharmacyVerifyOrderIdRef = useRef<string | null>(null);
@@ -657,27 +666,10 @@ export function OrderDetailsPage() {
     }
   }, [detail, invoiceId, navigate, orderKindFromUrl, location.state]);
 
-  const canCancelOrder = useMemo(() => {
-    if (!detail) return false;
-    if (detail.categoryKey === "mental_wellness" || detail.categoryKey === "nutrition") {
-      return false;
-    }
-    const serviceId = detail.consultationInfoId?.trim();
-    if (!serviceId) return false;
-    if (detail.categoryKey === "lab") {
-      if (detail.labSubOrders.length === 0) return false;
-      return detail.labSubOrders.every((row) => [0, 3, 4].includes(row.status));
-    }
-    if (detail.isConsultationOrder) {
-      if (detail.consultationPlaceTag == null) return false;
-      const st = detail.consultationInfoStatus;
-      if (st === null) return false;
-      return st !== 1 && st !== 2;
-    }
-    const st = detail.serviceInfoStatus;
-    if (st === null) return false;
-    return st !== 1 && st !== 2;
-  }, [detail]);
+  const canCancelOrder = useMemo(
+    () => (detail ? isStandardOrderCancelAllowed(detail) : false),
+    [detail],
+  );
 
   const canCancelWellnessSession = detail?.wellnessSessionCancelAllowed === true;
 
@@ -699,7 +691,7 @@ export function OrderDetailsPage() {
     if (!cancelDialogOpen) {
       setCancelReason("");
       setCancelBusy(false);
-      setLabCancelPhase("reason");
+      setCancelSheetPhase("reason");
     }
   }, [cancelDialogOpen]);
 
@@ -804,7 +796,7 @@ export function OrderDetailsPage() {
     setCancelBusy(true);
     try {
       if (detail?.categoryKey === "lab") {
-        if (labCancelPhase !== "confirm") return;
+        if (cancelSheetPhase !== "confirm") return;
         await patchLabOrderCancel(serviceId, { cancellation_reason: cancelReason.trim() });
         toast.success("Order cancelled successfully");
         setCancelDialogOpen(false);
@@ -820,16 +812,14 @@ export function OrderDetailsPage() {
         });
         toast.success("Session cancelled");
       } else {
-        const useServiceRequestCancel =
-          detail?.categoryKey === "vision" ||
-          detail?.categoryKey === "dental" ||
-          detail?.categoryKey === "vaccine";
-        if (useServiceRequestCancel) {
+        if (isServiceRequestOrderCategory(detail?.categoryKey)) {
+          if (cancelSheetPhase !== "confirm") return;
           await patchServiceRequestOrderCancel(serviceId, cancelReason.trim());
+          toast.success("Request cancelled");
         } else {
           await patchCancelServiceRequest(serviceId, cancelReason.trim());
+          toast.success(detail?.isConsultationOrder ? "Appointment cancelled" : "Order cancelled");
         }
-        toast.success(detail?.isConsultationOrder ? "Appointment cancelled" : "Order cancelled");
       }
       setCancelDialogOpen(false);
       await load();
@@ -844,7 +834,7 @@ export function OrderDetailsPage() {
     detail?.consultationInfoId,
     detail?.isConsultationOrder,
     detail?.wellnessSessionCancelAllowed,
-    labCancelPhase,
+    cancelSheetPhase,
     load,
     toast,
   ]);
@@ -1237,6 +1227,9 @@ export function OrderDetailsPage() {
   }, [loading, detail]);
 
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
+  const isServiceRequestOrder = isServiceRequestOrderCategory(detail?.categoryKey);
+  const cancelUsesTwoStepSheet =
+    detail?.categoryKey === "lab" || isServiceRequestOrder;
 
   /**
    * Pay footer: `netPayAmount > 0`, **`info.additional_info.payment_required`** present and `true`.
@@ -1255,6 +1248,27 @@ export function OrderDetailsPage() {
     return true;
   }, [detail, detailBookingInfoStatus]);
 
+  const showJoinCallFooter =
+    !showPayConfirmBooking &&
+    Boolean(detail?.canJoinOnlineConsultation && detail.videoAppointmentId?.trim());
+
+  const onJoinConsultationCall = useCallback(() => {
+    const appointmentId = detail?.videoAppointmentId?.trim();
+    if (!appointmentId || !detail?.canJoinOnlineConsultation) {
+      toast.error("Join call is not available for this appointment");
+      return;
+    }
+    if (detail.consultationSlotStartMs == null) {
+      toast.error("Missing appointment schedule");
+      return;
+    }
+    if (!isConsultationJoinCallWithinEarlyWindow(detail.consultationSlotStartMs)) {
+      toast.error("You can join within 2 minutes of the scheduled time");
+      return;
+    }
+    navigate(generatePath(ROUTES.videoCall, { appointmentId }));
+  }, [detail, navigate, toast]);
+
   const isPaymentPendingBanner = useMemo(() => showPayConfirmBooking, [showPayConfirmBooking]);
 
   const visitCardVisible = useMemo(() => {
@@ -1272,9 +1286,27 @@ export function OrderDetailsPage() {
     ].some((x) => x != null && String(x).trim().length > 0);
   }, [detail?.consultationBooking, detail?.consultationPlaceTag]);
 
-  const showConsultationAttachmentManager = useMemo(() => {
-    return Boolean(detail?.isConsultationOrder) && detail?.consultationInfoStatus === 1;
-  }, [detail?.consultationInfoStatus, detail?.isConsultationOrder]);
+  const showConsultationAttachmentsCard = Boolean(detail?.isConsultationOrder);
+  const showConsultationAttachmentBody = detail?.consultationAttachmentsSectionVisible === true;
+  const consultationAttachmentsCanAdd = detail?.consultationAttachmentsCanAdd === true;
+
+  const showPartnerAttachmentsCard = useMemo(() => {
+    if (!detail || detail.isConsultationOrder) return false;
+    if (!isPartnerOrderPayFlowCategory(detail.categoryKey)) return false;
+    return isPartnerOrderAttachmentsSectionVisible({
+      infoStatus: detail.serviceInfoStatus,
+      attachmentCount: detail.consultationAttachments.length,
+    });
+  }, [detail]);
+
+  const showGenericAttachmentsCard = useMemo(() => {
+    if (!detail || detail.isConsultationOrder) return false;
+    if (isPartnerOrderPayFlowCategory(detail.categoryKey)) return false;
+    return (
+      detail.consultationAttachments.length > 0 ||
+      (detail.categoryKey !== "lab" && detail.consultationReports.length > 0)
+    );
+  }, [detail]);
 
   const patientDetailsVisible = useMemo(() => {
     if (!detail) return false;
@@ -1356,12 +1388,12 @@ export function OrderDetailsPage() {
     [load, toast],
   );
 
-  const onLabCancelProceedToConfirm = useCallback(() => {
+  const onCancelSheetProceedToConfirm = useCallback(() => {
     if (!cancelReason.trim()) {
       toast.error("Please enter a cancellation reason");
       return;
     }
-    setLabCancelPhase("confirm");
+    setCancelSheetPhase("confirm");
   }, [cancelReason, toast]);
 
   const onConfirmMedicineOrderDetails = useCallback(async () => {
@@ -1410,7 +1442,7 @@ export function OrderDetailsPage() {
       </header>
 
       <main
-        className={`od-main${showFollowUpFooter ? " od-main--follow" : ""}${showPayConfirmBooking ? " od-main--consult-footer" : ""}`}
+        className={`od-main${showFollowUpFooter ? " od-main--follow" : ""}${showPayConfirmBooking || showJoinCallFooter ? " od-main--consult-footer" : ""}`}
       >
         {loading ? (
           <>
@@ -1444,13 +1476,11 @@ export function OrderDetailsPage() {
                 <h2 className="od-banner__title">{detail.bannerTitle}</h2>
               </div>
               <p className="od-banner__sub">{detail.bannerSubtitle}</p>
-              {detail.categoryKey === "lab" &&
-              detail.serviceInfoStatus === 2 &&
-              detail.labCancellationReason?.trim() ? (
-                <p className="od-banner__cancel-reason">
-                  <span className="od-banner__cancel-reason-label">Reason: </span>
-                  {detail.labCancellationReason.trim()}
-                </p>
+              {detail.bannerTone === "cancelled" && detail.labCancellationReason?.trim() ? (
+                <div className="od-banner__cancel-reason-block">
+                  <p className="od-banner__cancel-reason-label">Cancellation reason</p>
+                  <p className="od-banner__cancel-reason">{detail.labCancellationReason.trim()}</p>
+                </div>
               ) : null}
             </section>
 
@@ -2064,34 +2094,63 @@ export function OrderDetailsPage() {
               </section>
             ) : null}
 
-            {isConsultationLayout && showConsultationAttachmentManager ? (
-              <ConsultationManagedFilesTabs
-                attachments={detail.consultationAttachments}
-                reports={detail.consultationReports}
-                refId={detail.consultationUploadRefId}
-                onPreview={openConsultationFilePreview}
-                attachmentFileInputRef={attachmentFileInputRef}
-                reportFileInputRef={reportFileInputRef}
-                attachmentAddBusy={attachmentAddBusy}
-                reportUploadBusy={reportUploadBusy}
-                onPickAttachments={onPickConsultationAttachments}
-                onPickReports={onPickConsultationReports}
-                onAttachmentFileChange={(e) => void onConsultationRefUploadFiles(e, "ATTACHMENT")}
-                onReportFileChange={(e) => void onConsultationRefUploadFiles(e, "REPORT")}
-              />
-            ) : isConsultationLayout ? (
-              <ConsultationAttachReportsReadOnlyTabs
-                attachments={detail.consultationAttachments}
-                reports={detail.consultationReports}
-                onPreview={openConsultationFilePreview}
-              />
-            ) : (
+            {showOfflineConsultationPrescriptionsSection(detail) ? (
+              <section className="od-card od-card--attach" aria-label="Prescriptions">
+                <h3 className="od-card__title">Prescriptions</h3>
+                <ul className="od-attach-list od-attach-list--icon-rows">
+                  {detail.consultationReports.map((a, i) => (
+                    <AttachmentListRow
+                      key={`offline-rx-${a.label}-${i}`}
+                      rows={detail.consultationReports}
+                      item={a}
+                      index={i}
+                      keyPrefix="offline-rx"
+                      onPreview={openConsultationFilePreview}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {showConsultationAttachmentsCard ? (
+              showConsultationAttachmentBody ? (
+                consultationAttachmentsCanAdd ? (
+                  <ConsultationManagedFilesTabs
+                    attachments={detail.consultationAttachments}
+                    reports={[]}
+                    refId={detail.consultationUploadRefId}
+                    onPreview={openConsultationFilePreview}
+                    attachmentFileInputRef={attachmentFileInputRef}
+                    reportFileInputRef={reportFileInputRef}
+                    attachmentAddBusy={attachmentAddBusy}
+                    reportUploadBusy={reportUploadBusy}
+                    onPickAttachments={onPickConsultationAttachments}
+                    onPickReports={onPickConsultationReports}
+                    onAttachmentFileChange={(e) => void onConsultationRefUploadFiles(e, "ATTACHMENT")}
+                    onReportFileChange={(e) => void onConsultationRefUploadFiles(e, "REPORT")}
+                    canAddAttachments
+                    showReportsTab={false}
+                  />
+                ) : (
+                  <ConsultationAttachReportsReadOnlyTabs
+                    attachments={detail.consultationAttachments}
+                    reports={[]}
+                    onPreview={openConsultationFilePreview}
+                  />
+                )
+              ) : (
+                <section className="od-card od-card--attach" aria-label="Attachments">
+                  <h3 className="od-card__title">Attachments</h3>
+                  <p className="od-attach-empty">No attachments</p>
+                </section>
+              )
+            ) : showPartnerAttachmentsCard || showGenericAttachmentsCard ? (
               <ConsultationAttachReportsReadOnlyTabs
                 attachments={detail.consultationAttachments}
                 reports={isPartnerOrderPayFlowCategory(detail.categoryKey) ? [] : detail.consultationReports}
                 onPreview={openConsultationFilePreview}
               />
-            )}
+            ) : null}
 
             {showInvoiceDetailsCard ? (
               <OrderDetailInvoiceSection
@@ -2155,7 +2214,7 @@ export function OrderDetailsPage() {
                 aria-label={
                   canCancelWellnessSession
                     ? "Cancel session"
-                    : isConsultationLayout
+                    : isConsultationLayout || isServiceRequestOrder
                       ? "Cancel appointment"
                       : "Cancel order"
                 }
@@ -2166,12 +2225,13 @@ export function OrderDetailsPage() {
                     className="od-btn-cancel-appt"
                     onClick={() => {
                       setCancelReason("");
+                      setCancelSheetPhase("reason");
                       setCancelDialogOpen(true);
                     }}
                   >
                     {canCancelWellnessSession
                       ? "Cancel session"
-                      : isConsultationLayout
+                      : isConsultationLayout || isServiceRequestOrder
                         ? "Cancel appointment"
                         : detail.categoryKey === "lab"
                           ? "Click to cancel booking"
@@ -2236,6 +2296,16 @@ export function OrderDetailsPage() {
             onClick={onPayConfirmBooking}
           >
             {detail?.categoryKey === "lab" ? "Complete payment" : "Pay / confirm"}
+          </button>
+        </footer>
+      ) : showJoinCallFooter ? (
+        <footer className="od-consult-footer">
+          <button
+            type="button"
+            className="od-consult-footer__btn od-consult-footer__btn--pay"
+            onClick={onJoinConsultationCall}
+          >
+            Join call
           </button>
         </footer>
       ) : null}
@@ -2351,20 +2421,22 @@ export function OrderDetailsPage() {
           }}
         >
           <div className="od-cancel-dialog__panel">
-            {detail?.categoryKey === "lab" && labCancelPhase === "confirm" ? (
+            {cancelUsesTwoStepSheet && cancelSheetPhase === "confirm" ? (
               <>
                 <h2 id={cancelDialogTitleId} className="od-cancel-dialog__title">
-                  Cancel lab booking?
+                  {detail?.categoryKey === "lab" ? "Cancel lab booking?" : "Cancel request?"}
                 </h2>
                 <p id={`${cancelDialogTitleId}-desc`} className="od-cancel-dialog__desc">
-                  This action will cancel your lab booking.
+                  {detail?.categoryKey === "lab"
+                    ? "This action will cancel your lab booking."
+                    : "This action will cancel your service request."}
                 </p>
                 <footer className="od-cancel-dialog__footer od-cancel-dialog__footer--lab-confirm">
                   <button
                     type="button"
                     className="od-cancel-dialog__btn od-cancel-dialog__btn--secondary"
                     disabled={cancelBusy}
-                    onClick={() => setLabCancelPhase("reason")}
+                    onClick={() => setCancelSheetPhase("reason")}
                   >
                     No, keep it
                   </button>
@@ -2378,7 +2450,7 @@ export function OrderDetailsPage() {
                   </button>
                 </footer>
               </>
-            ) : detail?.categoryKey === "lab" ? (
+            ) : cancelUsesTwoStepSheet ? (
               <>
                 <h2 id={cancelDialogTitleId} className="od-cancel-dialog__title">
                   Cancellation reason
@@ -2412,7 +2484,7 @@ export function OrderDetailsPage() {
                     type="button"
                     className="od-cancel-dialog__btn od-cancel-dialog__btn--primary"
                     disabled={cancelBusy || !cancelReason.trim()}
-                    onClick={() => onLabCancelProceedToConfirm()}
+                    onClick={() => onCancelSheetProceedToConfirm()}
                   >
                     Submit cancellation
                   </button>

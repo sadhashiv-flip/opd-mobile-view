@@ -180,7 +180,7 @@
 
 .dnl-card--selected .dnl-card__chk {
   border-color: #ff541e;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
 }
 

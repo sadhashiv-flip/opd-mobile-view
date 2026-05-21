@@ -80,7 +80,14 @@ export function SupportTicketChatPage() {
   const [attachments, setAttachments] = useState<SupportChatDraftAttachment[]>([]);
   const [sending, setSending] = useState(false);
 
-  const backTo = ROUTES.servicesHelpTab;
+  const locationReturn =
+    location.state && typeof location.state === "object" && "returnPath" in location.state
+      ? (location.state as { returnPath?: unknown }).returnPath
+      : undefined;
+  const backTo =
+    typeof locationReturn === "string" && locationReturn.trim()
+      ? locationReturn.trim()
+      : ROUTES.servicesHelpSupport;
   const toast = useToast();
 
   const locationState = location.state as SupportTicketChatPageLocationState | null;

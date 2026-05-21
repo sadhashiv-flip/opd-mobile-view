@@ -1,6 +1,19 @@
 import { doctorImageUrl, type SpecialityDoctor } from "@/api/consultationVirtual";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import "./VirtualSpecialtyDoctorStrip.css";
+
+const PAUSE_BETWEEN_MS = 800;
+const MIN_DURATION_MS = 500;
+const MAX_DURATION_MS = 6000;
+const MS_PER_PX = 20;
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function scrollDurationMs(distance: number): number {
+  return Math.min(MAX_DURATION_MS, Math.max(MIN_DURATION_MS, distance * MS_PER_PX));
+}
 
 function doctorInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -57,38 +70,113 @@ export type VirtualSpecialtyDoctorStripProps = Readonly<{
 export function VirtualSpecialtyDoctorStrip({ loading, doctors }: VirtualSpecialtyDoctorStripProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const forwardRef = useRef(true);
+  const rafRef = useRef<number | null>(null);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pausedRef = useRef(false);
+
+  const cancelAutoScroll = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (pauseTimerRef.current != null) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+    if (startTimerRef.current != null) {
+      clearTimeout(startTimerRef.current);
+      startTimerRef.current = null;
+    }
+  }, []);
+
+  const maxScrollLeft = useCallback((el: HTMLDivElement) => {
+    return Math.max(0, el.scrollWidth - el.clientWidth);
+  }, []);
+
+  const animateScrollTo = useCallback(
+    (el: HTMLDivElement, target: number, onDone: () => void) => {
+      const from = el.scrollLeft;
+      const distance = Math.abs(target - from);
+      if (distance < 1) {
+        el.scrollLeft = target;
+        onDone();
+        return;
+      }
+
+      const duration = scrollDurationMs(distance);
+      const start = performance.now();
+
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / duration);
+        el.scrollLeft = from + (target - from) * easeInOutCubic(t);
+        if (t < 1) {
+          rafRef.current = requestAnimationFrame(step);
+        } else {
+          rafRef.current = null;
+          el.scrollLeft = target;
+          onDone();
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(step);
+    },
+    [],
+  );
+
+  const runAutoScrollCycle = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || pausedRef.current) return;
+
+    const max = maxScrollLeft(el);
+    if (max <= 0) return;
+
+    const target = forwardRef.current ? max : 0;
+    animateScrollTo(el, target, () => {
+      if (pausedRef.current) return;
+      pauseTimerRef.current = setTimeout(() => {
+        pauseTimerRef.current = null;
+        if (pausedRef.current) return;
+        forwardRef.current = !forwardRef.current;
+        runAutoScrollCycle();
+      }, PAUSE_BETWEEN_MS);
+    });
+  }, [animateScrollTo, maxScrollLeft]);
+
+  const startAutoScroll = useCallback(() => {
+    cancelAutoScroll();
+    pausedRef.current = false;
+    forwardRef.current = true;
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    el.scrollLeft = 0;
+
+    startTimerRef.current = setTimeout(() => {
+      startTimerRef.current = null;
+      runAutoScrollCycle();
+    }, 120);
+  }, [cancelAutoScroll, runAutoScrollCycle]);
+
+  const pauseForUserScroll = useCallback(() => {
+    pausedRef.current = true;
+    cancelAutoScroll();
+  }, [cancelAutoScroll]);
 
   useEffect(() => {
-    if (loading || doctors.length === 0) return;
+    if (loading || doctors.length === 0) {
+      cancelAutoScroll();
+      return;
+    }
 
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) {
+      return;
+    }
 
-    const tick = () => {
-      const el = scrollRef.current;
-      if (cancelled || !el) return;
-      const max = el.scrollWidth - el.clientWidth;
-      if (max <= 0) return;
-
-      const target = forwardRef.current ? max : 0;
-      const distance = Math.abs(el.scrollLeft - target);
-      const durationMs = Math.min(6000, Math.max(500, distance * 20));
-
-      el.scrollTo({ left: target, behavior: "smooth" });
-      timeoutId = setTimeout(() => {
-        if (cancelled) return;
-        forwardRef.current = !forwardRef.current;
-        timeoutId = setTimeout(tick, 800);
-      }, durationMs);
-    };
-
-    const startId = setTimeout(tick, 100);
-    return () => {
-      cancelled = true;
-      clearTimeout(startId);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [loading, doctors]);
+    startAutoScroll();
+    return cancelAutoScroll;
+  }, [loading, doctors, startAutoScroll, cancelAutoScroll]);
 
   if (loading) {
     return (
@@ -118,7 +206,13 @@ export function VirtualSpecialtyDoctorStrip({ loading, doctors }: VirtualSpecial
         <span className="csp-doc-strip__head-title">Available Doctors</span>
         <span className="csp-doc-strip__head-count">{doctors.length} found</span>
       </header>
-      <div ref={scrollRef} className="csp-doc-strip__scroll">
+      <div
+        ref={scrollRef}
+        className="csp-doc-strip__scroll"
+        onPointerDown={pauseForUserScroll}
+        onWheel={pauseForUserScroll}
+        onTouchStart={pauseForUserScroll}
+      >
         {doctors.map((doctor) => (
           <DoctorChip key={doctor.id} doctor={doctor} />
         ))}

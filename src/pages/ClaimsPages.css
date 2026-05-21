@@ -85,7 +85,7 @@
 .claims-screen-header__title {
   margin: 0;
   flex: 1;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(17px, 4.8vw, 19px);
   font-weight: 700;
   text-align: left;
@@ -1462,7 +1462,7 @@ button.claim-new-page__bank-tap {
 
 .claim-ro-card__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 16px;
   font-weight: 700;
   color: #111111;
@@ -1659,7 +1659,7 @@ button.claim-new-page__bank-tap {
 
 .claim-ro-total__amt {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(22px, 6vw, 28px);
   font-weight: 800;
   color: var(--claims-orange, #ff541e);
@@ -1767,7 +1767,7 @@ button.claim-new-page__bank-tap {
 .claim-detail-hero__title {
   flex: 1;
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(16px, 4.4vw, 18px);
   font-weight: 700;
   text-align: center;

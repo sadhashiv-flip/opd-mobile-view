@@ -9,6 +9,9 @@ const srcDir = fileURLToPath(new URL("./src", import.meta.url));
 /** Must match `firebase` in package.json (compat CDN importScripts). */
 const FIREBASE_JS_VERSION = "12.12.0";
 
+/** Default tray icon for FCM background notifications (copied from `src/assets/images/logos/logo-sm.png`). */
+const FCM_NOTIFICATION_ICON_URL = "/notification-icon.png";
+
 function buildFirebaseMessagingSwBody(env) {
   const projectId = env.VITE_FIREBASE_PROJECT_ID?.trim() ?? "";
   const config = {
@@ -300,7 +303,7 @@ messaging.onBackgroundMessage(function (payload) {
   }
 
   var icon =
-    (payload.notification && payload.notification.icon) || "/vite.svg";
+    (payload.notification && payload.notification.icon) || "${FCM_NOTIFICATION_ICON_URL}";
   var clickData = fcmSanitizeNotificationData(merged, path);
   var tag = fcmNotificationTag(payload);
   var nTitle = String(title).trim() || "Notification";
@@ -407,7 +410,8 @@ function spaAcceptPatchMiddleware() {
         raw.startsWith("/assets") ||
         raw.startsWith("/dev-api") ||
         raw === "/firebase-messaging-sw.js" ||
-        raw === "/vite.svg"
+        raw === "/vite.svg" ||
+        raw === FCM_NOTIFICATION_ICON_URL
       ) {
         return next();
       }

@@ -259,8 +259,14 @@ export function HomePage() {
     translatePercent: ongoingTranslatePercent,
     instantMove: ongoingInstantMove,
     goTo: goToOngoingCarousel,
+    viewportRef: ongoingCarouselViewportRef,
     onTouchStart: onOngoingCarouselTouchStart,
     onTouchEnd: onOngoingCarouselTouchEnd,
+    onPointerDown: onOngoingCarouselPointerDown,
+    onPointerMove: onOngoingCarouselPointerMove,
+    onPointerUp: onOngoingCarouselPointerUp,
+    onPointerCancel: onOngoingCarouselPointerCancel,
+    onViewportClickCapture: onOngoingCarouselClickCapture,
     onTrackTransitionEnd: onOngoingTrackTransitionEnd,
   } = useHomeBannerCarousel({ slideCount: ongoingCount, autoAdvanceMs: 0 });
 
@@ -1224,11 +1230,17 @@ export function HomePage() {
           ) : (
             <>
               <div
+                ref={ongoingCarouselViewportRef}
                 className="home-ongoing-carousel-viewport home-ongoing-float__viewport"
                 onTouchStart={onOngoingCarouselTouchStart}
                 onTouchEnd={onOngoingCarouselTouchEnd}
+                onPointerDown={onOngoingCarouselPointerDown}
+                onPointerMove={onOngoingCarouselPointerMove}
+                onPointerUp={onOngoingCarouselPointerUp}
+                onPointerCancel={onOngoingCarouselPointerCancel}
+                onClickCapture={onOngoingCarouselClickCapture}
                 aria-roledescription="carousel"
-                aria-label="Ongoing orders, swipe sideways"
+                aria-label="Ongoing orders — swipe, drag, or scroll to change"
               >
                 <div
                   className={`home-ongoing-carousel__track${ongoingInstantMove ? " home-ongoing-carousel__track--instant" : ""}`}

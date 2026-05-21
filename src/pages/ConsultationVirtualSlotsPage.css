@@ -25,9 +25,13 @@
   justify-content: center;
   width: 40px;
   height: 40px;
+  border: none;
+  padding: 0;
   border-radius: 10px;
+  background: transparent;
   color: #111111;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .cvsl-title {
@@ -46,7 +50,7 @@
 
 .cvsl-note {
   border: 1px solid #ededed;
-  background: #f7f7f7;
+  background: #fef1ed;
   color: #6f6f6f;
   border-radius: 8px;
   padding: 10px;
@@ -223,10 +227,9 @@
 
 .cvsl-slot {
   min-width: 0;
-  min-height: 44px;
   height: auto;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-radius: 20px;
   border: 1px solid #d9d9d9;
   background: #ffffff;
   color: #111111;
@@ -245,8 +248,6 @@
   font-weight: 900;
   line-height: 1.2;
   text-align: center;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #e5e5e5;
 }
 
 .cvsl-slot__avail {
@@ -317,5 +318,62 @@
 
 .cvsl-footer__book:disabled {
   opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Shared with VirtualConsultationSlotSelector (patient_app CommonSlotSelector) */
+.vcsl-slot-pick .cvsl-note--info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+  border: 1px solid rgba(255, 84, 30, 0.2);
+  background: rgba(255, 84, 30, 0.08);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 500;
+  line-height: 1.5;
+  color: #111111;
+}
+
+.vcsl-slot-pick .cvsl-note--info p {
+  margin: 0;
+  flex: 1;
+}
+
+.vcsl-slot-pick .cvsl-note__ic {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.vcsl-slots-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  color: #8f8f8f;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 600;
+}
+
+.vcsl-slots-loading__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #efefef;
+  border-top-color: #ff541e;
+  border-radius: 50%;
+  animation: vcsl-spin 0.8s linear infinite;
+}
+
+@keyframes vcsl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vcsl-slot-pick .vac-slot-pick__pill--disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }

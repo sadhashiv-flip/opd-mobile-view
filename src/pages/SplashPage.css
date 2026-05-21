@@ -76,7 +76,7 @@
 
 .splash-page__title {
   margin: 0 0 8px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   font-weight: 700;
   line-height: 1.3;
@@ -87,7 +87,7 @@
 .splash-page__subtitle {
   margin: 0 auto;
   max-width: 22em;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 400;
   line-height: 1.45;
@@ -134,7 +134,7 @@
   border: none;
   border-radius: 12px;
   background: var(--color-brand-orange);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #ffffff;

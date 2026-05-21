@@ -1,0 +1,259 @@
+.help-support-tickets {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #f4f6f8;
+  container-type: inline-size;
+}
+
+.help-support-tickets__top {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8edf2;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.help-support-tickets__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.help-support-tickets__title {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(16px, calc(18 * 100cqw / 375), 20px);
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.help-support-tickets__spacer {
+  width: 40px;
+}
+
+.help-support-tickets__main {
+  flex: 1;
+  padding: 20px 16px 96px;
+}
+
+.help-support-tickets__section-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.help-support-tickets__segment {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: #e8edf2;
+}
+
+.help-support-tickets__segment-btn {
+  flex: 1;
+  margin: 0;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.help-support-tickets__segment-btn--active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.help-support-tickets__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.help-support-tickets__empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.help-support-tickets__view-feedback {
+  display: block;
+  width: 100%;
+  margin: -4px 0 0;
+  padding: 8px 14px 12px;
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.help-support-tickets__fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+}
+
+.help-support-tickets__fab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.help-support-tickets__sheet-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.help-support-tickets__sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(90dvh, 560px);
+  overflow-y: auto;
+  padding: 12px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-radius: 20px 20px 0 0;
+  background: #ffffff;
+}
+
+.help-support-tickets__sheet-handle {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 16px;
+  border-radius: 2px;
+  background: #cbd5e1;
+}
+
+.help-support-tickets__sheet-header h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.help-support-tickets__sheet-header p {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.help-support-tickets__field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.help-support-tickets__field textarea,
+.help-support-tickets__field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.help-support-tickets__field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.help-support-tickets__sheet-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.help-support-tickets__sheet-cancel,
+.help-support-tickets__sheet-submit {
+  flex: 1;
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.help-support-tickets__sheet-cancel {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+}
+
+.help-support-tickets__sheet-submit {
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.help-support-tickets__sheet-cancel:disabled,
+.help-support-tickets__sheet-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

@@ -14,8 +14,14 @@ function isSuccessDetail(d: unknown): d is RazorpayPaymentSuccess {
   );
 }
 
+export type ConsultationPaymentVerifySuccess = Readonly<{
+  message?: string;
+  paymentId?: string;
+  gatewayOrderId?: string;
+}>;
+
 type Refs = Readonly<{
-  onSuccessRef: MutableRefObject<() => void>;
+  onSuccessRef: MutableRefObject<(result?: ConsultationPaymentVerifySuccess) => void>;
   onErrorRef: MutableRefObject<(message: string) => void>;
   setBusyRef: MutableRefObject<(busy: boolean) => void>;
 }>;
@@ -45,12 +51,16 @@ export function useConsultationPaymentVerify(refs: Refs): void {
       verifiedPaymentIds.add(pid);
 
       try {
-        await verifyAppointmentPayment({
+        const { message } = await verifyAppointmentPayment({
           order_id: detail.razorpay_order_id,
           payment_id: detail.razorpay_payment_id,
           signature: detail.razorpay_signature,
         });
-        onSuccessRef.current();
+        onSuccessRef.current({
+          message,
+          paymentId: detail.razorpay_payment_id,
+          gatewayOrderId: detail.razorpay_order_id,
+        });
       } catch (err) {
         verifiedPaymentIds.delete(pid);
         const msg = err instanceof Error ? err.message : "Verification failed";

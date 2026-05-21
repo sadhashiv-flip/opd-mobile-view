@@ -11,7 +11,6 @@ import {
 } from "@/constants/consultationSelectedMemberStorage";
 import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
-import { defaultSingleSelectHint } from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useToast } from "@/hooks/useToast";
@@ -53,6 +52,7 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
       showAhcSponsorSubtitle: false,
       restrictToAhcSelection: false,
       isDiagnosticsFlow: false,
+      relaxMemberRestrictions: false,
     }),
     [],
   );
@@ -228,7 +228,6 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
               onToggle={toggleMember}
               onNavigateSubscriptions={goProfileSubscriptions}
               config={memberListConfig}
-              selectionHint={defaultSingleSelectHint()}
               canAddFamily={canAddFamily}
               returnPath={returnPath}
               onAddFamily={() => {

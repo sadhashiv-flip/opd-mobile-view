@@ -1,0 +1,66 @@
+/**
+ * Primary CTAs — black fill app-wide.
+ * Accents (badges, dots, links) keep --color-brand-orange unless listed here.
+ */
+
+/* Legacy `var(--color-brand-orange)` on submit / confirm / FAB */
+.login-page__confirm:not(:disabled),
+.otp-page__confirm:not(:disabled),
+.sso-login-page__cta,
+.splash-page__cta,
+.account-link-page__confirm:not(:disabled),
+.profile-page__retry,
+.profile-manage-page__add-btn,
+.profile-address-page__add-btn,
+.profile-address-page__primary-btn,
+.profile-bank-page__add-btn,
+.profile-address-form-page__locate-btn,
+.paf-submit:not(:disabled),
+.cp-modal__submit:not(:disabled),
+.fp-modal__btn-primary:not(:disabled),
+.profile-photo-sheet__camera-btn--primary,
+.mr-book-now,
+.services-hub__support-raise,
+.claim-sheet__btn-primary,
+.claim-dispute-sheet__btn--primary,
+.required-lab-tests-page__btn,
+.dev-lab-order-entry__btn--primary,
+.bss-btn--primary,
+.bs-btn--primary,
+.app-confirm-btn--primary,
+.gym-dep-btn--primary,
+.profile-sub-confirm__btn--primary,
+.hco-booking-confirm__btn--yes,
+.support-chat__feedback-submit,
+.support-chat__inactive-cta-btn,
+.video-call-page__media-permission-btn--primary,
+.chronic-btn:not(.chronic-btn--ghost),
+.chronic-order-btn,
+.chronic-optin-btn,
+.orders-filter-pill--active {
+  background-color: var(--color-btn-primary-bg) !important;
+  color: var(--color-btn-primary-fg) !important;
+}
+.home-nav__fab,
+.home-nav__fab--active{
+  background-color: var(--color-brand-orange) !important;
+  color: var(--color-btn-primary-fg) !important;
+}
+
+.orders-filter-pill--active {
+  border-color: var(--color-btn-primary-bg) !important;
+}
+
+.login-page__confirm:not(:disabled):active,
+.otp-page__confirm:not(:disabled):active,
+.sso-login-page__cta:active,
+.splash-page__cta:active,
+.account-link-page__confirm:not(:disabled):active,
+.profile-page__retry:active,
+.chr-book:active,
+.csp-book:active,
+.sort-sheet__confirm:active,
+.lt-cart-footer__btn:active,
+.lt-footer__btn:active {
+  background-color: var(--color-btn-primary-bg-pressed) !important;
+}

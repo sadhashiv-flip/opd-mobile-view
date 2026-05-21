@@ -27,7 +27,7 @@
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(1.125rem, 4.2vw, 1.35rem);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -68,7 +68,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
 }
 
 .orders-filters {
@@ -95,7 +95,7 @@
   border: 1px solid #e0e0e0;
   background: #ffffff;
   color: #757575;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(0.75rem, 3.2vw, 0.8125rem);
   font-weight: 500;
   cursor: pointer;
@@ -107,7 +107,7 @@
 }
 
 .orders-filter-pill--active {
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   border-color: #ff5224;
   color: #ffffff;
 }
@@ -138,7 +138,7 @@
   border-radius: 12px;
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: #052e16;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -207,7 +207,7 @@
 
 .orders-card__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.9375rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -339,7 +339,7 @@
 }
 
 .orders-card__price {
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.9375rem;
   font-weight: 700;
   color: #111111;
@@ -392,7 +392,7 @@
   padding: 10px 20px;
   border-radius: 999px;
   border: none;
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
   font-weight: 600;
   font-size: 0.8125rem;

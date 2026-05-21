@@ -28,7 +28,7 @@
   border-radius: 10px;
   background: transparent;
   color: #c62828;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -67,7 +67,7 @@
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(1.125rem, 4.2vw, 1.35rem);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -107,7 +107,7 @@
 
 .notif-state {
   margin: 24px 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.9375rem;
   color: #616161;
   text-align: center;
@@ -122,9 +122,9 @@
   padding: 10px 20px;
   border-radius: 999px;
   border: none;
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -235,7 +235,7 @@
 
 .notif-row__title {
   display: block;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.9375rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -244,7 +244,7 @@
 
 .notif-row__body {
   margin: 6px 0 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #616161;

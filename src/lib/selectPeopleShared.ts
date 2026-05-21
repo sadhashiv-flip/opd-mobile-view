@@ -17,6 +17,7 @@ export const SELECT_PEOPLE_COPY = {
   addAddressAndSelectMembers: "Add an address and select members",
   selectMemberToContinue: "Select member to continue",
   selectHospitalLocationToContinue: "Select hospital location to continue",
+  added: "Added",
 } as const;
 
 export type SelectPeopleHint = Readonly<{ sponsored: boolean; text: string }>;
@@ -28,14 +29,32 @@ export function parseBoolSearchParam(sp: URLSearchParams, key: string): boolean 
 
 export function memberRowSubtitle(
   member: GymMemberListRow,
-  opts: Readonly<{ showAhcSponsorSubtitle: boolean }>,
+  opts: Readonly<{ showAhcSponsorSubtitle: boolean; relaxMemberRestrictions?: boolean }>,
 ): string {
-  if (member.isChildBlocked) return DIAGNOSTICS_CHILD_AGE_BLOCK_REASON;
-  if (!member.isSubscribed) return MEMBER_NOT_ACTIVATED_LABEL;
+  if (!opts.relaxMemberRestrictions && member.isChildBlocked) {
+    return DIAGNOSTICS_CHILD_AGE_BLOCK_REASON;
+  }
+  if (!opts.relaxMemberRestrictions && !member.isSubscribed) {
+    return MEMBER_NOT_ACTIVATED_LABEL;
+  }
   if (opts.showAhcSponsorSubtitle && member.ahcAvailable) {
     return SELECT_PEOPLE_COPY.sponsoredByCompany;
   }
   return member.subtitle;
+}
+
+/** Minimal picker copy: age-below label (muted) or not-activated (orange) only. */
+export function selectPeopleMemberLine(
+  member: GymMemberListRow,
+  opts: Readonly<{ relaxMemberRestrictions: boolean }>,
+): Readonly<{ text: string | null; subClass: string }> {
+  if (!opts.relaxMemberRestrictions && member.isChildBlocked) {
+    return { text: DIAGNOSTICS_CHILD_AGE_BLOCK_REASON, subClass: " hc-person__sub--muted" };
+  }
+  if (!member.isSubscribed) {
+    return { text: MEMBER_NOT_ACTIVATED_LABEL, subClass: " hc-person__sub--not-activated" };
+  }
+  return { text: null, subClass: "" };
 }
 
 export function diagnosticsSelectionHint(
@@ -61,3 +80,4 @@ export function diagnosticsSelectionHint(
 export function defaultSingleSelectHint(): SelectPeopleHint {
   return { sponsored: false, text: SELECT_PEOPLE_COPY.hintSingleMember };
 }
+

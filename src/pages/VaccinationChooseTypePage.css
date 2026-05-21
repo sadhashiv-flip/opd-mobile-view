@@ -80,7 +80,7 @@
 
 .vac-choose__box--on {
   border-color: #ff541e;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
 }
 
 .vac-choose__footer {

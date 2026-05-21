@@ -3,6 +3,11 @@ import type {
   BookingSuccessLocationState,
   BookingSuccessSummaryRow,
 } from "@/constants/bookingSuccessNavigation";
+import {
+  VIRTUAL_CONSULT_BOOKING_SUCCESS_CARD_TITLE,
+  VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB,
+  VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
+} from "@/constants/bookingSuccessNavigation";
 import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
 
 const GYM_SUCCESS_NEXT_STEPS =
@@ -141,6 +146,44 @@ export function buildInlineConsultationBookingSuccessState(args: {
       { label: "Location", value: args.locationValue.trim() || "—" },
       { label: "Schedule", value: args.scheduleDisplay.trim() || "—" },
     ],
+    orderDetailCategoryKey: "consultation",
+    orderDetailInvoiceId: args.invoiceIdForOrderDetail?.trim() || undefined,
+    viewOrderDetailPath:
+      args.invoiceIdForOrderDetail?.trim()
+        ? pathToOrderDetail("consultation", args.invoiceIdForOrderDetail.trim())
+        : undefined,
+  };
+}
+
+/** Virtual consult after book/confirm — patient_app `ConsultationPaymentSuccessScreen`. */
+export function buildVirtualConsultationBookingSuccessState(args: {
+  readonly infoOrderId: string | null;
+  readonly invoiceIdForOrderDetail: string | null;
+  readonly bookedForName: string;
+  readonly specialty: string;
+  readonly scheduleDisplay: string;
+  readonly paymentRef?: string | null;
+  readonly gatewayOrderId?: string | null;
+}): BookingSuccessLocationState {
+  const apptId = args.infoOrderId?.trim() ?? "";
+  const rows: BookingSuccessSummaryRow[] = [
+    { label: "Schedule", value: args.scheduleDisplay.trim() || "—" },
+    { label: "Booked for", value: args.bookedForName.trim() || "—" },
+    { label: "Specialty", value: args.specialty.trim() || "—" },
+  ];
+  const payRef = args.paymentRef?.trim();
+  const gateway = args.gatewayOrderId?.trim();
+  if (payRef) rows.push({ label: "Payment ref", value: payRef });
+  if (gateway) rows.push({ label: "Gateway order", value: gateway });
+
+  return {
+    layout: "summary",
+    successUiVariant: "virtual-consult",
+    title: VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
+    description: VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB,
+    summaryCardTitle: VIRTUAL_CONSULT_BOOKING_SUCCESS_CARD_TITLE,
+    appointmentReferenceId: apptId || undefined,
+    summaryRows: rows,
     orderDetailCategoryKey: "consultation",
     orderDetailInvoiceId: args.invoiceIdForOrderDetail?.trim() || undefined,
     viewOrderDetailPath:

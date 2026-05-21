@@ -135,13 +135,13 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
               className={() =>
                 `home-nav__item${medicalTabActive ? " home-nav__item--active" : ""}`
               }
-              aria-label="Medical Records"
-              title="Medical Records"
+              aria-label="My Records"
+              title="My Records"
             >
               <span className="home-nav__ic" aria-hidden="true">
                 <NavIconMedicalRecords />
               </span>
-              <span className="home-nav__label home-nav__label--medical">Medical Records</span>
+              <span className="home-nav__label home-nav__label--medical">My Records</span>
             </NavLink>
 
             <NavLink

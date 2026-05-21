@@ -39,7 +39,7 @@
 .login-page__title {
   margin: 0 auto 10px;
   max-width: 22em;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   font-weight: 700;
   line-height: 1.35;
@@ -50,7 +50,7 @@
 .login-page__subtitle {
   margin: 0 auto;
   max-width: 24em;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 400;
   line-height: 1.4;
@@ -77,7 +77,7 @@
   border: none;
   background: none;
   padding: 8px 4px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 600;
   color: #5c9ded;
@@ -91,7 +91,7 @@
 }
 
 .login-page__label {
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 500;
   color: #616161;
@@ -146,7 +146,7 @@
   padding: 0 14px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #000000;
   background: #ffffff;
@@ -187,7 +187,7 @@
   align-items: flex-start;
   gap: 10px;
   cursor: pointer;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   line-height: 1.45;
   color: #424242;
@@ -241,7 +241,7 @@
   border: none;
   border-radius: 10px;
   background: var(--color-brand-orange-soft);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #ffffff;

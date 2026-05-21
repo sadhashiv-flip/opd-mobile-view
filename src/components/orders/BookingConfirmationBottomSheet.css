@@ -43,7 +43,7 @@
 
 .od-bc-panel__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -215,9 +215,10 @@
   padding: 14px 18px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #5c4dd6 0%, #4a3cb5 100%);
+  background: linear-gradient(
+    135deg, #000000 0%, #612412 100%);
   color: #ffffff;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 0.9375rem;
   font-weight: 700;
   letter-spacing: 0.02em;

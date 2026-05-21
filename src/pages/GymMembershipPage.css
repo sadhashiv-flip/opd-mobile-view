@@ -340,7 +340,7 @@
   border: none;
   border-radius: 18px;
   padding: 14px;
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   color: #fff;
   font-size: 1rem;
   font-weight: 700;

@@ -4,7 +4,7 @@ import type { MemberDisplay } from "@/api/patientMember";
 export const MEMBER_NOT_ACTIVATED_LABEL = "Not activated";
 
 /** CTA when a plan allows activation — user completes assignment on Subscriptions. */
-export const MEMBER_SUBSCRIPTION_ACTIVATE_LABEL = "Active";
+export const MEMBER_SUBSCRIPTION_ACTIVATE_LABEL = "Activate";
 
 /** Native `title` on the “Add” pill for subscribed members (tap row to select). */
 export const HC_PERSON_ADD_CTA_TOOLTIP =
@@ -26,7 +26,7 @@ export const HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP =
 export const HC_PERSON_ACTIVATE_CTA_TOOLTIP =
   "Your plan has open member slots. Opens Subscriptions so you can assign this person to the plan.";
 
-/** patient_app `FamilyMember.isChildBlocked` — blocks diagnostics & consultation pickers. */
+/** patient_app `FamilyMember.isChildBlocked` — blocks member pickers when age is 1–7. */
 export const DIAGNOSTICS_CHILD_AGE_BLOCK_REASON = "Not eligible (age 7 or below)";
 
 export function isDiagnosticsChildBlocked(age: number): boolean {
@@ -52,7 +52,7 @@ export type GymMemberListRow = Readonly<{
   bloodGroup?: string;
   /** Member age when known (API or derived from DOB). */
   age: number;
-  /** True when age is 1–7 — not selectable for diagnostics (patient_app). */
+  /** True when age is 1–7 — no gate on dental; shown/selectable on other services. */
   isChildBlocked: boolean;
   /** Sponsored AHC eligibility from members API (`AHCAvailable`). */
   ahcAvailable: boolean;

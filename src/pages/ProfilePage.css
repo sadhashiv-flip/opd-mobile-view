@@ -41,7 +41,7 @@
 
 .profile-page__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(17 * 100cqw / 375), calc(17 * 1.12px));
   font-weight: 700;
   text-align: center;
@@ -95,7 +95,7 @@
   border-radius: 999px;
   background: var(--color-brand-orange);
   color: #ffffff;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
@@ -254,7 +254,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(28 * 100cqw / 375), calc(28 * 1.12px));
   font-weight: 700;
   color: #ffffff;
@@ -268,7 +268,7 @@
 
 .profile-page__name {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(20 * 100cqw / 375), calc(20 * 1.12px));
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -284,7 +284,7 @@
   border-radius: 6px;
   border: 1px solid var(--profile-accent-blue-border);
   background: var(--profile-accent-blue-soft);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 600;
   color: var(--profile-accent-blue);
@@ -307,7 +307,7 @@
 
 .profile-page__sheet-title {
   margin: 0 0 10px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   color: #111111;
@@ -431,7 +431,7 @@
 .profile-page__nav-title {
   flex: 1;
   min-width: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   font-weight: 500;
   color: #212121;
@@ -455,7 +455,7 @@
   border: 1.5px solid var(--color-brand-orange);
   border-radius: 14px;
   background: #ffffff;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   color: var(--color-brand-orange);
@@ -475,7 +475,7 @@
   padding: 8px 0 4px;
   border: none;
   background: none;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(10px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 500;
   color: #9e9e9e;

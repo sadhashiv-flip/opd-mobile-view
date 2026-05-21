@@ -410,7 +410,7 @@ export function ConsultationHospitalResultsPage() {
           />
         </div>
         <div className="chr-dlist" aria-label="Doctors list">
-          <div className="chr-dscroll" ref={dscrollRef} onScroll={onDscroll}>
+          <div className="chr-dscroll hide-scrollbar" ref={dscrollRef} onScroll={onDscroll}>
             {doctorsScrollBody}
           </div>
         </div>

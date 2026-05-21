@@ -5,7 +5,7 @@ import {
   type WalletModuleDisplay,
   type WalletTransactionRow,
 } from "@/api/wallet";
-import { fetchPatientProfileRaw } from "@/api/patientProfile";
+import { fetchPatientProfileRaw, resolveProfileImageUrl } from "@/api/patientProfile";
 import {
   computeHiddenWalletCategoryKeys,
   filterWalletModulesForSubscription,
@@ -20,6 +20,31 @@ import { generatePath, useNavigate, useParams } from "react-router-dom";
 import "./WalletPages.css";
 
 const RECENT_LIMIT = 5;
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
+}
+
+function str(v: unknown): string | null {
+  if (v == null || typeof v === "object") return null;
+  const s = String(v).trim();
+  return s.length ? s : null;
+}
+
+/** patient-app `WalletScreen._buildPartnerLogo` — `user.company.image`. */
+function companyLogoFromProfile(body: unknown): Readonly<{ url: string | null; name: string | null }> {
+  const root = asRecord(body);
+  if (!root) return { url: null, name: null };
+  const user = asRecord(root.user) ?? root;
+  const company = asRecord(user.company) ?? asRecord(root.company);
+  if (!company) return { url: null, name: null };
+  return {
+    url: resolveProfileImageUrl(str(company.image)),
+    name: str(company.name),
+  };
+}
 
 export function WalletPage() {
   const { subscriptionId } = useParams<{ subscriptionId: string }>();
@@ -42,6 +67,8 @@ export function WalletPage() {
     if (!wallet) return [];
     return filterWalletModulesForSubscription(wallet.modules, hiddenModuleKeys);
   }, [wallet, hiddenModuleKeys]);
+
+  const partnerCompany = useMemo(() => companyLogoFromProfile(profileBody), [profileBody]);
 
   const handleBack = useCallback(() => {
     navigate(ROUTES.dashboard);
@@ -110,8 +137,8 @@ export function WalletPage() {
             <WalletBalanceCard
               availableBalance={wallet.availableBalance}
               totalBalance={wallet.totalBalance}
-              validTillLabel={wallet.validTillLabel}
-              daysLeft={wallet.daysLeft}
+              partnerLogoUrl={partnerCompany.url}
+              partnerLogoAlt={partnerCompany.name}
             />
             <WalletModuleBreakupGrid modules={visibleModules} />
 

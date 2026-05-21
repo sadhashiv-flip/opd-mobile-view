@@ -102,7 +102,7 @@
 .support-chat__header-id {
   flex: 1 1 auto;
   min-width: 0;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 500;
   color: #616161;
@@ -178,7 +178,7 @@
 }
 
 .support-chat__mono {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   word-break: break-all;
 }

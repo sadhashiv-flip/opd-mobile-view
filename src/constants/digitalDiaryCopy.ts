@@ -4,7 +4,7 @@
  */
 export const DIGITAL_DIARY_COPY = {
   /** `kDigitalDiaryAppBarTitle` */
-  appBarTitle: "Digital diary",
+  appBarTitle: "Activities",
   /** `kDashboardActivitiesTitle` */
   dashboardActivitiesTitle: "Your Digital Diary",
   /** `kDashboardActivitiesSubtitle` */
@@ -58,5 +58,5 @@ export const DIGITAL_DIARY_COPY = {
    * “Check your activities”; this stays as the richer web teaser).
    */
   helpHubDigitalDiaryDescription:
-    "Vitals, water, mood, medicines—your daily health log",
+    "Check your activities",
 } as const;

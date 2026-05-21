@@ -12,6 +12,8 @@ import {
   DEFAULT_CONSULT_SUCCESS_SUB_GENERIC_BOOKING,
   DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS,
   DEFAULT_CONSULT_SUCCESS_TITLE,
+  VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB,
+  VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
   isBookingSuccessLocationState,
   mergeGenericBookingSuccessState,
   resolveDiagnosticsBookingSuccessCardCopy,
@@ -95,14 +97,21 @@ export function BookingSuccessPage() {
     if (onDiagnosticsSuccess) {
       return resolveDiagnosticsBookingSuccessCardCopy(diagnosticsTypeParam);
     }
-    if (!isBookingSuccessLocationState(rawState)) {
+    const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
+    if (s?.successUiVariant === "virtual-consult") {
+      return {
+        title: s.title?.trim() || VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
+        description: s.description?.trim() || VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB,
+      };
+    }
+    if (!s) {
       return {
         title: DEFAULT_BOOKING_SUCCESS_TITLE,
         description: DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
       };
     }
-    const t = rawState.title?.trim();
-    const d = rawState.description?.trim();
+    const t = s.title?.trim();
+    const d = s.description?.trim();
     return {
       title: t || DEFAULT_BOOKING_SUCCESS_TITLE,
       description: d || DEFAULT_BOOKING_SUCCESS_DESCRIPTION,

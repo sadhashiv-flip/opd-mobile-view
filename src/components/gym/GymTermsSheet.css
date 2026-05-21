@@ -9,7 +9,7 @@
   padding-top: max(40px, calc(env(safe-area-inset-top, 0px) + 20px));
   padding-bottom: env(safe-area-inset-bottom, 0);
   box-sizing: border-box;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: var(--font-family-app);
 }
 
 .gts-backdrop {

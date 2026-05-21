@@ -34,7 +34,7 @@
 
 .profile-manage-page__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   text-align: center;
@@ -93,7 +93,7 @@
   padding: 0 14px;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   color: #111111;
   background: #fafafa;
@@ -125,7 +125,7 @@
   padding: 14px 20px;
   border: none;
   border-radius: 12px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
@@ -159,7 +159,7 @@
   background: #fafafa;
   text-decoration: none;
   color: #212121;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   text-align: left;

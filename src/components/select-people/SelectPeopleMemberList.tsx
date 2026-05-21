@@ -1,24 +1,35 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants";
 import profileSvg from "@/assets/icons/Dashboard/Profile.svg";
-import selectSvg from "@/assets/icons/Dashboard/Select.svg";
+import { SelectPeopleAddedCta } from "@/components/select-people/SelectPeopleAddedCta";
 import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
-import { SelectPeopleSelectionHint } from "@/components/select-people/SelectPeopleSelectionHint";
 import {
   HC_PERSON_ADD_CTA_DISABLED_TOOLTIP,
   HC_PERSON_ADD_CTA_TOOLTIP,
-  HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP,
   memberShowsSubscriptionActivateCta,
-  MEMBER_NOT_ACTIVATED_LABEL,
   type GymMemberListRow,
 } from "@/lib/gymMemberDisplay";
-import { memberRowSubtitle, type SelectPeopleHint } from "@/lib/selectPeopleShared";
+import { selectPeopleMemberLine } from "@/lib/selectPeopleShared";
 
 export type SelectPeopleMemberListConfig = Readonly<{
   showAhcSponsorSubtitle: boolean;
   restrictToAhcSelection: boolean;
   isDiagnosticsFlow: boolean;
+  /**
+   * When true (dental), no age or subscription gates — all family members are listed and selectable.
+   */
+  relaxMemberRestrictions: boolean;
 }>;
+
+/** Primary profile first; preserve API order within each group. */
+function sortSelectPeopleMembers(rows: readonly GymMemberListRow[]): GymMemberListRow[] {
+  return [...rows].sort((a, b) => {
+    if (a.section === "self" && b.section !== "self") return -1;
+    if (b.section === "self" && a.section !== "self") return 1;
+    return 0;
+  });
+}
 
 type SelectPeopleMemberListProps = Readonly<{
   members: GymMemberListRow[];
@@ -26,11 +37,9 @@ type SelectPeopleMemberListProps = Readonly<{
   onToggle: (memberId: string) => void;
   onNavigateSubscriptions: () => void;
   config: SelectPeopleMemberListConfig;
-  selectionHint: SelectPeopleHint | null;
   canAddFamily: boolean;
   hideAddFamily?: boolean;
   returnPath: string;
-  /** When set, called instead of navigating directly (e.g. bottom sheets close first). */
   onAddFamily?: () => void;
 }>;
 
@@ -40,7 +49,6 @@ export function SelectPeopleMemberList({
   onToggle,
   onNavigateSubscriptions,
   config,
-  selectionHint,
   canAddFamily,
   hideAddFamily = false,
   returnPath,
@@ -48,19 +56,25 @@ export function SelectPeopleMemberList({
 }: SelectPeopleMemberListProps) {
   const navigate = useNavigate();
 
+  const displayMembers = useMemo(
+    () => sortSelectPeopleMembers(members),
+    [members],
+  );
+
   const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
-    const isSelected = selectedIds.includes(member.id);
-    if (isSelected) {
-      return (
-        <span className="hc-person__cta hc-person__cta--added" aria-hidden="true">
-          <img src={selectSvg} alt="" width={18} height={18} draggable={false} />
-        </span>
-      );
+    const isRelaxed = config.relaxMemberRestrictions;
+    if (!isRelaxed && member.isChildBlocked) {
+      return null;
+    }
+    if (selectedIds.includes(member.id)) {
+      return <SelectPeopleAddedCta />;
     }
     if (memberShowsSubscriptionActivateCta(member)) {
       return <SubscriptionActivateCtaButton onClick={onNavigateSubscriptions} />;
     }
-    const ctaLabel = !member.isSubscribed ? MEMBER_NOT_ACTIVATED_LABEL : "Add";
+    if (!member.isSubscribed && !isRelaxed) {
+      return null;
+    }
     const addTitle =
       member.isSubscribed && !rowDisabled
         ? HC_PERSON_ADD_CTA_TOOLTIP
@@ -71,29 +85,26 @@ export function SelectPeopleMemberList({
       <span
         className={`hc-person__cta${rowDisabled ? " hc-person__cta--disabled" : ""}`}
         aria-hidden="true"
-        title={ctaLabel === "Add" ? addTitle : HC_PERSON_NOT_ACTIVATED_CTA_TOOLTIP}
+        title={addTitle}
       >
-        {ctaLabel}
+        Add
       </span>
     );
   };
 
   const renderMemberRow = (member: GymMemberListRow) => {
+    const isRelaxed = config.relaxMemberRestrictions;
     const canSubActivate = memberShowsSubscriptionActivateCta(member);
-    const ageBlocked = config.isDiagnosticsFlow && member.isChildBlocked;
     const notActivated = !member.isSubscribed;
     const rowDisabled =
-      ageBlocked ||
-      notActivated ||
+      (!isRelaxed && notActivated) ||
       (config.isDiagnosticsFlow &&
         config.restrictToAhcSelection &&
         !member.ahcAvailable);
-    const subtitle = memberRowSubtitle(member, {
-      showAhcSponsorSubtitle: config.showAhcSponsorSubtitle,
+    const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
+      relaxMemberRestrictions: isRelaxed,
     });
-    const showInactiveTag =
-      !config.isDiagnosticsFlow && notActivated && !canSubActivate && !ageBlocked;
-    const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}`;
+    const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked && !isRelaxed ? " hc-person--age-blocked" : ""}`;
     const body = (
       <>
         <span className="hc-person__avatar" aria-hidden="true">
@@ -101,14 +112,9 @@ export function SelectPeopleMemberList({
         </span>
         <span className="hc-person__info">
           <span className="hc-person__name">{member.name}</span>
-          {showInactiveTag ? (
-            <span className="hc-person__tag hc-person__tag--inactive">{MEMBER_NOT_ACTIVATED_LABEL}</span>
+          {subtitle ? (
+            <span className={`hc-person__sub${subClass}`}>{subtitle}</span>
           ) : null}
-          <span
-            className={`hc-person__sub${ageBlocked || (notActivated && !canSubActivate) ? " hc-person__sub--muted" : config.showAhcSponsorSubtitle && member.ahcAvailable ? " hc-person__sub--sponsored" : ""}`}
-          >
-            {subtitle}
-          </span>
         </span>
         {renderTrailing(member, rowDisabled)}
       </>
@@ -144,19 +150,16 @@ export function SelectPeopleMemberList({
   };
 
   return (
-    <>
-      <SelectPeopleSelectionHint hint={selectionHint} />
-      <section className="hc-block hc-block--flat-members">
-        {members.map(renderMemberRow)}
-        {!hideAddFamily && canAddFamily ? (
-          <button type="button" className="hc-add-family" onClick={handleAddFamily}>
-            <span className="hc-add-family__ic" aria-hidden="true">
-              +
-            </span>
-            <span> Add new family member</span>
-          </button>
-        ) : null}
-      </section>
-    </>
+    <section className="hc-block hc-block--flat-members">
+      {displayMembers.map(renderMemberRow)}
+      {!hideAddFamily && canAddFamily ? (
+        <button type="button" className="hc-add-family" onClick={handleAddFamily}>
+          <span className="hc-add-family__ic" aria-hidden="true">
+            +
+          </span>
+          <span> Add new family member</span>
+        </button>
+      ) : null}
+    </section>
   );
 }

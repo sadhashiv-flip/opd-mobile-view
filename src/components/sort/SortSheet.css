@@ -101,7 +101,7 @@
 }
 
 .sort-sheet__radio--active {
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
 }
 
 .sort-sheet__confirm {
@@ -110,7 +110,7 @@
   height: 46px;
   border: none;
   border-radius: 12px;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
   font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
   font-weight: 900;

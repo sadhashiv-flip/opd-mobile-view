@@ -357,8 +357,8 @@ button.csp-back {
   height: 44px;
   border: none;
   border-radius: 10px;
-  background: #ff541e;
-  color: #ffffff;
+  background: var(--color-btn-primary-bg);
+  color: var(--color-btn-primary-fg);
   font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
   font-weight: 900;
   cursor: pointer;

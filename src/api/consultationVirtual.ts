@@ -103,6 +103,8 @@ export type FetchAvailableSlotsParams = Readonly<{
   /** Issue `parent` from `/issues` (sent as query `spid`). */
   spid: number;
   language: string;
+  /** Follow-up rebook — prior completed `appointment_id` (patient_app `getAvailableSlots`). */
+  appointmentId?: string | null;
 }>;
 
 function normalizeSlot(raw: unknown): AvailableSlot | null {
@@ -124,7 +126,7 @@ function normalizeSlot(raw: unknown): AvailableSlot | null {
   return { date, time, available, displayTime };
 }
 
-/** GET `/availableSlots?date=&spid=&language=` (no pagination) */
+/** GET `/availableSlots?date=&spid=&language=` (+ optional `appointment_id` for follow-up) */
 export async function fetchAvailableSlots(
   params: FetchAvailableSlotsParams,
 ): Promise<AvailableSlot[]> {
@@ -132,6 +134,8 @@ export async function fetchAvailableSlots(
   q.set("date", params.date);
   q.set("spid", String(params.spid));
   q.set("language", params.language);
+  const followId = params.appointmentId?.trim();
+  if (followId) q.set("appointment_id", followId);
   const raw = await patientJson<unknown>(`availableSlots?${q.toString()}`, { method: "GET" });
   const root = asRecord(raw) ?? {};
   const list = root.slots;
@@ -140,7 +144,7 @@ export async function fetchAvailableSlots(
 }
 
 export async function fetchAllAvailableSlots(
-  params: Readonly<{ date: string; spid: number; language: string }>,
+  params: FetchAvailableSlotsParams,
 ): Promise<AvailableSlot[]> {
   return fetchAvailableSlots(params);
 }

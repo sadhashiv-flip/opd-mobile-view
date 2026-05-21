@@ -169,7 +169,7 @@
   font-size: clamp(11px, calc(16 * 100cqw / 375), calc(16 * 1.12px));
   font-weight: 700;
   color: #ffffff;
-  background: #ff5a1f;
+  background: var(--color-btn-primary-bg, #111111);
   cursor: pointer;
 }
 

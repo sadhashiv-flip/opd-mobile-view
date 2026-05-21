@@ -445,6 +445,8 @@
 .cao-footer {
   padding: 14px 14px calc(18px + env(safe-area-inset-bottom, 0));
   background: #ffffff;
+  border-top: 1px solid #efefef;
+  flex-shrink: 0;
 }
 
 .cao-confirm {
@@ -462,5 +464,142 @@
 .cao-confirm:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.cao-summary__ic--virtual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cao-summary__lang {
+  margin-top: 4px;
+  font-size: max(7px, calc(10 * 100cqw / 375));
+  font-weight: 600;
+  color: #757575;
+  line-height: 1.3;
+}
+
+.cao-edit--calendar {
+  background: rgba(255, 84, 30, 0.08);
+}
+
+.cao-disc--online .cao-disc__list {
+  padding: 12px;
+  margin: 0;
+}
+
+.cao-msg {
+  padding: 10px 0;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 700;
+  color: #8f8f8f;
+}
+
+.cao-msg--err {
+  color: #c41e1e;
+}
+
+.cao-linkback {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 800;
+  color: #ff541e;
+  text-decoration: none;
+}
+
+/* patient_app CommonDialog.confirm before booking preview */
+.cao-booking-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  box-sizing: border-box;
+}
+
+.cao-booking-confirm__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.cao-booking-confirm__panel {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 16px 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.cao-booking-confirm__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cao-booking-confirm__info {
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.cao-booking-confirm__title {
+  margin: 0;
+  font-size: clamp(12px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 800;
+  color: #111111;
+  line-height: 1.3;
+}
+
+.cao-booking-confirm__body {
+  padding: 0 0 14px;
+}
+
+.cao-booking-confirm__message {
+  margin: 0;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 500;
+  line-height: 1.45;
+  color: #616161;
+}
+
+.cao-booking-confirm__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.cao-booking-confirm__btn {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+
+.cao-booking-confirm__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cao-booking-confirm__btn--no {
+  background: #f3f3f3;
+  color: #111111;
+  border-color: #e8e8e8;
+}
+
+.cao-booking-confirm__btn--yes {
+  background: #0b0b0b;
+  color: #ffffff;
 }
 

@@ -1,4 +1,5 @@
 import type { MessagePayload } from "firebase/messaging";
+import { FCM_NOTIFICATION_ICON_URL } from "@/constants/fcmNotificationIcon";
 import { mergeFcmDataWithDetails } from "@/lib/fcmSupportTicketNavigation";
 import { resolveFcmNavigatePathFromPayload } from "@/lib/fcmDeepLinkNavigation";
 
@@ -41,7 +42,10 @@ export async function showWebPushFromFcmPayload(payload: MessagePayload): Promis
   if (path) dataRaw.path = path;
   const data = stringifyNotificationData(dataRaw);
 
-  const icon = payload.notification?.image ?? "/vite.svg";
+  const icon =
+    payload.notification?.icon?.trim() ||
+    payload.notification?.image?.trim() ||
+    FCM_NOTIFICATION_ICON_URL;
 
   const tag = fcmForegroundNotificationTag(payload);
 

@@ -183,7 +183,7 @@
 
 .notice-board__illustration-label {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 16px;
   font-weight: 600;
   color: var(--nb-text-ter);
@@ -245,7 +245,7 @@
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 15px;
   font-weight: 600;
   color: var(--nb-text);
@@ -259,7 +259,7 @@
   padding: 4px 10px;
   border-radius: 8px;
   background: rgba(255, 200, 57, 0.1);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 11px;
   font-weight: 600;
   color: var(--nb-warning);
@@ -318,7 +318,7 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 11px;
   font-weight: 600;
 }
@@ -333,7 +333,7 @@
 
 .notice-board__date-main {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 14px;
   font-weight: 700;
   color: var(--nb-text);
@@ -341,7 +341,7 @@
 
 .notice-board__date-sub {
   margin: 2px 0 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 12px;
   font-weight: 400;
   color: var(--nb-text-sec);
@@ -370,7 +370,7 @@
   border-radius: 10px;
   background: rgba(75, 164, 255, 0.06);
   border: 1px solid rgba(75, 164, 255, 0.15);
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 12px;
   font-weight: 500;
   color: var(--nb-info);
@@ -386,7 +386,7 @@
 
 .notice-board__note-text {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 13.5px;
   font-weight: 400;
   line-height: 1.7;
@@ -414,7 +414,7 @@
   border-radius: 14px;
   background: var(--nb-text);
   color: #ffffff;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -467,7 +467,7 @@
 
 .notice-board__blocked-text {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;

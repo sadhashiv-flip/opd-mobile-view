@@ -1,5 +1,6 @@
 /**
- * Dental slot booking rules — mirrors patient-app `getDays()` + `getSlotsForDate()`.
+ * Dental slot booking rules — mirrors patient-app `DentalRepository.getDays()` +
+ * `getSlotsForDate()` and `DentalController` slot selection.
  */
 
 import { startOfDay } from "@/components/vaccination/vaccinationSlotRules";
@@ -8,15 +9,39 @@ export { sameCalendarDay } from "@/components/vaccination/vaccinationSlotRules";
 
 export const DENTAL_BOOKING_DAY_COUNT = 6;
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
 export type DentalSlotRow = Readonly<{
   time: string;
   time24: string;
   isDisabled: boolean;
 }>;
 
+export type DentalDateChip = Readonly<{
+  day: string;
+  weekday: string;
+}>;
+
 export type DentalDayStripResult = Readonly<{
   dates: readonly Date[];
   calendarDateStrings: readonly string[];
+  monthYearLabel: string;
+  availableDates: readonly DentalDateChip[];
 }>;
 
 function pad2(n: number): string {
@@ -27,7 +52,17 @@ function formatYmd(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-/** Convert 24-hour `"16:00"` → `"4:00 PM"`. */
+/** Dart `weekday`: 1 = Mon … 7 = Sun. */
+function weekdayChip(d: Date): string {
+  const dartWeekday = d.getDay() === 0 ? 7 : d.getDay();
+  return WEEKDAY_NAMES[dartWeekday - 1] ?? "Mon";
+}
+
+function monthYearLabel(d: Date): string {
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** Convert 24-hour `"16:00"` → `"4:00 PM"` (mirrors `DentalRepository._to12Hr`). */
 export function dentalTime24To12h(hhmm: string): string {
   const parts = hhmm.split(":");
   let h = Number(parts[0]);
@@ -42,30 +77,38 @@ export function dentalTime24To12h(hhmm: string): string {
 }
 
 /**
- * Build the date strip: `skipDays` is 1 if before 18:00, else 2 (mirrors patient-app).
- * Returns **6** consecutive calendar days from that anchor (noon anchor avoids DST quirks).
+ * Build the date strip: skip 1 day if before 18:00, else 2 (mirrors `getDays()`).
+ * Returns 6 consecutive calendar days from that anchor.
  */
 export function getDentalBookingDays(
   count: number = DENTAL_BOOKING_DAY_COUNT,
   now: Date = new Date(),
 ): DentalDayStripResult {
   const skipDays = now.getHours() < 18 ? 1 : 2;
-  const anchor = new Date(now);
-  anchor.setDate(anchor.getDate() + skipDays);
-  anchor.setHours(12, 0, 0, 0);
-  const y = anchor.getFullYear();
-  const mo = anchor.getMonth();
-  const d0 = anchor.getDate();
+  const startDate = new Date(now);
+  startDate.setDate(startDate.getDate() + skipDays);
 
   const dates: Date[] = [];
   const calendarDateStrings: string[] = [];
+  const availableDates: DentalDateChip[] = [];
+
   for (let i = 0; i < count; i++) {
-    const date = new Date(y, mo, d0 + i);
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
     dates.push(date);
     calendarDateStrings.push(formatYmd(date));
+    availableDates.push({
+      day: String(date.getDate()),
+      weekday: weekdayChip(date),
+    });
   }
 
-  return { dates, calendarDateStrings };
+  return {
+    dates,
+    calendarDateStrings,
+    monthYearLabel: monthYearLabel(startDate),
+    availableDates,
+  };
 }
 
 function generateHourlySlots(opening: string, closing: string): string[] {
@@ -84,17 +127,22 @@ function generateHourlySlots(opening: string, closing: string): string[] {
   return slots;
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+/** Mirrors `slotDt.difference(now).inHours > 24`. */
+function slotMoreThan24HoursFromNow(slotDt: Date, now: Date): boolean {
+  const diffMs = slotDt.getTime() - now.getTime();
+  if (diffMs <= 0) return false;
+  return Math.floor(diffMs / (60 * 60 * 1000)) > 24;
+}
 
 function filterAndFormat24h(raw: readonly string[], date: Date, now: Date): DentalSlotRow[] {
-  const y = date.getFullYear();
+  const dateStr = formatYmd(date);
   const out: DentalSlotRow[] = [];
   for (let i = 0; i < raw.length - 1; i++) {
     const hm = raw[i];
     if (hm == null) continue;
     const [hh, mm] = hm.split(":").map(Number);
-    const slotDt = new Date(y, date.getMonth(), date.getDate(), hh, mm, 0, 0);
-    if (slotDt.getTime() - now.getTime() > MS_PER_DAY) {
+    const slotDt = new Date(`${dateStr}T${pad2(hh)}:${pad2(mm)}:00`);
+    if (slotMoreThan24HoursFromNow(slotDt, now)) {
       out.push({
         time: dentalTime24To12h(hm),
         time24: hm,
@@ -113,8 +161,7 @@ export type DentalSlotsByPeriod = Readonly<{
 
 /**
  * Morning 10:00–12:00, afternoon 12:00–13:00, evening 16:00–20:00 (skipped on Sunday).
- * Last element of each generated range is the closing boundary and is not selectable.
- * Slots require **more than 24 hours** from `now` (mirrors patient-app `inHours > 24` intent).
+ * Closing boundary hour is generated but not offered (index `< length - 1`).
  */
 export function getDentalSlotsForDate(date: Date, now: Date = new Date()): DentalSlotsByPeriod {
   const isSunday = date.getDay() === 0;
@@ -148,4 +195,41 @@ export function firstDayWithBookableDentalSlots(
     if (flatDentalSlotLabelsForDay(d, now).length > 0) return d;
   }
   return stripDates[0] ?? startOfDay(now);
+}
+
+/** `DentalController._parse12hSlot` */
+export function parseDental12hSlot(raw: string | undefined | null): { h: number; m: number } | null {
+  if (raw == null || typeof raw !== "string") return null;
+  const s = raw.trim().toUpperCase().replace(/\./g, "");
+  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/.exec(s);
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const ap = match[3];
+  if (ap === "PM" && hour !== 12) hour += 12;
+  if (ap === "AM" && hour === 12) hour = 0;
+  return { h: hour, m: minute };
+}
+
+/** `DentalController._preferredDateTimeForApi` → `YYYY-MM-DD HH:mm:ss`. */
+export function formatDentalPreferredDateTime(
+  day: Date,
+  slot12h: string | undefined | null,
+): string | null {
+  const t = parseDental12hSlot(slot12h);
+  if (t == null) return null;
+  return `${formatYmd(day)} ${pad2(t.h)}:${pad2(t.m)}:00`;
+}
+
+/** Display string like `DentalController.selectedDateTimeDisplay`. */
+export function formatDentalSlotDisplay(
+  day: Date,
+  slot12h: string,
+  monthYear: string,
+): string {
+  const chip = {
+    day: String(day.getDate()),
+    weekday: weekdayChip(day),
+  };
+  return `${chip.day} ${chip.weekday}, ${monthYear} | ${slot12h}`;
 }

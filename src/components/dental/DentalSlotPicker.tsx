@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { SlotPeriodIcon } from "@/components/slots/SlotPeriodIcon";
 import {
   getDentalSlotsForDate,
   sameCalendarDay,
@@ -8,68 +9,31 @@ import "@/pages/HealthCheckupsPage.css";
 import "@/components/vaccination/VaccinationSlotPicker.css";
 
 const GROUPS = [
-  { id: "morning", label: "Morning", pick: (b: ReturnType<typeof getDentalSlotsForDate>) => b.morningSlots },
-  { id: "afternoon", label: "Afternoon", pick: (b: ReturnType<typeof getDentalSlotsForDate>) => b.afternoonSlots },
-  { id: "evening", label: "Evening", pick: (b: ReturnType<typeof getDentalSlotsForDate>) => b.eveningSlots },
+  { id: "morning" as const, label: "Morning", pick: (b: ReturnType<typeof getDentalSlotsForDate>) => b.morningSlots },
+  { id: "afternoon" as const, label: "Afternoon", pick: (b: ReturnType<typeof getDentalSlotsForDate>) => b.afternoonSlots },
+  { id: "evening" as const, label: "Evening", pick: (b: ReturnType<typeof getDentalSlotsForDate>) => b.eveningSlots },
 ] as const;
-
-function PeriodIcon({ period }: Readonly<{ period: "morning" | "afternoon" | "evening" }>) {
-  const common = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none" as const, "aria-hidden": true };
-  if (period === "morning") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="4" fill="currentColor" />
-        <path
-          d="M12 2v2M12 20v2M2 12h2M20 12h2"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  if (period === "afternoon") {
-    return (
-      <svg {...common}>
-        <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="10" r="3.5" fill="currentColor" />
-        <path
-          d="M8 6c1.5-1 3.5-1 5 0"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M8 10c1.5 1 3.5 1 5 0"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="16" r="3.5" fill="currentColor" />
-    </svg>
-  );
-}
 
 export type DentalSlotPickerProps = Readonly<{
   bookingDates: readonly Date[];
+  /** From `getDentalBookingDays().monthYearLabel` (first day of strip). */
+  monthYearLabel: string;
   selectedDay: Date;
   onSelectDay: (d: Date) => void;
   selectedSlot: string | null;
   onSelectSlot: (slot: string | null) => void;
+  /** Recompute slot buckets when “now” advances (mirrors `getSlotsForDate` using current time). */
+  bookingNow?: Date;
 }>;
 
 export function DentalSlotPicker({
   bookingDates,
+  monthYearLabel,
   selectedDay,
   onSelectDay,
   selectedSlot,
   onSelectSlot,
+  bookingNow: bookingNowProp,
 }: DentalSlotPickerProps) {
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
@@ -77,14 +41,15 @@ export function DentalSlotPicker({
     return () => window.clearInterval(id);
   }, []);
 
-  const bookingNow = useMemo(() => new Date(nowTick), [nowTick]);
+  const bookingNow = useMemo(
+    () => bookingNowProp ?? new Date(nowTick),
+    [bookingNowProp, nowTick],
+  );
 
-  const monthLabel = selectedDay.toLocaleDateString("en-IN", {
-    month: "short",
-    year: "numeric",
-  });
-
-  const buckets = useMemo(() => getDentalSlotsForDate(selectedDay, bookingNow), [selectedDay, bookingNow]);
+  const buckets = useMemo(
+    () => getDentalSlotsForDate(selectedDay, bookingNow),
+    [selectedDay, bookingNow],
+  );
 
   const flatAvailable = useMemo(
     () => GROUPS.flatMap((g) => g.pick(buckets).map((r: DentalSlotRow) => r.time)),
@@ -101,6 +66,11 @@ export function DentalSlotPicker({
     }
   }, [selectedDay, selectedSlot, onSelectSlot, flatAvailable]);
 
+  const handleSelectDay = (d: Date) => {
+    onSelectDay(d);
+    onSelectSlot(null);
+  };
+
   return (
     <div className="vac-slot-pick">
       <div className="vac-slot-pick__row-label">
@@ -116,7 +86,7 @@ export function DentalSlotPicker({
           </svg>
           Choose date and time
         </span>
-        <span className="vac-slot-pick__month">{monthLabel}</span>
+        <span className="vac-slot-pick__month">{monthYearLabel}</span>
       </div>
 
       <div className="vac-slot-pick__dates" role="list">
@@ -131,7 +101,7 @@ export function DentalSlotPicker({
               type="button"
               role="listitem"
               className={`vac-slot-pick__date${sel ? " vac-slot-pick__date--selected" : ""}`}
-              onClick={() => onSelectDay(d)}
+              onClick={() => handleSelectDay(d)}
             >
               <span className="vac-slot-pick__date-num">{num}</span>
               <span className="vac-slot-pick__date-dow">{dow}</span>
@@ -146,19 +116,19 @@ export function DentalSlotPicker({
         return (
           <section key={g.id} className="vac-slot-pick__group">
             <div className="vac-slot-pick__group-head">
-              <span className="vac-slot-pick__sun" aria-hidden>
-                <PeriodIcon period={g.id} />
-              </span>
+              <SlotPeriodIcon period={g.id} />
               {g.label}
             </div>
             <div className="vac-slot-pick__pills">
               {rows.map((row: DentalSlotRow) => {
                 const on = selectedSlot === row.time;
+                const disabled = row.isDisabled;
                 return (
                   <button
                     key={`${g.id}-${row.time24}`}
                     type="button"
-                    className={`vac-slot-pick__pill${on ? " vac-slot-pick__pill--selected" : ""}`}
+                    className={`vac-slot-pick__pill${on ? " vac-slot-pick__pill--selected" : ""}${disabled ? " vac-slot-pick__pill--disabled" : ""}`}
+                    disabled={disabled}
                     onClick={() => onSelectSlot(row.time)}
                   >
                     {row.time}
@@ -172,7 +142,7 @@ export function DentalSlotPicker({
 
       {flatAvailable.length === 0 ? (
         <p className="vac-slot-pick__empty" role="status">
-          No slots left for this day. Pick another date.
+          No slots available
         </p>
       ) : null}
     </div>

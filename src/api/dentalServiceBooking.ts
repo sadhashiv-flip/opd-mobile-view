@@ -34,3 +34,22 @@ export async function postDentalServiceRequest(payload: DentalServiceRequestPayl
     body: JSON.stringify(payload),
   });
 }
+
+/** patient_app `DentalRepository.bookDentalService` — invoice id for success / orders. */
+export function parseDentalBookingInvoiceId(data: unknown): string {
+  if (data == null || typeof data !== "object") return "";
+  const root = data as Record<string, unknown>;
+  let invoiceId = String(root.invoice_id ?? "").trim();
+  const service = root.service;
+  if (!invoiceId && service != null && typeof service === "object") {
+    invoiceId = String((service as Record<string, unknown>).id ?? "").trim();
+  }
+  const inner = root.data;
+  if (inner != null && typeof inner === "object") {
+    const nested = inner as Record<string, unknown>;
+    if (!invoiceId) {
+      invoiceId = String(nested.invoice_id ?? nested.id ?? "").trim();
+    }
+  }
+  return invoiceId;
+}

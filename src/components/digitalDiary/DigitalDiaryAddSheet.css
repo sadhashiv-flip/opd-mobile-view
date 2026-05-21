@@ -186,7 +186,7 @@
   font-size: 15px;
   font-weight: 600;
   color: #fff;
-  background: #ff5224;
+  background: var(--color-btn-primary-bg, #111111);
   cursor: pointer;
 }
 

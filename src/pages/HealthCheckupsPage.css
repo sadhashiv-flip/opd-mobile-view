@@ -281,6 +281,11 @@
   font-weight: 600;
 }
 
+.hc-person__sub--not-activated {
+  color: #ff5224;
+  font-weight: 600;
+}
+
 .hc-selection-hint {
   display: flex;
   align-items: flex-start;
@@ -378,14 +383,33 @@
 }
 
 .hc-person__cta--added {
-  width: 34px;
-  height: 26px;
-  padding: 0;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding: 4px 12px;
+  gap: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: var(--color-brand-orange, #ff5224);
   border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: max(10px, calc(12 * 100cqw / 375));
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: default;
+}
+
+.hc-person--age-blocked {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.hc-person--age-blocked.hc-person--selected {
+  border-color: #d9d9d9;
+  border-width: 1px;
+  background: #ffffff;
 }
 
 .hc-person__cta--remove {

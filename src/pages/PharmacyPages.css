@@ -445,7 +445,7 @@ label.ph-upload-zone {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   box-shadow: 0 2px 8px rgba(255, 84, 30, 0.25);
   display: flex;
   align-items: center;
@@ -834,7 +834,7 @@ label.ph-upload-zone {
   padding: 11px 10px;
   border: none;
   border-radius: 12px;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
   font-size: 12px;
   font-weight: 800;
@@ -1618,7 +1618,7 @@ a.ph-footer-btn__inner {
 
 .ph-flip-rx-card__tick--on {
   border: none;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   color: #fff;
   box-shadow: 0 2px 6px rgba(255, 84, 30, 0.25);
 }
@@ -1908,7 +1908,7 @@ a.ph-footer-btn__inner {
   padding: 14px;
   border: none;
   border-radius: 12px;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   color: #fff;
   font-size: 14px;
   font-weight: 800;
@@ -2063,7 +2063,7 @@ a.ph-footer-btn__inner {
 }
 
 .ph-med-section__badge--orange {
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   color: #ffffff;
   min-width: 28px;
   height: 28px;

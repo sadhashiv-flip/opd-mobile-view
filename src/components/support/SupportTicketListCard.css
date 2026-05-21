@@ -1,0 +1,105 @@
+.support-ticket-card {
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e8edf2;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.support-ticket-card__main {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 14px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.support-ticket-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.support-ticket-card__id-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.support-ticket-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.support-ticket-card__id {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-ticket-card__badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.support-ticket-card__message {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.support-ticket-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.support-ticket-card__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.support-ticket-card__rating {
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+.support-ticket-card__feedback {
+  width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  border: none;
+  border-top: 1px solid #e8edf2;
+  background: #f8fafc;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}

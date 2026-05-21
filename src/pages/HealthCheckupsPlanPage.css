@@ -318,7 +318,7 @@
 
 .hcp-pkg-card__radio--on {
   border-color: #ff541e;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
 }
 
 .hcp-inclusions-link {
@@ -824,7 +824,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ff541e;
+  background: var(--color-btn-primary-bg, #111111);
   flex-shrink: 0;
 }
 

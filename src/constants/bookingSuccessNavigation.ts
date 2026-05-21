@@ -29,7 +29,19 @@ export type BookingSuccessLocationState = Readonly<{
   viewOrderDetailPath?: string;
   /** “Done” target; defaults to dashboard. */
   doneNavigateTo?: string;
+  /** Shown under card title as `#…` (patient_app consultation success). */
+  appointmentReferenceId?: string;
+  /** Applies patient_app consultation success layout (`ConsultationPaymentSuccessScreen`). */
+  successUiVariant?: "virtual-consult";
 }>;
+
+/** Virtual online consult — patient_app `ConsultationPaymentSuccessScreen` copy. */
+export const VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE = "Appointment booked";
+
+export const VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB =
+  "Your online consultation has been successfully raised. You can track and manage it from My Orders.";
+
+export const VIRTUAL_CONSULT_BOOKING_SUCCESS_CARD_TITLE = "Appointment details";
 
 /** Card layout defaults (diagnostics without `type`, or unknown `type`). */
 export const DEFAULT_BOOKING_SUCCESS_TITLE = "Appointment booked successfully!";
@@ -68,12 +80,12 @@ export function resolveDiagnosticsBookingSuccessCardCopy(
 export const DEFAULT_CONSULT_SUCCESS_SUB_GENERIC_BOOKING =
   "Your appointment has been booked successfully.";
 
-/** Consult layout (Lottie + Alright) — same structure as at-hospital */
-export const DEFAULT_CONSULT_SUCCESS_TITLE = "Appointment Booked!";
+/** Consult layout (Lottie + Alright) — legacy; virtual summary uses {@link VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE}. */
+export const DEFAULT_CONSULT_SUCCESS_TITLE = "Appointment booked";
 
 export const DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL = "Appointment booked successfully.";
 
-export const DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL = "Virtual consultation appointment booked successfully.";
+export const DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL = VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB;
 
 export const DEFAULT_CONSULT_SUCCESS_SUB_DENTAL = "Dental appointment booked successfully.";
 
@@ -97,16 +109,23 @@ export function mergeGenericBookingSuccessState(
   fallbacks: Readonly<{ title: string; description: string }>,
 ): BookingSuccessLocationState {
   const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
+  const virtualConsult = s?.successUiVariant === "virtual-consult";
+  const virtualFallbacks = virtualConsult
+    ? { title: VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE, description: VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB }
+    : fallbacks;
   return {
     layout: "summary",
-    title: s?.title?.trim() || fallbacks.title,
-    description: s?.description?.trim() || fallbacks.description,
+    successUiVariant: s?.successUiVariant,
+    title: s?.title?.trim() || virtualFallbacks.title,
+    description: s?.description?.trim() || virtualFallbacks.description,
     summaryCardTitle: s?.summaryCardTitle,
     summaryRows: s?.summaryRows,
     orderDetailCategoryKey: s?.orderDetailCategoryKey,
     orderDetailInvoiceId: s?.orderDetailInvoiceId,
     viewOrderDetailPath: s?.viewOrderDetailPath,
     doneNavigateTo: s?.doneNavigateTo,
+    appointmentReferenceId: s?.appointmentReferenceId,
+    successUiVariant: s?.successUiVariant,
   };
 }
 
@@ -134,5 +153,7 @@ export function isBookingSuccessLocationState(value: unknown): value is BookingS
   if (o.orderDetailInvoiceId != null && typeof o.orderDetailInvoiceId !== "string") return false;
   if (o.viewOrderDetailPath != null && typeof o.viewOrderDetailPath !== "string") return false;
   if (o.doneNavigateTo != null && typeof o.doneNavigateTo !== "string") return false;
+  if (o.appointmentReferenceId != null && typeof o.appointmentReferenceId !== "string") return false;
+  if (o.successUiVariant != null && o.successUiVariant !== "virtual-consult") return false;
   return true;
 }

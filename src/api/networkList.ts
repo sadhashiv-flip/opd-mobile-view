@@ -1,6 +1,7 @@
 import { fetchAllPatientAddresses } from "@/api/patientAddress";
 import { DEFAULT_LIST_PAGE_SIZE } from "@/api/listPagination";
 import { patientJson, patientJsonList } from "@/api/patientHttp";
+import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { readSelectedAddress } from "@/constants/selectedAddressStorage";
 
 /** Default map center (Hyderabad area) — override via `localStorage` key {@link NETWORK_LIST_LOCATION_STORAGE_KEY}. */
@@ -191,8 +192,9 @@ function normalizeDoctorRow(raw: unknown, index: number, specialityId: number): 
     num(r.amount) ??
     0;
   const consultationTime = fromSpec.time ?? num(r.consultation_time) ?? null;
-  const imageUrl =
+  const imageRaw =
     str(r.image) ?? str(r.photo) ?? str(r.profile_image) ?? str(r.avatar) ?? str(r.profileImage) ?? null;
+  const imageUrl = resolveProfileImageUrl(imageRaw);
 
   return {
     id,

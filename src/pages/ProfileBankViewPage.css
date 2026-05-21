@@ -10,7 +10,7 @@
 
 .pbv-card__title {
   margin: 0 0 16px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
   font-weight: 700;
   color: #111111;

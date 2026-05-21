@@ -190,7 +190,7 @@
 
 .profile-sub-plan-card__title {
   margin: 0;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 700;
   color: #1565c0;
@@ -647,7 +647,7 @@
   padding: 6px 14px;
   border: none;
   border-radius: 999px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -686,7 +686,7 @@
 
 .profile-sub-plan-card__price {
   margin: 0 0 2px;
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: var(--font-family-app);
   font-size: clamp(11px, calc(22 * 100cqw / 375), calc(22 * 1.12px));
   font-weight: 800;
   color: #0d47a1;
