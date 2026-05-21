@@ -1,0 +1,25 @@
+name: Local Auto Deploy
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull latest code
+        run: |
+          cd C:\Repos\opd-mobile-view
+          git pull origin development
+
+      - name: Install dependencies
+        run: |
+          cd C:\Repos\opd-mobile-view
+          npm install
+
+      - name: Restart React app
+        run: |
+          pm2 restart op-web-app
