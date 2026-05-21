@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Run Deploy Script
         shell: cmd
-        run: D:\deploy.bat
+        run: C:\Repos\deploy
