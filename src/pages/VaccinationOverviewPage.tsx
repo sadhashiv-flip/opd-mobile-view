@@ -7,6 +7,8 @@ import {
   type VaccinationFlowState,
 } from "@/constants/vaccinationFlowStorage";
 import { postVaccineServiceRequest } from "@/api/vaccineService";
+import { buildServiceBookingSuccessState } from "@/constants/bookingSuccessNavigation";
+import { parseServiceBookingResponse } from "@/lib/serviceBookingResponse";
 import { fetchPatientProfile } from "@/api/patientProfile";
 import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddressBar";
 import { VaccinationServiceIcon } from "@/components/vaccination/VaccinationServiceIcon";
@@ -81,7 +83,7 @@ export function VaccinationOverviewPage() {
 
     setBusy(true);
     try {
-      await postVaccineServiceRequest({
+      const response = await postVaccineServiceRequest({
         address_id: addr.id,
         preferred_date_time: cur.preferredDateTime,
         request: cur.selectedServices.map((s) => s.id),
@@ -91,9 +93,25 @@ export function VaccinationOverviewPage() {
         user_id: cur.userId,
         language: "English",
       });
-      toast.success("Booking submitted");
+      const { invoiceId, orderId, message } = parseServiceBookingResponse(response);
+      const vaccineLabel =
+        cur.selectedServices
+          .map((s) => s.name.trim())
+          .filter((n) => n.length > 0)
+          .join(", ") || "Vaccination";
+      const successState = buildServiceBookingSuccessState({
+        kind: "vaccine",
+        memberName: cur.memberName,
+        bookingTypeLabel: vaccineLabel,
+        locationLabel: "Address",
+        locationValue: addr.displayLine?.trim() || "—",
+        schedule: formatVaccineSlotDisplay(cur.preferredDateTime),
+        invoiceId: invoiceId || undefined,
+        orderId: orderId || undefined,
+        message: message || undefined,
+      });
       clearVaccinationFlowState();
-      void navigate(ROUTES.orders);
+      void navigate(ROUTES.bookingSuccess, { replace: true, state: successState });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not submit booking");
     } finally {

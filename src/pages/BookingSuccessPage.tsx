@@ -5,18 +5,17 @@ import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import {
   DEFAULT_BOOKING_SUCCESS_DESCRIPTION,
   DEFAULT_BOOKING_SUCCESS_TITLE,
-  DEFAULT_CONSULT_SUCCESS_SUB_DENTAL,
   DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL,
   DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL,
-  DEFAULT_CONSULT_SUCCESS_SUB_VISION,
   DEFAULT_CONSULT_SUCCESS_SUB_GENERIC_BOOKING,
-  DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS,
   DEFAULT_CONSULT_SUCCESS_TITLE,
   VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB,
   VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
+  buildDefaultServiceBookingSuccessState,
   isBookingSuccessLocationState,
   mergeGenericBookingSuccessState,
   resolveDiagnosticsBookingSuccessCardCopy,
+  type ServiceBookingKind,
 } from "@/constants/bookingSuccessNavigation";
 import { BookingSuccessWithSummary } from "@/components/booking/BookingSuccessWithSummary";
 import successLottie from "@/assets/lotties/success.json";
@@ -27,10 +26,24 @@ const BOOKING_SUCCESS_REDIRECT_MS = 5000;
 function isConsultSuccessPath(pathname: string): boolean {
   return (
     pathname === ROUTES.consultationHospitalBookingSuccess ||
-    pathname === ROUTES.consultationVirtualBookingSuccess ||
-    pathname === ROUTES.dentalBookingSuccess ||
-    matchPath({ path: ROUTES.visionBookingSuccess, end: true }, pathname) != null
+    pathname === ROUTES.consultationVirtualBookingSuccess
   );
+}
+
+function serviceKindFromSuccessPath(
+  pathname: string,
+): ServiceBookingKind | null {
+  if (pathname === ROUTES.dentalBookingSuccess) return "dental";
+  if (matchPath({ path: ROUTES.visionBookingSuccess, end: true }, pathname) != null) {
+    return "vision";
+  }
+  return null;
+}
+
+function visionBookingTypeLabel(visionTypeParam: string | undefined): string {
+  const vt = visionTypeParam?.trim();
+  if (vt === VISION_ROUTE_TYPE.glassesLens) return "Glasses / lens";
+  return "Eye checkup";
 }
 
 /** Lottie + Alright — dedicated consult/dental/vision success URLs only (not `/services/booking-success`). */
@@ -49,7 +62,6 @@ function useSummaryLayout(rawState: unknown): boolean {
 function resolveConsultCopy(
   pathname: string,
   rawState: unknown,
-  visionTypeParam: string | undefined,
 ): Readonly<{ title: string; sub: string }> {
   const s = isBookingSuccessLocationState(rawState) ? rawState : undefined;
   const title = s?.title?.trim() || DEFAULT_CONSULT_SUCCESS_TITLE;
@@ -59,16 +71,6 @@ function resolveConsultCopy(
   }
   if (pathname === ROUTES.consultationVirtualBookingSuccess) {
     return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL };
-  }
-  if (pathname === ROUTES.dentalBookingSuccess) {
-    return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_DENTAL };
-  }
-  if (matchPath({ path: ROUTES.visionBookingSuccess, end: true }, pathname)) {
-    const vt = visionTypeParam?.trim();
-    if (vt === VISION_ROUTE_TYPE.glassesLens) {
-      return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS };
-    }
-    return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_VISION };
   }
   if (pathname === ROUTES.bookingSuccess) {
     return { title, sub: DEFAULT_CONSULT_SUCCESS_SUB_GENERIC_BOOKING };
@@ -87,8 +89,8 @@ export function BookingSuccessPage() {
   const summaryLayout = useSummaryLayout(rawState);
 
   const consultCopy = useMemo(
-    () => resolveConsultCopy(pathname, rawState, visionTypeParam),
-    [pathname, rawState, visionTypeParam],
+    () => resolveConsultCopy(pathname, rawState),
+    [pathname, rawState],
   );
 
   const cardCopy = useMemo(() => {
@@ -118,16 +120,26 @@ export function BookingSuccessPage() {
     };
   }, [diagnosticsTypeParam, pathname, rawState]);
 
-  /** Summary UI: `/services/booking-success` always; diagnostics path when state includes rows / layout summary. */
+  /** Summary UI: generic success, dental/vision URLs, diagnostics when state includes rows. */
   const summaryScreenState = useMemo(() => {
     if (pathname === ROUTES.bookingSuccess) {
       return mergeGenericBookingSuccessState(rawState, cardCopy);
+    }
+    const serviceKind = serviceKindFromSuccessPath(pathname);
+    if (serviceKind) {
+      if (summaryLayout && isBookingSuccessLocationState(rawState)) {
+        return rawState;
+      }
+      return buildDefaultServiceBookingSuccessState(
+        serviceKind,
+        serviceKind === "vision" ? visionBookingTypeLabel(visionTypeParam) : "Dental care",
+      );
     }
     if (summaryLayout && isBookingSuccessLocationState(rawState)) {
       return rawState;
     }
     return null;
-  }, [pathname, rawState, cardCopy, summaryLayout]);
+  }, [pathname, rawState, cardCopy, summaryLayout, visionTypeParam]);
 
   useEffect(() => {
     if (consultLayout || summaryScreenState != null) return;

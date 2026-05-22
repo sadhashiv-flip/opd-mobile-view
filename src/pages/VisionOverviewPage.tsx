@@ -9,6 +9,8 @@ import {
 } from "@/constants/visionBookingStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import { postVisionServiceRequest } from "@/api/visionServiceBooking";
+import { buildServiceBookingSuccessState } from "@/constants/bookingSuccessNavigation";
+import { parseServiceBookingResponse } from "@/lib/serviceBookingResponse";
 import { resolveSelectedAddressLocation, type VisionNetworkService } from "@/api/networkList";
 import {
   fetchVisionServiceSlots,
@@ -374,7 +376,7 @@ export function VisionOverviewPage() {
         end_time: selectedSlotRow.end_time,
       };
 
-      await postVisionServiceRequest(
+      const response = await postVisionServiceRequest(
         isGlasses
           ? {
               booking_type: "store",
@@ -394,7 +396,21 @@ export function VisionOverviewPage() {
               slot: slotPayload,
             },
       );
-      void navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), { replace: true });
+      const { invoiceId, orderId, message } = parseServiceBookingResponse(response);
+      const successState = buildServiceBookingSuccessState({
+        kind: "vision",
+        memberName: member?.name,
+        bookingTypeLabel: isGlasses ? "Glasses / lens" : "Eye checkup",
+        locationValue: clinic.name.trim(),
+        schedule: displayVisionSlot(selectedSlotRow),
+        invoiceId: invoiceId || undefined,
+        orderId: orderId || undefined,
+        message: message || undefined,
+      });
+      void navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), {
+        replace: true,
+        state: successState,
+      });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not complete booking");
     } finally {

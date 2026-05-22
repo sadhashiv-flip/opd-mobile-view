@@ -87,12 +87,99 @@ export const DEFAULT_CONSULT_SUCCESS_SUB_HOSPITAL = "Appointment booked successf
 
 export const DEFAULT_CONSULT_SUCCESS_SUB_VIRTUAL = VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB;
 
-export const DEFAULT_CONSULT_SUCCESS_SUB_DENTAL = "Dental appointment booked successfully.";
+/** patient_app `ServiceBookingSuccessScreen` — vaccine / dental / vision (no payment). */
+export const SERVICE_BOOKING_SUCCESS_TITLE = "Booking successful";
 
-export const DEFAULT_CONSULT_SUCCESS_SUB_VISION = "Eye checkup appointment booked successfully.";
+export const SERVICE_BOOKING_SUCCESS_SUB_VACCINE =
+  "Your vaccination request is confirmed. You can review full details anytime from your orders.";
+
+export const SERVICE_BOOKING_SUCCESS_SUB_DENTAL =
+  "Your dental appointment request is confirmed. You can review full details anytime from your orders.";
+
+export const SERVICE_BOOKING_SUCCESS_SUB_VISION =
+  "Your vision appointment request is confirmed. You can review full details anytime from your orders.";
+
+export const SERVICE_BOOKING_SUMMARY_CARD_TITLE = "Appointment summary";
+
+export type ServiceBookingKind = "vaccine" | "dental" | "vision";
+
+/** Legacy consult-layout sublines — prefer {@link SERVICE_BOOKING_SUCCESS_SUB_DENTAL}. */
+export const DEFAULT_CONSULT_SUCCESS_SUB_DENTAL = SERVICE_BOOKING_SUCCESS_SUB_DENTAL;
+
+export const DEFAULT_CONSULT_SUCCESS_SUB_VISION = SERVICE_BOOKING_SUCCESS_SUB_VISION;
 
 /** Vision booking success subline when `visionType` is `glasses-lens`. */
-export const DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS = "Glasses/Lens appointment booked successfully.";
+export const DEFAULT_CONSULT_SUCCESS_SUB_VISION_GLASSES_LENS = SERVICE_BOOKING_SUCCESS_SUB_VISION;
+
+export function resolveServiceBookingSubtitle(
+  kind: ServiceBookingKind,
+  serverMessage?: string,
+): string {
+  const m = serverMessage?.trim();
+  if (m) return m;
+  switch (kind) {
+    case "vaccine":
+      return SERVICE_BOOKING_SUCCESS_SUB_VACCINE;
+    case "dental":
+      return SERVICE_BOOKING_SUCCESS_SUB_DENTAL;
+    case "vision":
+      return SERVICE_BOOKING_SUCCESS_SUB_VISION;
+    default:
+      return SERVICE_BOOKING_SUCCESS_SUB_VISION;
+  }
+}
+
+/**
+ * Builds `location.state` for {@link BookingSuccessWithSummary} — parity with patient_app
+ * `ServiceBookingSuccessScreen` arguments.
+ */
+export function buildServiceBookingSuccessState(args: {
+  kind: ServiceBookingKind;
+  memberName?: string;
+  bookingTypeLabel: string;
+  locationLabel?: string;
+  locationValue?: string;
+  schedule: string;
+  invoiceId?: string;
+  orderId?: string;
+  message?: string;
+}): BookingSuccessLocationState {
+  const rows: BookingSuccessSummaryRow[] = [];
+  const orderId = args.orderId?.trim();
+  if (orderId) {
+    rows.push({ label: "Order ID", value: `#${orderId.replace(/^#/, "")}` });
+  }
+  const memberName = args.memberName?.trim();
+  if (memberName) rows.push({ label: "Booked for", value: memberName });
+  rows.push({ label: "Service", value: args.bookingTypeLabel.trim() || "Service" });
+  const locLabel = args.locationLabel?.trim() || "Location";
+  rows.push({ label: locLabel, value: args.locationValue?.trim() || "—" });
+  rows.push({ label: "Schedule", value: args.schedule.trim() || "—" });
+
+  const invoiceId = args.invoiceId?.trim();
+
+  return {
+    layout: "summary",
+    title: SERVICE_BOOKING_SUCCESS_TITLE,
+    description: resolveServiceBookingSubtitle(args.kind, args.message),
+    summaryCardTitle: SERVICE_BOOKING_SUMMARY_CARD_TITLE,
+    summaryRows: rows,
+    ...(invoiceId ? { orderDetailCategoryKey: args.kind, orderDetailInvoiceId: invoiceId } : {}),
+  };
+}
+
+/** Minimal summary when navigating to a service success URL without `location.state`. */
+export function buildDefaultServiceBookingSuccessState(
+  kind: ServiceBookingKind,
+  bookingTypeLabel: string,
+): BookingSuccessLocationState {
+  return buildServiceBookingSuccessState({
+    kind,
+    bookingTypeLabel,
+    schedule: "—",
+    locationValue: "—",
+  });
+}
 
 function isSummaryRow(value: unknown): value is BookingSuccessSummaryRow {
   if (value == null || typeof value !== "object" || Array.isArray(value)) return false;

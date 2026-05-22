@@ -11,11 +11,7 @@ import {
   DENTAL_CONFIRM_DIALOG,
   DENTAL_OVERVIEW_IMPORTANT_NOTES,
 } from "@/constants/dentalOverviewCopy";
-import {
-  DEFAULT_CONSULT_SUCCESS_SUB_DENTAL,
-  DEFAULT_CONSULT_SUCCESS_TITLE,
-  type BookingSuccessLocationState,
-} from "@/constants/bookingSuccessNavigation";
+import { buildServiceBookingSuccessState } from "@/constants/bookingSuccessNavigation";
 import type { DentalNetworkClinicRow } from "@/api/networkList";
 import {
   parseDentalBookingInvoiceId,
@@ -287,29 +283,21 @@ export function DentalOverviewPage() {
       const invoiceId = parseDentalBookingInvoiceId(response);
       clearDentalBookingFlowState();
 
-      const successState: BookingSuccessLocationState = {
-        layout: "summary",
-        title: DEFAULT_CONSULT_SUCCESS_TITLE,
-        description: DEFAULT_CONSULT_SUCCESS_SUB_DENTAL,
-        summaryCardTitle: "Appointment details",
-        summaryRows: [
-          { label: "Booked for", value: member?.name?.trim() || "—" },
-          { label: "Service", value: "Dental care" },
-          { label: "Location", value: clinic.name.trim() },
-          {
-            label: "Schedule",
-            value: (() => {
-              const parsed = parsePreferredApiDateTime(pdt);
-              return parsed
-                ? formatDentalSlotDisplay(parsed.day, parsed.slot12h, bookingStrip.monthYearLabel)
-                : pdt;
-            })(),
-          },
-        ],
-        ...(invoiceId
-          ? { orderDetailCategoryKey: "dental", orderDetailInvoiceId: invoiceId }
-          : {}),
-      };
+      const schedule = (() => {
+        const parsed = parsePreferredApiDateTime(pdt);
+        return parsed
+          ? formatDentalSlotDisplay(parsed.day, parsed.slot12h, bookingStrip.monthYearLabel)
+          : pdt;
+      })();
+
+      const successState = buildServiceBookingSuccessState({
+        kind: "dental",
+        memberName: member?.name,
+        bookingTypeLabel: "Dental care",
+        locationValue: clinic.name.trim(),
+        schedule,
+        invoiceId: invoiceId || undefined,
+      });
 
       void navigate(ROUTES.dentalBookingSuccess, { replace: true, state: successState });
     } catch (e) {
