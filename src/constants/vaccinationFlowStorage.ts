@@ -5,9 +5,15 @@ export type VaccinationFlowState = Readonly<{
   memberName: string;
   /** `POST .../request` payload `user_id` — selected member’s numeric user id. */
   userId: number;
+  /** Member age for prescription rule (patient_app `needsPrescription`: age <= 5). */
+  memberAge?: number;
+  /** Primary phone for contact card display. */
+  memberPhone?: string;
   selectedServices: ReadonlyArray<{ id: number; name: string }>;
   /** API format e.g. `2026-04-08 18:30:00` */
   preferredDateTime: string;
+  /** `POST /service/vaccine/request` prescription attachment id when required. */
+  prescriptionAttachmentId?: string;
 }>;
 
 function safeParse(raw: string | null): VaccinationFlowState | null {
@@ -27,6 +33,14 @@ function safeParse(raw: string | null): VaccinationFlowState | null {
           : NaN;
     const preferredDateTime =
       typeof o.preferredDateTime === "string" ? o.preferredDateTime : "";
+    const memberAgeRaw = o.memberAge;
+    const memberAge =
+      typeof memberAgeRaw === "number" && Number.isFinite(memberAgeRaw)
+        ? memberAgeRaw
+        : undefined;
+    const memberPhone = typeof o.memberPhone === "string" ? o.memberPhone : undefined;
+    const prescriptionAttachmentId =
+      typeof o.prescriptionAttachmentId === "string" ? o.prescriptionAttachmentId : undefined;
     const sel = o.selectedServices;
     const selectedServices: { id: number; name: string }[] = [];
     if (Array.isArray(sel)) {
@@ -43,8 +57,11 @@ function safeParse(raw: string | null): VaccinationFlowState | null {
       memberId,
       memberName,
       userId,
+      memberAge,
+      memberPhone,
       selectedServices,
       preferredDateTime,
+      prescriptionAttachmentId,
     };
   } catch {
     return null;

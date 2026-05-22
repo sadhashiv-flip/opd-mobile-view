@@ -1,4 +1,8 @@
-import type { InvoiceDetailModel, LabSubOrderDetailRow } from "@/api/patientInvoices";
+import {
+  isPartnerOrderPayFlowCategory,
+  type InvoiceDetailModel,
+  type LabSubOrderDetailRow,
+} from "@/api/patientInvoices";
 
 /** Vision / dental / vaccine — `ServiceRequestOrderDetailScreen` cancel sheet (not pharmacy). */
 export const SERVICE_REQUEST_ORDER_CATEGORY_KEYS = ["vision", "dental", "vaccine"] as const;
@@ -114,6 +118,33 @@ export function showOfflineConsultationPrescriptionsSection(detail: InvoiceDetai
     detail.isConsultationOrder &&
     detail.consultationPlaceTag === "in_person" &&
     detail.consultationReports.length > 0
+  );
+}
+
+/**
+ * Standalone “Payment Summary” fallback — patient_app order detail screens use
+ * `showInvoiceSection` (Invoice details) instead. Only legacy orders without line items
+ * but with amount fields may still need this block.
+ */
+export function showOrderDetailPaymentSummaryFallback(
+  detail: InvoiceDetailModel | null | undefined,
+): boolean {
+  if (!detail) return false;
+  if (detail.isConsultationOrder) return false;
+  if (isServiceRequestOrderCategory(detail.categoryKey)) return false;
+  if (isPartnerOrderPayFlowCategory(detail.categoryKey)) return false;
+  if (detail.categoryKey === "lab" || detail.categoryKey === "gym") return false;
+  if (detail.categoryKey === "mental_wellness" || detail.categoryKey === "nutrition") {
+    return false;
+  }
+  if (detail.lineItems.length > 0) return false;
+  return (
+    detail.netPayAmount > 0 ||
+    Boolean(detail.discountFormatted) ||
+    Boolean(detail.walletDebitFormatted) ||
+    Boolean(detail.collectionFeeFormatted) ||
+    Boolean(detail.processingFeeFormatted) ||
+    Boolean(detail.deliveryChargesFormatted)
   );
 }
 

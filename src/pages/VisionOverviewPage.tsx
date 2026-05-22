@@ -7,74 +7,80 @@ import {
   writeVisionSelectedSlot,
   type VisionGlassesPrescriptionStored,
 } from "@/constants/visionBookingStorage";
+import {
+  VISION_CONFIRM_DIALOG,
+  VISION_OVERVIEW_IMPORTANT_NOTES_BASE,
+  VISION_OVERVIEW_NOTE_CARRY_PRESCRIPTION,
+  VISION_OVERVIEW_TITLE,
+  VISION_SERVICE_EYE_CHECKUP,
+  VISION_SERVICE_GLASSES_LENS,
+  VISION_SLOT_SHEET_TITLE,
+  VISION_VENDOR_TITLE_EYE,
+  VISION_VENDOR_TITLE_GLASSES,
+} from "@/constants/visionOverviewCopy";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import { postVisionServiceRequest } from "@/api/visionServiceBooking";
 import { buildServiceBookingSuccessState } from "@/constants/bookingSuccessNavigation";
 import { parseServiceBookingResponse } from "@/lib/serviceBookingResponse";
-import { resolveSelectedAddressLocation, type VisionNetworkService } from "@/api/networkList";
-import {
-  fetchVisionServiceSlots,
-  type VisionServiceSlotRow,
-  type VisionServiceSlotsData,
-} from "@/api/visionServiceSlots";
+import type { VisionNetworkService } from "@/api/networkList";
+import type { DentalNetworkClinicRow } from "@/api/networkList";
+import { VISION_NO_SLOTS_AVAILABLE_COPY, type VisionServiceSlotRow } from "@/api/visionServiceSlots";
 import { VisionSlotPicker } from "@/components/vision/VisionSlotPicker";
+import { useVisionSlotsLoader } from "@/hooks/useVisionSlotsLoader";
 import {
-  formatPreferredApiDateTime,
-  formatVaccineSlotDisplay,
-} from "@/components/vaccination/VaccinationSlotPicker";
+  findVisionSlotInPayload,
+  formatVisionSlotScheduleDisplay,
+  visionMonthYearLabelFromDaysList,
+} from "@/lib/visionSlotSelection";
+import {
+  DentalOverviewIconAccessTime,
+  DentalOverviewIconCall,
+  DentalOverviewIconClinic,
+  DentalOverviewIconEdit,
+  DentalOverviewIconEvent,
+  DentalOverviewIconInfo,
+  DentalOverviewIconLocationPin,
+  DentalOverviewIconMedical,
+  DentalOverviewIconPerson,
+} from "@/components/dental/DentalOverviewIcons";
+import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
+import { OverviewSectionCard } from "@/components/overview/OverviewSectionCard";
 import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddressBar";
-import { fetchPatientProfile, resolveProfileImageUrl } from "@/api/patientProfile";
+import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { getAccessToken } from "@/lib/authStorage";
 import { useToast } from "@/hooks/useToast";
 import { generatePath, Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import "./HealthCheckupsPage.css";
-import "./HealthCheckupsOverviewPage.css";
-import "./VaccinationOverviewPage.css";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@/components/address/AddressBottomSheet.css";
 import "@/components/consultation/VirtualAppointmentSlotBottomSheet.css";
-import "@/pages/ConsultationVirtualSlotsPage.css";
-import "./DentalOverviewPage.css";
+import "@/components/overview/OverviewSectionCard.css";
+import "./HealthCheckupsPage.css";
 import "./DentalSlotsPage.css";
+import "./DentalOverviewPage.css";
+import "./VisionOverviewPage.css";
 import "./VisionAddPrescriptionPage.css";
 
-/** Shown in “Added items” for the eye-checkup overview (vision.clinic). */
-const EYE_CHECKUP_SERVICE_NAME = "Eye Checkup";
-const GLASSES_LENS_SERVICE_NAME = "Glasses / Lens";
-
-function findVisionSlotById(data: VisionServiceSlotsData, slotId: string): VisionServiceSlotRow | null {
-  const all = [...data.slots.morning, ...data.slots.afternoon, ...data.slots.evening];
-  return all.find((s) => s.slot_id === slotId) ?? null;
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
 }
 
-function displayVisionSlot(row: VisionServiceSlotRow): string {
-  const parts = row.slot_date.trim().split("-").map(Number);
-  const y = parts[0];
-  const mo = parts[1];
-  const d = parts[2];
-  if (y == null || mo == null || d == null) {
-    return `${row.slot_date} | ${row.start_time}`;
-  }
-  const day = new Date(y, mo - 1, d);
-  const api = formatPreferredApiDateTime(day, row.start_time);
-  return formatVaccineSlotDisplay(api);
+function formatMemberPhoneDisplay(phone: string | null | undefined): string {
+  const raw = phone?.trim() ?? "";
+  if (!raw) return "—";
+  if (raw.startsWith("+")) return raw;
+  const d = digitsOnly(raw);
+  if (d.length === 10) return `+91 ${d}`;
+  if (d.length === 12 && d.startsWith("91")) return `+${d}`;
+  return raw;
 }
 
-function formatGlassesRxUploadedAt(iso: string): string {
-  if (!iso.trim()) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function clinicAddressLine(clinic: DentalNetworkClinicRow): string {
+  return [clinic.practiceaddress, clinic.city]
+    .map((s) => s?.trim())
+    .filter((s) => s && s.length > 0)
+    .join(", ");
 }
 
-/** Same rules as add-prescription: `path` + `type` + title extension → preview URL and kind. */
 function rxPreviewRole(
   rx: VisionGlassesPrescriptionStored,
 ): Readonly<{ kind: "image" | "pdf" | "file"; src: string }> | null {
@@ -98,36 +104,27 @@ function rxPreviewRole(
   return { kind: "file", src: absolute };
 }
 
-function OverviewRxThumb(props: Readonly<{ rx: VisionGlassesPrescriptionStored }>) {
+function RxThumbButton(props: Readonly<{ rx: VisionGlassesPrescriptionStored; onPreview: () => void }>) {
   const role = rxPreviewRole(props.rx);
-  if (role?.kind === "image") {
-    return <img src={role.src} alt="" className="dental-overview__rx-thumb-img" />;
-  }
-  if (role?.kind === "pdf") {
-    return <span className="dental-overview__rx-thumb-pdf">PDF</span>;
-  }
-  if (role?.kind === "file") {
-    return <span className="dental-overview__rx-thumb-file">FILE</span>;
-  }
+  const title = props.rx.title.trim() || props.rx.attachmentId;
   return (
-    <span className="dental-overview__rx-thumb-placeholder" aria-hidden>
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M9 12h6m-6 4h3m5-11V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2v-4"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M17 8l3-3m0 0v4m0-4h-4"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
+    <button
+      type="button"
+      className="vision-overview-page__rx-thumb-btn"
+      aria-label={`Preview ${title}`}
+      disabled={!role}
+      onClick={() => role && props.onPreview()}
+    >
+      {role?.kind === "image" ? (
+        <img src={role.src} alt="" />
+      ) : role?.kind === "pdf" ? (
+        <span className="vision-overview-page__rx-thumb-pdf">PDF</span>
+      ) : role?.kind === "file" ? (
+        <span className="vision-overview-page__rx-thumb-file">FILE</span>
+      ) : (
+        <span className="vision-overview-page__rx-thumb-file">—</span>
+      )}
+    </button>
   );
 }
 
@@ -160,13 +157,13 @@ function OverviewRxPreviewBody(props: Readonly<{ rx: VisionGlassesPrescriptionSt
 export function VisionOverviewPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const confirmDialog = useAppConfirm();
   const params = useParams<{ visionType: string }>();
   const visionType = params.visionType?.trim() ?? "";
   const location = useLocation();
 
   const [altPhone, setAltPhone] = useState("");
   const [busy, setBusy] = useState(false);
-  const [primaryPhone, setPrimaryPhone] = useState<string | null>(null);
   const [previewAttachmentId, setPreviewAttachmentId] = useState<string | null>(null);
 
   const [selectedSlotRow, setSelectedSlotRow] = useState<VisionServiceSlotRow | null>(() =>
@@ -174,36 +171,68 @@ export function VisionOverviewPage() {
   );
 
   const [slotSheetOpen, setSlotSheetOpen] = useState(false);
-  const [slotSheetPayload, setSlotSheetPayload] = useState<VisionServiceSlotsData | null>(null);
-  const [slotSheetLoad, setSlotSheetLoad] = useState<"idle" | "loading" | "error" | "ok">("idle");
-  const [slotSheetError, setSlotSheetError] = useState<string | null>(null);
-  const [sheetIsoDate, setSheetIsoDate] = useState("");
-  const [sheetSlotId, setSheetSlotId] = useState<string | null>(null);
+  const slotSnapshotRef = useRef<VisionServiceSlotRow | null>(null);
+
+  const isEye = visionType === VISION_ROUTE_TYPE.eyeCheckup;
+  const isGlasses = visionType === VISION_ROUTE_TYPE.glassesLens;
 
   const clinic = useMemo(() => readVisionSelectedClinic(), []);
   const member = useMemo(() => readDiagnosticsSelectedMembersSnapshots()[0] ?? null, []);
 
-  const slotDisplay = useMemo(
-    () => (selectedSlotRow ? displayVisionSlot(selectedSlotRow) : ""),
+  const apiService: VisionNetworkService | null = isGlasses ? "vision.store" : isEye ? "vision.clinic" : null;
+
+  const slotSheetRestore = useMemo(
+    () =>
+      selectedSlotRow
+        ? { slotDate: selectedSlotRow.slot_date, slotId: selectedSlotRow.slot_id }
+        : null,
     [selectedSlotRow],
   );
 
-  const isEye = visionType === VISION_ROUTE_TYPE.eyeCheckup;
-  const isGlasses = visionType === VISION_ROUTE_TYPE.glassesLens;
+  const slotSheetLoader = useVisionSlotsLoader({
+    service: apiService,
+    networkId: clinic?.networkEntityId?.trim() ?? null,
+    enabled: slotSheetOpen && apiService != null && Boolean(clinic?.networkEntityId?.trim()),
+    restoreSelection: slotSheetRestore,
+  });
+
+  const overviewMonthLabel = useMemo(
+    () => visionMonthYearLabelFromDaysList(selectedSlotRow ? [selectedSlotRow.slot_date] : []),
+    [selectedSlotRow],
+  );
+
+  const scheduleDisplay = useMemo(() => {
+    if (!selectedSlotRow) return "Select date and time";
+    return formatVisionSlotScheduleDisplay(
+      selectedSlotRow.slot_date,
+      selectedSlotRow.start_time,
+      overviewMonthLabel,
+    );
+  }, [selectedSlotRow, overviewMonthLabel]);
 
   const glassesPrescriptions = useMemo(
     () => (isGlasses ? readVisionGlassesPrescriptions() : []),
     [isGlasses, location.key, location.pathname],
   );
-  const serviceLabel = isGlasses ? GLASSES_LENS_SERVICE_NAME : EYE_CHECKUP_SERVICE_NAME;
+
+  const importantNotes = useMemo(() => {
+    const notes: string[] = [...VISION_OVERVIEW_IMPORTANT_NOTES_BASE];
+    if (isGlasses) notes.push(VISION_OVERVIEW_NOTE_CARRY_PRESCRIPTION);
+    return notes;
+  }, [isGlasses]);
+
   const backTo = isGlasses
     ? generatePath(ROUTES.visionAddPrescription, { visionType })
     : generatePath(ROUTES.visionSlots, { visionType });
 
+  const vendorTitle = isEye ? VISION_VENDOR_TITLE_EYE : VISION_VENDOR_TITLE_GLASSES;
+  const serviceLabel = isEye ? VISION_SERVICE_EYE_CHECKUP : VISION_SERVICE_GLASSES_LENS;
+  const clinicAddr = clinic ? clinicAddressLine(clinic) : "";
+  const displayPhone = formatMemberPhoneDisplay(member?.phone);
+  const patientLine = member?.name?.trim() ? `For ${member.name.trim()}` : "For —";
+
   useEffect(() => {
-    if (!isEye && !isGlasses) {
-      return;
-    }
+    if (!isEye && !isGlasses) return;
     if (!member) {
       toast.error("Select a member first.");
       void navigate(generatePath(ROUTES.visionSelectPeople, { visionType }), { replace: true });
@@ -224,17 +253,6 @@ export function VisionOverviewPage() {
   }, [clinic, isEye, isGlasses, member, selectedSlotRow, visionType, navigate, toast]);
 
   useEffect(() => {
-    void (async () => {
-      try {
-        const p = await fetchPatientProfile();
-        setPrimaryPhone(p.phone);
-      } catch {
-        setPrimaryPhone(null);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
     if (!previewAttachmentId) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -248,93 +266,70 @@ export function VisionOverviewPage() {
     };
   }, [previewAttachmentId]);
 
+  const openSlotSheet = useCallback(() => {
+    slotSnapshotRef.current = selectedSlotRow;
+    setSlotSheetOpen(true);
+  }, [selectedSlotRow]);
+
+  const closeSlotSheet = useCallback((revert: boolean) => {
+    if (revert && slotSnapshotRef.current) {
+      setSelectedSlotRow(slotSnapshotRef.current);
+      writeVisionSelectedSlot(slotSnapshotRef.current);
+    }
+    setSlotSheetOpen(false);
+  }, []);
+
   useEffect(() => {
     if (!slotSheetOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSlotSheetOpen(false);
+      if (e.key === "Escape") closeSlotSheet(true);
     };
     globalThis.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
       globalThis.removeEventListener("keydown", onKey);
     };
-  }, [slotSheetOpen]);
-
-  useEffect(() => {
-    if (!slotSheetOpen) return;
-    if ((!isEye && !isGlasses) || !clinic?.networkEntityId?.trim()) return;
-    const service: VisionNetworkService = isGlasses ? "vision.store" : "vision.clinic";
-    let cancelled = false;
-    const networkId = clinic.networkEntityId.trim();
-
-    void (async () => {
-      setSlotSheetLoad("loading");
-      setSlotSheetError(null);
-      setSlotSheetPayload(null);
-      try {
-        const loc = await resolveSelectedAddressLocation();
-        const data = await fetchVisionServiceSlots({
-          location: loc,
-          service,
-          networkId,
-        });
-        if (cancelled) return;
-        setSlotSheetPayload(data);
-        const firstDay = data.daysList[0] ?? "";
-        const cur = selectedSlotRow;
-        if (cur && data.daysList.includes(cur.slot_date)) {
-          setSheetIsoDate(cur.slot_date);
-          setSheetSlotId(cur.slot_id);
-        } else {
-          setSheetIsoDate(firstDay);
-          setSheetSlotId(null);
-        }
-        setSlotSheetLoad("ok");
-      } catch (e) {
-        if (cancelled) return;
-        setSlotSheetPayload(null);
-        setSlotSheetLoad("error");
-        const msg = e instanceof Error ? e.message : "Could not load slots";
-        setSlotSheetError(msg);
-        toast.error(msg);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [slotSheetOpen, isEye, isGlasses, clinic, selectedSlotRow, toast]);
+  }, [slotSheetOpen, closeSlotSheet]);
 
   const sheetCanApply = useMemo(() => {
-    if (!slotSheetPayload || !sheetSlotId || !sheetIsoDate) return false;
-    const all = [
-      ...slotSheetPayload.slots.morning,
-      ...slotSheetPayload.slots.afternoon,
-      ...slotSheetPayload.slots.evening,
-    ];
-    return all.some((r) => r.slot_id === sheetSlotId && r.slot_date === sheetIsoDate);
-  }, [slotSheetPayload, sheetSlotId, sheetIsoDate]);
+    if (!slotSheetLoader.payload || !slotSheetLoader.selectedSlotId) return false;
+    return Boolean(
+      findVisionSlotInPayload(slotSheetLoader.payload, slotSheetLoader.selectedSlotId),
+    );
+  }, [slotSheetLoader.payload, slotSheetLoader.selectedSlotId]);
+
+  const sheetActiveIsoDate = useMemo(() => {
+    const days = slotSheetLoader.payload?.daysList ?? [];
+    if (days.length === 0) return "";
+    if (
+      slotSheetLoader.selectedIsoDate &&
+      days.includes(slotSheetLoader.selectedIsoDate)
+    ) {
+      return slotSheetLoader.selectedIsoDate;
+    }
+    return days[0] ?? "";
+  }, [slotSheetLoader.payload, slotSheetLoader.selectedIsoDate]);
 
   const applySlotSheet = useCallback(() => {
-    if (!slotSheetPayload || !sheetSlotId || !sheetCanApply) return;
-    const row = findVisionSlotById(slotSheetPayload, sheetSlotId);
+    if (!slotSheetLoader.payload || !slotSheetLoader.selectedSlotId || !sheetCanApply) return;
+    const row = findVisionSlotInPayload(
+      slotSheetLoader.payload,
+      slotSheetLoader.selectedSlotId,
+    );
     if (!row) return;
     writeVisionSelectedSlot(row);
     setSelectedSlotRow(row);
-    setSlotSheetOpen(false);
-  }, [slotSheetPayload, sheetSlotId, sheetCanApply]);
-
-  const displayPhone = primaryPhone ?? "—";
-  const patientLine = member?.name?.trim() ? `For ${member.name.trim()}` : "For —";
+    closeSlotSheet(false);
+  }, [slotSheetLoader.payload, slotSheetLoader.selectedSlotId, sheetCanApply, closeSlotSheet]);
 
   const previewRx = previewAttachmentId
     ? glassesPrescriptions.find((r) => r.attachmentId === previewAttachmentId) ?? null
     : null;
   const previewTitle = previewRx?.title.trim() || previewRx?.attachmentId || "";
 
-  const onConfirm = useCallback(async () => {
+  const submitBooking = useCallback(async () => {
     const addr = readSelectedAddress();
     if (!addr?.id?.trim()) {
       toast.error("Choose an address.");
@@ -401,8 +396,12 @@ export function VisionOverviewPage() {
         kind: "vision",
         memberName: member?.name,
         bookingTypeLabel: isGlasses ? "Glasses / lens" : "Eye checkup",
-        locationValue: clinic.name.trim(),
-        schedule: displayVisionSlot(selectedSlotRow),
+        locationValue: clinic!.name.trim(),
+        schedule: formatVisionSlotScheduleDisplay(
+          selectedSlotRow.slot_date,
+          selectedSlotRow.start_time,
+          overviewMonthLabel,
+        ),
         invoiceId: invoiceId || undefined,
         orderId: orderId || undefined,
         message: message || undefined,
@@ -416,7 +415,17 @@ export function VisionOverviewPage() {
     } finally {
       setBusy(false);
     }
-  }, [clinic, isGlasses, member, navigate, selectedSlotRow, toast, visionType]);
+  }, [clinic, isGlasses, member, navigate, overviewMonthLabel, selectedSlotRow, toast, visionType]);
+
+  const onConfirm = useCallback(async () => {
+    const ok = await confirmDialog({
+      title: VISION_CONFIRM_DIALOG.title,
+      message: VISION_CONFIRM_DIALOG.message,
+      confirmLabel: VISION_CONFIRM_DIALOG.confirmLabel,
+      cancelLabel: VISION_CONFIRM_DIALOG.cancelLabel,
+    });
+    if (ok) void submitBooking();
+  }, [confirmDialog, submitBooking]);
 
   if (!isEye && !isGlasses) {
     return <Navigate to={ROUTES.dashboard} replace />;
@@ -427,13 +436,16 @@ export function VisionOverviewPage() {
   }
 
   return (
-    <div className="hc-page dental-slots-page dental-overview">
-      <header className="hco-top">
-        <Link
-          to={backTo}
-          className="hco-back"
-          aria-label="Back"
-        >
+    <div className="dental-overview-page">
+      {busy ? (
+        <div className="dental-overview-page__loader" role="status" aria-live="polite" aria-busy="true">
+          <span className="dental-overview-page__loader-spin" aria-hidden />
+          <span className="dental-overview-page__loader-text">Booking…</span>
+        </div>
+      ) : null}
+
+      <header className="dental-overview-page__top">
+        <Link to={backTo} className="dental-overview-page__back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -444,140 +456,117 @@ export function VisionOverviewPage() {
             />
           </svg>
         </Link>
-        <h1 className="hco-title">Vision Overview</h1>
-        <span className="hco-top__balance" aria-hidden />
+        <h1 className="dental-overview-page__title">{VISION_OVERVIEW_TITLE}</h1>
+        <span className="dental-overview-page__top-spacer" aria-hidden />
       </header>
 
-      <main className="hc-main dental-slots-page__main dental-overview__main">
-        <div className="hco-main__content dental-overview__scroll">
+      <main className="dental-overview-page__main">
+        <div className="dental-overview-page__scroll">
           <VaccinationAddressBar />
 
-          <section className="dental-overview__clinic">
-            <h2 className="dental-overview__clinic-name">{clinic.name}</h2>
-            <p className="dental-overview__clinic-addr">{clinic.practiceaddress}</p>
-          </section>
+          <OverviewSectionCard title={vendorTitle} icon={<DentalOverviewIconClinic />}>
+            <p className="dental-overview-page__clinic-name">{clinic.name}</p>
+            {clinicAddr ? (
+              <p className="dental-overview-page__clinic-addr">
+                <DentalOverviewIconLocationPin />
+                {clinicAddr}
+              </p>
+            ) : null}
+          </OverviewSectionCard>
 
-          <div className="hco-subhead">
-            <span className="hco-subhead__title">Added Items (1)</span>
-          </div>
-          <p className="dental-overview__service">{serviceLabel}</p>
-          <p className="dental-overview__for">{patientLine}</p>
+          <OverviewSectionCard title="Added Items" icon={<DentalOverviewIconMedical />} trailing="(1)">
+            <p className="dental-overview-page__service">{serviceLabel}</p>
+            <p className="dental-overview-page__for">
+              <DentalOverviewIconPerson />
+              {patientLine}
+            </p>
+          </OverviewSectionCard>
 
-          <section className="hco-block">
-            <div className="hco-label">Phone number: {displayPhone}</div>
-            <div className="hco-help">Booking related updates will be sent on this number</div>
-          </section>
-
-          <section className="hco-block">
-            <div className="hco-label">Alternate Phone number</div>
-            <div className="hco-alt">
-              <span className="hco-alt__cc">+91</span>
+          <OverviewSectionCard title="Contact Details" icon={<DentalOverviewIconCall />}>
+            <p className="dental-overview-page__phone-line">
+              <span className="dental-overview-page__phone-k">Phone number: </span>
+              <span className="dental-overview-page__phone-v">{displayPhone}</span>
+            </p>
+            <p className="dental-overview-page__phone-note">
+              Booking related updates will be sent on this number
+            </p>
+            <label className="dental-overview-page__alt-label" htmlFor="vision-alt-phone">
+              Alternate Phone number
+            </label>
+            <div className="dental-overview-page__alt">
+              <span className="dental-overview-page__alt-cc">+91</span>
               <input
-                className="hco-alt__input"
+                id="vision-alt-phone"
+                className="dental-overview-page__alt-input"
                 placeholder="Enter your alternate number here"
                 inputMode="numeric"
                 autoComplete="tel"
+                maxLength={10}
                 value={altPhone}
-                onChange={(e) => setAltPhone(e.target.value)}
+                onChange={(e) => setAltPhone(digitsOnly(e.target.value).slice(0, 10))}
               />
             </div>
-          </section>
+          </OverviewSectionCard>
 
-          <section className="hco-block">
-            <div className="hco-label">Date and time</div>
-            <div className="hco-dt">
-              <span className="hco-dt__value">{slotDisplay}</span>
-              <button
-                type="button"
-                className="hco-dt__edit"
-                aria-label="Edit date and time"
-                onClick={() => setSlotSheetOpen(true)}
-              >
+          <OverviewSectionCard title="Date and time" icon={<DentalOverviewIconEvent />}>
+            <button
+              type="button"
+              className="dental-overview-page__dt"
+              onClick={openSlotSheet}
+              aria-label="Edit date and time"
+            >
+              <DentalOverviewIconAccessTime />
+              <span className="dental-overview-page__dt-value">{scheduleDisplay}</span>
+              <DentalOverviewIconEdit />
+            </button>
+          </OverviewSectionCard>
+
+          {isGlasses && glassesPrescriptions.length > 0 ? (
+            <OverviewSectionCard
+              title="Uploaded Prescriptions"
+              icon={
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
-                    d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4.5a2.1 2.1 0 0 0-3 0L3 15v5z"
-                    stroke="#1A73E8"
-                    strokeWidth="2"
+                    d="M9 12h6m-6 4h3m5-11V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2v-4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
                     strokeLinejoin="round"
                   />
                 </svg>
-              </button>
-            </div>
-          </section>
-
-          {isGlasses && glassesPrescriptions.length > 0 ? (
-            <section className="hco-block dental-overview__rx" aria-labelledby="vision-overview-rx-heading">
-              <div className="hco-label" id="vision-overview-rx-heading">
-                Uploaded Prescriptions
+              }
+              trailing={`(${glassesPrescriptions.length})`}
+            >
+              <div className="vision-overview-page__rx-wrap">
+                {glassesPrescriptions.map((rx) => (
+                  <RxThumbButton
+                    key={rx.attachmentId}
+                    rx={rx}
+                    onPreview={() => setPreviewAttachmentId(rx.attachmentId)}
+                  />
+                ))}
               </div>
-              <ul className="dental-overview__rx-list">
-                {glassesPrescriptions.map((rx) => {
-                  const title = rx.title.trim() || rx.attachmentId;
-                  const short = title.length > 42 ? `${title.slice(0, 40)}…` : title;
-                  const canPreview = Boolean(rxPreviewRole(rx));
-                  return (
-                    <li key={rx.attachmentId} className="dental-overview__rx-item">
-                      <div className="dental-overview__rx-item-inner">
-                        <div className="dental-overview__rx-thumb">
-                          <OverviewRxThumb rx={rx} />
-                        </div>
-                        <div className="dental-overview__rx-text">
-                          <span className="dental-overview__rx-name" title={title}>
-                            {short}
-                          </span>
-                          <span className="dental-overview__rx-time">
-                            {formatGlassesRxUploadedAt(rx.uploadedAt)}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="dental-overview__rx-preview-btn"
-                          aria-label={`Preview ${title}`}
-                          disabled={!canPreview}
-                          onClick={() => canPreview && setPreviewAttachmentId(rx.attachmentId)}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <path
-                              d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7z"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                              strokeLinejoin="round"
-                            />
-                            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+            </OverviewSectionCard>
           ) : null}
 
-          <section className="hco-totals">
-            <div className="hco-totals__row">
-              <span className="hco-totals__k">Total MRP</span>
-              <span className="hco-totals__v">₹ 0</span>
-            </div>
-            <div className="hco-totals__row hco-totals__muted dental-overview__wallet-row">
-              <span className="hco-totals__k">From Wallet</span>
-              <span className="hco-totals__v">₹ 0</span>
-            </div>
-            <div className="hco-totals__row hco-totals__strong">
-              <span className="hco-totals__k">Net Pay</span>
-              <span className="hco-totals__v">₹ 0</span>
-            </div>
+          <section className="dental-overview-page__notes" aria-label="Important Notes">
+            <header className="dental-overview-page__notes-head">
+              <DentalOverviewIconInfo />
+              <h2 className="dental-overview-page__notes-title">Important Notes</h2>
+            </header>
+            <ul className="dental-overview-page__notes-list">
+              {importantNotes.map((note) => (
+                <li key={note} className="dental-overview-page__notes-item">
+                  {note}
+                </li>
+              ))}
+            </ul>
           </section>
-
-          <div className="hco-remarks dental-overview__remarks">
-            <div className="hco-remarks__k">Remarks :</div>
-            <div className="hco-remarks__v">Order cannot be cancelled once confirmed</div>
-          </div>
         </div>
       </main>
 
-      <footer className="hc-footer dental-overview__footer">
-        <button type="button" className="bottom-continue" disabled={busy} onClick={onConfirm}>
+      <footer className="hc-footer dental-overview-page__footer mobile-frame-fixed-footer">
+        <button type="button" className="bottom-continue" disabled={busy} onClick={() => void onConfirm()}>
           {busy ? "Submitting…" : "Confirm"}
         </button>
       </footer>
@@ -587,25 +576,22 @@ export function VisionOverviewPage() {
           className="addr-sheet-dialog"
           open
           aria-modal="true"
-          aria-labelledby="vo-vision-slot-sheet-title"
+          aria-labelledby="vision-overview-slot-sheet-title"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setSlotSheetOpen(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setSlotSheetOpen(false);
+            if (e.target === e.currentTarget) closeSlotSheet(true);
           }}
         >
           <div className="vas-cvsl-sheet">
             <div className="cvsl-page vas-cvsl-sheet__inner">
               <header className="cvsl-top vas-cvsl-top">
-                <h1 id="vo-vision-slot-sheet-title" className="cvsl-title">
-                  Select Your Vision Slots
+                <h1 id="vision-overview-slot-sheet-title" className="cvsl-title">
+                  {VISION_SLOT_SHEET_TITLE}
                 </h1>
                 <button
                   type="button"
                   className="addr-sheet__close"
                   aria-label="Close"
-                  onClick={() => setSlotSheetOpen(false)}
+                  onClick={() => closeSlotSheet(true)}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path
@@ -619,29 +605,35 @@ export function VisionOverviewPage() {
               </header>
 
               <main className="cvsl-main">
-                {slotSheetLoad === "loading" ? (
+                {slotSheetLoader.isFullScreenLoading ? (
                   <div className="cvsl-msg" aria-busy="true">
                     Loading slots…
                   </div>
                 ) : null}
-                {slotSheetLoad === "error" && slotSheetError ? (
+                {slotSheetLoader.phase === "error" && slotSheetLoader.errorMsg ? (
                   <div className="cvsl-msg cvsl-msg--err" role="alert">
-                    {slotSheetError}
+                    {slotSheetLoader.errorMsg}
                   </div>
                 ) : null}
-                {slotSheetLoad === "ok" && slotSheetPayload && slotSheetPayload.daysList.length === 0 ? (
+                {slotSheetLoader.phase === "ready" &&
+                slotSheetLoader.payload &&
+                slotSheetLoader.payload.daysList.length === 0 ? (
                   <div className="cvsl-msg" role="status">
-                    No available days for booking.
+                    {VISION_NO_SLOTS_AVAILABLE_COPY}
                   </div>
                 ) : null}
-                {slotSheetLoad === "ok" && slotSheetPayload && slotSheetPayload.daysList.length > 0 ? (
+                {slotSheetLoader.phase === "ready" &&
+                slotSheetLoader.payload &&
+                slotSheetLoader.payload.daysList.length > 0 ? (
                   <VisionSlotPicker
-                    daysList={slotSheetPayload.daysList}
-                    slots={slotSheetPayload.slots}
-                    selectedIsoDate={sheetIsoDate || slotSheetPayload.daysList[0]!}
-                    onSelectIsoDate={setSheetIsoDate}
-                    selectedSlotId={sheetSlotId}
-                    onSelectSlotId={setSheetSlotId}
+                    daysList={slotSheetLoader.payload.daysList}
+                    slots={slotSheetLoader.payload.slots}
+                    monthYearLabel={slotSheetLoader.monthYearLabel}
+                    selectedIsoDate={sheetActiveIsoDate}
+                    onSelectIsoDate={slotSheetLoader.onSelectIsoDate}
+                    selectedSlotId={slotSheetLoader.selectedSlotId}
+                    onSelectSlotId={slotSheetLoader.onSelectSlotId}
+                    hideForLoading={slotSheetLoader.isFullScreenLoading}
                   />
                 ) : null}
               </main>
@@ -653,7 +645,7 @@ export function VisionOverviewPage() {
                   disabled={!sheetCanApply}
                   onClick={applySlotSheet}
                 >
-                  Continue
+                  Confirm
                 </button>
               </footer>
             </div>

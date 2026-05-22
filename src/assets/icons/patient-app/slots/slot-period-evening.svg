@@ -1,0 +1,14 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <!-- patient_app CommonSlotSelector: Icons.wb_twilight_outlined (evening  sun below horizon) -->
+  <path d="M4 14H20" stroke="#FF541E" stroke-width="2" stroke-linecap="round"/>
+  <path
+    d="M12 18C13.6569 18 15 16.6569 15 15C15 13.3431 13.6569 12 12 12C10.3431 12 9 13.3431 9 15C9 16.6569 10.3431 18 12 18Z"
+    fill="#FF541E"
+  />
+  <path
+    d="M8.5 16.5C9.5 17.5 10.7 18 12 18C13.3 18 14.5 17.5 15.5 16.5"
+    stroke="#FF541E"
+    stroke-width="1.5"
+    stroke-linecap="round"
+  />
+</svg>

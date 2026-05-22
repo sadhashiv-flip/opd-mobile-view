@@ -1,24 +1,42 @@
-import morningIcon from "@/assets/icons/patient-app/slots/slot-period-morning.svg";
-import twilightIcon from "@/assets/icons/patient-app/slots/slot-period-twilight.svg";
+import "./slotPeriodGlyphs.css";
 
 export type SlotPeriod = "morning" | "afternoon" | "evening";
 
-const PERIOD_ICON_SRC: Record<SlotPeriod, string> = {
-  morning: morningIcon,
-  afternoon: twilightIcon,
-  evening: twilightIcon,
+const PERIOD_GLYPH: Record<SlotPeriod, Readonly<{ char: string; pm: boolean }>> = {
+  morning: { char: "☀", pm: false },
+  afternoon: { char: "✷", pm: true },
+  evening: { char: "☾", pm: true },
 };
 
-/** Period icons aligned with patient_app `CommonSlotSelector` (wb_sunny / wb_twilight). */
-export function SlotPeriodIcon({ period }: Readonly<{ period: SlotPeriod }>) {
+const PERIOD_LABEL: Record<SlotPeriod, string> = {
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+};
+
+/** ☀ / ✷ / ☾ — shared across vision, dental, vaccine, consultation, diagnostics slots. */
+export function SlotPeriodGlyph({ period }: Readonly<{ period: SlotPeriod }>) {
+  const { char, pm } = PERIOD_GLYPH[period];
   return (
-    <img
-      src={PERIOD_ICON_SRC[period]}
-      alt=""
-      width={18}
-      height={18}
-      className="vac-slot-pick__sun"
-      draggable={false}
-    />
+    <span className={pm ? "cas-sun cas-sun--pm" : "cas-sun"} aria-hidden="true">
+      {char}
+    </span>
   );
+}
+
+/** `cas-section__head` row with glyph + label (diagnostics / consultation layout). */
+export function SlotPeriodSectionHead(
+  props: Readonly<{ period: SlotPeriod; label?: string }>,
+) {
+  return (
+    <div className="cas-section__head">
+      <SlotPeriodGlyph period={props.period} />
+      <span>{props.label ?? PERIOD_LABEL[props.period]}</span>
+    </div>
+  );
+}
+
+/** Alias for use inside `vac-slot-pick__group-head`. */
+export function SlotPeriodIcon({ period }: Readonly<{ period: SlotPeriod }>) {
+  return <SlotPeriodGlyph period={period} />;
 }

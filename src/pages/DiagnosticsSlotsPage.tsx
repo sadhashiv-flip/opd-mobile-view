@@ -17,6 +17,7 @@ import { fetchDiagnosticSlots, type DiagnosticSlotPick } from "@/api/patientDiag
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HeaderTexts } from "@/constants/HeaderTexts";
+import { SlotPeriodSectionHead } from "@/components/slots/SlotPeriodIcon";
 import { useToast } from "@/hooks/useToast";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
@@ -443,12 +444,7 @@ export function DiagnosticsSlotsPage() {
         ) : (
           <>
             <section className="cas-section">
-              <div className="cas-section__head">
-                <span className="cas-sun" aria-hidden="true">
-                  ☀
-                </span>
-                <span>Morning</span>
-              </div>
+              <SlotPeriodSectionHead period="morning" />
               <div className={slotsGridClass} role="radiogroup" aria-label="Morning slots">
                 {labMorning.length === 0 && !labSlotLoading && isLabTests ? (
                   <span className="cas-note">No morning slots</span>
@@ -473,12 +469,7 @@ export function DiagnosticsSlotsPage() {
             </section>
 
             <section className="cas-section">
-              <div className="cas-section__head">
-                <span className="cas-sun cas-sun--pm" aria-hidden="true">
-                  ✷
-                </span>
-                <span>Afternoon</span>
-              </div>
+              <SlotPeriodSectionHead period="afternoon" />
               <div className={slotsGridClass} role="radiogroup" aria-label="Afternoon slots">
                 {labAfternoon.length === 0 && !labSlotLoading && isLabTests ? (
                   <span className="cas-note">No afternoon slots</span>
@@ -503,12 +494,7 @@ export function DiagnosticsSlotsPage() {
             </section>
 
             <section className="cas-section">
-              <div className="cas-section__head">
-                <span className="cas-sun cas-sun--pm" aria-hidden="true">
-                  ☾
-                </span>
-                <span>Evening</span>
-              </div>
+              <SlotPeriodSectionHead period="evening" />
               <div className={slotsGridClass} role="radiogroup" aria-label="Evening slots">
                 {labEvening.length === 0 && !labSlotLoading && isLabTests ? (
                   <span className="cas-note">No evening slots</span>

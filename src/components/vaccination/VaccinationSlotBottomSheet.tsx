@@ -6,9 +6,8 @@ import {
 } from "@/components/vaccination/VaccinationSlotPicker";
 import {
   firstDayWithBookableVaccinationSlots,
-  getVaccinationBookingDates,
+  getVaccinationBookingDays,
   sameCalendarDay,
-  VACCINATION_BOOKING_DAY_COUNT,
 } from "@/components/vaccination/vaccinationSlotRules";
 import "@/components/address/AddressBottomSheet.css";
 
@@ -26,14 +25,12 @@ export function VaccinationSlotBottomSheet({
   preferredDateTime,
   onApplied,
 }: VaccinationSlotBottomSheetProps) {
-  const bookingDates = useMemo(
-    () => getVaccinationBookingDates(VACCINATION_BOOKING_DAY_COUNT),
-    [],
-  );
+  const dayStrip = useMemo(() => getVaccinationBookingDays(), []);
+  const bookingDates = dayStrip.dates;
+
   const [day, setDay] = useState(() =>
     firstDayWithBookableVaccinationSlots(bookingDates, new Date()),
   );
-
   const [slot, setSlot] = useState<string | null>(null);
 
   useEffect(() => {

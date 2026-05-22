@@ -1,27 +1,275 @@
-/* Vision — add prescription: pharmacy-aligned grid + full preview */
+/* patient_app `VisionPrescriptionScreen` */
 
-/* Tap target over thumb opens modal preview (sits under corner remove + ok badges). */
-.ph-file-thumb__open {
-  position: absolute;
-  inset: 0;
+.vap-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: #ffffff;
+  color: #111111;
+}
+
+.vap-page__top {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 8px 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.vap-page__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: none;
+  color: #111111;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.vap-page__back:active {
+  opacity: 0.65;
+}
+
+.vap-page__title {
   margin: 0;
+  font-family: var(--font-family-app);
+  font-size: clamp(1rem, 4vw, 1.125rem);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+.vap-page__top-spacer {
+  width: 44px;
+}
+
+.vap-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 20px 100px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vap-prescription-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Info banner — `AppColors.primaryLight` */
+.vap-info-card {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fbe9e7;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.vap-info-card__icon {
+  display: block;
+  margin: 0 auto;
+  color: #ff541e;
+}
+
+.vap-info-card__title {
+  margin: 12px 0 4px;
+  font-family: var(--font-family-app);
+  font-size: 16px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.vap-info-card__sub {
+  margin: 0;
+  font-family: var(--font-family-app);
+  font-size: 12px;
+  font-weight: 400;
+  color: #757575;
+}
+
+.vap-upload-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  margin-top: 24px;
+}
+
+.vap-upload-loading__spin {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #ececec;
+  border-top-color: #ff541e;
+  border-radius: 50%;
+  animation: vap-rx-spin 0.8s linear infinite;
+}
+
+@keyframes vap-rx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tap upload — bordered primary surface */
+.vap-upload-tap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 24px;
+  padding: 20px 16px;
+  border: 1.5px solid #ff541e;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.vap-upload-tap:active {
+  opacity: 0.85;
+}
+
+.vap-upload-tap__icon {
+  color: #ff541e;
+}
+
+.vap-upload-tap__label {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ff541e;
+}
+
+.vap-section-title {
+  margin: 32px 0 16px;
+  font-family: var(--font-family-app);
+  font-size: 16px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.vap-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 16px;
+  text-align: center;
+}
+
+.vap-empty__icon {
+  color: #e0e0e0;
+}
+
+.vap-empty__text {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #757575;
+}
+
+/* 3-column grid — Flutter `crossAxisCount: 3` */
+.vap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vap-grid__item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
+  background: #f5f3f0;
+  overflow: hidden;
+}
+
+.vap-grid__open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 4px;
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: 10px;
-  z-index: 0;
+  box-sizing: border-box;
 }
 
-.ph-file-thumb__pdf-frame {
+.vap-grid__thumb {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.vap-grid__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vap-grid__thumb iframe {
   width: 100%;
   height: 100%;
   border: none;
   pointer-events: none;
+}
+
+.vap-grid__thumb-pdf,
+.vap-grid__thumb-file {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666666;
+}
+
+.vap-grid__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #e53935;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.vap-grid__remove svg {
   display: block;
 }
 
-/* Full-screen attachment preview */
+.vap-page__footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Full-screen attachment preview (shared with overview) */
 .vap-preview-overlay {
   position: fixed;
   inset: 0;
@@ -79,10 +327,6 @@
   background: transparent;
   color: #333;
   cursor: pointer;
-}
-
-.vap-preview-close:hover {
-  background: #f0f0f0;
 }
 
 .vap-preview-body {

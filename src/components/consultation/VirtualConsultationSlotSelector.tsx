@@ -1,4 +1,5 @@
 import type { AvailableSlot } from "@/api/consultationVirtual";
+import { SlotPeriodIcon } from "@/components/slots/SlotPeriodIcon";
 import {
   getVirtualBookingDates,
   monthYearIstLabel,
@@ -13,55 +14,6 @@ const SLOT_GROUPS = [
   { id: "afternoon" as const, label: "Afternoon" },
   { id: "evening" as const, label: "Evening" },
 ] as const;
-
-function PeriodIcon({ period }: Readonly<{ period: "morning" | "afternoon" | "evening" }>) {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none" as const,
-    "aria-hidden": true,
-  };
-  if (period === "morning") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="4" fill="currentColor" />
-        <path
-          d="M12 2v2M12 20v2M2 12h2M20 12h2"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  if (period === "afternoon") {
-    return (
-      <svg {...common}>
-        <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="10" r="3.5" fill="currentColor" />
-        <path
-          d="M8 6c1.5-1 3.5-1 5 0"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M8 10c1.5 1 3.5 1 5 0"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="16" r="3.5" fill="currentColor" />
-    </svg>
-  );
-}
 
 export type VirtualConsultationSlotSelectorProps = Readonly<{
   selectedDay: Date;
@@ -183,9 +135,7 @@ export function VirtualConsultationSlotSelector({
             return (
               <section key={g.id} className="vac-slot-pick__group" aria-label={g.label}>
                 <div className="vac-slot-pick__group-head">
-                  <span className="vac-slot-pick__sun" aria-hidden>
-                    <PeriodIcon period={g.id} />
-                  </span>
+                  <SlotPeriodIcon period={g.id} />
                   {g.label}
                 </div>
                 <div className="vac-slot-pick__pills" role="radiogroup" aria-label={`${g.label} slots`}>

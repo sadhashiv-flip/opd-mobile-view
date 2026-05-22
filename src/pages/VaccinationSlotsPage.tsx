@@ -7,12 +7,9 @@ import {
   VaccinationSlotPicker,
 } from "@/components/vaccination/VaccinationSlotPicker";
 import {
-  filterSlotsForDay,
   firstDayWithBookableVaccinationSlots,
-  getVaccinationBookingDates,
+  getVaccinationBookingDays,
   sameCalendarDay,
-  VACCINATION_BOOKING_DAY_COUNT,
-  VACCINATION_SLOT_GROUPS,
 } from "@/components/vaccination/vaccinationSlotRules";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -23,26 +20,15 @@ import "./VaccinationSlotsPage.css";
 export function VaccinationSlotsPage() {
   const navigate = useNavigate();
   const flow = readVaccinationFlowState();
-  /** 5 days including today; only slots strictly after current time are listed. */
-  const bookingDates = useMemo(
-    () => getVaccinationBookingDates(VACCINATION_BOOKING_DAY_COUNT),
-    [],
-  );
+
+  const dayStrip = useMemo(() => getVaccinationBookingDays(), []);
+  const bookingDates = dayStrip.dates;
+
   const [day, setDay] = useState(() =>
     firstDayWithBookableVaccinationSlots(bookingDates, new Date()),
   );
   const [slot, setSlot] = useState<string | null>(null);
-  const [nowTick, setNowTick] = useState(() => Date.now());
-  useEffect(() => {
-    const id = window.setInterval(() => setNowTick(Date.now()), 15_000);
-    return () => window.clearInterval(id);
-  }, []);
-  const bookingNow = useMemo(() => new Date(nowTick), [nowTick]);
-  const flatAvailable = useMemo(
-    () => VACCINATION_SLOT_GROUPS.flatMap((g) => filterSlotsForDay(day, g.slots, bookingNow)),
-    [day, bookingNow],
-  );
-  const canContinue = Boolean(slot) && flatAvailable.length > 0;
+  const canContinue = Boolean(slot);
 
   useEffect(() => {
     if (!flow?.memberId) {

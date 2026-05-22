@@ -1,0 +1,43 @@
+/* Prescription thumbs — patient_app `vision_overview_screen` 64×64 wrap grid */
+.vision-overview-page__rx-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.vision-overview-page__rx-thumb-btn {
+  display: block;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  background: #f5f3f0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.vision-overview-page__rx-thumb-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.vision-overview-page__rx-thumb-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vision-overview-page__rx-thumb-pdf,
+.vision-overview-page__rx-thumb-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-family-app);
+  font-size: 11px;
+  font-weight: 700;
+  color: #666666;
+}

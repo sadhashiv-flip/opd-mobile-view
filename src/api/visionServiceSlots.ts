@@ -68,7 +68,16 @@ export type FetchVisionServiceSlotsParams = Readonly<{
   service: VisionNetworkService;
   /** Network / clinic id from vision `network/list` row (`networkEntityId`). */
   networkId: string;
+  /**
+   * `yyyy-MM-dd` — patient_app `VisionRepository.getSlots(date:)`.
+   * Omit on first load so the backend returns the next available day + `daysList`.
+   */
+  date?: string;
 }>;
+
+/** patient_app `AppString.kNoSlotsAvailable`. */
+export const VISION_NO_SLOTS_AVAILABLE_COPY =
+  "No slots for this day. Please check an upcoming day or try the next day.";
 
 /**
  * `GET /service/slots?location=&service=&network_id=`
@@ -78,11 +87,14 @@ export async function fetchVisionServiceSlots(
   params: FetchVisionServiceSlotsParams,
   init?: { skipGlobalLoading?: boolean },
 ): Promise<VisionServiceSlotsData> {
-  const q = [
+  const parts = [
     `location=${encodeLocationQueryParam(params.location.trim())}`,
     `service=${encodeURIComponent(params.service)}`,
     `network_id=${encodeURIComponent(params.networkId.trim())}`,
-  ].join("&");
+  ];
+  const date = params.date?.trim();
+  if (date) parts.push(`date=${encodeURIComponent(date)}`);
+  const q = parts.join("&");
   const raw = await patientJson<unknown>(`service/slots?${q}`, {
     method: "GET",
     skipGlobalLoading: init?.skipGlobalLoading,

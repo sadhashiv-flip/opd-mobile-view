@@ -85,6 +85,8 @@ import {
   OrderDetailPaymentSummaryFallback,
   OrderDetailServiceMetaCard,
 } from "@/components/orders/OrderDetailSharedSections";
+import { OrderDetailServiceRequestSections } from "@/components/orders/OrderDetailServiceRequestSections";
+import { serviceRequestScreenTitle } from "@/lib/serviceRequestOrderDetail";
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { DEFAULT_CONSULT_SUCCESS_TITLE } from "@/constants/bookingSuccessNavigation";
 import {
@@ -108,7 +110,9 @@ import {
   isServiceRequestOrderCategory,
   isStandardOrderCancelAllowed,
   showOfflineConsultationPrescriptionsSection,
+  showOrderDetailPaymentSummaryFallback,
 } from "@/lib/orderDetailConsultationRules";
+import { showServiceRequestCompletePaymentBar } from "@/lib/serviceRequestOrderDetail";
 import { useToast } from "@/hooks/useToast";
 import {
   isOrderDetailFromBookingSuccess,
@@ -1198,6 +1202,9 @@ export function OrderDetailsPage() {
    */
   const showInvoiceDetailsCard = useMemo(() => {
     if (!detail || detail.lineItems.length === 0) return false;
+    if (isServiceRequestOrderCategory(detail.categoryKey)) {
+      return detail.showServiceRequestInvoiceSection;
+    }
     if (detail.categoryKey === "pharmacy" && detailBookingInfoStatus === 0) return false;
     return true;
   }, [detail, detailBookingInfoStatus]);
@@ -1222,6 +1229,9 @@ export function OrderDetailsPage() {
   const headerTitle = useMemo(() => {
     if (loading) return "Loading…";
     if (detail?.categoryKey === "lab") return "Lab order details";
+    if (detail && isServiceRequestOrderCategory(detail.categoryKey)) {
+      return serviceRequestScreenTitle(detail.categoryKey);
+    }
     if (detail) return `${detail.serviceTypeLabel} details`;
     return "Order details";
   }, [loading, detail]);
@@ -1239,6 +1249,13 @@ export function OrderDetailsPage() {
    */
   const showPayConfirmBooking = useMemo(() => {
     if (!detail) return false;
+    if (isServiceRequestOrderCategory(detail.categoryKey)) {
+      return showServiceRequestCompletePaymentBar({
+        infoStatus: detail.serviceInfoStatus,
+        paymentRequiredKeyPresent: detail.dataAdditionalInfoPaymentRequiredKeyPresent,
+        paymentRequired: detail.dataAdditionalInfoPaymentRequired,
+      });
+    }
     if (detail.netPayAmount <= 0) return false;
     if (!detail.dataAdditionalInfoPaymentRequiredKeyPresent) return false;
     if (!detail.dataAdditionalInfoPaymentRequired) return false;
@@ -1247,6 +1264,11 @@ export function OrderDetailsPage() {
     if (detail.categoryKey === "lab" && !detail.labSubOrdersAllPendingPayment) return false;
     return true;
   }, [detail, detailBookingInfoStatus]);
+
+  const showPaymentSummaryFallback = useMemo(
+    () => showOrderDetailPaymentSummaryFallback(detail),
+    [detail],
+  );
 
   const showJoinCallFooter =
     !showPayConfirmBooking &&
@@ -1292,6 +1314,7 @@ export function OrderDetailsPage() {
 
   const showPartnerAttachmentsCard = useMemo(() => {
     if (!detail || detail.isConsultationOrder) return false;
+    if (isServiceRequestOrderCategory(detail.categoryKey)) return false;
     if (!isPartnerOrderPayFlowCategory(detail.categoryKey)) return false;
     return isPartnerOrderAttachmentsSectionVisible({
       infoStatus: detail.serviceInfoStatus,
@@ -1329,6 +1352,7 @@ export function OrderDetailsPage() {
   const showPartnerOrderDetailSections = useMemo(() => {
     if (!detail) return false;
     if (detail.isConsultationOrder) return false;
+    if (isServiceRequestOrderCategory(detail.categoryKey)) return false;
     const id = detail.consultationInfoId?.trim() ?? "";
     return (
       (isPartnerOrderPayFlowCategory(detail.categoryKey) || detail.categoryKey === "lab") &&
@@ -1463,26 +1487,28 @@ export function OrderDetailsPage() {
 
         {!loading && !error && detail ? (
           <>
-            <section
-              className={`od-banner od-banner--${detail.bannerTone}${isPaymentPendingBanner ? " od-banner--paymentPending" : ""}`}
-            >
-              <div className="od-banner__icon-row">
-                <div
-                  className={`od-banner__check${isPaymentPendingBanner ? " od-banner__check--paymentPending" : ""}`}
-                  aria-hidden
-                >
-                  <BannerIcon tone={detail.bannerTone} paymentPending={isPaymentPendingBanner} />
+            {!isServiceRequestOrder ? (
+              <section
+                className={`od-banner od-banner--${detail.bannerTone}${isPaymentPendingBanner ? " od-banner--paymentPending" : ""}`}
+              >
+                <div className="od-banner__icon-row">
+                  <div
+                    className={`od-banner__check${isPaymentPendingBanner ? " od-banner__check--paymentPending" : ""}`}
+                    aria-hidden
+                  >
+                    <BannerIcon tone={detail.bannerTone} paymentPending={isPaymentPendingBanner} />
+                  </div>
+                  <h2 className="od-banner__title">{detail.bannerTitle}</h2>
                 </div>
-                <h2 className="od-banner__title">{detail.bannerTitle}</h2>
-              </div>
-              <p className="od-banner__sub">{detail.bannerSubtitle}</p>
-              {detail.bannerTone === "cancelled" && detail.labCancellationReason?.trim() ? (
-                <div className="od-banner__cancel-reason-block">
-                  <p className="od-banner__cancel-reason-label">Cancellation reason</p>
-                  <p className="od-banner__cancel-reason">{detail.labCancellationReason.trim()}</p>
-                </div>
-              ) : null}
-            </section>
+                <p className="od-banner__sub">{detail.bannerSubtitle}</p>
+                {detail.bannerTone === "cancelled" && detail.labCancellationReason?.trim() ? (
+                  <div className="od-banner__cancel-reason-block">
+                    <p className="od-banner__cancel-reason-label">Cancellation reason</p>
+                    <p className="od-banner__cancel-reason">{detail.labCancellationReason.trim()}</p>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             {cc != null && cc.doctor && !(isConsultationLayout && visitCardVisible) ? (
               <section className="od-card od-card--doctor" aria-label="Doctor">
@@ -1659,6 +1685,13 @@ export function OrderDetailsPage() {
                       </div>
                     ) : null}
                   </section>
+                ) : isServiceRequestOrder ? (
+                  <OrderDetailServiceRequestSections
+                    detail={detail}
+                    orderReferenceValue={orderReferenceValue}
+                    onOpenConfirmDialog={() => setConfirmMedicineOrderDialogOpen(true)}
+                    onPreviewAttachment={openConsultationFilePreview}
+                  />
                 ) : (
                   <OrderDetailServiceMetaCard
                     orderReferenceLabel={orderReferenceLabel}
@@ -1671,7 +1704,7 @@ export function OrderDetailsPage() {
                     cancelAppointmentVisible={false}
                   />
                 )}
-                {patientDetailsVisible ? (
+                {patientDetailsVisible && !isServiceRequestOrder ? (
                   <OrderDetailPatientSection
                     patientName={detail.patientName}
                     consultationPatient={detail.consultationPatient}
@@ -2160,7 +2193,7 @@ export function OrderDetailsPage() {
                 onToggleLinesExpanded={() => setLinesExpanded((x) => !x)}
                 consultationStyleInvoice
               />
-            ) : !isConsultationLayout ? (
+            ) : showPaymentSummaryFallback ? (
               <OrderDetailPaymentSummaryFallback
                 detail={detail}
                 discountRowLabel={discountRowLabel}
@@ -2295,7 +2328,9 @@ export function OrderDetailsPage() {
             className="od-consult-footer__btn od-consult-footer__btn--pay"
             onClick={onPayConfirmBooking}
           >
-            {detail?.categoryKey === "lab" ? "Complete payment" : "Pay / confirm"}
+            {detail?.categoryKey === "lab" || isServiceRequestOrderCategory(detail?.categoryKey)
+              ? "Complete payment"
+              : "Pay / confirm"}
           </button>
         </footer>
       ) : showJoinCallFooter ? (

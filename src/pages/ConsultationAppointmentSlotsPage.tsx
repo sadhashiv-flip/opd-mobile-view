@@ -10,6 +10,7 @@ import {
   groupSlotsByCategory,
   type GeneratedSlot,
 } from "@/utils/consultationSlotGrid";
+import { SlotPeriodGlyph } from "@/components/slots/SlotPeriodIcon";
 import { useToast } from "@/hooks/useToast";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./ConsultationAppointmentSlotsPage.css";
@@ -226,9 +227,7 @@ export function ConsultationAppointmentSlotsPage() {
               categorized.map((group) => (
                 <section key={group.category} className="cas-section">
                   <div className="cas-section__head">
-                    <span className="cas-sun" aria-hidden="true">
-                      ☀
-                    </span>
+                    <SlotPeriodGlyph period={group.category} />
                     {group.title}
                   </div>
                   <div className="cas-slots" role="radiogroup" aria-label={`${group.title} slots`}>

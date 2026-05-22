@@ -7,6 +7,8 @@ export type VaccineServiceItem = Readonly<{
   serviceType: string | null;
 }>;
 
+export type VaccinePrescriptionRef = Readonly<{ id: string }>;
+
 export type VaccineServiceRequestPayload = Readonly<{
   address_id: string;
   preferred_date_time: string;
@@ -16,6 +18,8 @@ export type VaccineServiceRequestPayload = Readonly<{
   note: string;
   user_id: number;
   language: string;
+  /** Required for children age 5 or below — attachment ids from `POST /upload`. */
+  prescription?: readonly VaccinePrescriptionRef[];
 }>;
 
 function str(v: unknown): string | null {

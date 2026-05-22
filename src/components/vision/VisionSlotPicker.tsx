@@ -1,100 +1,63 @@
 import { useEffect, useMemo } from "react";
-import type { VisionServiceSlotRow, VisionServiceSlotsData } from "@/api/visionServiceSlots";
+import { SlotPeriodIcon } from "@/components/slots/SlotPeriodIcon";
+import { VISION_NO_SLOTS_AVAILABLE_COPY, type VisionServiceSlotsData } from "@/api/visionServiceSlots";
+import { visionSlotsAllEmpty } from "@/lib/visionSlotSelection";
 import "@/pages/HealthCheckupsPage.css";
 import "@/components/vaccination/VaccinationSlotPicker.css";
 
 const GROUPS = [
-  { id: "morning" as const, label: "Morning", pick: (s: VisionServiceSlotsData["slots"]) => s.morning },
-  { id: "afternoon" as const, label: "Afternoon", pick: (s: VisionServiceSlotsData["slots"]) => s.afternoon },
-  { id: "evening" as const, label: "Evening", pick: (s: VisionServiceSlotsData["slots"]) => s.evening },
+  { id: "morning" as const, label: "Morning", key: "morning" as const },
+  { id: "afternoon" as const, label: "Afternoon", key: "afternoon" as const },
+  { id: "evening" as const, label: "Evening", key: "evening" as const },
 ] as const;
-
-function PeriodIcon({ period }: Readonly<{ period: "morning" | "afternoon" | "evening" }>) {
-  const common = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none" as const, "aria-hidden": true };
-  if (period === "morning") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="4" fill="currentColor" />
-        <path
-          d="M12 2v2M12 20v2M2 12h2M20 12h2"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  if (period === "afternoon") {
-    return (
-      <svg {...common}>
-        <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="10" r="3.5" fill="currentColor" />
-        <path
-          d="M8 6c1.5-1 3.5-1 5 0"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <path d="M4 14h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M8 10c1.5 1 3.5 1 5 0"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="16" r="3.5" fill="currentColor" />
-    </svg>
-  );
-}
-
-function filterForDate(rows: readonly VisionServiceSlotRow[], iso: string): VisionServiceSlotRow[] {
-  return rows.filter((r) => r.slot_date === iso);
-}
 
 export type VisionSlotPickerProps = Readonly<{
   daysList: readonly string[];
   slots: VisionServiceSlotsData["slots"];
+  /** From `daysList[0]` — patient_app `monthYearLabel` (not the tapped date). */
+  monthYearLabel: string;
   selectedIsoDate: string;
   onSelectIsoDate: (iso: string) => void;
   selectedSlotId: string | null;
   onSelectSlotId: (id: string | null) => void;
+  /** When true, parent replaces UI with full-screen loader (Flutter `isLoading`). */
+  hideForLoading?: boolean;
 }>;
 
+/**
+ * Date + time UI aligned with patient_app `CommonSlotSelector` on vision slot screens.
+ * Slot arrays are shown as returned by the API (no client-side date filter).
+ */
 export function VisionSlotPicker({
   daysList,
   slots,
+  monthYearLabel,
   selectedIsoDate,
   onSelectIsoDate,
   selectedSlotId,
   onSelectSlotId,
+  hideForLoading = false,
 }: VisionSlotPickerProps) {
-  const monthLabel = useMemo(() => {
-    const d = new Date(`${selectedIsoDate}T12:00:00`);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-  }, [selectedIsoDate]);
+  const flatSlots = useMemo(
+    () => [...slots.morning, ...slots.afternoon, ...slots.evening],
+    [slots],
+  );
 
-  const flatForDay = useMemo(() => {
-    const m = filterForDate(slots.morning, selectedIsoDate);
-    const a = filterForDate(slots.afternoon, selectedIsoDate);
-    const e = filterForDate(slots.evening, selectedIsoDate);
-    return [...m, ...a, ...e];
-  }, [slots, selectedIsoDate]);
+  const allPeriodsEmpty = daysList.length > 0 && visionSlotsAllEmpty(slots);
 
   useEffect(() => {
-    if (flatForDay.length === 0) {
+    if (flatSlots.length === 0) {
       if (selectedSlotId !== null) onSelectSlotId(null);
       return;
     }
-    if (selectedSlotId != null && !flatForDay.some((r) => r.slot_id === selectedSlotId)) {
+    if (selectedSlotId != null && !flatSlots.some((r) => r.slot_id === selectedSlotId)) {
       onSelectSlotId(null);
     }
-  }, [selectedIsoDate, selectedSlotId, onSelectSlotId, flatForDay]);
+  }, [flatSlots, selectedSlotId, onSelectSlotId]);
+
+  if (hideForLoading) {
+    return null;
+  }
 
   return (
     <div className="vac-slot-pick">
@@ -111,7 +74,7 @@ export function VisionSlotPicker({
           </svg>
           Choose date and time
         </span>
-        <span className="vac-slot-pick__month">{monthLabel}</span>
+        <span className="vac-slot-pick__month">{monthYearLabel}</span>
       </div>
 
       <div className="vac-slot-pick__dates" role="list">
@@ -136,14 +99,12 @@ export function VisionSlotPicker({
       </div>
 
       {GROUPS.map((g) => {
-        const rows = filterForDate(g.pick(slots), selectedIsoDate);
+        const rows = slots[g.key];
         if (rows.length === 0) return null;
         return (
           <section key={g.id} className="vac-slot-pick__group">
             <div className="vac-slot-pick__group-head">
-              <span className="vac-slot-pick__sun" aria-hidden>
-                <PeriodIcon period={g.id} />
-              </span>
+              <SlotPeriodIcon period={g.id} />
               {g.label}
             </div>
             <div className="vac-slot-pick__pills">
@@ -165,9 +126,9 @@ export function VisionSlotPicker({
         );
       })}
 
-      {flatForDay.length === 0 ? (
+      {allPeriodsEmpty ? (
         <p className="vac-slot-pick__empty" role="status">
-          No slots left for this day. Pick another date.
+          {VISION_NO_SLOTS_AVAILABLE_COPY}
         </p>
       ) : null}
     </div>

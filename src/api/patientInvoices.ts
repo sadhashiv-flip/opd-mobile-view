@@ -6,6 +6,22 @@ import {
   computeConsultationAttachmentUiRules,
   computeConsultationCanJoinCall,
 } from "@/lib/orderDetailConsultationRules";
+import {
+  formatServiceRequestCreatedAtDisplay,
+  formatServiceRequestOrderSummaryAddress,
+  formatServiceRequestPreferredSlot,
+  formatServiceRequestVisitTypeLabel,
+  parseServiceRequestPatientRows,
+  parseServiceRequestRequestBullets,
+  parseServiceRequestRider,
+  resolveServiceRequestCreatedAtRaw,
+  serviceRequestStatusLabel,
+  showServiceRequestInvoiceSection,
+  showServiceRequestRiderCard,
+  showServiceRequestSelfVisitCenter,
+  type ServiceRequestPatientRow,
+  type ServiceRequestRiderUi,
+} from "@/lib/serviceRequestOrderDetail";
 
 /**
  * Query `type` for `GET /invoice` — align with backend `transaction_type` filters
@@ -947,6 +963,23 @@ export type InvoiceDetailModel = Readonly<{
   infoDetailsConditions: string | null;
   /** Vaccine: `info.details.note` when set. */
   infoDetailsNote: string | null;
+  /** Service request order summary “Address” (`info.details.address`). */
+  serviceRequestSummaryAddress: string;
+  /** patient_app `_statusLabel` — not consultation list labels. */
+  serviceRequestStatusLabel: string;
+  /** patient_app `_resolveServiceRequestCreatedAt` + `_formatOrderCreatedAt`. */
+  serviceRequestCreatedAtDisplay: string;
+  /** patient_app `OrderPatientDetailsCard` rows. */
+  serviceRequestPatientRows: readonly ServiceRequestPatientRow[];
+  /** Vaccine `info.details.request` bullet labels (patient_app requested details). */
+  serviceRequestRequestBullets: readonly string[];
+  /** `SELF_VISIT` with `info.details.center` — center details card on order detail. */
+  showServiceRequestSelfVisitCenter: boolean;
+  /** `HOME_SERVICE` + `visitor_info` when status not in 0–4. */
+  serviceRequestRider: ServiceRequestRiderUi | null;
+  showServiceRequestRiderCard: boolean;
+  /** patient_app `showInvoiceSection` — `info.status !== 0` and line items present. */
+  showServiceRequestInvoiceSection: boolean;
   lineItems: readonly InvoiceDetailLineItem[];
   /** Sum of line totals (qty × unit) before discount, fees (+), and wallet. */
   subTotalFormatted: string;
@@ -1778,6 +1811,37 @@ function parseConsultationReports(info: Record<string, unknown>): ConsultationAt
   return out;
 }
 
+/** patient_app service request detail — only `status === 1` rows. */
+function parseServiceRequestActiveAttachments(
+  info: Record<string, unknown>,
+): ConsultationAttachmentRow[] {
+  const raw = info.attachments;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    const st = num(r.status);
+    if (st != null && st !== 1) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Attachment ${i + 1}`));
+  }
+  return out;
+}
+
+function parseServiceRequestActiveReports(info: Record<string, unknown>): ConsultationAttachmentRow[] {
+  const raw = info.reports;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    const st = num(r.status);
+    if (st != null && st !== 1) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Report ${i + 1}`));
+  }
+  return out;
+}
+
 function mapsUrlFromCoordinates(raw: string | null): string | null {
   if (!raw?.trim()) return null;
   const parts = raw.split(",").map((x) => x.trim());
@@ -1895,44 +1959,6 @@ function parseVisionOrderConfirmCenterUi(info: Record<string, unknown>): Pharmac
   const centerPhone = str(center.phone) ?? str(center.mobile);
   const mapsUrl = mapsUrlFromCenterOrNested(center);
   return { centerName, centerAddress, centerPhone, mapsUrl };
-}
-
-function formatVisionBookingSlotDisplay(info: Record<string, unknown>): string | null {
-  const det = asRecord(info.details);
-  if (!det) return null;
-  const slot = asRecord(det.slot);
-  const preferred = str(det.preferred_date_time) ?? str(det.booking_time) ?? null;
-  if (slot != null) {
-    const sd = str(slot.slot_date);
-    const st = str(slot.start_time);
-    const et = str(slot.end_time);
-    const parts: string[] = [];
-    if (sd) parts.push(sd);
-    const timePart = [st, et].filter(Boolean).join(" – ");
-    if (timePart) parts.push(timePart);
-    if (parts.length > 0) return parts.join(", ");
-  }
-  if (preferred != null) {
-    const t = preferred.trim();
-    const isoGuess = t.includes("T") ? t : t.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
-    const p = Date.parse(isoGuess);
-    if (!Number.isNaN(p)) {
-      const d = new Date(p);
-      const datePart = d.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
-      const timePart = d.toLocaleTimeString("en-IN", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-      return `${datePart}, ${timePart}`;
-    }
-    return t;
-  }
-  return null;
 }
 
 /**
@@ -2868,9 +2894,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
 
   const visitTypeRaw = infoForStatus != null ? str(infoForStatus.visit_type)?.trim() : null;
   const visitTypeFallback = str(o.visit_type)?.trim() ?? null;
-  const serviceVisitTypeLabel = formatVisitTypeForDisplay(
-    visitTypeRaw ?? visitTypeFallback ?? null,
-  );
+  const serviceVisitTypeLabel = SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+    ? formatServiceRequestVisitTypeLabel(visitTypeRaw ?? visitTypeFallback ?? null)
+    : formatVisitTypeForDisplay(visitTypeRaw ?? visitTypeFallback ?? null);
 
   const consultationUploadRefIdRaw =
     isConsultationInvoice && infoForStatus != null
@@ -3014,9 +3040,19 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     isConsultationInvoice && infoForStatus != null ? parseConsultationDoctor(infoForStatus) : null;
   /** `info.attachments` for any invoice type (e.g. pharmacy prescriptions); reports stay consultation-only. */
   const consultationAttachments =
-    infoForStatus != null ? parseConsultationAttachments(infoForStatus) : [];
+    infoForStatus != null
+      ? SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+        ? parseServiceRequestActiveAttachments(infoForStatus)
+        : parseConsultationAttachments(infoForStatus)
+      : [];
   const consultationReports =
-    isConsultationInvoice && infoForStatus != null ? parseConsultationReports(infoForStatus) : [];
+    infoForStatus != null
+      ? isConsultationInvoice
+        ? parseConsultationReports(infoForStatus)
+        : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+          ? parseServiceRequestActiveReports(infoForStatus)
+          : []
+      : [];
   const consultationAttachmentUi =
     isConsultationInvoice && infoForStatus != null
       ? computeConsultationAttachmentUiRules({
@@ -3045,7 +3081,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     categoryKey === "pharmacy" && infoForStatus != null
       ? formatConsultationScheduleDisplay(infoForStatus)
       : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
-        ? formatVisionBookingSlotDisplay(infoForStatus)
+        ? formatServiceRequestPreferredSlot(asRecord(infoForStatus.details))
         : categoryKey === "lab" && infoForStatus != null
           ? formatLabOrderSlotDisplay(infoForStatus)
           : null;
@@ -3086,6 +3122,44 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus,
     categoryKey,
   );
+
+  const serviceRequestSummaryAddress =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? formatServiceRequestOrderSummaryAddress(infoForStatus)
+      : "—";
+  const serviceRequestStatusLabelResolved = SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+    ? serviceRequestStatusLabel(serviceInfoStatus)
+    : "—";
+  const serviceRequestCreatedAtDisplay =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? formatServiceRequestCreatedAtDisplay(
+          resolveServiceRequestCreatedAtRaw(o, infoForStatus),
+        )
+      : "—";
+  const serviceRequestPatientRows =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? parseServiceRequestPatientRows(o, infoForStatus)
+      : [];
+  const serviceRequestRequestBullets =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? parseServiceRequestRequestBullets(infoForStatus)
+      : [];
+  const showServiceRequestSelfVisitCenterFlag =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? showServiceRequestSelfVisitCenter(infoForStatus)
+      : false;
+  const serviceRequestRiderParsed =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? parseServiceRequestRider(infoForStatus)
+      : null;
+  const showServiceRequestRiderCardFlag =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
+      ? showServiceRequestRiderCard(serviceInfoStatus, infoForStatus)
+      : false;
+  const showServiceRequestInvoiceSectionFlag =
+    SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+      ? showServiceRequestInvoiceSection(serviceInfoStatus, lineItems.length)
+      : false;
 
   const labSubOrdersAllPendingPayment =
     categoryKey === "lab" && labInvoiceSubOrdersAllPaymentPendingStatus(o);
@@ -3205,6 +3279,15 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoDetailsAlternatePhone,
     infoDetailsConditions,
     infoDetailsNote,
+    serviceRequestSummaryAddress,
+    serviceRequestStatusLabel: serviceRequestStatusLabelResolved,
+    serviceRequestCreatedAtDisplay,
+    serviceRequestPatientRows,
+    serviceRequestRequestBullets,
+    showServiceRequestSelfVisitCenter: showServiceRequestSelfVisitCenterFlag,
+    serviceRequestRider: serviceRequestRiderParsed,
+    showServiceRequestRiderCard: showServiceRequestRiderCardFlag,
+    showServiceRequestInvoiceSection: showServiceRequestInvoiceSectionFlag,
     lineItems,
     subTotalFormatted: formatInr(itemsGrossTotal),
     discountFormatted,

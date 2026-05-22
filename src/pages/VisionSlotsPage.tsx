@@ -5,16 +5,13 @@ import {
   writeVisionSelectedSlot,
 } from "@/constants/visionBookingStorage";
 import type { VisionNetworkService } from "@/api/networkList";
-import { resolveSelectedAddressLocation } from "@/api/networkList";
-import {
-  fetchVisionServiceSlots,
-  type VisionServiceSlotRow,
-  type VisionServiceSlotsData,
-} from "@/api/visionServiceSlots";
 import { VisionSlotPicker } from "@/components/vision/VisionSlotPicker";
+import { useVisionSlotsLoader } from "@/hooks/useVisionSlotsLoader";
+import { findVisionSlotInPayload } from "@/lib/visionSlotSelection";
+import { VISION_NO_SLOTS_AVAILABLE_COPY } from "@/api/visionServiceSlots";
 import { useToast } from "@/hooks/useToast";
 import { generatePath, Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 import "./DentalSlotsPage.css";
@@ -34,30 +31,21 @@ function visionTypeToService(visionType: string): VisionNetworkService | null {
   return null;
 }
 
-function findSlotById(data: VisionServiceSlotsData, slotId: string): VisionServiceSlotRow | null {
-  const all = [...data.slots.morning, ...data.slots.afternoon, ...data.slots.evening];
-  return all.find((s) => s.slot_id === slotId) ?? null;
-}
-
 export function VisionSlotsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const params = useParams<{ visionType: string }>();
   const visionType = params.visionType?.trim() ?? "";
-
   const apiService = visionTypeToService(visionType);
 
-  const [payload, setPayload] = useState<VisionServiceSlotsData | null>(null);
-  const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [selectedIsoDate, setSelectedIsoDate] = useState<string>("");
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [networkId, setNetworkId] = useState<string | null>(null);
+  const guardsDone = useRef(false);
 
   useEffect(() => {
     if (visionType !== VISION_ROUTE_TYPE.eyeCheckup && visionType !== VISION_ROUTE_TYPE.glassesLens) {
       return;
     }
-    if (!apiService) return;
+    if (!apiService || guardsDone.current) return;
 
     const memberId = readDiagPersonId();
     const clinic = readVisionSelectedClinic();
@@ -72,52 +60,29 @@ export function VisionSlotsPage() {
       return;
     }
 
-    let cancelled = false;
-    const networkId = clinic.networkEntityId.trim();
-
-    (async () => {
-      setLoad("loading");
-      setErrorMsg(null);
-      try {
-        const loc = await resolveSelectedAddressLocation();
-        const data = await fetchVisionServiceSlots({
-          location: loc,
-          service: apiService,
-          networkId,
-        });
-        if (cancelled) return;
-        setPayload(data);
-        const firstDay = data.daysList[0] ?? "";
-        setSelectedIsoDate(firstDay);
-        setSelectedSlotId(null);
-        setLoad("ok");
-      } catch (e) {
-        if (cancelled) return;
-        setPayload(null);
-        setLoad("error");
-        const msg = e instanceof Error ? e.message : "Could not load slots";
-        setErrorMsg(msg);
-        toast.error(msg);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    guardsDone.current = true;
+    setNetworkId(clinic.networkEntityId.trim());
   }, [visionType, apiService, navigate, toast]);
 
-  const flatForSelectedDay = useMemo(() => {
-    if (!payload) return [];
-    const iso = selectedIsoDate;
-    const { slots } = payload;
-    return [...slots.morning, ...slots.afternoon, ...slots.evening].filter((r) => r.slot_date === iso);
-  }, [payload, selectedIsoDate]);
+  const slots = useVisionSlotsLoader({
+    service: apiService,
+    networkId,
+    enabled: networkId != null && apiService != null,
+  });
 
-  const canContinue = Boolean(selectedSlotId) && flatForSelectedDay.some((r) => r.slot_id === selectedSlotId);
+  const canContinue = useMemo(
+    () =>
+      Boolean(
+        slots.selectedSlotId &&
+          slots.payload &&
+          findVisionSlotInPayload(slots.payload, slots.selectedSlotId),
+      ),
+    [slots.selectedSlotId, slots.payload],
+  );
 
   const onContinue = () => {
-    if (!payload || !selectedSlotId) return;
-    const row = findSlotById(payload, selectedSlotId);
+    if (!slots.payload || !slots.selectedSlotId) return;
+    const row = findVisionSlotInPayload(slots.payload, slots.selectedSlotId);
     if (!row) return;
     writeVisionSelectedSlot(row);
     if (visionType === VISION_ROUTE_TYPE.eyeCheckup) {
@@ -134,6 +99,16 @@ export function VisionSlotsPage() {
   if (!apiService) {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
+
+  const showPicker =
+    slots.phase === "ready" && slots.payload != null && slots.payload.daysList.length > 0;
+
+  const activeIsoDate =
+    showPicker && slots.payload
+      ? slots.selectedIsoDate && slots.payload.daysList.includes(slots.selectedIsoDate)
+        ? slots.selectedIsoDate
+        : (slots.payload.daysList[0] ?? "")
+      : "";
 
   return (
     <div className="hc-page dental-slots-page">
@@ -158,32 +133,34 @@ export function VisionSlotsPage() {
       </header>
 
       <main className="hc-main dental-slots-page__main">
-        {load === "loading" ? (
+        {slots.isFullScreenLoading ? (
           <p className="hc-member-loading" aria-busy="true">
             Loading slots…
           </p>
         ) : null}
 
-        {load === "error" && errorMsg ? (
+        {slots.phase === "error" && slots.errorMsg ? (
           <p className="hc-member-error__text" role="alert">
-            {errorMsg}
+            {slots.errorMsg}
           </p>
         ) : null}
 
-        {load === "ok" && payload && payload.daysList.length === 0 ? (
+        {slots.phase === "ready" && slots.payload && slots.payload.daysList.length === 0 ? (
           <p className="vac-slot-pick__empty" role="status">
-            No available days for booking.
+            {VISION_NO_SLOTS_AVAILABLE_COPY}
           </p>
         ) : null}
 
-        {load === "ok" && payload && payload.daysList.length > 0 ? (
+        {showPicker ? (
           <VisionSlotPicker
-            daysList={payload.daysList}
-            slots={payload.slots}
-            selectedIsoDate={selectedIsoDate || payload.daysList[0]!}
-            onSelectIsoDate={setSelectedIsoDate}
-            selectedSlotId={selectedSlotId}
-            onSelectSlotId={setSelectedSlotId}
+            daysList={slots.payload.daysList}
+            slots={slots.payload.slots}
+            monthYearLabel={slots.monthYearLabel}
+            selectedIsoDate={activeIsoDate}
+            onSelectIsoDate={slots.onSelectIsoDate}
+            selectedSlotId={slots.selectedSlotId}
+            onSelectSlotId={slots.onSelectSlotId}
+            hideForLoading={slots.isFullScreenLoading}
           />
         ) : null}
       </main>

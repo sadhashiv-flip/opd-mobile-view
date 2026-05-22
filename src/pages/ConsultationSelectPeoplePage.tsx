@@ -89,8 +89,12 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const isDentalFlow = flow === "dental";
   const isHealthCheckupsDiagnostics = isDiagnosticsFlow && type === "health-checkups";
   const isConsultationAtHospital = flow === "consultation" && type === "at_hospital";
-  /** Dental: no age or subscription picker gates (patient_app dental member screen). */
-  const relaxMemberRestrictions = isDentalFlow;
+  const isVisionFlow = flow === "vision";
+  /**
+   * Dental + vision (eye-checkup / glasses-lens): no age gate on member picker
+   * (patient_app `DentalMemberSelectionScreen` / `VisionMemberSelectionScreen` — no `ageBlockReason`).
+   */
+  const relaxMemberRestrictions = isDentalFlow || isVisionFlow;
   /** patient_app: diagnostics, at-hospital consultation, dental, vision require address. */
   const requiresAddressSelection =
     isDiagnosticsFlow ||

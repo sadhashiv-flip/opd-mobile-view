@@ -1,5 +1,11 @@
-import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import {
+  VISION_PRESCRIPTION_EMPTY_COPY,
+  VISION_PRESCRIPTION_PAGE_TITLE,
+  VISION_PRESCRIPTION_SAFE_COPY,
+  VISION_PRESCRIPTION_TAP_UPLOAD,
+  VISION_PRESCRIPTION_UPLOADED_TITLE,
+} from "@/constants/visionPrescriptionCopy";
 import { uploadPrescriptionFile, type PrescriptionUploadResult } from "@/api/patientUpload";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 import {
@@ -10,7 +16,7 @@ import {
 import { useToast } from "@/hooks/useToast";
 import { generatePath, Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
-import "./PharmacyPages.css";
+import "@/styles/primary-buttons.css";
 import "./VisionAddPrescriptionPage.css";
 
 const VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID = "vision-glasses-prescription-file-input";
@@ -20,25 +26,29 @@ type UploadedRxItem = Readonly<{
   fileName: string;
   previewUrl: string;
   isImage: boolean;
-  uploadResult: PrescriptionUploadResult | null;
-  uploadedAt: Date | null;
+  uploadResult: PrescriptionUploadResult;
+  uploadedAt: Date;
 }>;
 
-function revokePreview(item: UploadedRxItem) {
+function revokePreviewUrl(url: string) {
+  if (!url) return;
   try {
-    URL.revokeObjectURL(item.previewUrl);
+    URL.revokeObjectURL(url);
   } catch {
     // ignore
   }
 }
 
+function revokePreview(item: UploadedRxItem) {
+  revokePreviewUrl(item.previewUrl);
+}
+
 function displayTitle(item: UploadedRxItem): string {
-  const m = item.uploadResult?.meta?.file_name?.trim();
+  const m = item.uploadResult.meta?.file_name?.trim();
   if (m) return m;
   return item.fileName;
 }
 
-/** Rebuild list state after Continue → Overview → Back (session has `path` / `type`). */
 function hydrateUploadedItem(s: VisionGlassesPrescriptionStored): UploadedRxItem {
   const title = s.title.trim() || s.attachmentId;
   const lower = title.toLowerCase();
@@ -57,12 +67,10 @@ function hydrateUploadedItem(s: VisionGlassesPrescriptionStored): UploadedRxItem
     raw: { hydrated: true } as unknown,
   };
 
-  let uploadedAt: Date | null = null;
+  let uploadedAt = new Date();
   if (s.uploadedAt?.trim()) {
     const d = new Date(s.uploadedAt);
-    uploadedAt = Number.isNaN(d.getTime()) ? new Date() : d;
-  } else {
-    uploadedAt = new Date();
+    if (!Number.isNaN(d.getTime())) uploadedAt = d;
   }
 
   return {
@@ -76,28 +84,25 @@ function hydrateUploadedItem(s: VisionGlassesPrescriptionStored): UploadedRxItem
 }
 
 function itemsToStoredPayload(items: readonly UploadedRxItem[]): VisionGlassesPrescriptionStored[] {
-  return items
-    .filter((it) => it.uploadResult?.prescriptionId)
-    .map((it) => {
-      const meta = it.uploadResult!;
-      const path = meta.meta.path?.trim();
-      const type = meta.meta.type?.trim();
-      return {
-        attachmentId: meta.prescriptionId,
-        title: displayTitle(it),
-        uploadedAt: (it.uploadedAt ?? new Date()).toISOString(),
-        ...(path ? { path } : {}),
-        ...(type ? { type } : {}),
-      };
-    });
+  return items.map((it) => {
+    const meta = it.uploadResult;
+    const path = meta.meta.path?.trim();
+    const type = meta.meta.type?.trim();
+    return {
+      attachmentId: meta.prescriptionId,
+      title: displayTitle(it),
+      uploadedAt: it.uploadedAt.toISOString(),
+      ...(path ? { path } : {}),
+      ...(type ? { type } : {}),
+    };
+  });
 }
 
-/** Upload `data.type` / file extension → how to preview. */
 function previewRole(
   item: UploadedRxItem,
 ): Readonly<{ kind: "image" | "pdf" | "file"; src: string }> {
-  const path = item.uploadResult?.meta.path?.trim();
-  const apiType = item.uploadResult?.meta.type?.trim().toUpperCase() ?? "";
+  const path = item.uploadResult.meta.path?.trim();
+  const apiType = item.uploadResult.meta.type?.trim().toUpperCase() ?? "";
   const nameSrc = displayTitle(item);
 
   if (path) {
@@ -124,35 +129,27 @@ function previewRole(
   };
 }
 
-function PrescriptionThumbPreview(props: {
-  pv: ReturnType<typeof previewRole>;
-  title: string;
-}) {
-  const { pv, title } = props;
-  if (pv.kind === "image") {
-    return <img src={pv.src} alt="" className="ph-file-thumb__img" />;
+function GridThumbPreview(props: Readonly<{ pv: ReturnType<typeof previewRole> }>) {
+  if (props.pv.kind === "image") {
+    return <img src={props.pv.src} alt="" />;
   }
-  if (pv.kind === "pdf") {
-    return <iframe title={title} src={pv.src} className="ph-file-thumb__pdf-frame" />;
+  if (props.pv.kind === "pdf") {
+    return <iframe title="" src={props.pv.src} />;
   }
-  return <span className="ph-file-thumb__pdf">FILE</span>;
+  return <span className="vap-grid__thumb-file">FILE</span>;
 }
 
-function PrescriptionFullPreview(props: {
-  pv: ReturnType<typeof previewRole>;
-  title: string;
-}) {
-  const { pv, title } = props;
-  if (pv.kind === "image") {
-    return <img src={pv.src} alt={title} className="vap-preview__img" />;
+function PrescriptionFullPreview(props: Readonly<{ pv: ReturnType<typeof previewRole>; title: string }>) {
+  if (props.pv.kind === "image") {
+    return <img src={props.pv.src} alt={props.title} className="vap-preview__img" />;
   }
-  if (pv.kind === "pdf") {
-    return <iframe title={title} src={pv.src} className="vap-preview__iframe" />;
+  if (props.pv.kind === "pdf") {
+    return <iframe title={props.title} src={props.pv.src} className="vap-preview__iframe" />;
   }
   return (
     <div className="vap-preview__file-fallback">
       <p className="vap-preview__file-msg">Preview isn’t available for this file type.</p>
-      <a href={pv.src} target="_blank" rel="noopener noreferrer" className="vap-preview__open-link">
+      <a href={props.pv.src} target="_blank" rel="noopener noreferrer" className="vap-preview__open-link">
         Open in browser
       </a>
     </div>
@@ -164,24 +161,30 @@ export function VisionAddPrescriptionPage() {
   const toast = useToast();
   const params = useParams<{ visionType: string }>();
   const visionType = params.visionType?.trim() ?? "";
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [items, setItems] = useState<UploadedRxItem[]>(() => {
     const vt = params.visionType?.trim() ?? "";
     if (vt !== VISION_ROUTE_TYPE.glassesLens) return [];
     return readVisionGlassesPrescriptions().map(hydrateUploadedItem);
   });
+  const [uploading, setUploading] = useState(false);
   const [previewClientId, setPreviewClientId] = useState<string | null>(null);
-  const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
   useEffect(() => {
     return () => {
       for (const it of itemsRef.current) {
-        revokePreview(it);
+        if (it.previewUrl) revokePreview(it);
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (visionType !== VISION_ROUTE_TYPE.glassesLens) return;
+    writeVisionGlassesPrescriptions(itemsToStoredPayload(items));
+  }, [items, visionType]);
 
   useEffect(() => {
     if (!previewClientId) return;
@@ -197,63 +200,33 @@ export function VisionAddPrescriptionPage() {
     };
   }, [previewClientId]);
 
-  useEffect(() => {
-    if (!removeTargetId) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      setRemoveTargetId(null);
-    };
-    globalThis.addEventListener("keydown", onKey, true);
-    return () => globalThis.removeEventListener("keydown", onKey, true);
-  }, [removeTargetId]);
-
-  /** Keep session in sync so Overview and Back navigation still show attachments. */
-  useEffect(() => {
-    if (visionType !== VISION_ROUTE_TYPE.glassesLens) return;
-    writeVisionGlassesPrescriptions(itemsToStoredPayload(items));
-  }, [items, visionType]);
-
   const runUpload = useCallback(
-    (file: File) => {
-      const clientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    async (file: File) => {
+      setUploading(true);
       const previewUrl = URL.createObjectURL(file);
       const isImage = file.type.startsWith("image/");
-      setItems((prev) => [
-        ...prev,
-        {
-          clientId,
-          fileName: file.name,
-          previewUrl,
-          isImage,
-          uploadResult: null,
-          uploadedAt: null,
-        },
-      ]);
-
-      uploadPrescriptionFile(file)
-        .then((uploadResult) => {
-          setItems((prev) =>
-            prev.map((it) => {
-              if (it.clientId !== clientId) return it;
-              const next = { ...it, uploadResult, uploadedAt: new Date() };
-              const rel = uploadResult.meta.path?.trim();
-              if (rel && resolveProfileImageUrl(rel)) {
-                revokePreview(it);
-              }
-              return next;
-            }),
-          );
-        })
-        .catch((err) => {
-          const msg = err instanceof Error ? err.message : "Upload failed";
-          toast.error(msg);
-          setItems((prev) => {
-            const victim = prev.find((it) => it.clientId === clientId);
-            if (victim) revokePreview(victim);
-            return prev.filter((it) => it.clientId !== clientId);
-          });
-        });
+      try {
+        const uploadResult = await uploadPrescriptionFile(file);
+        const rel = uploadResult.meta.path?.trim();
+        const useBlob = !rel || !resolveProfileImageUrl(rel);
+        setItems((prev) => [
+          ...prev,
+          {
+            clientId: uploadResult.prescriptionId || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            fileName: file.name,
+            previewUrl: useBlob ? previewUrl : "",
+            isImage,
+            uploadResult,
+            uploadedAt: new Date(),
+          },
+        ]);
+        if (!useBlob) revokePreviewUrl(previewUrl);
+      } catch (err) {
+        revokePreviewUrl(previewUrl);
+        toast.error(err instanceof Error ? err.message : "Upload failed");
+      } finally {
+        setUploading(false);
+      }
     },
     [toast],
   );
@@ -263,35 +236,29 @@ export function VisionAddPrescriptionPage() {
       const input = e.target;
       const chosen = input.files?.length ? Array.from(input.files) : [];
       input.value = "";
-      if (chosen.length === 0) return;
-      for (const file of chosen) {
-        runUpload(file);
-      }
+      if (chosen.length === 0 || uploading) return;
+      void (async () => {
+        for (const file of chosen) {
+          await runUpload(file);
+        }
+      })();
     },
-    [runUpload],
+    [runUpload, uploading],
   );
 
-  const confirmRemoveFile = useCallback(() => {
-    if (!removeTargetId) return;
-    setPreviewClientId((cur) => (cur === removeTargetId ? null : cur));
+  const removeItem = useCallback((clientId: string) => {
+    setPreviewClientId((cur) => (cur === clientId ? null : cur));
     setItems((prev) => {
-      const victim = prev.find((it) => it.clientId === removeTargetId);
-      if (victim) revokePreview(victim);
-      return prev.filter((it) => it.clientId !== removeTargetId);
+      const victim = prev.find((it) => it.clientId === clientId);
+      if (victim?.previewUrl) revokePreview(victim);
+      return prev.filter((it) => it.clientId !== clientId);
     });
-    setRemoveTargetId(null);
-  }, [removeTargetId]);
-
-  const removeTarget = removeTargetId ? items.find((it) => it.clientId === removeTargetId) : undefined;
-  const removeTitle = removeTarget ? displayTitle(removeTarget) : "";
-
-  const allUploaded =
-    items.length > 0 && items.every((it) => it.uploadResult?.prescriptionId);
+  }, []);
 
   const onContinue = useCallback(() => {
-    if (!allUploaded) return;
+    if (items.length === 0) return;
     void navigate(generatePath(ROUTES.visionOverview, { visionType }), { replace: true });
-  }, [allUploaded, navigate, visionType]);
+  }, [items.length, navigate, visionType]);
 
   if (visionType !== VISION_ROUTE_TYPE.glassesLens) {
     return <Navigate to={ROUTES.dashboard} replace />;
@@ -305,92 +272,152 @@ export function VisionAddPrescriptionPage() {
     : null;
 
   return (
-    <div className="ph-page">
-      <header className="ph-top-wrap">
-        <div className="ph-top">
-          <Link
-            to={generatePath(ROUTES.visionSlots, { visionType })}
-            className="ph-back"
-            aria-label="Back"
-            onClick={() => writeVisionGlassesPrescriptions([])}
+    <div className="vap-page">
+      <header className="vap-page__top">
+        <Link
+          to={generatePath(ROUTES.visionSlots, { visionType })}
+          className="vap-page__back"
+          aria-label="Back"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M15 18l-6-6 6-6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
+        <h1 className="vap-page__title">{VISION_PRESCRIPTION_PAGE_TITLE}</h1>
+        <span className="vap-page__top-spacer" aria-hidden />
+      </header>
+
+      <main className="vap-page__scroll">
+        <div className="vap-info-card">
+          <svg
+            className="vap-info-card__icon"
+            width="48"
+            height="48"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M14 2v6h6M12 18v-6M9 15h6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <p className="vap-info-card__title">{VISION_PRESCRIPTION_PAGE_TITLE}</p>
+          <p className="vap-info-card__sub">{VISION_PRESCRIPTION_SAFE_COPY}</p>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          id={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}
+          type="file"
+          accept="image/*,.pdf,application/pdf"
+          className="vap-prescription-file-input"
+          multiple
+          aria-hidden
+          tabIndex={-1}
+          onChange={onFileInputChange}
+        />
+
+        {uploading ? (
+          <div className="vap-upload-loading" aria-busy="true" aria-live="polite">
+            <span className="vap-upload-loading__spin" aria-hidden />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="vap-upload-tap"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <svg
+              className="vap-upload-tap__icon"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
               <path
-                d="M15 18l-6-6 6-6"
+                d="M12 16V4m0 0l-4 4m4-4 4 4M4 20h16"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.75"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
-          </Link>
-          <h1 className="ph-title">Upload Prescription</h1>
-          <span className="ph-top__spacer" aria-hidden />
-        </div>
-      </header>
+            <span className="vap-upload-tap__label">{VISION_PRESCRIPTION_TAP_UPLOAD}</span>
+          </button>
+        )}
 
-      <main className="ph-page__main">
-        <input
-          id={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}
-          type="file"
-          accept="image/*,.pdf,application/pdf"
-          className="ph-prescription-file-input"
-          multiple
-          aria-label="Choose prescription image or PDF"
-          onChange={onFileInputChange}
-        />
+        <h2 className="vap-section-title">{VISION_PRESCRIPTION_UPLOADED_TITLE}</h2>
 
-        <label className="ph-upload-zone" htmlFor={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}>
-          <div className="ph-upload-zone__illu" aria-hidden>
-            <img src={PHARMACY_IMAGES.uploadPrescription} alt="" />
-          </div>
-          <p className="ph-upload-zone__title">Tap to upload prescription</p>
-          <p className="ph-upload-zone__sub">Your prescription is safe with us</p>
-        </label>
-
-        <label className="ph-btn-outline" htmlFor={VISION_GLASSES_PRESCRIPTION_FILE_INPUT_ID}>
-          <span className="ph-btn-outline__icon" aria-hidden>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </span>{" "}
-          Add Prescription
-        </label>
-
-        <h2 className="ph-files-title">Selected Files</h2>
         {items.length === 0 ? (
-          <div className="ph-empty-files">No files selected</div>
+          <div className="vap-empty">
+            <svg
+              className="vap-empty__icon"
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
+              <rect
+                x="3"
+                y="5"
+                width="18"
+                height="14"
+                rx="2"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M8 11h8M8 15h5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <path d="M9 3h6v2H9V3z" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <p className="vap-empty__text">{VISION_PRESCRIPTION_EMPTY_COPY}</p>
+          </div>
         ) : (
-          <div className="ph-files-grid">
+          <div className="vap-grid">
             {items.map((it) => {
-              const ready = Boolean(it.uploadResult?.prescriptionId);
               const title = displayTitle(it);
               const pv = previewRole(it);
               return (
-                <div key={it.clientId} className="ph-file-thumb">
+                <div key={it.clientId} className="vap-grid__item">
                   <button
                     type="button"
-                    className="ph-file-thumb__open"
+                    className="vap-grid__open"
                     aria-label={`Preview ${title}`}
                     onClick={() => setPreviewClientId(it.clientId)}
                   >
-                    <div className="ph-file-thumb__inner">
-                      <PrescriptionThumbPreview pv={pv} title={title} />
-                      {ready ? null : (
-                        <div className="ph-file-thumb__loading" role="status" aria-live="polite">
-                          <span className="ph-file-thumb__spinner" aria-hidden />
-                          <span className="ph-sr-only">Uploading…</span>
-                        </div>
-                      )}
+                    <div className="vap-grid__thumb">
+                      <GridThumbPreview pv={pv} />
                     </div>
                   </button>
                   <button
                     type="button"
-                    className="ph-file-thumb__rm"
+                    className="vap-grid__remove"
                     aria-label={`Remove ${title}`}
-                    onClick={() => setRemoveTargetId(it.clientId)}
+                    onClick={() => removeItem(it.clientId)}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
                         d="M6 6l12 12M18 6L6 18"
                         stroke="currentColor"
@@ -399,19 +426,6 @@ export function VisionAddPrescriptionPage() {
                       />
                     </svg>
                   </button>
-                  {ready ? (
-                    <span className="ph-file-thumb__ok" aria-hidden title="Uploaded">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                        <path
-                          d="M5 12l5 5L20 7"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
-                  ) : null}
                 </div>
               );
             })}
@@ -419,11 +433,13 @@ export function VisionAddPrescriptionPage() {
         )}
       </main>
 
-      <div className="ph-footer-btn">
-        <button type="button" className="ph-footer-btn__inner" disabled={!allUploaded} onClick={onContinue}>
-          Continue
-        </button>
-      </div>
+      {items.length > 0 ? (
+        <footer className="vap-page__footer mobile-frame-fixed-footer">
+          <button type="button" className="bottom-continue" onClick={onContinue}>
+            Continue
+          </button>
+        </footer>
+      ) : null}
 
       {previewData ? (
         <div
@@ -460,43 +476,6 @@ export function VisionAddPrescriptionPage() {
             </div>
             <div className="vap-preview-body">
               <PrescriptionFullPreview pv={previewData.pv} title={previewData.title} />
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {removeTargetId ? (
-        <div
-          className="ph-modal-overlay"
-          role="presentation"
-          onClick={() => setRemoveTargetId(null)}
-        >
-          <div
-            className="ph-modal"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="vap-rm-upload-title"
-            aria-describedby="vap-rm-upload-desc"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="ph-modal__art" aria-hidden>
-              <img src={PHARMACY_IMAGES.dialogWarning} alt="" />
-            </div>
-            <h2 id="vap-rm-upload-title" className="ph-modal__title">
-              Remove prescription?
-            </h2>
-            <p id="vap-rm-upload-desc" className="ph-modal__text">
-              {removeTitle
-                ? `This will remove “${removeTitle}” from your upload. You can add it again anytime.`
-                : "This file will be removed."}
-            </p>
-            <div className="ph-modal__actions">
-              <button type="button" className="ph-btn-grey" onClick={() => setRemoveTargetId(null)}>
-                Cancel
-              </button>
-              <button type="button" className="ph-btn-orange" onClick={confirmRemoveFile}>
-                Remove
-              </button>
             </div>
           </div>
         </div>

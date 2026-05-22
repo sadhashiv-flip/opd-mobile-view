@@ -1,0 +1,17 @@
+/* Morning / afternoon / evening markers — diagnostics & consultation slot UI */
+.cas-sun {
+  color: #ff7043;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cas-sun--pm {
+  color: #ff541e;
+}
+
+.cas-section__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

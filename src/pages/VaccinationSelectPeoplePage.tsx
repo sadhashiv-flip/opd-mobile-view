@@ -128,6 +128,8 @@ export function VaccinationSelectPeoplePage() {
       memberId: id,
       memberName: row.name,
       userId: row.userId,
+      memberAge: row.age,
+      memberPhone: row.phone,
       selectedServices: [],
       preferredDateTime: "",
     });

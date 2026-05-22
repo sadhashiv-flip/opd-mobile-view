@@ -17,7 +17,7 @@ export type SelectPeopleMemberListConfig = Readonly<{
   restrictToAhcSelection: boolean;
   isDiagnosticsFlow: boolean;
   /**
-   * When true (dental), no age or subscription gates — all family members are listed and selectable.
+   * When true (dental, vision), no age gate; members remain selectable per subscription rules.
    */
   relaxMemberRestrictions: boolean;
 }>;
