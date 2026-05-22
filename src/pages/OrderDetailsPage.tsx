@@ -20,12 +20,14 @@ import { fetchConsultationReportPdfObjectUrl } from "@/api/patientConsultationRe
 import {
   downloadConsultationPrescriptionPdf,
   fetchInvoiceOrderPageData,
+  isInvoiceDetailCancelled,
   isPartnerOrderPayFlowCategory,
   type ConsultationAttachmentRow,
   type InvoiceConsultationCompletedView,
   type InvoiceDetailModel,
   type LabSubOrderDetailRow,
 } from "@/api/patientInvoices";
+import { OrderDetailCancellationReason } from "@/components/orders/OrderDetailCancellationReason";
 import { patchJumpingMindOrderCancel } from "@/api/patientJumpingMindOrder";
 import { patchLabOrderCancel } from "@/api/patientLabOrderCancel";
 import { patchLabOrderConfirm } from "@/api/patientLabOrderConfirm";
@@ -85,7 +87,9 @@ import {
   OrderDetailPaymentSummaryFallback,
   OrderDetailServiceMetaCard,
 } from "@/components/orders/OrderDetailSharedSections";
+import { OrderDetailConsultationSections } from "@/components/orders/OrderDetailConsultationSections";
 import { OrderDetailServiceRequestSections } from "@/components/orders/OrderDetailServiceRequestSections";
+import { patchConsultationOfflineRescheduleConfirm } from "@/api/patientConsultationOrder";
 import { serviceRequestScreenTitle } from "@/lib/serviceRequestOrderDetail";
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { DEFAULT_CONSULT_SUCCESS_TITLE } from "@/constants/bookingSuccessNavigation";
@@ -112,6 +116,12 @@ import {
   showOfflineConsultationPrescriptionsSection,
   showOrderDetailPaymentSummaryFallback,
 } from "@/lib/orderDetailConsultationRules";
+import {
+  showConsultationFlipPrescriptionSection,
+  showConsultationInvoiceSection,
+  showConsultationRescheduleButton,
+  showConsultationScanQrButton,
+} from "@/lib/consultationOrderDetail";
 import { showServiceRequestCompletePaymentBar } from "@/lib/serviceRequestOrderDetail";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -487,6 +497,7 @@ export function OrderDetailsPage() {
   const confirmLabSubOrderDialogRef = useRef<HTMLDialogElement>(null);
   const [confirmMedicineOrderDialogOpen, setConfirmMedicineOrderDialogOpen] = useState(false);
   const [confirmMedicineOrderBusy, setConfirmMedicineOrderBusy] = useState(false);
+  const [offlineRescheduleConfirmBusy, setOfflineRescheduleConfirmBusy] = useState(false);
   /** Lab collection schedule — confirm center API runs only after user accepts this dialog. */
   const [labSubOrderConfirmDialogId, setLabSubOrderConfirmDialogId] = useState<string | null>(null);
   const [labRescheduleRow, setLabRescheduleRow] = useState<LabSubOrderDetailRow | null>(null);
@@ -1191,11 +1202,19 @@ export function OrderDetailsPage() {
 
   const cc = consultationCompleted;
   const showClinicalCard =
+    !detail?.isConsultationOrder &&
     cc != null &&
     (cc.symptoms != null ||
       cc.diagnosis != null ||
       cc.recommendation != null ||
       cc.history != null);
+  const showCcPrescriptionCard =
+    !detail?.isConsultationOrder &&
+    cc != null &&
+    cc.prescriptions.length > 0;
+  const showConsultationFlipRx = Boolean(
+    detail && showConsultationFlipPrescriptionSection(detail),
+  );
   /**
    * Invoice line-item table from parsed rows. Pharmacy (`order/pharmacy/…`): hide while `info.status === 0`
    * (pending / not yet progressed); show once status is non-zero. Other categories: not gated on status here.
@@ -1204,6 +1223,9 @@ export function OrderDetailsPage() {
     if (!detail || detail.lineItems.length === 0) return false;
     if (isServiceRequestOrderCategory(detail.categoryKey)) {
       return detail.showServiceRequestInvoiceSection;
+    }
+    if (detail.isConsultationOrder) {
+      return showConsultationInvoiceSection(detail.consultationInfoStatus, detail.lineItems.length);
     }
     if (detail.categoryKey === "pharmacy" && detailBookingInfoStatus === 0) return false;
     return true;
@@ -1228,6 +1250,7 @@ export function OrderDetailsPage() {
 
   const headerTitle = useMemo(() => {
     if (loading) return "Loading…";
+    if (detail?.isConsultationOrder) return "Order details";
     if (detail?.categoryKey === "lab") return "Lab order details";
     if (detail && isServiceRequestOrderCategory(detail.categoryKey)) {
       return serviceRequestScreenTitle(detail.categoryKey);
@@ -1238,8 +1261,15 @@ export function OrderDetailsPage() {
 
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
   const isServiceRequestOrder = isServiceRequestOrderCategory(detail?.categoryKey);
+  const showOrderCancellationReason = Boolean(
+    detail &&
+      isInvoiceDetailCancelled(detail) &&
+      detail.orderCancellationReason?.trim(),
+  );
   const cancelUsesTwoStepSheet =
-    detail?.categoryKey === "lab" || isServiceRequestOrder;
+    detail?.isConsultationOrder === true ||
+    detail?.categoryKey === "lab" ||
+    isServiceRequestOrder;
 
   /**
    * Pay footer: `netPayAmount > 0`, **`info.additional_info.payment_required`** present and `true`.
@@ -1292,21 +1322,6 @@ export function OrderDetailsPage() {
   }, [detail, navigate, toast]);
 
   const isPaymentPendingBanner = useMemo(() => showPayConfirmBooking, [showPayConfirmBooking]);
-
-  const visitCardVisible = useMemo(() => {
-    if (detail?.consultationPlaceTag === "virtual") return false;
-    const b = detail?.consultationBooking;
-    if (!b) return false;
-    return [
-      b.scheduleDisplay,
-      b.clinicName,
-      b.doctorName,
-      b.specialty,
-      b.qualification,
-      b.experienceLabel,
-      b.addressLine,
-    ].some((x) => x != null && String(x).trim().length > 0);
-  }, [detail?.consultationBooking, detail?.consultationPlaceTag]);
 
   const showConsultationAttachmentsCard = Boolean(detail?.isConsultationOrder);
   const showConsultationAttachmentBody = detail?.consultationAttachmentsSectionVisible === true;
@@ -1445,6 +1460,37 @@ export function OrderDetailsPage() {
     }
   }, [detail, load, toast]);
 
+  const onConfirmOfflineReschedule = useCallback(async () => {
+    const appointmentId = detail?.consultationInfoId?.trim();
+    if (!appointmentId) return;
+    setOfflineRescheduleConfirmBusy(true);
+    try {
+      await patchConsultationOfflineRescheduleConfirm(appointmentId);
+      toast.success("Booking changes confirmed");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not confirm changes");
+    } finally {
+      setOfflineRescheduleConfirmBusy(false);
+    }
+  }, [detail?.consultationInfoId, load, toast]);
+
+  const onPreviewConsultationUrl = useCallback(
+    (url: string, label: string) => {
+      const row: ConsultationAttachmentRow = { label, url };
+      openConsultationFilePreview([row], url, label);
+    },
+    [openConsultationFilePreview],
+  );
+
+  const onConsultationScanQr = useCallback(() => {
+    toast.info("QR scan will be available soon");
+  }, [toast]);
+
+  const onConsultationReschedule = useCallback(() => {
+    toast.info("Reschedule will be available soon");
+  }, [toast]);
+
   return (
     <div className="od-detail-page">
       <header className="od-top">
@@ -1487,7 +1533,7 @@ export function OrderDetailsPage() {
 
         {!loading && !error && detail ? (
           <>
-            {!isServiceRequestOrder ? (
+            {!isServiceRequestOrder && !isConsultationLayout ? (
               <section
                 className={`od-banner od-banner--${detail.bannerTone}${isPaymentPendingBanner ? " od-banner--paymentPending" : ""}`}
               >
@@ -1501,16 +1547,13 @@ export function OrderDetailsPage() {
                   <h2 className="od-banner__title">{detail.bannerTitle}</h2>
                 </div>
                 <p className="od-banner__sub">{detail.bannerSubtitle}</p>
-                {detail.bannerTone === "cancelled" && detail.labCancellationReason?.trim() ? (
-                  <div className="od-banner__cancel-reason-block">
-                    <p className="od-banner__cancel-reason-label">Cancellation reason</p>
-                    <p className="od-banner__cancel-reason">{detail.labCancellationReason.trim()}</p>
-                  </div>
+                {showOrderCancellationReason ? (
+                  <OrderDetailCancellationReason reason={detail.orderCancellationReason!} />
                 ) : null}
               </section>
             ) : null}
 
-            {cc != null && cc.doctor && !(isConsultationLayout && visitCardVisible) ? (
+            {cc != null && cc.doctor && !isConsultationLayout ? (
               <section className="od-card od-card--doctor" aria-label="Doctor">
                 <h3 className="od-card__title">Doctor</h3>
                 <div className="od-doc">
@@ -1538,111 +1581,14 @@ export function OrderDetailsPage() {
             ) : null}
 
             {isConsultationLayout ? (
-              <>
-                <section className="od-card od-card--consult-appt" aria-label="Appointment">
-                  <div className="od-card__head od-card__head--order-user">
-                    <h3 className="od-card__title">Appointment</h3>
-                    {detail.consultationPlaceTag ? (
-                      <span
-                        className={`od-place-tag od-place-tag--${detail.consultationPlaceTag}`}
-                      >
-                        {detail.consultationPlaceTag === "virtual" ? "Virtual" : "In-person"}
-                      </span>
-                    ) : null}
-                  </div>
-                  {orderReferenceValue !== "—" ? (
-                    <div className="od-row">
-                      <span className="od-row__label">{orderReferenceLabel}</span>
-                      <span className="od-row__value od-row__value--other">{orderReferenceValue}</span>
-                    </div>
-                  ) : null}
-                  {detail.consultationBooking?.scheduleDisplay ? (
-                    <div className="od-row">
-                      <span className="od-row__label">Schedule</span>
-                      <span className="od-row__value od-row__value--other">
-                        {detail.consultationBooking.scheduleDisplay}
-                      </span>
-                    </div>
-                  ) : null}
-                </section>
-
-                {patientDetailsVisible ? (
-                  <OrderDetailPatientSection
-                    patientName={detail.patientName}
-                    consultationPatient={detail.consultationPatient}
-                    alternatePhone={detail.infoDetailsAlternatePhone}
-                    userAddress={detail.pharmacyOrderLocation}
-                  />
-                ) : null}
-
-                {detail.consultationPlaceTag === "virtual" &&
-                detail.consultationOrderDoctor &&
-                consultationCompleted == null ? (
-                  <section className="od-card od-card--doctor" aria-label="Doctor details">
-                    <h3 className="od-card__title">Doctor details</h3>
-                    <div className="od-doc">
-                      <div className="od-doc__avatar-wrap">
-                        {detail.consultationOrderDoctor.imageUrl ? (
-                          <img
-                            className="od-doc__avatar"
-                            src={detail.consultationOrderDoctor.imageUrl}
-                            alt=""
-                            width={56}
-                            height={56}
-                          />
-                        ) : (
-                          <div className="od-doc__avatar od-doc__avatar--placeholder" aria-hidden>
-                            {doctorInitial(detail.consultationOrderDoctor.name)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="od-doc__meta">
-                        <p className="od-doc__name">{detail.consultationOrderDoctor.name}</p>
-                        <p className="od-doc__spec">{detail.consultationOrderDoctor.speciality}</p>
-                      </div>
-                    </div>
-                  </section>
-                ) : null}
-
-                {visitCardVisible && detail.consultationBooking ? (
-                  <section className="od-card od-card--visit" aria-label="Visit details">
-                    <h3 className="od-card__title">Visit details</h3>
-                    {detail.consultationBooking.clinicName ? (
-                      <p className="od-visit__facility">{detail.consultationBooking.clinicName}</p>
-                    ) : null}
-                    {detail.consultationBooking.doctorName ? (
-                      <p className="od-visit__doctor">{detail.consultationBooking.doctorName}</p>
-                    ) : null}
-                    {detail.consultationBooking.specialty ? (
-                      <p className="od-visit__spec">{detail.consultationBooking.specialty}</p>
-                    ) : null}
-                    {detail.consultationBooking.qualification ? (
-                      <p className="od-visit__qual">{detail.consultationBooking.qualification}</p>
-                    ) : null}
-                    {detail.consultationBooking.experienceLabel ? (
-                      <p className="od-visit__exp">{detail.consultationBooking.experienceLabel}</p>
-                    ) : null}
-                    {detail.consultationBooking.addressLine || detail.consultationBooking.mapsUrl ? (
-                      <div className="od-visit__addr-row">
-                        {detail.consultationBooking.addressLine ? (
-                          <p className="od-visit__addr">{detail.consultationBooking.addressLine}</p>
-                        ) : null}
-                        {detail.consultationBooking.mapsUrl ? (
-                          <a
-                            className="od-visit__map-btn"
-                            href={detail.consultationBooking.mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Open directions in maps"
-                          >
-                            <NavMapIcon />
-                          </a>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
-              </>
+              <OrderDetailConsultationSections
+                detail={detail}
+                patientDetailsVisible={patientDetailsVisible}
+                onPreviewUrl={onPreviewConsultationUrl}
+                onOpenFlipPrescription={() => void openPrescriptionPdfViewer()}
+                onConfirmOfflineReschedule={() => void onConfirmOfflineReschedule()}
+                offlineRescheduleConfirmBusy={offlineRescheduleConfirmBusy}
+              />
             ) : (
               <>
                 {detail.categoryKey === "lab" ? (
@@ -2062,7 +2008,7 @@ export function OrderDetailsPage() {
               </section>
             ) : null}
 
-            {cc != null && cc.prescriptions.length > 0 ? (
+            {showCcPrescriptionCard && !showConsultationFlipRx && cc != null && cc.prescriptions.length > 0 ? (
               <section className="od-card od-card--rx" aria-label="Prescription">
                 <h3 className="od-card__title">Prescription</h3>
                 <div className="od-rx-row">
@@ -2241,6 +2187,26 @@ export function OrderDetailsPage() {
               </section>
             ) : null}
 
+            {isConsultationLayout &&
+            (showConsultationScanQrButton(detail) || showConsultationRescheduleButton(detail)) ? (
+              <section className="od-consult-actions" aria-label="Appointment actions">
+                {showConsultationScanQrButton(detail) ? (
+                  <button type="button" className="od-btn-outline-row" onClick={onConsultationScanQr}>
+                    Scan QR code
+                  </button>
+                ) : null}
+                {showConsultationRescheduleButton(detail) ? (
+                  <button
+                    type="button"
+                    className="od-consult-actions__reschedule"
+                    onClick={onConsultationReschedule}
+                  >
+                    Reschedule
+                  </button>
+                ) : null}
+              </section>
+            ) : null}
+
             {canCancelOrder || canCancelWellnessSession ? (
               <section
                 className="od-order-cancel-end"
@@ -2328,7 +2294,9 @@ export function OrderDetailsPage() {
             className="od-consult-footer__btn od-consult-footer__btn--pay"
             onClick={onPayConfirmBooking}
           >
-            {detail?.categoryKey === "lab" || isServiceRequestOrderCategory(detail?.categoryKey)
+            {detail?.categoryKey === "lab" ||
+            isServiceRequestOrderCategory(detail?.categoryKey) ||
+            detail?.isConsultationOrder
               ? "Complete payment"
               : "Pay / confirm"}
           </button>
@@ -2348,7 +2316,7 @@ export function OrderDetailsPage() {
       {showFollowUpFooter ? (
         <footer className="od-follow-footer">
           <button type="button" className="od-follow-footer__btn" onClick={() => onBookFollowUp()}>
-            Book a follow-up
+            Book follow up
           </button>
         </footer>
       ) : null}
@@ -2459,12 +2427,18 @@ export function OrderDetailsPage() {
             {cancelUsesTwoStepSheet && cancelSheetPhase === "confirm" ? (
               <>
                 <h2 id={cancelDialogTitleId} className="od-cancel-dialog__title">
-                  {detail?.categoryKey === "lab" ? "Cancel lab booking?" : "Cancel request?"}
+                  {detail?.categoryKey === "lab"
+                    ? "Cancel lab booking?"
+                    : isConsultationLayout
+                      ? "Cancel appointment?"
+                      : "Cancel request?"}
                 </h2>
                 <p id={`${cancelDialogTitleId}-desc`} className="od-cancel-dialog__desc">
                   {detail?.categoryKey === "lab"
                     ? "This action will cancel your lab booking."
-                    : "This action will cancel your service request."}
+                    : isConsultationLayout
+                      ? "This action will cancel your appointment."
+                      : "This action will cancel your service request."}
                 </p>
                 <footer className="od-cancel-dialog__footer od-cancel-dialog__footer--lab-confirm">
                   <button

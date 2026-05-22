@@ -4,6 +4,9 @@
   flex-direction: column;
   background: #f4f6f8;
   container-type: inline-size;
+  /* Align fixed FAB with `.mobile-frame` column (see ProfileBankPage `--bank-list-frame-*`) */
+  --hst-frame-w: min(var(--mobile-frame-max-width, 480px), 100vw);
+  --hst-frame-left: calc((100vw - var(--hst-frame-w)) / 2);
 }
 
 .help-support-tickets__top {
@@ -121,7 +124,10 @@
 
 .help-support-tickets__fab {
   position: fixed;
-  right: 16px;
+  right: max(
+    env(safe-area-inset-right, 0px),
+    calc(100vw - var(--hst-frame-left) - var(--hst-frame-w) + 16px)
+  );
   bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 3;
   display: inline-flex;

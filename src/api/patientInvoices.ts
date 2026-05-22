@@ -368,13 +368,11 @@ function deriveInvoiceStatus(o: Record<string, unknown>): {
     return { label: "Completed", tone: "completed" };
   }
 
-  if (
-    payment === "pending" ||
-    payment === "processing" ||
-    order === "pending" ||
-    order === "processing" ||
-    order === "in_progress"
-  ) {
+  if (payment === "pending" || order === "pending") {
+    return { label: "Waiting for confirmation", tone: "processing" };
+  }
+
+  if (payment === "processing" || order === "processing" || order === "in_progress") {
     return { label: "Processing", tone: "processing" };
   }
 
@@ -577,6 +575,8 @@ function normalizeOne(v: unknown, index: number): InvoiceOrderRow | null {
     statusTone = d.tone;
   }
 
+  statusLabel = ordersListStatusDisplayLabel(statusLabel);
+
   const { isFree, amountFormatted } = parseInvoicePricing(o);
 
   const videoAppointmentId = videoAppointmentIdFromRow(o, infoObj, dataObj);
@@ -771,6 +771,30 @@ export type ConsultationOrderBookingUi = Readonly<{
   mapsUrl: string | null;
 }>;
 
+export type ConsultationClinicalNotesUi = Readonly<{
+  symptoms: string | null;
+  history: string | null;
+  diagnosis: string | null;
+  recommendation: string | null;
+}>;
+
+export type ConsultationRescheduleLineUi = Readonly<{
+  address: string | null;
+  name: string | null;
+  timeSlot: string | null;
+}>;
+
+export type ConsultationOfflineRescheduleUi = Readonly<{
+  requested: ConsultationRescheduleLineUi;
+  modified: ConsultationRescheduleLineUi;
+}>;
+
+export type ConsultationVendorRescheduleContext = Readonly<{
+  vendorCode: string;
+  networkId: string;
+  doctorId: string;
+}>;
+
 /** Pharmacy pickup / delivery block on order detail (from merged invoice + envelope). */
 export type PharmacyOrderLocationCardUi = Readonly<{
   cardTitle: string;
@@ -884,6 +908,26 @@ export type InvoiceDetailModel = Readonly<{
   consultationBooking: ConsultationOrderBookingUi | null;
   /** From `info.doctor` for virtual rows (pending or completed); visit card uses offline booking only. */
   consultationOrderDoctor: ConsultationDoctorCard | null;
+  /** Detail status banner — `consultationOrderDetailStatusLabel` (not list “Confirmed”). */
+  consultationDetailStatusLabel: string | null;
+  /** `info.purpose` when non-empty. */
+  consultationPurpose: string | null;
+  /** `info.source` (defaults FLIPHEALTH). */
+  consultationInfoSource: string | null;
+  /** FLIPHEALTH completed — symptoms / history / diagnosis / recommendation from `info`. */
+  consultationClinicalNotes: ConsultationClinicalNotesUi | null;
+  /** patient_app `showClinicalNotesSection`. */
+  showConsultationClinicalNotes: boolean;
+  /** Partner offline reschedule/reassign — requested vs modified booking. */
+  consultationOfflineReschedule: ConsultationOfflineRescheduleUi | null;
+  /** Partner `info.prescriptions[].details` image URLs. */
+  consultationNetworkPrescriptionUrls: readonly string[];
+  /** Vendor code from `additional_info` / `info` — Practo QR, reschedule. */
+  consultationVendorCode: string;
+  /** Offline vendor reschedule slot fetch context. */
+  consultationVendorRescheduleContext: ConsultationVendorRescheduleContext | null;
+  /** Parsed appointment start (ms) for reschedule CTA. */
+  consultationScheduledStartMs: number | null;
   /** From `info.attachments` when `info` is present (consultation, pharmacy, etc.). */
   consultationAttachments: readonly ConsultationAttachmentRow[];
   /** From `info.reports` for consultation invoices only. */
@@ -944,8 +988,8 @@ export type InvoiceDetailModel = Readonly<{
   labInfoStatusTextLine: string | null;
   labTrackingUrl: string | null;
   labReportUrl: string | null;
-  /** Shown on status banner when cancelled (lab + vision/dental/vaccine service requests). */
-  labCancellationReason: string | null;
+  /** Shown when order is cancelled — patient_app `CancellationReasonSection` (all categories). */
+  orderCancellationReason: string | null;
   /**
    * Home / pickup collection address — only when visit type is not self-visit-at-center-only.
    * Patient_app shows this as “Collection address”, separate from patient demographics.
@@ -1423,10 +1467,16 @@ function mapStatusToneToBanner(tone: InvoiceOrderListStatusTone): InvoiceDetailB
  * On the orders list, status `5` is "Confirmed" except for **doctor consultation** (not Vision). Vision may use
  * {@link invoiceListStatusLabelFromInfoStatus} with `showConsultationStyleStatus5Label` = false when `info.type` is VISION.
  */
+/**
+ * Orders list numeric `info.status` — patient_app `order_models.dart` `_mapStatus`.
+ * {@link ordersListStatusDisplayLabel} maps label "Pending" → "Waiting for confirmation".
+ */
 export function consultationInfoStatusLabelOffline(status: unknown): string {
   const raw = num(status);
   const n = raw == null || Number.isNaN(raw) ? null : Math.trunc(raw);
   switch (n) {
+    case 0:
+      return "Waiting for confirmation";
     case 1:
       return "Completed";
     case 2:
@@ -1437,9 +1487,24 @@ export function consultationInfoStatusLabelOffline(status: unknown): string {
       return "Payment pending";
     case 5:
       return "Upcoming appointment";
-    default:
+    case 6:
+      return "In progress";
+    case 7:
+    case 8:
       return "Pending";
+    case 9:
+      return "Expired";
+    default:
+      return "Processing";
   }
+}
+
+/** `/orders` list badge: `pending` / label `Pending` → patient_app "Waiting for confirmation". */
+export function ordersListStatusDisplayLabel(label: string): string {
+  const t = label.trim();
+  if (!t) return label;
+  if (t.toLowerCase() === "pending") return "Waiting for confirmation";
+  return label;
 }
 
 /**
@@ -2223,6 +2288,55 @@ function nonEmptyTrimmed(v: unknown): string | null {
   return s != null && s.length > 0 ? s : null;
 }
 
+/** patient_app `_cancellationReasonFromInfo` / `_resolvePharmacyCancellationReason`. */
+function resolveOrderCancellationReason(
+  root: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+): string | null {
+  const pick = (rec: Record<string, unknown> | null | undefined): string | null => {
+    if (!rec) return null;
+    return (
+      nonEmptyTrimmed(rec.cancellation_reason) ?? nonEmptyTrimmed(rec.cancellationReason)
+    );
+  };
+
+  let reason = pick(info);
+  if (reason) return reason;
+  reason = pick(info != null ? asRecord(info.additional_info) : null);
+  if (reason) return reason;
+  reason = pick(root);
+  if (reason) return reason;
+  reason = pick(asRecord(root.additional_info));
+  if (reason) return reason;
+  const data = asRecord(root.data);
+  reason = pick(data);
+  if (reason) return reason;
+  reason = pick(data != null ? asRecord(data.info) : null);
+  if (reason) return reason;
+  const inv = asRecord(root.invoice);
+  reason = pick(inv);
+  if (reason) return reason;
+  reason = pick(inv != null ? asRecord(inv.additional_info) : null);
+  return reason;
+}
+
+/** True when invoice detail should show cancellation reason (status code 2 or cancelled tone). */
+export function isInvoiceDetailCancelled(
+  detail: Readonly<{
+    bannerTone: InvoiceDetailBannerTone;
+    statusValueTone: InvoiceOrderRow["statusTone"];
+    serviceInfoStatus: number | null;
+    consultationInfoStatus: number | null;
+  }>,
+): boolean {
+  return (
+    detail.bannerTone === "cancelled" ||
+    detail.statusValueTone === "cancelled" ||
+    detail.serviceInfoStatus === 2 ||
+    detail.consultationInfoStatus === 2
+  );
+}
+
 /**
  * Reads reschedule-related fields from one lab `orders[]` row (snake/camel and nested `additional_info`).
  */
@@ -2616,6 +2730,115 @@ function parseConsultationOrderPatientUi(o: Record<string, unknown>): Consultati
         : genderRaw ?? null;
   if (!phone && !email && !ageGenderLine) return null;
   return { phone, email, ageGenderLine };
+}
+
+function parseConsultationRescheduleLine(
+  m: Record<string, unknown> | null,
+): ConsultationRescheduleLineUi {
+  if (!m) {
+    return { address: null, name: null, timeSlot: null };
+  }
+  return {
+    address: str(m.address),
+    name: str(m.name),
+    timeSlot: str(m.time_slot) ?? str(m.timeSlot),
+  };
+}
+
+function parseConsultationOfflineReschedule(
+  info: Record<string, unknown>,
+): ConsultationOfflineRescheduleUi | null {
+  const add = asRecord(info.additional_info);
+  if (!add || !Object.prototype.hasOwnProperty.call(add, "booking_details")) return null;
+  const book = asRecord(add.booking_details);
+  if (!book) return null;
+  const req = asRecord(book.requested_booking_details);
+  return {
+    requested: parseConsultationRescheduleLine(req),
+    modified: parseConsultationRescheduleLine(book),
+  };
+}
+
+function parseConsultationNetworkPrescriptionUrls(info: Record<string, unknown>): string[] {
+  const raw = info.prescriptions;
+  if (!Array.isArray(raw)) return [];
+  const urls: string[] = [];
+  for (const item of raw) {
+    const r = asRecord(item);
+    if (!r) continue;
+    const details = r.details;
+    if (!Array.isArray(details)) continue;
+    for (const e of details) {
+      const s = str(e)?.trim();
+      if (!s) continue;
+      const url = /^https?:\/\//i.test(s) ? s : resolveProfileImageUrl(s);
+      if (url) urls.push(url);
+    }
+  }
+  return urls;
+}
+
+function parseConsultationClinicalNotes(
+  info: Record<string, unknown>,
+): ConsultationClinicalNotesUi {
+  return {
+    symptoms: nonEmptyTrimmedText(info.symptoms),
+    history: nonEmptyTrimmedText(info.history),
+    diagnosis: nonEmptyTrimmedText(info.diagnosis),
+    recommendation: nonEmptyTrimmedText(info.recommendation),
+  };
+}
+
+function parseConsultationVendorCode(info: Record<string, unknown>): string {
+  const add = asRecord(info.additional_info);
+  if (add) {
+    const vm = asRecord(add.vendor_meta);
+    const fromMeta = vm ? str(vm.source)?.trim() : null;
+    if (fromMeta) return fromMeta;
+    const fromAdd = str(add.vendor_code)?.trim();
+    if (fromAdd) return fromAdd;
+  }
+  return str(info.vendor_code)?.trim() ?? "";
+}
+
+function parseConsultationVendorRescheduleContext(
+  info: Record<string, unknown>,
+): ConsultationVendorRescheduleContext | null {
+  const add = asRecord(info.additional_info);
+  if (!add) return null;
+  const vm = asRecord(add.vendor_meta);
+  const vmMap = vm ?? {};
+  let doctorId = str(vmMap.doctor_id)?.trim() ?? "";
+  if (!doctorId) {
+    doctorId = str(add.doctor_id)?.trim() ?? "";
+  }
+  if (!doctorId) {
+    const doctor = asRecord(info.doctor);
+    doctorId = doctor ? (str(doctor.id)?.trim() ?? "") : "";
+  }
+  const vendorCode =
+    str(vmMap.source)?.trim() ?? str(add.vendor_code)?.trim() ?? "";
+  let networkId =
+    str(vmMap.practice_id)?.trim() ?? str(add.network_id)?.trim() ?? "";
+  if (!networkId) {
+    networkId = str(add.network_id)?.trim() ?? "";
+  }
+  if (!vendorCode || !networkId || !doctorId) return null;
+  return { vendorCode, networkId, doctorId };
+}
+
+function consultationScheduledStartMsFromInfo(info: Record<string, unknown>): number | null {
+  const fromSlot = consultationSlotStartMsFromInfo(info);
+  if (fromSlot != null) return fromSlot;
+  const add = asRecord(info.additional_info);
+  const book = add ? asRecord(add.booking_details) : null;
+  const ts = book ? str(book.time_slot)?.trim() : null;
+  if (!ts) return null;
+  let d = Date.parse(ts);
+  if (Number.isNaN(d) && ts.includes(" ") && !ts.includes("T")) {
+    d = Date.parse(ts.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T"));
+  }
+  return Number.isNaN(d) ? null : d;
 }
 
 function parseConsultationOrderBookingUi(info: Record<string, unknown>): ConsultationOrderBookingUi {
@@ -3038,6 +3261,46 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
       : null;
   const consultationOrderDoctor =
     isConsultationInvoice && infoForStatus != null ? parseConsultationDoctor(infoForStatus) : null;
+  const consultationDetailStatusLabelResolved =
+    isConsultationInvoice && infoForStatus != null && !isVisionInvoiceDetail
+      ? consultationOrderDetailStatusLabel(infoForStatus, { slotExpired: isExpiredVirtual })
+      : null;
+  const consultationPurposeResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? nonEmptyTrimmedText(infoForStatus.purpose)
+      : null;
+  const consultationInfoSourceResolved =
+    isConsultationInvoice && infoForStatus != null ? consultationInfoSource : null;
+  const consultationClinicalNotesResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationClinicalNotes(infoForStatus)
+      : null;
+  const showConsultationClinicalNotesFlag =
+    isConsultationInvoice &&
+    infoForStatus != null &&
+    (consultationInfoSource ?? "FLIPHEALTH").toUpperCase() === "FLIPHEALTH" &&
+    infoStatusTrunc === 1 &&
+    consultationSlotStartMsFromInfo(infoForStatus) != null;
+  const consultationOfflineRescheduleResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationOfflineReschedule(infoForStatus)
+      : null;
+  const consultationNetworkPrescriptionUrlsResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationNetworkPrescriptionUrls(infoForStatus)
+      : [];
+  const consultationVendorCodeResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationVendorCode(infoForStatus)
+      : "";
+  const consultationVendorRescheduleContextResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationVendorRescheduleContext(infoForStatus)
+      : null;
+  const consultationScheduledStartMsResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? consultationScheduledStartMsFromInfo(infoForStatus)
+      : null;
   /** `info.attachments` for any invoice type (e.g. pharmacy prescriptions); reports stay consultation-only. */
   const consultationAttachments =
     infoForStatus != null
@@ -3197,15 +3460,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     categoryKey === "lab" && infoForStatus != null
       ? nonEmptyTrimmed(infoForStatus.report_url) ?? nonEmptyTrimmed(infoForStatus.reportUrl)
       : null;
-  const labCancellationReason =
-    infoForStatus != null &&
-    (categoryKey === "lab" ||
-      categoryKey === "dental" ||
-      categoryKey === "vision" ||
-      categoryKey === "vaccine")
-      ? nonEmptyTrimmed(infoForStatus.cancellation_reason) ??
-        nonEmptyTrimmed(infoForStatus.cancellationReason)
-      : null;
+  const orderCancellationReason = resolveOrderCancellationReason(o, infoForStatus);
   const labPatientTestsByMember =
     categoryKey === "lab" ? buildLabPatientLineGroups(o) : [];
   const labUploadedPrescriptions =
@@ -3243,6 +3498,16 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationPatient,
     consultationBooking,
     consultationOrderDoctor,
+    consultationDetailStatusLabel: consultationDetailStatusLabelResolved,
+    consultationPurpose: consultationPurposeResolved,
+    consultationInfoSource: consultationInfoSourceResolved,
+    consultationClinicalNotes: consultationClinicalNotesResolved,
+    showConsultationClinicalNotes: showConsultationClinicalNotesFlag,
+    consultationOfflineReschedule: consultationOfflineRescheduleResolved,
+    consultationNetworkPrescriptionUrls: consultationNetworkPrescriptionUrlsResolved,
+    consultationVendorCode: consultationVendorCodeResolved,
+    consultationVendorRescheduleContext: consultationVendorRescheduleContextResolved,
+    consultationScheduledStartMs: consultationScheduledStartMsResolved,
     consultationAttachments,
     consultationReports,
     consultationAttachmentsSectionVisible: consultationAttachmentUi.sectionVisible,
@@ -3271,7 +3536,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     labInfoStatusTextLine,
     labTrackingUrl,
     labReportUrl,
-    labCancellationReason,
+    orderCancellationReason,
     labCollectionAddressCard,
     labPatientTestsByMember,
     labUploadedPrescriptions,

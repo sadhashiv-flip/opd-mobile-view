@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { BankTypeSearchSheet } from "@/components/bank/BankTypeSearchSheet";
 import {
   createPatientBankDetails,
-  fetchAllBankTypeOptions,
   fetchPatientBankById,
   updatePatientBankDetails,
   type BankTypeOption,
@@ -18,12 +17,40 @@ import "./ProfileBankFormPage.css";
 /** Backend allows PATCH correction only when the saved row is admin-rejected. */
 const BANK_VERIFY_REJECTED = 2;
 
-/** Same-origin path only — used for `returnPath` / `returnTo` from claim detail, new claim, etc. */
 function safeReturnNavigatePath(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const t = raw.trim();
   if (!t.startsWith("/") || t.startsWith("//")) return null;
   return t;
+}
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+type ProfileBankFieldProps = Readonly<{
+  id: string;
+  label: string;
+  required?: boolean;
+  icon: ReactNode;
+  children: ReactNode;
+}>;
+
+function ProfileBankField({ id, label, required, icon, children }: ProfileBankFieldProps) {
+  return (
+    <div className="pbf-field">
+      <label className="pbf-field__label" htmlFor={id}>
+        {label}
+        {required ? " *" : ""}
+      </label>
+      <div className="pbf-field__control">
+        <span className="pbf-field__icon" aria-hidden>
+          {icon}
+        </span>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export function ProfileBankFormPage() {
@@ -33,7 +60,6 @@ export function ProfileBankFormPage() {
   const location = useLocation();
   const toast = useToast();
 
-  /** Prefer explicit `returnPath` (e.g. claim detail), then `returnTo` (e.g. new claim flow). */
   const resolvedReturnPath = useMemo(() => {
     const s = location.state as { returnPath?: unknown; returnTo?: unknown } | null | undefined;
     return safeReturnNavigatePath(s?.returnPath) ?? safeReturnNavigatePath(s?.returnTo);
@@ -43,12 +69,13 @@ export function ProfileBankFormPage() {
     () => resolvedReturnPath ?? ROUTES.profileBank,
     [resolvedReturnPath],
   );
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialChequeIdRef = useRef<string | null>(null);
 
-  const [bankOptions, setBankOptions] = useState<BankTypeOption[]>([]);
-  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [bankSheetOpen, setBankSheetOpen] = useState(false);
   const [bankKey, setBankKey] = useState("");
+  const [bankLabel, setBankLabel] = useState("");
   const [ifscCode, setIfscCode] = useState("");
   const [branch, setBranch] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -56,15 +83,15 @@ export function ProfileBankFormPage() {
   const [accountHolderName, setAccountHolderName] = useState("");
   const [chequeFile, setChequeFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  /** Set after successful `POST /upload` (used as `cheque` on save). */
   const [chequeAttachmentId, setChequeAttachmentId] = useState<string | null>(null);
   const [uploadingCheque, setUploadingCheque] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const chequeUploadSeqRef = useRef(0);
   const [loadingInit, setLoadingInit] = useState(isEdit);
   const [loadedServerChequePath, setLoadedServerChequePath] = useState<string | null>(null);
-  /** Loaded row `verify_status`. PATCH corrections are allowed only when this is `2` (admin rejected). */
   const [bankRecordVerifyStatus, setBankRecordVerifyStatus] = useState<number | null>(null);
+
+  const pageTitle = isEdit ? "Edit Bank Account" : "Add Bank Account";
 
   useEffect(() => {
     if (!bankId) {
@@ -87,6 +114,7 @@ export function ProfileBankFormPage() {
         initialChequeIdRef.current = r.cheque.trim() || null;
         setChequeAttachmentId(r.cheque.trim() || null);
         setBankKey(r.bankName);
+        setBankLabel(r.bankName);
         setIfscCode(r.ifscCode);
         setBranch(r.branch);
         setAccountNumber(r.accountNumber);
@@ -114,25 +142,6 @@ export function ProfileBankFormPage() {
   );
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const opts = await fetchAllBankTypeOptions();
-        if (!cancelled) setBankOptions(opts);
-      } catch (e) {
-        if (!cancelled) {
-          toast.error(e instanceof Error ? e.message : "Could not load banks list");
-        }
-      } finally {
-        if (!cancelled) setOptionsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [toast]);
-
-  useEffect(() => {
     if (!chequeFile) {
       setPreviewUrl(null);
       return;
@@ -144,7 +153,6 @@ export function ProfileBankFormPage() {
     };
   }, [chequeFile]);
 
-  /** When bank + file are set, upload immediately; re-runs if bank or file changes. */
   useEffect(() => {
     if (!bankKey.trim()) {
       if (isEdit && initialChequeIdRef.current) {
@@ -191,6 +199,11 @@ export function ProfileBankFormPage() {
     };
   }, [bankKey, chequeFile, isEdit, toast]);
 
+  const onBankSelect = useCallback((opt: BankTypeOption) => {
+    setBankKey(opt.key);
+    setBankLabel(opt.label);
+  }, []);
+
   const onFileChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const f = e.target.files?.[0];
@@ -208,7 +221,7 @@ export function ProfileBankFormPage() {
     [bankKey, toast],
   );
 
-  const clearFile = useCallback(() => {
+  const clearCheque = useCallback(() => {
     chequeUploadSeqRef.current += 1;
     setChequeFile(null);
     setUploadingCheque(false);
@@ -222,54 +235,45 @@ export function ProfileBankFormPage() {
 
   const accountsMatch = accountNumber === verifyAccountNumber && accountNumber.length > 0;
 
-  const chequeStatusMessage = useMemo(() => {
-    if (!chequeAttachmentId?.trim() || uploadingCheque) return null;
-    if (chequeFile) return "New cheque uploaded — ready to save.";
-    if (isEdit) return "Cheque on file — ready to save, or replace with a new file.";
-    return "Cheque uploaded — ready to save.";
-  }, [chequeAttachmentId, uploadingCheque, chequeFile, isEdit]);
+  const hasChequeOnFile = Boolean(
+    chequeFile || (isEdit && serverChequeImgUrl && !chequeFile) || chequeAttachmentId?.trim(),
+  );
 
-  const pickFileButtonLabel = useMemo(() => {
-    if (!bankKey.trim()) return "Select bank first";
-    if (isEdit) return "Replace cheque file";
-    return "Choose file";
-  }, [bankKey, isEdit]);
-
-  /** PATCH `/bank_details/:id` is validated for `verify_status === 2` only. */
   const correctionPatchAllowed = !isEdit || bankRecordVerifyStatus === BANK_VERIFY_REJECTED;
 
-  const submitButtonLabel = useMemo(() => {
-    if (submitting) return "Saving…";
-    if (isEdit && !correctionPatchAllowed) return "Correction not available";
-    if (isEdit) return "Update bank account";
-    return "Save bank account";
-  }, [submitting, isEdit, correctionPatchAllowed]);
-
-  const canSubmit = useMemo(() => {
-    const chequeBusyOrInvalid =
-      uploadingCheque || (!isEdit && !chequeAttachmentId?.trim());
-    return (
+  const isFormValid = useMemo(
+    () =>
       bankKey.trim().length > 0 &&
+      accountHolderName.trim().length > 0 &&
+      accountNumber.trim().length > 0 &&
+      verifyAccountNumber.trim().length > 0 &&
+      accountsMatch &&
       ifscCode.trim().length > 0 &&
       branch.trim().length > 0 &&
-      accountsMatch &&
-      accountHolderName.trim().length > 0 &&
-      !chequeBusyOrInvalid &&
-      !submitting &&
-      correctionPatchAllowed
-    );
-  }, [
-    bankKey,
-    ifscCode,
-    branch,
-    accountsMatch,
-    accountHolderName,
-    chequeAttachmentId,
-    uploadingCheque,
-    submitting,
-    correctionPatchAllowed,
-    isEdit,
-  ]);
+      hasChequeOnFile &&
+      Boolean(chequeAttachmentId?.trim()) &&
+      !uploadingCheque,
+    [
+      bankKey,
+      accountHolderName,
+      accountNumber,
+      verifyAccountNumber,
+      accountsMatch,
+      ifscCode,
+      branch,
+      hasChequeOnFile,
+      chequeAttachmentId,
+      uploadingCheque,
+    ],
+  );
+
+  const canSubmit = isFormValid && !submitting && correctionPatchAllowed;
+
+  const saveButtonLabel = useMemo(() => {
+    if (submitting) return null;
+    if (isEdit && !correctionPatchAllowed) return "Correction not available";
+    return isEdit ? "Update Bank Account" : "Save Bank Account";
+  }, [submitting, isEdit, correctionPatchAllowed]);
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
@@ -279,7 +283,6 @@ export function ProfileBankFormPage() {
     try {
       if (isEdit && bankId) {
         const replacingCheque = Boolean(chequeFile);
-        /** Saved row `cheque` from GET bank_details (same as `data[n].cheque`). */
         const existingChequeId = initialChequeIdRef.current?.trim() ?? "";
         const chequeToSend = replacingCheque ? chequeTrim : existingChequeId || chequeTrim;
         if (!chequeToSend.trim()) {
@@ -338,9 +341,12 @@ export function ProfileBankFormPage() {
     verifyAccountNumber,
   ]);
 
+  const chequeThumbSrc = previewUrl ?? (isEdit && !chequeFile ? serverChequeImgUrl : null);
+  const chequeIsPdf = chequeFile?.name.toLowerCase().endsWith(".pdf") ?? false;
+
   if (loadingInit) {
     return (
-      <div className="profile-manage-page pbf-page">
+      <div className="profile-manage-page pbf-page pbf-page--form">
         <header className="profile-manage-page__top">
           <Link to={navigateAfterBankSave} className="profile-manage-page__back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -353,19 +359,18 @@ export function ProfileBankFormPage() {
               />
             </svg>
           </Link>
-          <h1 className="profile-manage-page__title">Edit bank</h1>
+          <h1 className="profile-manage-page__title">{pageTitle}</h1>
           <span className="profile-manage-page__spacer" aria-hidden />
         </header>
-        <main className="profile-manage-page__main" style={{ paddingTop: 24 }}>
-          <p className="profile-manage-page__intro">Loading bank account…</p>
+        <main className="pbf-page__scroll">
+          <p className="pbf-loading">Loading bank account…</p>
         </main>
-        <HomeBottomNav />
       </div>
     );
   }
 
   return (
-    <div className="profile-manage-page pbf-page">
+    <div className="profile-manage-page pbf-page pbf-page--form">
       <header className="profile-manage-page__top">
         <Link
           to={navigateAfterBankSave}
@@ -382,226 +387,302 @@ export function ProfileBankFormPage() {
             />
           </svg>
         </Link>
-        <h1 className="profile-manage-page__title">{isEdit ? "Edit bank" : "Add bank"}</h1>
+        <h1 className="profile-manage-page__title">{pageTitle}</h1>
         <span className="profile-manage-page__spacer" aria-hidden />
       </header>
 
-      <main className="profile-manage-page__main">
+      <main className="pbf-page__scroll">
         {isEdit && bankRecordVerifyStatus === BANK_VERIFY_REJECTED ? (
           <div className="pbf-patch-notice pbf-patch-notice--rejected" role="status">
-            <strong>Bank profile was rejected.</strong> Update your details and save — we’ll verify again
-            (status returns to pending). Use an active bank <strong>type key</strong> for bank name and a new
-            cancelled-cheque upload if needed.
+            <strong>Bank profile was rejected.</strong> Update your details and save — we’ll verify
+            again.
           </div>
         ) : null}
         {isEdit && bankRecordVerifyStatus !== null && bankRecordVerifyStatus !== BANK_VERIFY_REJECTED ? (
           <div className="pbf-patch-notice pbf-patch-notice--blocked" role="note">
-            Corrections through this form are only accepted after an admin rejection. Your bank row is not
-            in rejected state yet, so this update cannot be submitted here. For help, contact support.
+            Corrections through this form are only accepted after an admin rejection.
           </div>
         ) : null}
-        <p className="profile-manage-page__intro">
-          {isEdit
-            ? "Bank name, IFSC, branch, account details, and holder name are required. Replacing the cancelled cheque is optional — if you do not pick a new file, your existing cheque attachment id is sent again with the update."
-            : "Choose a bank first, then pick a cancelled cheque — it uploads immediately to /upload. Save sends that id as cheque with your account details."}
-        </p>
 
-        <section className="pbf-card" aria-label="Bank account form">
+        <div className="pbf-form">
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="pbf-bank">
-              Select bank
-            </label>
-            <select
-              id="pbf-bank"
-              className="pbf-select"
-              value={bankKey}
-              disabled={optionsLoading}
-              onChange={(e) => setBankKey(e.target.value)}
+            <span className="pbf-field__label">Bank name *</span>
+            <button
+              type="button"
+              className="pbf-bank-select"
+              onClick={() => setBankSheetOpen(true)}
             >
-              <option value="">
-                {optionsLoading ? "Loading banks…" : "Choose a bank"}
-              </option>
-              {bankOptions.map((b) => (
-                <option key={b.key} value={b.key}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
+              <span className="pbf-bank-select__icon" aria-hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M4 10v8h16v-8M4 10l2-6h12l2 6M9 14h6"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span
+                className={
+                  bankLabel.trim()
+                    ? "pbf-bank-select__text"
+                    : "pbf-bank-select__text pbf-bank-select__text--placeholder"
+                }
+              >
+                {bankLabel.trim() || "Select bank"}
+              </span>
+              <span className="pbf-bank-select__chev" aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+            </button>
           </div>
 
-          <div className="pbf-field">
-            <label className="pbf-label" htmlFor="pbf-ifsc">
-              Bank IFSC
-            </label>
+          <ProfileBankField
+            id="pbf-holder"
+            label="Account holder name"
+            required
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
+                <path
+                  d="M5 20c0-4 3.5-6 7-6s7 2 7 6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            }
+          >
             <input
-              id="pbf-ifsc"
+              id="pbf-holder"
               className="pbf-input"
-              autoComplete="off"
-              placeholder="e.g. SBIN0001234"
-              value={ifscCode}
-              onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+              autoComplete="name"
+              placeholder="Enter account holder name"
+              value={accountHolderName}
+              onChange={(e) => setAccountHolderName(e.target.value)}
             />
-          </div>
+          </ProfileBankField>
 
-          <div className="pbf-field">
-            <label className="pbf-label" htmlFor="pbf-branch">
-              Branch name
-            </label>
-            <input
-              id="pbf-branch"
-              className="pbf-input"
-              autoComplete="off"
-              placeholder="Branch"
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-            />
-          </div>
-
-          <div className="pbf-field">
-            <label className="pbf-label" htmlFor="pbf-account">
-              Account number
-            </label>
+          <ProfileBankField
+            id="pbf-account"
+            label="Account number"
+            required
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M3 10h18" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            }
+          >
             <input
               id="pbf-account"
               className="pbf-input"
               inputMode="numeric"
               autoComplete="off"
+              placeholder="Enter account number"
               value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value)}
+              onChange={(e) => setAccountNumber(digitsOnly(e.target.value))}
             />
-          </div>
+          </ProfileBankField>
 
-          <div className="pbf-field">
-            <label className="pbf-label" htmlFor="pbf-verify">
-              Verify account number
-            </label>
+          <ProfileBankField
+            id="pbf-verify"
+            label="Confirm account number"
+            required
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M3 10h18" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            }
+          >
             <input
               id="pbf-verify"
               className="pbf-input"
+              type="password"
               inputMode="numeric"
               autoComplete="off"
+              placeholder="Re-enter account number"
               value={verifyAccountNumber}
-              onChange={(e) => setVerifyAccountNumber(e.target.value)}
+              onChange={(e) => setVerifyAccountNumber(digitsOnly(e.target.value))}
             />
-            {verifyAccountNumber.length > 0 && !accountsMatch ? (
-              <p className="pbf-field-hint pbf-field-hint--err">Account numbers do not match.</p>
-            ) : null}
-          </div>
+          </ProfileBankField>
+          {verifyAccountNumber.length > 0 && !accountsMatch ? (
+            <p className="pbf-field-hint pbf-field-hint--err">Account numbers do not match.</p>
+          ) : null}
 
-          <div className="pbf-field">
-            <label className="pbf-label" htmlFor="pbf-holder">
-              Account holder name
-            </label>
+          <ProfileBankField
+            id="pbf-ifsc"
+            label="IFSC code"
+            required
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 2v4M8 6h8M6 10h12v12H6V10z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            }
+          >
             <input
-              id="pbf-holder"
+              id="pbf-ifsc"
               className="pbf-input"
-              autoComplete="name"
-              placeholder="As per bank records"
-              value={accountHolderName}
-              onChange={(e) => setAccountHolderName(e.target.value)}
+              autoComplete="off"
+              placeholder="Enter IFSC code"
+              value={ifscCode}
+              onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
             />
-          </div>
+          </ProfileBankField>
 
-          <div className="pbf-attach">
-            <p className="pbf-attach__title">Attachment (Cancelled cheque leaf)</p>
-            {uploadingCheque ? (
-              <p className="pbf-attach__status" aria-live="polite">
-                Uploading cheque…
-              </p>
-            ) : null}
-            {chequeStatusMessage ? (
-              <p className="pbf-attach__ok" aria-live="polite">
-                {chequeStatusMessage}
-              </p>
-            ) : null}
+          <ProfileBankField
+            id="pbf-branch"
+            label="Branch"
+            required
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M3 21h18M6 21V9l6-4 6 4v12M10 14h4v7h-4v-7z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            }
+          >
+            <input
+              id="pbf-branch"
+              className="pbf-input"
+              autoComplete="off"
+              placeholder="Enter branch name"
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+            />
+          </ProfileBankField>
+
+          <section className="pbf-cheque" aria-label="Cancelled cheque">
+            <div className="pbf-cheque__head">
+              <span className="pbf-cheque__head-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="9" cy="9" r="1.5" fill="currentColor" />
+                  <path d="M4 16l5-5 4 4 6-7 1 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </span>
+              <span className="pbf-cheque__head-title">Cancelled cheque *</span>
+            </div>
+
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*,.pdf"
               className="pbf-file-input"
               aria-label="Upload cancelled cheque"
-              disabled={!bankKey.trim() || uploadingCheque}
               onChange={onFileChange}
             />
-            {chequeFile ? null : (
+
+            {uploadingCheque ? (
+              <p className="pbf-cheque__status" aria-live="polite">
+                Uploading cheque…
+              </p>
+            ) : null}
+
+            {!chequeThumbSrc && !uploadingCheque ? (
               <button
                 type="button"
-                className="pbf-attach__pick"
-                disabled={!bankKey.trim() || uploadingCheque}
+                className="pbf-cheque__upload"
+                disabled={!bankKey.trim()}
                 onClick={() => fileInputRef.current?.click()}
               >
-                {pickFileButtonLabel}
+                <span className="pbf-cheque__upload-icon" aria-hidden>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="pbf-cheque__upload-label">Upload cheque photo</span>
+                <span className="pbf-cheque__upload-hint">JPG, PNG or PDF</span>
               </button>
-            )}
-
-            {isEdit && serverChequeImgUrl && !chequeFile ? (
-              <div className="pbf-preview pbf-preview--server">
-                <p className="pbf-preview__server-label">Current cheque on file</p>
-                <img
-                  src={serverChequeImgUrl}
-                  alt="Current cancelled cheque on file"
-                  className="pbf-preview__img"
-                />
-              </div>
             ) : null}
 
-            {previewUrl && chequeFile?.type.startsWith("image/") ? (
-              <div className="pbf-preview">
-                <button
-                  type="button"
-                  className="pbf-preview__clear"
-                  aria-label="Remove file"
-                  disabled={uploadingCheque}
-                  onClick={clearFile}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M3 6h18M8 6V4h8v2m-1 0v14a2 2 0 01-2 2H9a2 2 0 01-2-2V6h8z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <img src={previewUrl} alt="Cheque preview" className="pbf-preview__img" />
+            {chequeThumbSrc || (chequeFile && chequeIsPdf) ? (
+              <div className="pbf-cheque__thumbs">
+                <div className="pbf-cheque__thumb-wrap">
+                  {chequeThumbSrc && !chequeIsPdf ? (
+                    <img src={chequeThumbSrc} alt="Cheque preview" className="pbf-cheque__thumb-img" />
+                  ) : (
+                    <div className="pbf-cheque__thumb-file">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <path
+                          d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        />
+                        <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
+                      <span>{chequeFile?.name ?? "Cheque file"}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="pbf-cheque__thumb-remove"
+                    aria-label="Remove cheque"
+                    disabled={uploadingCheque}
+                    onClick={clearCheque}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M18 6L6 18M6 6l12 12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ) : null}
-
-            {chequeFile && !chequeFile.type.startsWith("image/") ? (
-              <div className="pbf-preview pbf-preview--file">
-                <button
-                  type="button"
-                  className="pbf-preview__clear"
-                  aria-label="Remove file"
-                  disabled={uploadingCheque}
-                  onClick={clearFile}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M3 6h18M8 6V4h8v2m-1 0v14a2 2 0 01-2 2H9a2 2 0 01-2-2V6h8z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <p className="pbf-preview__fname">{chequeFile.name}</p>
-              </div>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            className="profile-manage-page__save pbf-submit"
-            disabled={!canSubmit}
-            onClick={() => void handleSubmit()}
-          >
-            {submitButtonLabel}
-          </button>
-        </section>
+          </section>
+        </div>
       </main>
 
-      <HomeBottomNav />
+      <footer className="pbf-page__footer">
+        <button
+          type="button"
+          className={`pbf-save${canSubmit ? "" : " pbf-save--disabled"}`}
+          disabled={!canSubmit}
+          onClick={() => void handleSubmit()}
+        >
+          {submitting ? (
+            <span className="pbf-save__spinner" aria-hidden />
+          ) : (
+            saveButtonLabel
+          )}
+        </button>
+      </footer>
+
+      <BankTypeSearchSheet
+        open={bankSheetOpen}
+        onClose={() => setBankSheetOpen(false)}
+        onSelect={onBankSelect}
+      />
     </div>
   );
 }

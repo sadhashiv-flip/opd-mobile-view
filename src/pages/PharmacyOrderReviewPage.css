@@ -411,7 +411,7 @@
   color: #ffffff;
   cursor: pointer;
   font-family: inherit;
-  background: linear-gradient(90deg, #ff541e 0%, rgba(255, 84, 30, 0.82) 100%);
+  background: linear-gradient(90deg, #1b2530 0%, rgb(61 63 72) 100%);
   box-shadow: 0 5px 12px rgba(255, 84, 30, 0.28);
   box-sizing: border-box;
   min-width: 0;

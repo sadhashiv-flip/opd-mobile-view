@@ -154,17 +154,7 @@ export function ProfileMembersPage() {
                         <span className={memberStatusBadgeClass(m.statusLabel)}>{m.statusLabel}</span>
                       ) : null}
                     </div>
-                    {canEdit ? (
-                      <div className="profile-manage-page__member-actions">
-                        <Link
-                          to={generatePath(ROUTES.profileMembersEdit, { memberId: m.id })}
-                          className="profile-manage-page__member-icon-btn"
-                          aria-label={`Edit ${m.name}`}
-                        >
-                          <PencilIcon />
-                        </Link>
-                      </div>
-                    ) : null}
+                    
                   </div>
                 </li>
               ))}

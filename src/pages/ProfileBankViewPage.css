@@ -1,98 +1,213 @@
-.pbv-page .pbv-card {
-  border-radius: 16px;
-  padding: 20px 18px 22px;
-  background: #ffffff;
-  box-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.04),
-    0 8px 32px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+/* Read-only bank details — patient_app BankDetailScreen */
+
+.pbv-page--detail {
+  background: #faf8f6;
 }
 
-.pbv-card__title {
-  margin: 0 0 16px;
-  font-family: var(--font-family-app);
-  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
-  font-weight: 700;
-  color: #111111;
+.pbv-page--detail .profile-manage-page__title {
+  font-weight: 500;
 }
 
-.pbv-dl {
-  margin: 0 0 20px;
+.pbv-page__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px var(--page-pad-x) calc(24px + env(safe-area-inset-bottom, 0));
 }
 
-.pbv-dl__row {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 8px 12px;
-  margin-bottom: 12px;
-  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
-  line-height: 1.4;
-}
-
-.pbv-dl__row dt {
+.pbv-loading {
   margin: 0;
-  font-weight: 600;
-  color: #616161;
-}
-
-.pbv-dl__row dd {
-  margin: 0;
-  color: #212121;
-  word-break: break-word;
-}
-
-.pbv-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: clamp(11px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
-  font-weight: 600;
-  text-transform: uppercase;
-  background: rgba(0, 0, 0, 0.06);
-  color: #616161;
-}
-
-.pbv-badge--ok {
-  background: rgba(46, 125, 50, 0.12);
-  color: #2e7d32;
-}
-
-.pbv-cheque {
-  margin-bottom: 20px;
-}
-
-.pbv-cheque__label {
-  margin: 0 0 8px;
-  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
-  font-weight: 600;
-  color: #424242;
-}
-
-.pbv-cheque__img {
-  max-width: 100%;
-  max-height: 280px;
-  border-radius: 12px;
-  border: 1px solid #e0e0e0;
-  object-fit: contain;
-  background: #fafafa;
-}
-
-.pbv-cheque__link {
-  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
-  font-weight: 600;
-  color: #1565c0;
-}
-
-.pbv-cheque__missing {
-  margin: 0 0 16px;
-  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-size: clamp(12px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
   color: #757575;
 }
 
-.pbv-edit-btn {
+.pbv-status-card {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.pbv-status-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pbv-status-card__label {
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  color: #616161;
+}
+
+.pbv-status-card__pill {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 600;
+}
+
+.pbv-status-card__note {
+  margin: 10px 0 0;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  line-height: 1.4;
+  color: #c62828;
+}
+
+.pbv-readonly-hint {
+  margin: 16px 0 0;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  line-height: 1.45;
+  color: #616161;
+}
+
+.pbv-fields {
+  margin-top: 20px;
+}
+
+.pbv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.pbv-field__label {
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  color: #616161;
+}
+
+.pbv-field__value {
+  font-size: clamp(13px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 500;
+  color: #111111;
+  word-break: break-word;
+}
+
+.pbv-cheque-section {
+  margin-top: 20px;
+}
+
+.pbv-cheque-section__title {
+  margin: 0 0 10px;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  font-weight: 600;
+  color: #111111;
+}
+
+.pbv-cheque-empty {
+  font-size: clamp(13px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
+  color: #757575;
+}
+
+.pbv-cheque-tap {
   display: block;
   width: 100%;
-  text-align: center;
-  text-decoration: none;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.pbv-cheque-tap:active {
+  opacity: 0.92;
+}
+
+.pbv-cheque-pdf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f5f5f5;
   box-sizing: border-box;
+}
+
+.pbv-cheque-pdf__icon {
+  flex-shrink: 0;
+  color: var(--color-brand-orange, #e65100);
+}
+
+.pbv-cheque-pdf__text {
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(12px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
+  color: #616161;
+}
+
+.pbv-cheque-pdf__open {
+  flex-shrink: 0;
+  color: #757575;
+}
+
+.pbv-cheque-img-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.pbv-cheque-img-wrap__img {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+.pbv-cheque-img-wrap__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+}
+
+.pbv-cheque-img-wrap__spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid #e0e0e0;
+  border-top-color: var(--color-brand-orange, #e65100);
+  border-radius: 50%;
+  animation: pbv-cheque-spin 0.7s linear infinite;
+}
+
+@keyframes pbv-cheque-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pbv-cheque-img-wrap__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 16px;
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  color: #757575;
+}
+
+.pbv-cheque-img-wrap__zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.54);
+  color: #ffffff;
+  pointer-events: none;
 }

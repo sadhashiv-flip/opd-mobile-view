@@ -201,6 +201,43 @@ export function formatAddressLines(a: PatientAddressRecord): string {
   return parts.join(", ");
 }
 
+/** patient_app `AddressModel.fullAddress` */
+export function formatAddressFull(a: PatientAddressRecord): string {
+  const parts = [
+    a.line1,
+    a.line2,
+    a.landmark,
+    a.area,
+    a.city,
+    a.state,
+    a.pincode,
+  ].filter((p): p is string => typeof p === "string" && p.trim().length > 0);
+  return parts.join(", ");
+}
+
+/** City / state / pincode line under tag on address book cards. */
+export function formatAddressCityLine(a: PatientAddressRecord): string {
+  const city = a.city.trim();
+  const state = a.state.trim();
+  const pin = a.pincode.trim();
+  if (!pin) {
+    if (!city && !state) return "";
+    return state ? `${city}${city ? ", " : ""}${state}` : city;
+  }
+  const place = state ? `${city}${city ? ", " : ""}${state}` : city;
+  return place ? `${place} - ${pin}` : pin;
+}
+
+export function formatAddressTagLabel(tag: string): string {
+  const t = tag.trim().toUpperCase();
+  if (t === "HOME") return "Home";
+  if (t === "WORK") return "Work";
+  if (t === "OTHER") return "Other";
+  const raw = tag.trim();
+  if (!raw) return "—";
+  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+}
+
 export function hasAnySavedAddresses(list: readonly PatientAddressRecord[]): boolean {
   return list.length > 0;
 }

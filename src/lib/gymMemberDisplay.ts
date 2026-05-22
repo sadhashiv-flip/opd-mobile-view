@@ -29,6 +29,13 @@ export const HC_PERSON_ACTIVATE_CTA_TOOLTIP =
 /** patient_app `FamilyMember.isChildBlocked` — blocks member pickers when age is 1–7. */
 export const DIAGNOSTICS_CHILD_AGE_BLOCK_REASON = "Not eligible (age 7 or below)";
 
+/** patient_app `FamilyMember.isGymBlocked` — dependents under 18 cannot be enrolled. */
+export const GYM_AGE_BLOCK_REASON = "Not eligible (age 18 below)";
+
+export function isGymMemberAgeBlocked(age: number): boolean {
+  return age > 0 && age < 18;
+}
+
 export function isDiagnosticsChildBlocked(age: number): boolean {
   return age > 0 && age <= 7;
 }

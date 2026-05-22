@@ -79,11 +79,142 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
+.od-sr-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .od-sr-card__title {
   margin: 0 0 0;
   font-size: 0.875rem;
   font-weight: 700;
   color: #111;
+}
+
+.od-sr-appt-id {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.od-sr-visit-name {
+  margin: 0 0 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.od-sr-visit-meta {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: #757575;
+}
+
+.od-sr-clinical {
+  margin-bottom: 14px;
+}
+
+.od-sr-clinical:last-child {
+  margin-bottom: 0;
+}
+
+.od-sr-clinical__label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.od-sr-clinical__text {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #757575;
+  line-height: 1.35;
+}
+
+.od-sr-reschedule-heading {
+  margin: 0 0 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.od-sr-reschedule-heading--spaced {
+  margin-top: 14px;
+}
+
+.od-sr-reschedule-line {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: #757575;
+  line-height: 1.35;
+}
+
+.od-sr-reschedule-line--bold {
+  font-weight: 600;
+  color: #111;
+}
+
+.od-sr-muted {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #757575;
+}
+
+.od-sr-confirm-changes {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary-dark, #1a5f4a);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.od-sr-confirm-changes:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.od-sr-flip-rx {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+  background: #f7f7f7;
+  cursor: pointer;
+  text-align: left;
+}
+
+.od-sr-flip-rx svg {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--color-primary, #1a5f4a);
+}
+
+.od-sr-flip-rx__label {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.od-sr-flip-rx__chev {
+  font-size: 1.25rem;
+  color: #757575;
 }
 
 .od-sr-card__divider {

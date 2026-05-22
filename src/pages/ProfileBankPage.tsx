@@ -1,49 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, generatePath, useLocation, useNavigate } from "react-router-dom";
+import { generatePath, useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
+  canEditBankDetails,
+  fetchPatientBankById,
   fetchAllPatientBankRecords,
+  maskBankAccountNumber,
   type PatientBankRecord,
 } from "@/api/patientBankDetails";
 import { ROUTES } from "@/constants";
+import { useToast } from "@/hooks/useToast";
 import "./ProfileManagePage.css";
 import "./ProfileBankPage.css";
 
-function EyeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
-    </svg>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 16.5V20h3.5L17.5 10 14 6.5 4 16.5zM14 6.5l2-2 3.5 3.5-2 2"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function BankBuildingIcon() {
+function BankBuildingIcon({ large }: Readonly<{ large?: boolean }>) {
   return (
     <svg
-      className="profile-bank-card__icon-svg"
-      width="40"
-      height="40"
+      className={large ? "profile-bank-list__empty-icon" : "profile-bank-list__row-icon-svg"}
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden
@@ -55,22 +28,42 @@ function BankBuildingIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg className="profile-bank-list__chevron" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M9 8.5h.01M12 8.5h.01M15 8.5h.01"
+        d="M9 18l6-6-6-6"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function WarningIcon() {
+  return (
+    <span className="profile-bank-list__warn-badge" aria-hidden>
+      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+      </svg>
+    </span>
   );
 }
 
 export function ProfileBankPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
   const [items, setItems] = useState<PatientBankRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rowBusy, setRowBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -94,12 +87,40 @@ export function ProfileBankPage() {
     }
   }, [location.state, navigate]);
 
+  const openAddBank = useCallback(() => {
+    navigate(ROUTES.profileBankAdd);
+  }, [navigate]);
+
+  /** patient_app `ClaimsController.openBankFromList` */
+  const openBankFromList = useCallback(
+    async (bank: PatientBankRecord) => {
+      setRowBusy(true);
+      try {
+        const detail = await fetchPatientBankById(bank.id);
+        if (!detail) {
+          toast.error("Bank account not found.");
+          return;
+        }
+        if (canEditBankDetails(detail.verifyStatus)) {
+          navigate(generatePath(ROUTES.profileBankEdit, { bankId: detail.id }));
+        } else {
+          navigate(generatePath(ROUTES.profileBankView, { bankId: detail.id }));
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not open bank account");
+      } finally {
+        setRowBusy(false);
+      }
+    },
+    [navigate, toast],
+  );
+
   useEffect(() => {
     void load();
   }, [load]);
 
   return (
-    <div className="profile-manage-page">
+    <div className="profile-manage-page profile-bank-list-page">
       <header className="profile-manage-page__top">
         <button
           type="button"
@@ -117,25 +138,15 @@ export function ProfileBankPage() {
             />
           </svg>
         </button>
-        <h1 className="profile-manage-page__title">Bank details</h1>
+        <h1 className="profile-manage-page__title">Bank Accounts</h1>
         <span className="profile-manage-page__spacer" aria-hidden />
       </header>
 
-      <main className="profile-manage-page__main">
-        <p className="profile-manage-page__intro">
-          Your saved accounts. Add a new bank with a cancelled cheque upload.
-        </p>
-
-        <div className="profile-bank-page__toolbar">
-          <Link to={ROUTES.profileBankAdd} className="profile-bank-page__add-btn">
-            + Add bank
-          </Link>
-        </div>
-
+      <main className="profile-manage-page__main profile-bank-list-page__main">
         {loading ? (
-          <div className="profile-sub-skeleton" aria-busy="true">
-            <div className="profile-sub-skeleton__card" />
-            <div className="profile-sub-skeleton__card" />
+          <div className="profile-bank-list__skeleton" aria-busy="true">
+            <div className="profile-bank-list__skeleton-card" />
+            <div className="profile-bank-list__skeleton-card" />
           </div>
         ) : null}
 
@@ -149,62 +160,70 @@ export function ProfileBankPage() {
         ) : null}
 
         {!loading && !error && items.length === 0 ? (
-          <p className="profile-manage-page__hint">No bank accounts yet. Tap Add bank to add one.</p>
+          <div className="profile-bank-list__empty">
+            <BankBuildingIcon large />
+            <p className="profile-bank-list__empty-title">No bank accounts added</p>
+            <button type="button" className="profile-bank-list__empty-add" onClick={openAddBank}>
+              + Add Bank
+            </button>
+          </div>
         ) : null}
 
         {!loading && !error && items.length > 0 ? (
-          <div className="profile-bank-page__grid">
-            {items.map((a) => (
-              <article key={a.id} className="profile-bank-card">
-                <div className="profile-bank-card__actions">
-                  <Link
-                    to={generatePath(ROUTES.profileBankView, { bankId: a.id })}
-                    className="profile-bank-card__icon-btn"
-                    aria-label="View bank account"
-                  >
-                    <EyeIcon />
-                  </Link>
-                  <Link
-                    to={generatePath(ROUTES.profileBankEdit, { bankId: a.id })}
-                    className="profile-bank-card__icon-btn"
-                    aria-label="Edit bank account"
-                  >
-                    <PencilIcon />
-                  </Link>
-                </div>
-                <div className="profile-bank-card__row">
-                  <div className="profile-bank-card__icon-wrap" aria-hidden>
+          <ul className="profile-bank-list">
+            {items.map((bank) => (
+              <li key={bank.id}>
+                <button
+                  type="button"
+                  className="profile-bank-list__row"
+                  onClick={() => void openBankFromList(bank)}
+                >
+                  <span className="profile-bank-list__row-icon" aria-hidden>
                     <BankBuildingIcon />
-                  </div>
-                  <div className="profile-bank-card__text">
-                    <p className="profile-bank-card__holder">
-                      {a.accountHolderName || "—"}
-                    </p>
-                    <p className="profile-bank-card__line">
-                      <span className="profile-bank-card__lbl">Account :</span>{" "}
-                      {a.accountNumber || "—"}
-                    </p>
-                    <p className="profile-bank-card__line">
-                      <span className="profile-bank-card__lbl">Ifsc :</span>{" "}
-                      {a.ifscCode || "—"}
-                    </p>
-                    {a.bankName ? (
-                      <p className="profile-bank-card__meta">{a.bankName}</p>
+                  </span>
+                  <span className="profile-bank-list__row-body">
+                    <span className="profile-bank-list__bank-name">
+                      {bank.bankName || "—"}
+                    </span>
+                    <span className="profile-bank-list__meta">
+                      {maskBankAccountNumber(bank.accountNumber)} (IFSC: {bank.ifscCode || "—"})
+                    </span>
+                    <span className="profile-bank-list__holder">
+                      {bank.accountHolderName || "—"}
+                    </span>
+                    {bank.verifyStatus === 2 && bank.verifyReason?.trim() ? (
+                      <span className="profile-bank-list__reason">{bank.verifyReason.trim()}</span>
                     ) : null}
-                    {a.verifyStatus === 1 ? (
-                      <span className="profile-bank-card__badge profile-bank-card__badge--ok">
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="profile-bank-card__badge">Pending review</span>
-                    )}
-                  </div>
-                </div>
-              </article>
+                    {bank.verifyStatus === 2 ? (
+                      <span className="profile-bank-list__update-hint">Tap to update bank details</span>
+                    ) : null}
+                  </span>
+                  {bank.verifyStatus === 2 ? <WarningIcon /> : <ChevronIcon />}
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : null}
       </main>
+
+      {!loading && !error ? (
+        <button
+          type="button"
+          className="profile-bank-list__fab"
+          aria-label="Add bank"
+          onClick={openAddBank}
+        >
+          <span className="profile-bank-list__fab-icon" aria-hidden>
+            +
+          </span>
+        </button>
+      ) : null}
+
+      {rowBusy ? (
+        <div className="profile-bank-list__overlay" aria-busy="true" aria-live="polite">
+          <div className="profile-bank-list__spinner" />
+        </div>
+      ) : null}
 
       <HomeBottomNav />
     </div>

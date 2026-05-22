@@ -161,9 +161,7 @@ export function ChronicManagementPage() {
           <span aria-hidden>←</span>
         </Link>
         <h1 className="chronic-page__title">Chronic Management</h1>
-        <button type="button" className="chronic-refresh" onClick={() => void load()}>
-          Refresh
-        </button>
+        
       </header>
 
       <main className="chronic-page__main">
@@ -229,9 +227,7 @@ export function ChronicManagementPage() {
                       <span className={`chronic-pill ${active ? "chronic-pill--active" : ""}`}>
                         {active ? "Active" : "Inactive"}
                       </span>
-                      <span className="chronic-program-card__arrow" aria-hidden>
-                        ›
-                      </span>
+                      
                     </div>
                   </div>
                 </button>

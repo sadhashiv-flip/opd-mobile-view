@@ -255,6 +255,43 @@ function normalizeBankTypeOption(v: unknown): BankTypeOption | null {
 
 const BANK_TYPE_SEARCH = "type:banks,status=1";
 
+function bankDirectorySearchParam(query?: string): string {
+  const term = query?.trim() ?? "";
+  return term ? `type:banks,value:${term},` : "type:banks,";
+}
+
+/**
+ * Paginated bank directory for the add-bank search sheet — matches Flutter `ClaimsRepository.getBanks`.
+ */
+export async function fetchBankDirectoryPage(
+  page = 1,
+  search?: string,
+  pagination?: ListPaginationOpts,
+): Promise<BankTypePageResult> {
+  const q = new URLSearchParams();
+  q.set("search", bankDirectorySearchParam(search));
+  const raw = await patientJsonList<unknown>(
+    `type?${q.toString()}`,
+    { method: "GET" },
+    { ...pagination, page },
+  );
+  const root = asRecord(raw);
+  const rows = extractTypeRows(raw);
+  const items = rows
+    .map((row) => normalizeBankTypeOption(row))
+    .filter((x): x is BankTypeOption => x != null);
+  let pageNum = page;
+  if (typeof root?.current_page === "number") pageNum = root.current_page;
+  else if (typeof root?.page === "number") pageNum = root.page;
+  let hasMore = hasNextPage(root, items.length) && items.length >= 20;
+  if (items.length === 0) hasMore = false;
+  return {
+    items,
+    page: pageNum,
+    hasMore,
+  };
+}
+
 /**
  * GET /patient/type?search=type:banks,status=1&page=…
  * One page; use {@link fetchAllBankTypeOptions} to fill a dropdown with every page.
@@ -353,4 +390,19 @@ export async function fetchPatientBankById(id: string): Promise<PatientBankRecor
 /** True if the user has at least one saved bank row. */
 export function hasAnyPatientBanks(items: readonly PatientBankRecord[]): boolean {
   return items.length > 0;
+}
+
+/** patient_app `BankAccount.maskedAccountNumber`. */
+export function maskBankAccountNumber(accountNumber: string): string {
+  const n = accountNumber.trim();
+  if (n.length >= 4) {
+    const hidden = "*".repeat(n.length - 4);
+    return `${hidden}${n.slice(-4)}`;
+  }
+  return n;
+}
+
+/** patient_app `BankAccount.canEditBankDetails` — rejected banks open edit form. */
+export function canEditBankDetails(verifyStatus: number): boolean {
+  return verifyStatus === 2;
 }

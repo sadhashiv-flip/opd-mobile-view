@@ -39,7 +39,7 @@
   flex-direction: column;
   min-height: 100dvh;
   max-width: 520px;
-  margin: 0 auto;
+  /* margin: 0 auto; */
   background: linear-gradient(180deg, #f6f7f9 0%, #eef0f4 38%, #ffffff 100%);
   color: #111111;
   padding-bottom: env(safe-area-inset-bottom, 0);

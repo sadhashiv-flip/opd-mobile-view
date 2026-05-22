@@ -22,10 +22,13 @@ import {
   canProceedFromSelections,
   dependentCandidates,
   employeeMemberRow,
+  gymDependentMemberEligibleForApply,
+  gymDependentPickerRowUi,
   memberCanBuyGym,
   memberGymEligibilityBlockMessage,
   parseMemberId,
 } from "@/lib/gymSubscriptionFlow";
+import { SubscriptionActivateCtaButton } from "@/components/select-people/SubscriptionActivateCtaButton";
 import { portalToMobileFrame } from "@/lib/mobileFramePortal";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
@@ -143,7 +146,7 @@ export function GymMembershipPage() {
       for (const code of Object.keys(next)) {
         const kept = (next[code] ?? []).filter((id) => {
           const row = familyRows.find((r) => r.id === id);
-          return row ? memberCanBuyGym(ed, parseMemberId(row)) : false;
+          return row ? gymDependentMemberEligibleForApply(ed, row) : false;
         });
         if (kept.length === 0) {
           delete next[code];
@@ -204,8 +207,7 @@ export function GymMembershipPage() {
       const ed = eligibilityData;
       const filtered = memberIds.filter((id) => {
         const row = familyRows.find((r) => r.id === id);
-        const mid = row ? parseMemberId(row) : 0;
-        return mid !== 0 && ed != null && memberCanBuyGym(ed, mid);
+        return row != null && ed != null && gymDependentMemberEligibleForApply(ed, row);
       });
       const uniq = [...new Set(filtered)];
       if (uniq.length === 0) {
@@ -568,16 +570,7 @@ function DependentPackageTile({
     .map((id) => familyRows.find((m) => m.id === id))
     .filter((x): x is GymMemberListRow => Boolean(x));
 
-  const hasSelectableCandidates = candidates.some((m) => {
-    const mid = parseMemberId(m);
-    const inThis = selectedIds.includes(m.id);
-    const other =
-      isDependentSelectedInOtherPackage(p.packageCode, m.id) && !inThis;
-    if (other) return false;
-    return memberCanBuyGym(eligibilityData, mid) || inThis;
-  });
-
-  const canOpen = hasSelectableCandidates || selectedMembers.length > 0;
+  const canOpen = candidates.length > 0 || selectedMembers.length > 0;
 
   return (
     <div className={`gym-pkg-tile${selected ? " gym-pkg-tile--selected" : ""}`}>
@@ -599,14 +592,10 @@ function DependentPackageTile({
             {p.validityValue} {p.validityUnits} · Price varies by city
           </span>
           {selectedMembers.length === 0 ? (
-            hasSelectableCandidates ? (
+            candidates.length > 0 ? (
               <span className="gym-pkg-tile__hint gym-pkg-tile__hint--link">Tap to select dependents</span>
             ) : eligibilityLoading ? (
               <span className="gym-pkg-tile__hint">Checking eligibility…</span>
-            ) : candidates.length > 0 ? (
-              <span className="gym-pkg-tile__hint">
-                No dependents are eligible for this package with the current account status.
-              </span>
             ) : null
           ) : (
             <span className="gym-pkg-tile__chips">
@@ -642,6 +631,7 @@ function DependentPickerModal({
   onClose: () => void;
   onApply: (ids: string[]) => void;
 }>) {
+  const navigate = useNavigate();
   const candidates = useMemo(() => dependentCandidates(familyRows, employeeMemberRow(familyRows)), [familyRows]);
   const [selected, setSelected] = useState<string[]>([...initialSelected]);
 
@@ -653,42 +643,63 @@ function DependentPickerModal({
         <h2 className="gym-dep-modal__title">Select dependents</h2>
         <p className="gym-dep-modal__pkg">{pkg.packageName}</p>
         <div className="gym-dep-modal__list">
-          {candidates.map((m) => {
-            const checked = selected.includes(m.id);
-            const mid = parseMemberId(m);
-            const otherBlocked =
-              isDependentSelectedInOtherPackage(pkg.packageCode, m.id) && !checked;
-            const ineligible = !memberCanBuyGym(eligibilityData, mid) && !checked;
-            const cannotSelect = otherBlocked || ineligible;
-            const subtitle = otherBlocked
-              ? "Already selected in another package"
-              : ineligible
-                ? memberGymEligibilityBlockMessage(eligibilityData, mid) ?? "Not eligible"
-                : null;
-            return (
-              <label
-                key={m.id}
-                className={`gym-dep-row${cannotSelect ? " gym-dep-row--disabled" : ""}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={cannotSelect}
-                  onChange={(e) => {
-                    const on = e.target.checked;
-                    setSelected((prev) => {
-                      if (on) return [...prev, m.id];
-                      return prev.filter((x) => x !== m.id);
-                    });
-                  }}
-                />
-                <span className="gym-dep-row__text">
-                  <span className="gym-dep-row__name">{m.name}</span>
-                  {subtitle ? <span className="gym-dep-row__sub">{subtitle}</span> : null}
-                </span>
-              </label>
-            );
-          })}
+          {candidates.length === 0 ? (
+            <p className="gym-dep-modal__empty">
+              No dependents available. Pull to refresh members or add a dependent in Family.
+            </p>
+          ) : (
+            candidates.map((m) => {
+              const checked = selected.includes(m.id);
+              const rowUi = gymDependentPickerRowUi({
+                member: m,
+                packageCode: pkg.packageCode,
+                checked,
+                eligibility: eligibilityData,
+                isDependentSelectedInOtherPackage,
+              });
+              return (
+                <div
+                  key={m.id}
+                  className={`gym-dep-row${rowUi.cannotSelect ? " gym-dep-row--disabled" : ""}`}
+                >
+                  <label className="gym-dep-row__check">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={rowUi.cannotSelect}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setSelected((prev) => {
+                          if (on) return [...prev, m.id];
+                          return prev.filter((x) => x !== m.id);
+                        });
+                      }}
+                    />
+                    <span className="gym-dep-row__text">
+                      <span className="gym-dep-row__name">{m.name}</span>
+                      {rowUi.subtitle ? (
+                        <span
+                          className={`gym-dep-row__sub gym-dep-row__sub--${rowUi.subtitleVariant}`}
+                        >
+                          {rowUi.subtitle}
+                        </span>
+                      ) : m.subtitle ? (
+                        <span className="gym-dep-row__sub gym-dep-row__sub--muted">{m.subtitle}</span>
+                      ) : null}
+                    </span>
+                  </label>
+                  {rowUi.showActivate ? (
+                    <SubscriptionActivateCtaButton
+                      onClick={() => {
+                        onClose();
+                        navigate(ROUTES.profileSubscriptions);
+                      }}
+                    />
+                  ) : null}
+                </div>
+              );
+            })
+          )}
         </div>
         {eligibilityLoading ? (
           <p className="gym-dep-modal__wait">Checking eligibility…</p>

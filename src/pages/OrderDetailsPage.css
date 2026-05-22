@@ -2242,6 +2242,30 @@
   color: #5c4a3a;
 }
 
+.od-consult-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.od-consult-actions__reschedule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-primary-dark, #1a5f4a);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .od-btn-outline-row {
   display: flex;
   align-items: center;

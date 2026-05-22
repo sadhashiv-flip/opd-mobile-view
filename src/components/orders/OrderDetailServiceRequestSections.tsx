@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import type { ConsultationAttachmentRow, InvoiceDetailModel } from "@/api/patientInvoices";
+import {
+  isInvoiceDetailCancelled,
+  type ConsultationAttachmentRow,
+  type InvoiceDetailModel,
+} from "@/api/patientInvoices";
+import { OrderDetailCancellationReason } from "@/components/orders/OrderDetailCancellationReason";
 import { serviceRequestStatusBannerTone } from "@/lib/serviceRequestOrderDetail";
 import "./OrderDetailServiceRequestSections.css";
 
@@ -150,8 +155,9 @@ export function OrderDetailServiceRequestSections({
   const showRequestList = requestBullets.length > 0;
   const center = detail.showServiceRequestSelfVisitCenter ? detail.pharmacyConfirmCenter : null;
   const canConfirmCenter = detail.pharmacyAwaitingDetailConfirmation;
-  const cancelReason = detail.labCancellationReason?.trim() ?? "";
-  const showCancelReason = status === 2 && cancelReason.length > 0;
+  const cancelReason = detail.orderCancellationReason?.trim() ?? "";
+  const showCancelReason =
+    cancelReason.length > 0 && isInvoiceDetailCancelled(detail);
   const preferredSlot =
     detail.pharmacyPreferredSlotDisplay?.trim() || "—";
 
@@ -166,10 +172,7 @@ export function OrderDetailServiceRequestSections({
         <div className="od-sr-status__body">
           <p className="od-sr-status__title">Status: {detail.serviceRequestStatusLabel}</p>
           {showCancelReason ? (
-            <>
-              <p className="od-sr-status__cancel-label">Cancellation reason</p>
-              <p className="od-sr-status__cancel-text">{cancelReason}</p>
-            </>
+            <OrderDetailCancellationReason reason={cancelReason} variant="inline" />
           ) : null}
         </div>
       </div>

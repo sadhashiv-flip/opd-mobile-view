@@ -137,7 +137,7 @@ export function mapOngoingStatusLabel(
         return "Inprogress";
       case 7:
       case 8:
-        return "Pending";
+        return "Waiting for confirmation";
       default:
         break;
     }
@@ -146,8 +146,11 @@ export function mapOngoingStatusLabel(
   const payment = (row.status?.toString() ?? "").toLowerCase();
   if (["cancelled", "canceled", "failed", "refunded"].includes(payment)) return "Cancelled";
   if (["success", "paid", "completed", "complete"].includes(payment)) return "Completed";
-  if (["pending", "created", "processing"].includes(payment)) {
-    return payment === "processing" ? "Processing" : "Pending";
+  if (payment === "pending" || payment === "created") {
+    return "Waiting for confirmation";
+  }
+  if (payment === "processing") {
+    return "Processing";
   }
 
   const statusText = firstNonEmpty([
@@ -157,7 +160,7 @@ export function mapOngoingStatusLabel(
     info.status_text?.toString(),
   ]).toLowerCase();
   if (statusText.includes("payment pending")) return "Payment pending";
-  if (statusText.includes("pending")) return "Pending";
+  if (statusText.includes("pending")) return "Waiting for confirmation";
   if (statusText.includes("confirm")) return "Confirm Changes";
   if (statusText.includes("complete")) return "Completed";
   if (statusText.includes("cancel")) return "Cancelled";
@@ -166,7 +169,9 @@ export function mapOngoingStatusLabel(
   if (stStr.includes("cancel")) return "Cancelled";
   if (stStr.includes("complete") || stStr.includes("paid")) return "Completed";
 
-  if (tx === "CONSULTATION" && (info.date == null || info.date === "")) return "Pending";
+  if (tx === "CONSULTATION" && (info.date == null || info.date === "")) {
+    return "Waiting for confirmation";
+  }
 
   return "Processing";
 }

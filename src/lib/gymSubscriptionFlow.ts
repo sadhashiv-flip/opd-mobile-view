@@ -1,4 +1,8 @@
-import type { GymMemberListRow } from "@/lib/gymMemberDisplay";
+import {
+  GYM_AGE_BLOCK_REASON,
+  isGymMemberAgeBlocked,
+  type GymMemberListRow,
+} from "@/lib/gymMemberDisplay";
 import type {
   GymDependentPackage,
   GymEligibilityData,
@@ -69,6 +73,80 @@ export function memberGymEligibilityBlockMessage(
     }
   }
   return null;
+}
+
+export type GymDependentPickerRowUi = Readonly<{
+  cannotSelect: boolean;
+  subtitle: string | null;
+  subtitleVariant: "error" | "warning" | "muted";
+  showActivate: boolean;
+}>;
+
+/**
+ * patient_app `GymMembershipScreen._openDependentSelector` — row enablement and subtitle priority.
+ */
+export function gymDependentPickerRowUi(args: {
+  readonly member: GymMemberListRow;
+  readonly packageCode: string;
+  readonly checked: boolean;
+  readonly eligibility: GymEligibilityData | null;
+  readonly isDependentSelectedInOtherPackage: (packageCode: string, memberId: string) => boolean;
+}): GymDependentPickerRowUi {
+  const mid = parseMemberId(args.member);
+  const otherBlocked =
+    args.isDependentSelectedInOtherPackage(args.packageCode, args.member.id) && !args.checked;
+  const ineligible = !memberCanBuyGym(args.eligibility, mid) && !args.checked;
+  const notActivated = !args.member.isSubscribed;
+  const ageBlocked = isGymMemberAgeBlocked(args.member.age);
+  /** Not activated is surfaced in the sheet (Activate CTA) — do not disable the row for that alone. */
+  const cannotSelect = otherBlocked || ineligible || ageBlocked;
+  const showActivate = notActivated && args.member.subscriptionCanActivate;
+
+  if (notActivated) {
+    return {
+      cannotSelect,
+      subtitle: "Not activated",
+      subtitleVariant: "error",
+      showActivate,
+    };
+  }
+  if (ageBlocked) {
+    return {
+      cannotSelect,
+      subtitle: GYM_AGE_BLOCK_REASON,
+      subtitleVariant: "muted",
+      showActivate: false,
+    };
+  }
+  if (otherBlocked) {
+    return {
+      cannotSelect,
+      subtitle: "Already selected in another package",
+      subtitleVariant: "warning",
+      showActivate: false,
+    };
+  }
+  if (ineligible) {
+    return {
+      cannotSelect,
+      subtitle: memberGymEligibilityBlockMessage(args.eligibility, mid) ?? "Not eligible",
+      subtitleVariant: "muted",
+      showActivate: false,
+    };
+  }
+  return { cannotSelect, subtitle: null, subtitleVariant: "muted", showActivate: false };
+}
+
+export function gymDependentMemberEligibleForApply(
+  eligibility: GymEligibilityData | null,
+  row: GymMemberListRow,
+): boolean {
+  const mid = parseMemberId(row);
+  if (mid === 0) return false;
+  if (!memberCanBuyGym(eligibility, mid)) return false;
+  if (!row.isSubscribed) return false;
+  if (isGymMemberAgeBlocked(row.age)) return false;
+  return true;
 }
 
 export function allPricingLocationKeys(sub: GymSubscriptionRow): string[] {
@@ -162,8 +240,7 @@ export function canProceedFromSelections(
     if (picked.length === 0) return false;
     for (const id of picked) {
       const row = familyRows.find((r) => r.id === id);
-      const mid = row ? parseMemberId(row) : 0;
-      if (!memberCanBuyGym(eligibility, mid)) return false;
+      if (!row || !gymDependentMemberEligibleForApply(eligibility, row)) return false;
     }
   }
 

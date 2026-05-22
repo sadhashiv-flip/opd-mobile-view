@@ -1,5 +1,9 @@
 import type { DashboardOngoingItem } from "@/api/patientDashboard";
-import type { InvoiceOrderListStatusTone, InvoiceOrderRow } from "@/api/patientInvoices";
+import {
+  ordersListStatusDisplayLabel,
+  type InvoiceOrderListStatusTone,
+  type InvoiceOrderRow,
+} from "@/api/patientInvoices";
 
 /** Passed from {@link ROUTES.dashboard} “View all” → {@link ROUTES.orders}. */
 export type OrdersPageLocationState = Readonly<{
@@ -46,7 +50,7 @@ export function invoiceOrderRowsFromDashboardOngoing(
       orderIdLine: "",
       metaLine,
       statusTone: statusToneFromDashboardOngoing(item),
-      statusLabel: item.statusLabel,
+      statusLabel: ordersListStatusDisplayLabel(item.statusLabel),
       isFree: false,
       amountFormatted: null,
       canJoinOnlineConsultation: false,
