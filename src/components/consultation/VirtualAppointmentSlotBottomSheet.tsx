@@ -6,6 +6,7 @@ import {
   type VirtualSpecialtySlotsState,
 } from "@/api/consultationVirtual";
 import { VirtualConsultationSlotSelector } from "@/components/consultation/VirtualConsultationSlotSelector";
+import { writeVirtualBookingSlotDraft } from "@/constants/consultationBookingStorage";
 import {
   readVirtualFollowUpAppointmentId,
   VIRTUAL_CONSULT_LANGUAGE_KEY,
@@ -140,8 +141,7 @@ export function VirtualAppointmentSlotBottomSheet({
   const apply = useCallback(() => {
     if (!selectedSlotKey || !slotDate) return;
     try {
-      sessionStorage.setItem("opd-mobile-view.virtualBooking.selectedSlotKey", selectedSlotKey);
-      sessionStorage.setItem("opd-mobile-view.virtualBooking.slotDate", slotDate);
+      writeVirtualBookingSlotDraft(slotDate, selectedSlotKey);
     } catch {
       // ignore
     }

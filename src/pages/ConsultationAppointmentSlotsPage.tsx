@@ -1,6 +1,10 @@
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
+import {
+  readHospitalSlotsDraft,
+  writeHospitalSlotsDraft,
+} from "@/constants/consultationBookingStorage";
 import { fetchNetworkSlots, type NetworkDoctorSchedule } from "@/api/networkSlots";
 import { formatNetworkBookTimeSlotForDate } from "@/utils/networkBookTimeSlot";
 import {
@@ -13,7 +17,7 @@ import {
 } from "@/utils/consultationSlotGrid";
 import { SlotPeriodGlyph } from "@/components/slots/SlotPeriodIcon";
 import { useToast } from "@/hooks/useToast";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./ConsultationAppointmentSlotsPage.css";
 
 function formatMonthYearIST(date: Date): string {
@@ -55,10 +59,29 @@ export function ConsultationAppointmentSlotsPage() {
   const [doctorName, setDoctorName] = useState("Doctor");
   const [schedules, setSchedules] = useState<readonly NetworkDoctorSchedule[]>([]);
 
-  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
+  const hospitalDraft = useMemo(
+    () => readHospitalSlotsDraft(networkId, doctorId),
+    [networkId, doctorId],
+  );
+  const [selectedDayIdx, setSelectedDayIdx] = useState(() => hospitalDraft?.selectedDayIdx ?? 0);
   const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
+  const pendingSlotKeyRef = useRef(hospitalDraft?.slotKey?.trim() ?? "");
 
   const fiveDays = useMemo(() => buildFiveCalendarDaysStartingTomorrow(), []);
+
+  const persistHospitalDraft = useCallback(
+    (dayIdx: number, slot: GeneratedSlot | null) => {
+      writeHospitalSlotsDraft(networkId, doctorId, {
+        selectedDayIdx: dayIdx,
+        slotKey: slot ? slotKey(slot) : "",
+      });
+    },
+    [networkId, doctorId],
+  );
+
+  const onBeforeBack = useCallback(() => {
+    persistHospitalDraft(selectedDayIdx, selectedSlot);
+  }, [persistHospitalDraft, selectedDayIdx, selectedSlot]);
 
   useEffect(() => {
     if (!networkId.trim() || !doctorId.trim()) {
@@ -74,7 +97,10 @@ export function ConsultationAppointmentSlotsPage() {
         if (cancelled) return;
         setDoctorName(data.doctor?.name ?? "Doctor");
         setSchedules(data.schedules);
-        setSelectedDayIdx(0);
+        const draft = readHospitalSlotsDraft(networkId, doctorId);
+        const dayIdx = Math.min(draft?.selectedDayIdx ?? 0, 4);
+        setSelectedDayIdx(dayIdx);
+        pendingSlotKeyRef.current = draft?.slotKey?.trim() ?? "";
         setSelectedSlot(null);
         try {
           localStorage.setItem("opd-mobile-view.consultation.networkName", data.networkName ?? "");
@@ -120,9 +146,22 @@ export function ConsultationAppointmentSlotsPage() {
       return slotsForSelectedDay.length === 0;
     })();
 
-  const selectSlot = useCallback((s: GeneratedSlot) => {
-    setSelectedSlot(s);
-  }, []);
+  const selectSlot = useCallback(
+    (s: GeneratedSlot) => {
+      setSelectedSlot(s);
+      persistHospitalDraft(selectedDayIdx, s);
+    },
+    [persistHospitalDraft, selectedDayIdx],
+  );
+
+  useEffect(() => {
+    if (load !== "ok") return;
+    const key = pendingSlotKeyRef.current.trim();
+    if (!key) return;
+    pendingSlotKeyRef.current = "";
+    const match = slotsForSelectedDay.find((s) => slotKey(s) === key);
+    if (match) setSelectedSlot(match);
+  }, [load, slotsForSelectedDay]);
 
   const isSlotSelected = useCallback(
     (s: GeneratedSlot) => selectedSlot != null && slotKey(selectedSlot) === slotKey(s),
@@ -139,11 +178,12 @@ export function ConsultationAppointmentSlotsPage() {
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.consultationHospitalResults, { specialtyId })}
           className="cas-back"
+          onBeforeBack={onBeforeBack}
         />
         <h1 className="cas-title">Appointment - {doctorName}</h1>
       </header>
 
-      <main className="cas-main">
+      <main className="cas-main cas-main--with-sticky-footer">
         <div className="cas-alert" role="note">
           <span className="cas-alert__ic" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -200,6 +240,8 @@ export function ConsultationAppointmentSlotsPage() {
                     onClick={() => {
                       setSelectedDayIdx(idx);
                       setSelectedSlot(null);
+                      pendingSlotKeyRef.current = "";
+                      persistHospitalDraft(idx, null);
                     }}
                   >
                     <div className="cas-day__num">{d.getDate()}</div>
@@ -244,13 +286,14 @@ export function ConsultationAppointmentSlotsPage() {
         )}
       </main>
 
-      <footer className="cas-footer">
+      <footer className="cas-footer cas-footer--sticky">
         <button
           type="button"
           className="cas-confirm"
           disabled={load !== "ok" || !selectedSlot || !selectedCalendarDate}
           onClick={() => {
             if (!selectedSlot || !selectedCalendarDate || !activeScheduleForSelected) return;
+            persistHospitalDraft(selectedDayIdx, selectedSlot);
             try {
               localStorage.setItem("opd-mobile-view.consultation.slotId", String(selectedSlot.timingId));
               localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedSlot.label);
@@ -277,7 +320,7 @@ export function ConsultationAppointmentSlotsPage() {
             );
           }}
         >
-          Confirm
+          Continue
         </button>
       </footer>
     </div>

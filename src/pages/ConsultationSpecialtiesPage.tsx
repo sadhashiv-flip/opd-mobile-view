@@ -18,6 +18,12 @@ import {
 } from "@/constants/virtualConsultationSessionStorage";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
+import {
+  readHospitalSelectedSpecialtyId,
+  readVirtualSelectedIssueId,
+  writeHospitalSelectedSpecialtyId,
+  writeVirtualSelectedIssueId,
+} from "@/constants/consultationBookingStorage";
 import { rememberHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { fetchAllHospitalSpecialities, type HospitalSpeciality } from "@/api/hospitalSpecialties";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
@@ -35,7 +41,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { useToast } from "@/hooks/useToast";
 import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationSpecialtiesPage.css";
@@ -69,11 +74,16 @@ export function ConsultationSpecialtiesPage() {
   const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
   const [virtualSearchQuery, setVirtualSearchQuery] = useState("");
-  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(() =>
+    isHospital ? readHospitalSelectedSpecialtyId() : null,
+  );
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(() =>
+    isHospital ? null : readVirtualSelectedIssueId(),
+  );
   const [onlineDoctors, setOnlineDoctors] = useState<readonly SpecialityDoctor[]>([]);
   const [doctorsLoad, setDoctorsLoad] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const doctorsRequestRef = useRef(0);
+  const virtualDoctorsRestoredRef = useRef(false);
 
   /** patient_app: client-side filter (`searchOfflineSpecialities` / `searchIssues`). */
   const filteredHospitalSpecs = useMemo(() => {
@@ -90,21 +100,21 @@ export function ConsultationSpecialtiesPage() {
   }, [virtualIssues, virtualSearchQuery]);
 
   useEffect(() => {
-    if (selectedIssueId && !filteredVirtualIssues.some((i) => String(i.id) === selectedIssueId)) {
-      setSelectedIssueId(null);
-      setOnlineDoctors([]);
-      setDoctorsLoad("idle");
-    }
+    if (!selectedIssueId) return;
+    if (filteredVirtualIssues.some((i) => String(i.id) === selectedIssueId)) return;
+    const persisted = readVirtualSelectedIssueId();
+    if (persisted === selectedIssueId) return;
+    setSelectedIssueId(null);
+    setOnlineDoctors([]);
+    setDoctorsLoad("idle");
   }, [filteredVirtualIssues, selectedIssueId]);
 
-  const handleSelectVirtualIssue = useCallback(
-    (issue: PatientIssue) => {
-      const id = String(issue.id);
-      setSelectedIssueId(id);
+  const loadDoctorsForParent = useCallback(
+    (parentId: number) => {
       setOnlineDoctors([]);
       setDoctorsLoad("loading");
       const reqId = ++doctorsRequestRef.current;
-      void fetchAllSpecialityDoctors(issue.parent)
+      void fetchAllSpecialityDoctors(parentId)
         .then((docs) => {
           if (doctorsRequestRef.current !== reqId) return;
           setOnlineDoctors(docs);
@@ -120,6 +130,35 @@ export function ConsultationSpecialtiesPage() {
     [toast],
   );
 
+  const resolveVirtualIssueParentId = useCallback(
+    (issueId: string): number | null => {
+      const issue = virtualIssues.find((i) => String(i.id) === issueId);
+      if (issue && Number.isFinite(issue.parent)) return issue.parent;
+      try {
+        const raw = sessionStorage.getItem(`${VIRTUAL_SLOTS_STORAGE}${issueId}`);
+        if (!raw) return null;
+        const p = JSON.parse(raw) as { parent?: unknown; spid?: unknown };
+        if (typeof p.parent === "number" && Number.isFinite(p.parent)) return p.parent;
+        if (typeof p.spid === "number" && Number.isFinite(p.spid)) return p.spid;
+      } catch {
+        // ignore
+      }
+      return null;
+    },
+    [virtualIssues],
+  );
+
+  const handleSelectVirtualIssue = useCallback(
+    (issue: PatientIssue) => {
+      const id = String(issue.id);
+      setSelectedIssueId(id);
+      writeVirtualSelectedIssueId(id);
+      virtualDoctorsRestoredRef.current = true;
+      loadDoctorsForParent(issue.parent);
+    },
+    [loadDoctorsForParent],
+  );
+
   const selectedVirtualRowIndex = useMemo(() => {
     if (!selectedIssueId) return null;
     const idx = filteredVirtualIssues.findIndex((i) => String(i.id) === selectedIssueId);
@@ -133,9 +172,11 @@ export function ConsultationSpecialtiesPage() {
   const showHospitalContinueFooter = Boolean(selectedHospitalId);
 
   useEffect(() => {
-    if (selectedHospitalId && !filteredHospitalSpecs.some((s) => String(s.id) === selectedHospitalId)) {
-      setSelectedHospitalId(null);
-    }
+    if (!selectedHospitalId) return;
+    if (filteredHospitalSpecs.some((s) => String(s.id) === selectedHospitalId)) return;
+    const persisted = readHospitalSelectedSpecialtyId();
+    if (persisted === selectedHospitalId) return;
+    setSelectedHospitalId(null);
   }, [filteredHospitalSpecs, selectedHospitalId]);
 
   useEffect(() => {
@@ -180,6 +221,7 @@ export function ConsultationSpecialtiesPage() {
     setIssuesLoad("loading");
     setIssuesError(null);
     setVirtualIssues([]);
+    virtualDoctorsRestoredRef.current = false;
     nextVirtualPageRef.current = 1;
     hasMoreVirtualRef.current = true;
     loadingMoreVirtualRef.current = false;
@@ -241,6 +283,40 @@ export function ConsultationSpecialtiesPage() {
       setLoadingMoreVirtual(false);
     }
   }, [issuesLoad, toast]);
+
+  /** Restore selection + doctors when returning from slots/overview (patient_app keeps controller state). */
+  useEffect(() => {
+    if (isHospital || issuesLoad !== "ok") return;
+    const storedId = readVirtualSelectedIssueId();
+    if (!storedId) return;
+    if (selectedIssueId !== storedId) {
+      setSelectedIssueId(storedId);
+    }
+
+    const parentId = resolveVirtualIssueParentId(storedId);
+    if (parentId == null) {
+      if (
+        hasMoreVirtualRef.current &&
+        !loadingMoreVirtualRef.current &&
+        !virtualIssues.some((i) => String(i.id) === storedId)
+      ) {
+        void loadMoreVirtual();
+      }
+      return;
+    }
+
+    if (virtualDoctorsRestoredRef.current) return;
+    virtualDoctorsRestoredRef.current = true;
+    loadDoctorsForParent(parentId);
+  }, [
+    isHospital,
+    issuesLoad,
+    selectedIssueId,
+    resolveVirtualIssueParentId,
+    loadDoctorsForParent,
+    virtualIssues,
+    loadMoreVirtual,
+  ]);
 
   useEffect(() => {
     if (isHospital) return;
@@ -318,7 +394,11 @@ export function ConsultationSpecialtiesPage() {
       <HospitalSpecialtyGrid
         specialties={filteredHospitalSpecs}
         selectedId={selectedHospitalId}
-        onSelect={(spec) => setSelectedHospitalId(String(spec.id))}
+        onSelect={(spec) => {
+          const id = String(spec.id);
+          setSelectedHospitalId(id);
+          writeHospitalSelectedSpecialtyId(id);
+        }}
       />
     );
   }
@@ -511,6 +591,7 @@ export function ConsultationSpecialtiesPage() {
               if (!selectedIssueId) return;
               const issue = filteredVirtualIssues.find((i) => String(i.id) === selectedIssueId);
               if (!issue) return;
+              writeVirtualSelectedIssueId(String(issue.id));
               clearVirtualFollowUpAppointmentId();
               let langRaw = "";
               try {

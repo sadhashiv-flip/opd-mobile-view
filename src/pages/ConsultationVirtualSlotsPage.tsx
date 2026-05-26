@@ -1,9 +1,13 @@
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
+import {
+  readVirtualBookingSlotDraft,
+  writeVirtualBookingSlotDraft,
+} from "@/constants/consultationBookingStorage";
 import { readVirtualFollowUpAppointmentId } from "@/constants/virtualConsultationSessionStorage";
 import { VirtualConsultationSlotSelector } from "@/components/consultation/VirtualConsultationSlotSelector";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchAllAvailableSlots,
   formatLocalYmd,
@@ -13,6 +17,7 @@ import {
 import {
   maxIsoDate,
   parseSlotDateYmd,
+  partitionVirtualSlots,
   todayYmd,
 } from "@/utils/consultationVirtualSlotRules";
 import "./ConsultationVirtualSlotsPage.css";
@@ -76,12 +81,19 @@ export function ConsultationVirtualSlotsPage() {
     sessionStorage.setItem(`${STORAGE_PREFIX}${issueId}`, JSON.stringify(meta));
   }, [meta, issueId]);
 
-  const [slotDate, setSlotDate] = useState(() => todayYmd());
+  const initialDraft = useMemo(() => readVirtualBookingSlotDraft(), []);
+  const [slotDate, setSlotDate] = useState(() => {
+    const stored = initialDraft?.slotDate?.trim();
+    return stored ? maxIsoDate(stored, todayYmd()) : todayYmd();
+  });
   const [slots, setSlots] = useState<readonly AvailableSlot[]>([]);
   const [slotsLoad, setSlotsLoad] = useState<"idle" | "loading" | "error" | "ok">("idle");
   const [slotsErr, setSlotsErr] = useState<string | null>(null);
-  const [selectedSlotKey, setSelectedSlotKey] = useState<string>("");
+  const [selectedSlotKey, setSelectedSlotKey] = useState(
+    () => initialDraft?.selectedSlotKey?.trim() ?? "",
+  );
   const navigate = useNavigate();
+  const pendingSlotRestoreRef = useRef(initialDraft?.selectedSlotKey?.trim() ?? "");
 
   const isFollowUp = Boolean(readVirtualFollowUpAppointmentId());
   const followUpAppointmentId = readVirtualFollowUpAppointmentId();
@@ -93,11 +105,17 @@ export function ConsultationVirtualSlotsPage() {
 
   const canContinue = Boolean(selectedSlotKey);
 
+  const persistSlotDraft = useCallback(
+    (date: string, slotKey: string) => {
+      writeVirtualBookingSlotDraft(date, slotKey);
+    },
+    [],
+  );
+
   const loadSlots = useCallback(async () => {
     if (!meta) return;
     setSlotsLoad("loading");
     setSlotsErr(null);
-    setSelectedSlotKey("");
     try {
       const list = await fetchAllAvailableSlots({
         date: slotDate,
@@ -107,10 +125,22 @@ export function ConsultationVirtualSlotsPage() {
       });
       setSlots(list);
       setSlotsLoad("ok");
+
+      const restoreKey = pendingSlotRestoreRef.current.trim();
+      pendingSlotRestoreRef.current = "";
+      if (!restoreKey) {
+        setSelectedSlotKey("");
+        return;
+      }
+      const parts = partitionVirtualSlots(list);
+      const chips = [...parts.morning, ...parts.afternoon, ...parts.evening];
+      const match = chips.find((c) => c.key === restoreKey && !c.disabled);
+      setSelectedSlotKey(match ? restoreKey : "");
     } catch (e: unknown) {
       setSlotsLoad("error");
       setSlotsErr(e instanceof Error ? e.message : "Could not load slots");
       setSlots([]);
+      setSelectedSlotKey("");
     }
   }, [meta, slotDate, slotsLanguage, followUpAppointmentId]);
 
@@ -123,6 +153,29 @@ export function ConsultationVirtualSlotsPage() {
   }, []);
 
   const backToSpecialties = generatePath(ROUTES.consultationSpecialties, { type: "virtual" });
+
+  const onSelectDay = useCallback(
+    (d: Date) => {
+      const ymd = formatLocalYmd(d);
+      pendingSlotRestoreRef.current = "";
+      setSlotDate(ymd);
+      setSelectedSlotKey("");
+      persistSlotDraft(ymd, "");
+    },
+    [persistSlotDraft],
+  );
+
+  const onSelectSlotKey = useCallback(
+    (key: string) => {
+      setSelectedSlotKey(key);
+      persistSlotDraft(slotDate, key);
+    },
+    [persistSlotDraft, slotDate],
+  );
+
+  const onBeforeBack = useCallback(() => {
+    persistSlotDraft(slotDate, selectedSlotKey);
+  }, [persistSlotDraft, slotDate, selectedSlotKey]);
 
   const pageTitle = meta
     ? isFollowUp
@@ -150,44 +203,38 @@ export function ConsultationVirtualSlotsPage() {
   return (
     <div className="cvsl-page">
       <header className="cvsl-top">
-        <FlowScreenBack fallbackTo={backToSpecialties} className="cvsl-back" />
+        <FlowScreenBack
+          fallbackTo={backToSpecialties}
+          className="cvsl-back"
+          onBeforeBack={onBeforeBack}
+        />
         <h1 className="cvsl-title">{pageTitle}</h1>
       </header>
 
-      <main className="cvsl-main">
+      <main className="cvsl-main cvsl-main--with-sticky-footer">
         <VirtualConsultationSlotSelector
           selectedDay={selectedDay}
-          onSelectDay={(d) => {
-            setSlotDate(formatLocalYmd(d));
-          }}
+          onSelectDay={onSelectDay}
           selectedSlotKey={selectedSlotKey}
-          onSelectSlotKey={setSelectedSlotKey}
+          onSelectSlotKey={onSelectSlotKey}
           slots={slots}
           slotsLoading={slotsLoad === "loading" || slotsLoad === "idle"}
           slotsError={slotsLoad === "error" ? slotsErr : null}
         />
       </main>
 
-      <footer className="cvsl-footer">
+      <footer className="cvsl-footer cvsl-footer--sticky">
         <button
           type="button"
           className="cvsl-footer__book"
           disabled={!canContinue}
           onClick={() => {
             if (!selectedSlotKey) return;
-            try {
-              sessionStorage.setItem(
-                "opd-mobile-view.virtualBooking.selectedSlotKey",
-                selectedSlotKey,
-              );
-              sessionStorage.setItem("opd-mobile-view.virtualBooking.slotDate", slotDate);
-            } catch {
-              // ignore
-            }
+            persistSlotDraft(slotDate, selectedSlotKey);
             navigate(generatePath(ROUTES.consultationVirtualOverview, { issueId }));
           }}
         >
-          {canContinue ? "Confirm" : "Select Slot"}
+          Continue
         </button>
       </footer>
     </div>
