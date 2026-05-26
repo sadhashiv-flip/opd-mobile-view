@@ -348,7 +348,20 @@ export function DiagnosticsScreenPage() {
                           {v.name.slice(0, 1)}
                         </span>
                       )}
-                      <span className="ds-lab-card__logo ds-lab-card__logo--sel">{v.name}</span>
+                      <div className="ds-lab-card__meta">
+                        <span className="ds-lab-card__logo ds-lab-card__logo--sel">{v.name}</span>
+                        <div className="ds-sellab-home">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M3 10.5L12 3l9 7.5V21H3V10.5z"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          <span>Home Collection</span>
+                        </div>
+                      </div>
                     </div>
                     <span
                       className={`ds-sellab-check${sel ? " ds-sellab-check--on" : ""}`}
@@ -358,18 +371,6 @@ export function DiagnosticsScreenPage() {
                     </span>
                   </div>
 
-                  <div className="ds-sellab-home">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M3 10.5L12 3l9 7.5V21H3V10.5z"
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span>Home Collection</span>
-                  </div>
-
                   <div className="ds-sellab-pack">
                     {v.packages.map((p) => (
                       <div key={p.id} className="ds-sellab-line">
@@ -377,11 +378,10 @@ export function DiagnosticsScreenPage() {
                         <span className="ds-sellab-line__price">₹{formatInr(p.b2cPrice ?? 0)}</span>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="ds-sellab-total">
-                    <span>Total</span>
-                    <span>₹{formatInr(subtotal)}</span>
+                    <div className="ds-sellab-total">
+                      <span>Total</span>
+                      <span>₹{formatInr(subtotal)}</span>
+                    </div>
                   </div>
                 </button>
               );
@@ -446,18 +446,22 @@ export function DiagnosticsScreenPage() {
                 {v.name.slice(0, 1)}
               </span>
             )}
-            <span className="ds-lab-card__logo ds-lab-card__logo--sel">{v.name}</span>
+            <div className="ds-lab-card__meta">
+              <span className="ds-lab-card__logo ds-lab-card__logo--sel">{v.name}</span>
+              <div className="ds-sellab-home">
+                <span>{v.category || "Diagnostics"}</span>
+              </div>
+            </div>
           </div>
           <span className={`ds-sellab-check${selected ? " ds-sellab-check--on" : ""}`} aria-hidden="true">
             {selected ? "✓" : ""}
           </span>
         </div>
-        <div className="ds-sellab-home">
-          <span>{v.category || "Diagnostics"}</span>
-        </div>
-        <div className="ds-sellab-total">
-          <span>From</span>
-          <span>₹{formatInr(v.price)}</span>
+        <div className="ds-sellab-pack ds-sellab-pack--solo">
+          <div className="ds-sellab-total">
+            <span>From</span>
+            <span>₹{formatInr(v.price)}</span>
+          </div>
         </div>
       </button>
     );

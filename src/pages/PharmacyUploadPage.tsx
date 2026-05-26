@@ -4,6 +4,11 @@ import { uploadPrescriptionFile, type PrescriptionUploadResult } from "@/api/pat
 import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
 import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
 import { ROUTES } from "@/constants";
+import {
+  buildPharmacyPassState,
+  readPharmacyBackPath,
+  readPharmacyHubReturn,
+} from "@/lib/pharmacyFlowNav";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,7 +16,6 @@ import "./PharmacyPages.css";
 
 const PHARMACY_PRESCRIPTION_FILE_INPUT_ID = "pharmacy-prescription-file-input";
 
-type NavState = Readonly<{ returnPath?: string }>;
 
 /** One picked file + `/upload` result — aligned with Flutter `UploadedFile` / `_buildFileCard`. */
 type UploadedPrescriptionItem = Readonly<{
@@ -40,8 +44,9 @@ export function PharmacyUploadPage() {
   const location = useLocation();
   const toast = useToast();
 
-  const hubReturn = (location.state as NavState | null)?.returnPath ?? ROUTES.dashboard;
-  const passState: NavState = { returnPath: hubReturn };
+  const hubReturn = readPharmacyHubReturn(location);
+  const backPath = readPharmacyBackPath(location, ROUTES.pharmacy);
+  const passState = buildPharmacyPassState(hubReturn, backPath);
 
   const flow = readPharmacyFlowState();
   const [files, setFiles] = useState<UploadedPrescriptionItem[]>([]);
@@ -168,7 +173,9 @@ export function PharmacyUploadPage() {
         prescriptionId: f.uploadResult!.prescriptionId.trim(),
       })),
     });
-    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "UPLOAD" as const } });
+    void navigate(ROUTES.pharmacyReview, {
+      state: { ...passState, backPath: ROUTES.pharmacyUpload, orderKind: "UPLOAD" as const },
+    });
   }, [files, flow, navigate, passState, toast]);
 
   if (!flow) {
@@ -176,7 +183,7 @@ export function PharmacyUploadPage() {
       <div className="ph-page">
         <header className="ph-top-wrap">
           <div className="ph-top">
-            <Link to={ROUTES.pharmacy} state={passState} className="ph-back" aria-label="Back">
+            <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
                   d="M15 18l-6-6 6-6"
@@ -210,7 +217,7 @@ export function PharmacyUploadPage() {
     <div className="ph-page ph-page--dart-upload">
       <header className="ph-top-wrap">
         <div className="ph-top">
-          <Link to={ROUTES.pharmacy} state={passState} className="ph-back" aria-label="Back">
+          <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"

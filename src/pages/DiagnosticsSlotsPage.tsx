@@ -15,8 +15,9 @@ import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { fetchDiagnosticSlots, type DiagnosticSlotPick } from "@/api/patientDiagnosticsLab";
 import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { HeaderTexts } from "@/constants/HeaderTexts";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { labSlotsBucketsEmpty, type LabSlotBuckets } from "@/lib/labSlotSelection";
+import { LabTestSlotPicker } from "@/components/diagnostics/LabTestSlotPicker";
 import { SlotPeriodSectionHead } from "@/components/slots/SlotPeriodIcon";
 import { useToast } from "@/hooks/useToast";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
@@ -50,11 +51,11 @@ export function DiagnosticsSlotsPage() {
     () => "",
   );
 
-  /** Lab cart flow — today through next 6 days. */
+  /** Lab cart flow — matches patient_app `LabTestController._generateDates` (5 days from today). */
   const labDays = useMemo((): readonly DayChip[] => {
     const out: DayChip[] = [];
     const base = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const y = d.getFullYear();
@@ -112,7 +113,11 @@ export function DiagnosticsSlotsPage() {
   const [labAfternoon, setLabAfternoon] = useState<readonly DiagnosticSlotPick[]>([]);
   const [labEvening, setLabEvening] = useState<readonly DiagnosticSlotPick[]>([]);
   const [labSlotLoading, setLabSlotLoading] = useState(false);
+  const [labSlotsFetched, setLabSlotsFetched] = useState(false);
   const [labSelectedPick, setLabSelectedPick] = useState<DiagnosticSlotPick | null>(null);
+  /** First load scans forward from today when the current day has no slots (patient_app lab flow). */
+  const labSlotScanForwardRef = useRef(true);
+  const [labAutoAdvancedToDate, setLabAutoAdvancedToDate] = useState<string | null>(null);
 
   /** Reset date strip when switching pathology ↔ radiology (patient_app re-inits per category). */
   useEffect(() => {
@@ -123,6 +128,9 @@ export function DiagnosticsSlotsPage() {
 
   useEffect(() => {
     if (!isLabTests) return;
+    labSlotScanForwardRef.current = true;
+    setLabAutoAdvancedToDate(null);
+    setLabSlotsFetched(false);
     try {
       const next = localStorage.getItem(DIAG_LAB_VENDOR_CODE_KEY)?.trim() ?? "";
       setLabVendorCode(next);
@@ -130,6 +138,17 @@ export function DiagnosticsSlotsPage() {
       setLabVendorCode("");
     }
   }, [isLabTests, selectedAddressId]);
+
+  const applyLabSlotBuckets = useCallback((res: LabSlotBuckets) => {
+    setLabMorning(res.morning);
+    setLabAfternoon(res.afternoon);
+    setLabEvening(res.evening);
+    setLabSelectedPick((prev) => {
+      if (!prev) return prev;
+      const all = [...res.morning, ...res.afternoon, ...res.evening];
+      return all.some((s) => slotKey(s) === slotKey(prev)) ? prev : null;
+    });
+  }, []);
 
   const loadLabSlots = useCallback(async () => {
     if (!isLabTests) return;
@@ -139,34 +158,68 @@ export function DiagnosticsSlotsPage() {
       setLabMorning([]);
       setLabAfternoon([]);
       setLabEvening([]);
+      setLabSlotsFetched(false);
       return;
     }
+
+    const scanForward = labSlotScanForwardRef.current;
+    const startIdx = Math.max(
+      0,
+      labDays.findIndex((d) => d.date === selectedDate),
+    );
+    const datesToTry = scanForward
+      ? labDays.slice(startIdx).map((d) => d.date)
+      : [selectedDate];
+
     setLabSlotLoading(true);
+    if (scanForward) setLabAutoAdvancedToDate(null);
+
     try {
-      const res = await fetchDiagnosticSlots({
-        address_id: addr.id.trim(),
-        date: selectedDate,
-        vendor_code: code,
-        package: DIAG_LAB_SLOTS_PACKAGE,
-      });
-      setLabMorning(res.morning);
-      setLabAfternoon(res.afternoon);
-      setLabEvening(res.evening);
-      setLabSelectedPick((prev) => {
-        if (!prev) return prev;
-        const all = [...res.morning, ...res.afternoon, ...res.evening];
-        return all.some((s) => slotKey(s) === slotKey(prev)) ? prev : null;
-      });
+      let lastEmpty: LabSlotBuckets = { morning: [], afternoon: [], evening: [] };
+      let matchedDate: string | null = null;
+
+      for (const date of datesToTry) {
+        const res = await fetchDiagnosticSlots({
+          address_id: addr.id.trim(),
+          date,
+          vendor_code: code,
+          package: DIAG_LAB_SLOTS_PACKAGE,
+        });
+        if (!labSlotsBucketsEmpty(res)) {
+          matchedDate = date;
+          applyLabSlotBuckets(res);
+          if (scanForward && date !== selectedDate) {
+            setLabAutoAdvancedToDate(date);
+            setSelectedDate(date);
+          }
+          break;
+        }
+        lastEmpty = res;
+      }
+
+      if (!matchedDate) {
+        applyLabSlotBuckets(lastEmpty);
+        setLabAutoAdvancedToDate(null);
+      }
     } catch (e) {
       setLabMorning([]);
       setLabAfternoon([]);
       setLabEvening([]);
       setLabSelectedPick(null);
+      setLabAutoAdvancedToDate(null);
       toast.error(e instanceof Error ? e.message : "Could not load slots");
     } finally {
+      labSlotScanForwardRef.current = false;
       setLabSlotLoading(false);
+      setLabSlotsFetched(true);
     }
-  }, [isLabTests, labVendorCode, selectedDate, toast]);
+  }, [applyLabSlotBuckets, isLabTests, labDays, labVendorCode, selectedDate, toast]);
+
+  const onLabDateSelect = useCallback((date: string) => {
+    labSlotScanForwardRef.current = false;
+    setLabAutoAdvancedToDate(null);
+    setSelectedDate(date);
+  }, []);
 
   const loadHealthSlots = useCallback(async () => {
     if (isLabTests) return;
@@ -232,7 +285,7 @@ export function DiagnosticsSlotsPage() {
   const monthBanner = useMemo(() => {
     if (!selectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) return "";
     const d = new Date(`${selectedDate}T12:00:00`);
-    return `${d.toLocaleDateString("en-IN", { month: "long", year: "numeric" })} ( IST )`;
+    return `${d.toLocaleDateString("en-IN", { month: "short", year: "numeric" })} ( IST )`;
   }, [selectedDate]);
 
   const pickLabSlot = (p: DiagnosticSlotPick) => {
@@ -246,7 +299,7 @@ export function DiagnosticsSlotsPage() {
     ? healthPhase === "pathology"
       ? "Pathology Slot"
       : "Radiology Slot"
-    : HeaderTexts.labTests.title;
+    : "Pick a Slot";
 
   const pathTabDone =
     healthPhase === "radiology" || (healthPhase === "pathology" && labSelectedPick != null);
@@ -259,7 +312,7 @@ export function DiagnosticsSlotsPage() {
     isLabTests && (!labSelectedPick || !labVendorCode) ? true : !isLabTests && !labSelectedPick;
 
   const confirmLabel = useMemo(() => {
-    if (isLabTests) return "Confirm";
+    if (isLabTests) return "Confirm Slot";
     const m = healthMeta;
     if (!m) return "Continue to Overview";
     if (m.needPathology && m.needRadiology && healthPhase === "pathology") return "Next: Radiology Slot";
@@ -332,19 +385,15 @@ export function DiagnosticsSlotsPage() {
       ) : null}
 
       <main className="cas-main cas-main--with-sticky-footer">
-        <div className="cas-note">
-          Note : Flip Health will call and try to schedule your sample collection in your preferred slot or the next
-          available slot
-        </div>
-
-        {isLabTests && !labVendorCode ? (
-          <p className="cas-note" role="alert">
-            Go back and select a lab partner first.
-          </p>
+        {!isLabTests ? (
+          <div className="cas-note">
+            Note : Flip Health will call and try to schedule your sample collection in your preferred slot or the next
+            available slot
+          </div>
         ) : null}
 
         {!isLabTests && !healthMeta ? (
-          <p className="cas-note" role="alert">
+          <p className="cas-note cas-note--alert" role="alert">
             Go back and complete vendor selection first.
           </p>
         ) : null}
@@ -394,129 +443,147 @@ export function DiagnosticsSlotsPage() {
           </div>
         ) : null}
 
-        <div className="cas-row">
-          <div className="cas-row__left">
-            <span className="cas-row__ic" aria-hidden="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
-                <path d="M12 7v6l3 2" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-            <span>choose date and time</span>
-          </div>
-          <div className="cas-row__right">{monthBanner || " "}</div>
-        </div>
-
-        <div className={isLabTests ? undefined : "cas-days-wrap"}>
-          <div
-            className={`cas-days${!isLabTests ? " cas-days--scroll" : ""}`}
-            role="radiogroup"
-            aria-label="Choose day"
-          >
-            {displayDays.map((d) => {
-              const active = selectedDate === d.date;
-              return (
-                <button
-                  key={d.date}
-                  type="button"
-                  className={`cas-day${active ? " cas-day--active" : ""}`}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setSelectedDate(d.date)}
-                >
-                  <div className="cas-day__num">{d.day}</div>
-                  <div className="cas-day__dow">{d.dow}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="cas-divider" />
-
-        {labSlotLoading ? <p className="cas-note">Loading slots…</p> : null}
-
-        {!isLabTests && allBucketsEmpty && !labSlotLoading ? (
-          <div className="cas-empty-ahc">
-            <p className="cas-empty-ahc__title">No slots available</p>
-            <p className="cas-empty-ahc__sub">Try another date or check back later.</p>
-          </div>
+        {isLabTests ? (
+          labSlotLoading && !labSlotsFetched ? (
+            <div className="cas-lab-initial-load" aria-busy="true">
+              <p className="cas-note cas-note--loading">Loading slots…</p>
+            </div>
+          ) : (
+            <>
+              <LabTestSlotPicker
+                monthBanner={monthBanner}
+                days={labDays}
+                selectedDate={selectedDate}
+                onSelectDate={onLabDateSelect}
+                autoAdvancedToDate={labAutoAdvancedToDate}
+                morning={labMorning}
+                afternoon={labAfternoon}
+                evening={labEvening}
+                selectedPick={labSelectedPick}
+                onSelectSlot={pickLabSlot}
+                isLoading={labSlotLoading}
+              />
+              {labSlotLoading && labSlotsFetched ? (
+                <div className="cas-lab-inline-load" aria-hidden="true">
+                  <span className="cas-lab-inline-load__spinner" />
+                </div>
+              ) : null}
+            </>
+          )
         ) : (
           <>
-            <section className="cas-section">
-              <SlotPeriodSectionHead period="morning" />
-              <div className={slotsGridClass} role="radiogroup" aria-label="Morning slots">
-                {labMorning.length === 0 && !labSlotLoading && isLabTests ? (
-                  <span className="cas-note">No morning slots</span>
-                ) : null}
-                {labMorning.map((s) => {
-                  const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
-                  const label = `${s.start_time} – ${s.end_time}`;
-                  return (
-                    <button
-                      key={slotKey(s)}
-                      type="button"
-                      className={slotBtnClass(active)}
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => pickLabSlot(s)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+            <div className="cas-row">
+              <div className="cas-row__left">
+                <span className="cas-row__ic" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="#FF541E" strokeWidth="2" />
+                    <path d="M12 7v6l3 2" stroke="#FF541E" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <span>choose date and time</span>
               </div>
-            </section>
+              <div className="cas-row__right">{monthBanner || " "}</div>
+            </div>
 
-            <section className="cas-section">
-              <SlotPeriodSectionHead period="afternoon" />
-              <div className={slotsGridClass} role="radiogroup" aria-label="Afternoon slots">
-                {labAfternoon.length === 0 && !labSlotLoading && isLabTests ? (
-                  <span className="cas-note">No afternoon slots</span>
-                ) : null}
-                {labAfternoon.map((s) => {
-                  const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
-                  const label = `${s.start_time} – ${s.end_time}`;
+            <div className="cas-days-wrap">
+              <div className="cas-days cas-days--scroll" role="radiogroup" aria-label="Choose day">
+                {displayDays.map((d) => {
+                  const active = selectedDate === d.date;
                   return (
                     <button
-                      key={slotKey(s)}
+                      key={d.date}
                       type="button"
-                      className={slotBtnClass(active)}
+                      className={`cas-day${active ? " cas-day--active" : ""}`}
                       role="radio"
                       aria-checked={active}
-                      onClick={() => pickLabSlot(s)}
+                      onClick={() => setSelectedDate(d.date)}
                     >
-                      {label}
+                      <div className="cas-day__num">{d.day}</div>
+                      <div className="cas-day__dow">{d.dow}</div>
                     </button>
                   );
                 })}
               </div>
-            </section>
+            </div>
 
-            <section className="cas-section">
-              <SlotPeriodSectionHead period="evening" />
-              <div className={slotsGridClass} role="radiogroup" aria-label="Evening slots">
-                {labEvening.length === 0 && !labSlotLoading && isLabTests ? (
-                  <span className="cas-note">No evening slots</span>
-                ) : null}
-                {labEvening.map((s) => {
-                  const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
-                  const label = `${s.start_time} – ${s.end_time}`;
-                  return (
-                    <button
-                      key={slotKey(s)}
-                      type="button"
-                      className={slotBtnClass(active)}
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => pickLabSlot(s)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+            <div className="cas-divider" />
+
+            {labSlotLoading ? <p className="cas-note cas-note--loading">Loading slots…</p> : null}
+
+            {allBucketsEmpty && !labSlotLoading ? (
+              <div className="cas-empty-ahc">
+                <p className="cas-empty-ahc__title">No slots available</p>
+                <p className="cas-empty-ahc__sub">Try another date or check back later.</p>
               </div>
-            </section>
+            ) : (
+              <>
+                <section className="cas-section">
+                  <SlotPeriodSectionHead period="morning" />
+                  <div className={slotsGridClass} role="radiogroup" aria-label="Morning slots">
+                    {labMorning.map((s) => {
+                      const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
+                      const label = `${s.start_time} – ${s.end_time}`;
+                      return (
+                        <button
+                          key={slotKey(s)}
+                          type="button"
+                          className={slotBtnClass(active)}
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => pickLabSlot(s)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="cas-section">
+                  <SlotPeriodSectionHead period="afternoon" />
+                  <div className={slotsGridClass} role="radiogroup" aria-label="Afternoon slots">
+                    {labAfternoon.map((s) => {
+                      const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
+                      const label = `${s.start_time} – ${s.end_time}`;
+                      return (
+                        <button
+                          key={slotKey(s)}
+                          type="button"
+                          className={slotBtnClass(active)}
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => pickLabSlot(s)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                <section className="cas-section">
+                  <SlotPeriodSectionHead period="evening" />
+                  <div className={slotsGridClass} role="radiogroup" aria-label="Evening slots">
+                    {labEvening.map((s) => {
+                      const active = labSelectedPick != null && slotKey(labSelectedPick) === slotKey(s);
+                      const label = `${s.start_time} – ${s.end_time}`;
+                      return (
+                        <button
+                          key={slotKey(s)}
+                          type="button"
+                          className={slotBtnClass(active)}
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => pickLabSlot(s)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              </>
+            )}
           </>
         )}
       </main>
@@ -524,9 +591,17 @@ export function DiagnosticsSlotsPage() {
       <footer className="cas-footer cas-footer--sticky">
         <button
           type="button"
-          className="cas-confirm"
-          disabled={confirmDisabled}
+          className={`cas-confirm${isLabTests && !labSelectedPick ? " cas-confirm--dim" : ""}`}
+          disabled={!isLabTests && confirmDisabled}
           onClick={() => {
+            if (isLabTests && !labVendorCode.trim()) {
+              toast.error("Go back and select a lab partner first.");
+              return;
+            }
+            if (isLabTests && !labSelectedPick) {
+              toast.error("Please select a time slot");
+              return;
+            }
             try {
               if (isLabTests && labSelectedPick) {
                 localStorage.setItem("opd-mobile-view.diagnostics.date", labSelectedPick.slot_date);

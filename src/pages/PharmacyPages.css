@@ -75,6 +75,31 @@ label.ph-upload-zone {
   flex-shrink: 0;
 }
 
+.ph-top-consult {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex-shrink: 0;
+  max-width: 42%;
+  padding: 4px 10px;
+  min-height: 30px;
+  border: 1px solid rgba(180, 60, 20, 0.5);
+  border-radius: 8px;
+  background: transparent;
+  color: #111111;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.ph-top-consult span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ph-strip {
   width: 100%;
   padding: 0 var(--ph-gutter);
@@ -1787,6 +1812,19 @@ a.ph-footer-btn__inner {
   font-size: 15px;
   line-height: 1.45;
   color: #757575;
+}
+
+.ph-flip-empty__hint {
+  margin: 10px 0 0;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #757575;
+}
+
+.ph-flip-empty__cta {
+  margin-top: 24px;
+  max-width: 320px;
 }
 
 /* Select prescription carousel */

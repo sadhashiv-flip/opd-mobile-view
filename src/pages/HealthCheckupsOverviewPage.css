@@ -84,6 +84,13 @@
   text-decoration: none;
 }
 
+button.hco-back {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
 .hco-title {
   margin: 0;
   font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));

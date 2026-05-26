@@ -30,6 +30,7 @@ import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
+import { readFlowReturnPath } from "@/lib/flowReturnPath";
 import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -211,6 +212,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   );
 
   const returnPath = `${location.pathname}${location.search}`;
+  const entryReturnPath = readFlowReturnPath(location);
 
   const hideAddFamilyOnPicker =
     isHealthCheckupsDiagnostics && filterAhcDashboardEntry;
@@ -300,7 +302,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         openVirtualLanguageSheet();
         return;
       }
-      navigate(generatePath(ROUTES.consultationSpecialties, { type }));
+      navigate(generatePath(ROUTES.consultationSpecialties, { type }), { state: location.state });
       return;
     }
 
@@ -374,17 +376,36 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   return (
     <div className="hc-page">
       <header className="hco-top">
-        <Link to={ROUTES.dashboard} className="hco-back" aria-label="Back to home">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        {entryReturnPath ? (
+          <Link to={entryReturnPath} className="hco-back" aria-label="Back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="hco-back"
+            aria-label="Back"
+            onClick={() => navigate(-1)}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
         {flow === "consultation" ? (
           <div className="hco-title-wrap">
             <h1 className="hco-title">{headerTitle}</h1>

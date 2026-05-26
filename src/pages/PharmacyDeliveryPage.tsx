@@ -16,6 +16,7 @@ import {
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
 import { ROUTES } from "@/constants";
+import { buildPharmacyPassState, readPharmacyHubReturn } from "@/lib/pharmacyFlowNav";
 import { useToast } from "@/hooks/useToast";
 import { useSelectedAddressSnapshot } from "@/hooks/useSelectedAddressLine";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -23,7 +24,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "./PharmacyPages.css";
 import "@/components/vaccination/VaccinationAddressBar.css";
 
-type NavState = Readonly<{ returnPath?: string }>;
 
 /** Copy aligned with Flutter `AppString` / `PharmacyMainScreen`. */
 const MAIN_COPY = {
@@ -119,7 +119,7 @@ export function PharmacyDeliveryPage() {
   const location = useLocation();
   const toast = useToast();
 
-  const hubReturn = (location.state as NavState | null)?.returnPath ?? ROUTES.dashboard;
+  const hubReturn = readPharmacyHubReturn(location);
 
   const [flow, setFlow] = useState<PharmacyFlowState | null>(() => readPharmacyFlowState());
   const [members, setMembers] = useState<GymMemberListRow[]>([]);
@@ -134,7 +134,10 @@ export function PharmacyDeliveryPage() {
   const deliveryAddressReady =
     addressesBootstrapped && Boolean(selectedAddress?.id?.trim());
 
-  const passState = useMemo(() => ({ returnPath: hubReturn } satisfies NavState), [hubReturn]);
+  const passState = useMemo(
+    () => buildPharmacyPassState(hubReturn, ROUTES.pharmacy),
+    [hubReturn],
+  );
 
   const orderingForLabel = useMemo(() => {
     if (!flow) return "";
@@ -262,18 +265,24 @@ export function PharmacyDeliveryPage() {
     }
     if (!ensurePharmacyAddress()) return;
     writePharmacyReviewDraft({ kind: "OTC" });
-    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "OTC" as const } });
+    void navigate(ROUTES.pharmacyReview, {
+      state: { ...passState, backPath: ROUTES.pharmacy, orderKind: "OTC" as const },
+    });
   }, [ensurePharmacyAddress, navigate, passState, toast]);
 
   const goToUpload = useCallback(() => {
     if (!ensurePharmacyAddress()) return;
-    void navigate(ROUTES.pharmacyUpload, { state: passState });
-  }, [ensurePharmacyAddress, navigate, passState]);
+    void navigate(ROUTES.pharmacyUpload, {
+      state: buildPharmacyPassState(hubReturn, ROUTES.pharmacy),
+    });
+  }, [ensurePharmacyAddress, hubReturn, navigate]);
 
   const goToFlipHealth = useCallback(() => {
     if (!ensurePharmacyAddress()) return;
-    void navigate(ROUTES.pharmacySelectPrescription, { state: passState });
-  }, [ensurePharmacyAddress, navigate, passState]);
+    void navigate(ROUTES.pharmacySelectPrescription, {
+      state: buildPharmacyPassState(hubReturn, ROUTES.pharmacy),
+    });
+  }, [ensurePharmacyAddress, hubReturn, navigate]);
 
   const showAddressBanner = flow && (addressesLoading || !deliveryAddressReady);
 

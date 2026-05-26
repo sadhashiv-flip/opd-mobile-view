@@ -6,12 +6,21 @@ import { writePharmacyReviewDraft, type PharmacyReviewFlipRx } from "@/constants
 import { writePharmacyPrescriptionsCache } from "@/constants/pharmacyPrescriptionsCache";
 import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
 import { ROUTES } from "@/constants";
+import { currentLocationPath } from "@/lib/flowReturnPath";
+import {
+  buildPharmacyPassState,
+  readPharmacyBackPath,
+  readPharmacyHubReturn,
+  type PharmacyFlowNavState,
+} from "@/lib/pharmacyFlowNav";
 import { useToast } from "@/hooks/useToast";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { generatePath, Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./PharmacyPages.css";
 
-type NavState = Readonly<{ returnPath?: string; prescription?: PharmacyMockPrescription }>;
+type NavState = PharmacyFlowNavState &
+  Readonly<{ prescription?: PharmacyMockPrescription }>;
 
 const COPY = {
   multiHint: "Tap a card to select. You can pick multiple prescriptions.",
@@ -19,6 +28,11 @@ const COPY = {
   selectAll: "Select all",
   clearSelection: "Clear",
   viewDetails: "View details",
+  noPrescriptions: "No prescriptions available",
+  noPrescriptionConsultHint:
+    "Book a virtual consultation to get a prescription from our doctors",
+  consultDoctor: "Consult Doctor",
+  consultADoctor: "Consult a Doctor",
 } as const;
 
 function sortByDateDesc(list: readonly PharmacyMockPrescription[]): PharmacyMockPrescription[] {
@@ -40,12 +54,31 @@ function toReviewEntry(rx: PharmacyMockPrescription): PharmacyReviewFlipRx {
   };
 }
 
+function ConsultDoctorVideoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 8h8a2 2 0 012 2v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4a2 2 0 012-2z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function PharmacySelectPrescriptionPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const hubReturn = (location.state as NavState | null)?.returnPath ?? ROUTES.dashboard;
-  const passState = useMemo((): NavState => ({ returnPath: hubReturn }), [hubReturn]);
+  const mod = useProfileModuleGates();
+  const hubReturn = readPharmacyHubReturn(location);
+  const backPath = readPharmacyBackPath(location, ROUTES.pharmacy);
+  const passState = useMemo(
+    (): NavState => buildPharmacyPassState(hubReturn, backPath),
+    [hubReturn, backPath],
+  );
 
   const flow = readPharmacyFlowState();
   const patientId = flow?.patientId;
@@ -122,17 +155,42 @@ export function PharmacySelectPrescriptionPage() {
       kind: "FLIPHEALTH",
       prescriptions: chosen.map(toReviewEntry),
     });
-    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "FLIPHEALTH" as const } });
+    void navigate(ROUTES.pharmacyReview, {
+      state: {
+        ...passState,
+        backPath: ROUTES.pharmacySelectPrescription,
+        orderKind: "FLIPHEALTH" as const,
+      },
+    });
   }, [flow, navigate, passState, selectedIds, sorted, toast]);
 
   const showFooter = !loading && !error && total > 0;
+  const canBookVirtualConsultation = !mod.loaded || mod.consultation.sheetVirtual;
+  const showConsultAppBar =
+    canBookVirtualConsultation && !loading && !error && total > 0;
+
+  const openVirtualConsultation = useCallback(() => {
+    if (!canBookVirtualConsultation) return;
+    void navigate(generatePath(ROUTES.consultationSelectPeople, { type: "virtual" }), {
+      state: { returnPath: currentLocationPath(location) },
+    });
+  }, [canBookVirtualConsultation, location, navigate]);
+
+  const consultAppBarAction = showConsultAppBar ? (
+    <button type="button" className="ph-top-consult" onClick={openVirtualConsultation}>
+      <span>{COPY.consultDoctor}</span>
+      <ConsultDoctorVideoIcon />
+    </button>
+  ) : (
+    <span className="ph-top__spacer" aria-hidden />
+  );
 
   if (!flow) {
     return (
       <div className="ph-page">
         <header className="ph-top-wrap">
           <div className="ph-top">
-            <Link to={ROUTES.pharmacy} state={passState} className="ph-back" aria-label="Back">
+            <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
                   d="M15 18l-6-6 6-6"
@@ -163,7 +221,7 @@ export function PharmacySelectPrescriptionPage() {
     <div className={`ph-page${showFooter ? " ph-page--flip-select" : ""}`}>
       <header className="ph-top-wrap">
         <div className="ph-top">
-          <Link to={ROUTES.pharmacy} state={passState} className="ph-back" aria-label="Back">
+          <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -175,7 +233,7 @@ export function PharmacySelectPrescriptionPage() {
             </svg>
           </Link>
           <h1 className="ph-title">Select Prescription</h1>
-          <span className="ph-top__spacer" aria-hidden />
+          {consultAppBarAction}
         </div>
       </header>
 
@@ -213,10 +271,20 @@ export function PharmacySelectPrescriptionPage() {
             <div className="ph-flip-empty__illu" aria-hidden>
               <img src={PHARMACY_IMAGES.flipHealthPrescription} alt="" />
             </div>
-            <p className="ph-flip-empty__text">
-              No Flip Health prescriptions found for this profile. Upload a prescription or choose another option on the
-              previous screen.
-            </p>
+            <p className="ph-flip-empty__text">{COPY.noPrescriptions}</p>
+            {canBookVirtualConsultation ? (
+              <>
+                <p className="ph-flip-empty__hint">{COPY.noPrescriptionConsultHint}</p>
+                <button
+                  type="button"
+                  className="ph-btn-orange ph-flip-empty__cta"
+                  onClick={openVirtualConsultation}
+                >
+                  {COPY.consultADoctor}
+                  <ConsultDoctorVideoIcon />
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
 
@@ -360,7 +428,15 @@ export function PharmacySelectPrescriptionPage() {
                       <button
                         type="button"
                         className="ph-flip-rx-card__detail"
-                        onClick={() => void navigate(detailPath, { state: { ...passState, prescription: rx } })}
+                        onClick={() =>
+                          void navigate(detailPath, {
+                            state: {
+                              ...passState,
+                              backPath: ROUTES.pharmacySelectPrescription,
+                              prescription: rx,
+                            },
+                          })
+                        }
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                           <path

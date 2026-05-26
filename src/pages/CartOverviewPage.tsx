@@ -10,6 +10,7 @@ import { Link, generatePath, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./CartOverviewPage.css";
 import { HeaderTexts } from "@/constants/HeaderTexts";
+import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
 import { useToast } from "@/hooks/useToast";
 
 function formatInr(n: number): string {
@@ -19,6 +20,7 @@ function formatInr(n: number): string {
 export function CartOverviewPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const appConfirm = useAppConfirm();
   const [items, setItems] = useState<readonly LabCartItem[]>([]);
   const [pricing, setPricing] = useState<LabCartPricing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,8 +67,17 @@ export function CartOverviewPage() {
     }
   };
 
-  const onClearAll = async () => {
+  const onClearAll = useCallback(async () => {
     if (items.length === 0 || clearing) return;
+    const ok = await appConfirm({
+      title: "Clear cart?",
+      message:
+        "All lab tests will be removed from your cart. You can add them again from the catalog.",
+      variant: "destructive",
+      confirmLabel: "Clear all",
+      cancelLabel: "Keep cart",
+    });
+    if (!ok) return;
     setClearing(true);
     try {
       await clearLabCart();
@@ -76,7 +87,7 @@ export function CartOverviewPage() {
     } finally {
       setClearing(false);
     }
-  };
+  }, [appConfirm, clearing, items.length, load, toast]);
 
   return (
     <div className="co-page co-page--v2">
@@ -97,7 +108,9 @@ export function CartOverviewPage() {
           type="button"
           className="co-clear"
           disabled={items.length === 0 || loading || clearing}
-          onClick={() => void onClearAll()}
+          onClick={() => {
+            void onClearAll();
+          }}
         >
           Clear all
         </button>
@@ -132,30 +145,6 @@ export function CartOverviewPage() {
             </article>
           ))}
         </div>
-
-        {!loading && items.length > 0 ? (
-          <section className="co-summary" aria-label="Price summary">
-            <h2 className="co-summary__title">Price Summary</h2>
-            <div className="co-summary__row">
-              <span className="co-summary__k">Wallet Balance</span>
-              <span className="co-summary__v co-summary__v--green">
-                {walletBalance != null ? `₹ ${formatInr(walletBalance)}` : "—"}
-              </span>
-            </div>
-            {walletCovered ? (
-              <div className="co-summary__banner" role="status">
-                <span className="co-summary__banner-ic" aria-hidden="true">
-                  ✓
-                </span>
-                <span>Covered by wallet — No payment needed</span>
-              </div>
-            ) : pricing?.isPaymentRequired ? (
-              <div className="co-summary__banner co-summary__banner--due" role="status">
-                Payment required at checkout
-              </div>
-            ) : null}
-          </section>
-        ) : null}
       </main>
 
       <footer className="co-footer co-footer--v2">

@@ -9,11 +9,20 @@ import { readCachedPharmacyPrescription } from "@/constants/pharmacyPrescription
 import { writePharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
 import { readPharmacyFlowState } from "@/constants/pharmacyFlowStorage";
 import { ROUTES } from "@/constants";
+import {
+  buildPharmacyPassState,
+  readPharmacyBackPath,
+  readPharmacyHubReturn,
+} from "@/lib/pharmacyFlowNav";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo } from "react";
 import "./PharmacyPages.css";
 
-type NavState = Readonly<{ returnPath?: string; prescription?: PharmacyMockPrescription }>;
+type NavState = Readonly<{
+  returnPath?: string;
+  backPath?: string;
+  prescription?: PharmacyMockPrescription;
+}>;
 
 type SlotKey = "morning" | "afternoon" | "night";
 
@@ -74,8 +83,9 @@ export function PharmacyPrescriptionDetailPage() {
   const { prescriptionId: prescriptionIdParam } = useParams<{ prescriptionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const hubReturn = (location.state as NavState | null)?.returnPath ?? ROUTES.dashboard;
-  const passState: NavState = { returnPath: hubReturn };
+  const hubReturn = readPharmacyHubReturn(location);
+  const backPath = readPharmacyBackPath(location, ROUTES.pharmacySelectPrescription);
+  const passState = buildPharmacyPassState(hubReturn, backPath);
 
   const prescriptionId = prescriptionIdParam?.trim() ?? "";
   const flow = readPharmacyFlowState();
@@ -110,7 +120,13 @@ export function PharmacyPrescriptionDetailPage() {
         },
       ],
     });
-    void navigate(ROUTES.pharmacyReview, { state: { ...passState, orderKind: "FLIPHEALTH" as const } });
+    void navigate(ROUTES.pharmacyReview, {
+      state: {
+        ...passState,
+        backPath: ROUTES.pharmacySelectPrescription,
+        orderKind: "FLIPHEALTH" as const,
+      },
+    });
   }, [flow, navigate, passState, rx]);
 
   if (!rx || !flow) {
@@ -118,7 +134,7 @@ export function PharmacyPrescriptionDetailPage() {
       <div className="ph-page">
         <header className="ph-top-wrap">
           <div className="ph-top">
-            <Link to={ROUTES.pharmacySelectPrescription} state={passState} className="ph-back" aria-label="Back">
+            <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
                   d="M15 18l-6-6 6-6"
@@ -149,7 +165,7 @@ export function PharmacyPrescriptionDetailPage() {
     <div className="ph-page ph-page--rx-detail">
       <header className="ph-top-wrap">
         <div className="ph-top">
-          <Link to={ROUTES.pharmacySelectPrescription} state={passState} className="ph-back" aria-label="Back">
+          <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"

@@ -12,6 +12,12 @@ import { readPharmacyFlowState, resolvePharmacyOrderAddressId } from "@/constant
 import { readSelectedAddress } from "@/constants/selectedAddressStorage";
 import { PHARMACY_IMAGES } from "@/assets/images/pharmacy";
 import { ROUTES } from "@/constants";
+import {
+  buildPharmacyPassState,
+  pharmacyReviewBackPath,
+  readPharmacyBackPath,
+  readPharmacyHubReturn,
+} from "@/lib/pharmacyFlowNav";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -20,7 +26,11 @@ import type { ReactElement } from "react";
 import "./PharmacyPages.css";
 import "./PharmacyOrderReviewPage.css";
 
-type NavState = Readonly<{ returnPath?: string; orderKind?: PharmacyReviewOrderKind }>;
+type NavState = Readonly<{
+  returnPath?: string;
+  backPath?: string;
+  orderKind?: PharmacyReviewOrderKind;
+}>;
 
 const COPY = {
   title: "Review your order",
@@ -107,10 +117,20 @@ export function PharmacyOrderReviewPage() {
   const toast = useToast();
 
   const st = location.state as NavState | null;
-  const hubReturn = st?.returnPath ?? ROUTES.dashboard;
-  const passState = useMemo(() => ({ returnPath: hubReturn } satisfies NavState), [hubReturn]);
-
+  const hubReturn = readPharmacyHubReturn(location);
   const orderKind = parseOrderKind(st?.orderKind);
+  const reviewBackPath = useMemo(() => {
+    if (orderKind) {
+      const fromState = readPharmacyBackPath(location, "");
+      if (fromState) return fromState;
+      return pharmacyReviewBackPath(orderKind);
+    }
+    return ROUTES.pharmacy;
+  }, [location, orderKind]);
+  const passState = useMemo(
+    () => buildPharmacyPassState(hubReturn, reviewBackPath),
+    [hubReturn, reviewBackPath],
+  );
   const draft = useMemo(() => readPharmacyReviewDraft(), [location.pathname, location.state]);
 
   const flow = readPharmacyFlowState();
@@ -173,8 +193,8 @@ export function PharmacyOrderReviewPage() {
   const confirmDisabled = !hasAddress || !canPlace || busy;
 
   const navigateAway = useCallback(() => {
-    void navigate(ROUTES.pharmacy, { state: passState });
-  }, [navigate, passState]);
+    void navigate(reviewBackPath, { state: passState });
+  }, [navigate, passState, reviewBackPath]);
 
   useEffect(() => {
     if (!orderKind || !flow) {
@@ -278,7 +298,7 @@ export function PharmacyOrderReviewPage() {
   return (
     <div className="ph-review-page">
       <header className="ph-review-top">
-        <Link to={ROUTES.pharmacy} state={passState} className="ph-back" aria-label="Back">
+        <Link to={reviewBackPath} state={passState} className="ph-back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

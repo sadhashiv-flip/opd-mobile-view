@@ -632,7 +632,7 @@ function formatOverviewSlotLabels(slot: {
       const ampm = h >= 12 ? "PM" : "AM";
       if (h > 12) h -= 12;
       if (h === 0) h = 12;
-      return `${String(h)}:${min} ${ampm}`;
+      return `${String(h).padStart(2, "0")}:${min} ${ampm}`;
     };
     if (st && et) formattedSlotTimeRange = `${to12(st)} - ${to12(et)}`;
     else formattedSlotTimeRange = to12(st || et);

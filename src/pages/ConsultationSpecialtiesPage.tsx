@@ -359,7 +359,8 @@ export function ConsultationSpecialtiesPage() {
     <div className="csp-page">
       <header className="csp-top">
         <Link
-          to={generatePath(ROUTES.consultation, { type })}
+          to={generatePath(ROUTES.consultationSelectPeople, { type })}
+          state={location.state}
           className="csp-back"
           aria-label="Back"
         >
