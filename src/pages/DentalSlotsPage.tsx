@@ -9,7 +9,8 @@ import {
   formatDentalPreferredDateTime,
   getDentalBookingDays,
 } from "@/utils/dentalSlotRules";
-import { Link, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/hooks/useToast";
 import "./HealthCheckupsPage.css";
@@ -94,17 +95,7 @@ export function DentalSlotsPage() {
   return (
     <div className="hc-page dental-slots-page">
       <header className="hco-top">
-        <Link to={ROUTES.dentalNetworkList} className="hco-back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack fallbackTo={ROUTES.dentalNetworkList} className="hco-back" />
         <h1 className="hco-title">Select Your Dental Slots</h1>
         <span className="hco-top__balance" aria-hidden />
       </header>

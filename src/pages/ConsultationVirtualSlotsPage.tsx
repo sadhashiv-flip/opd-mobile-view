@@ -1,4 +1,5 @@
-import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
 import { readVirtualFollowUpAppointmentId } from "@/constants/virtualConsultationSessionStorage";
 import { VirtualConsultationSlotSelector } from "@/components/consultation/VirtualConsultationSlotSelector";
@@ -133,16 +134,14 @@ export function ConsultationVirtualSlotsPage() {
     return (
       <div className="cvsl-page">
         <header className="cvsl-top">
-          <Link to={backToSpecialties} className="cvsl-back" aria-label="Back">
-            <BackIcon />
-          </Link>
+          <FlowScreenBack fallbackTo={backToSpecialties} className="cvsl-back" />
           <h1 className="cvsl-title">Select slot</h1>
         </header>
         <main className="cvsl-main">
           <p className="cvsl-msg cvsl-msg--err">Select a specialty again to continue.</p>
-          <Link to={backToSpecialties} className="cvsl-linkback">
+          <button type="button" className="cvsl-linkback" onClick={() => navigate(-1)}>
             Back to specialties
-          </Link>
+          </button>
         </main>
       </div>
     );
@@ -151,20 +150,7 @@ export function ConsultationVirtualSlotsPage() {
   return (
     <div className="cvsl-page">
       <header className="cvsl-top">
-        {isFollowUp ? (
-          <button
-            type="button"
-            className="cvsl-back"
-            aria-label="Back"
-            onClick={() => navigate(-1)}
-          >
-            <BackIcon />
-          </button>
-        ) : (
-          <Link to={backToSpecialties} className="cvsl-back" aria-label="Back">
-            <BackIcon />
-          </Link>
-        )}
+        <FlowScreenBack fallbackTo={backToSpecialties} className="cvsl-back" />
         <h1 className="cvsl-title">{pageTitle}</h1>
       </header>
 
@@ -205,19 +191,5 @@ export function ConsultationVirtualSlotsPage() {
         </button>
       </footer>
     </div>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M15 18l-6-6 6-6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

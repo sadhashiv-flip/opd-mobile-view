@@ -19,7 +19,8 @@ import { ROUTES } from "@/constants";
 import { buildPharmacyPassState, readPharmacyHubReturn } from "@/lib/pharmacyFlowNav";
 import { useToast } from "@/hooks/useToast";
 import { useSelectedAddressSnapshot } from "@/hooks/useSelectedAddressLine";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./PharmacyPages.css";
 import "@/components/vaccination/VaccinationAddressBar.css";
@@ -290,17 +291,7 @@ export function PharmacyDeliveryPage() {
     <div className="ph-page ph-page--dart-main">
       <header className="ph-top-wrap ph-top-wrap--dart-main">
         <div className="ph-top ph-top--dart-main">
-          <Link to={hubReturn} className="ph-back" aria-label="Back">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
+          <FlowScreenBack fallbackTo={hubReturn} className="ph-back" />
           <div className="ph-top-loc">
             <VaccinationAddressBar />
           </div>

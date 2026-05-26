@@ -184,6 +184,12 @@ export const ROUTES = {
   claimsDetail: "/claims/:claimId",
   /** Edit one bill on an existing claim (`PATCH /patient/reimbursement/bill/:billId`). */
   claimsBillEdit: "/claims/:claimId/bills/:billId/edit",
+  /** Demo multi-step wizard — global FormContext + localStorage persistence. */
+  wizard: "/wizard",
+  wizardScreen1: "/wizard/screen-1",
+  wizardScreen2: "/wizard/screen-2",
+  wizardScreen3: "/wizard/screen-3",
+  wizardScreen4: "/wizard/screen-4",
 } as const;
 
 /** Path param for {@link ROUTES.servicesWellness}. */

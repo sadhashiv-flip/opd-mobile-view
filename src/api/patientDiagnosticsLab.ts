@@ -292,9 +292,18 @@ export type HealthSponsoredVendorRow = Readonly<{
 export type SponsoredVendorPricingResult = Readonly<{
   pathologyVendors: readonly HealthSponsoredVendorRow[];
   radiologyVendors: readonly HealthSponsoredVendorRow[];
+  /** API returned pathology_vendor payload (may be only `unknown`, which is filtered out). */
   pathologyCategoryExists: boolean;
   radiologyCategoryExists: boolean;
+  /** patient_app `hasSelectablePathology` — non-unknown vendors after parse. */
+  hasSelectablePathology: boolean;
+  hasSelectableRadiology: boolean;
 }>;
+
+export function healthVendorCodeIsUnknown(code: string | null | undefined): boolean {
+  const c = (code ?? "").trim().toLowerCase();
+  return c.length === 0 || c === "unknown";
+}
 
 function vendorPayloadExists(raw: unknown): boolean {
   if (Array.isArray(raw)) return raw.length > 0;
@@ -355,16 +364,22 @@ export async function fetchSponsoredVendorPricing(params: Readonly<{
       radiologyVendors: [],
       pathologyCategoryExists: false,
       radiologyCategoryExists: false,
+      hasSelectablePathology: false,
+      hasSelectableRadiology: false,
     };
   }
   const root = raw as Record<string, unknown>;
   const rawPath = root.pathology_vendor;
   const rawRad = root.radiology_vendor;
+  const pathologyVendors = parseHealthSponsoredVendorList(rawPath);
+  const radiologyVendors = parseHealthSponsoredVendorList(rawRad);
   return {
-    pathologyVendors: parseHealthSponsoredVendorList(rawPath),
-    radiologyVendors: parseHealthSponsoredVendorList(rawRad),
+    pathologyVendors,
+    radiologyVendors,
     pathologyCategoryExists: vendorPayloadExists(rawPath),
     radiologyCategoryExists: vendorPayloadExists(rawRad),
+    hasSelectablePathology: pathologyVendors.length > 0,
+    hasSelectableRadiology: radiologyVendors.length > 0,
   };
 }
 

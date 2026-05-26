@@ -15,7 +15,13 @@ import {
 } from "@/lib/pharmacyFlowNav";
 import { useToast } from "@/hooks/useToast";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
-import { generatePath, Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  readPharmacyFlipRxSelection,
+  writePharmacyFlipRxSelection,
+} from "@/constants/pharmacyFlipRxSelectionStorage";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { clearPharmacyDownstreamFromPrescriptionSelect } from "@/lib/bookingFlowStackCleanup";
+import { generatePath, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./PharmacyPages.css";
 
@@ -85,7 +91,9 @@ export function PharmacySelectPrescriptionPage() {
   const [list, setList] = useState<readonly PharmacyMockPrescription[]>([]);
   const [loading, setLoading] = useState(() => patientId != null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState(() => new Set<string>());
+  const [selectedIds, setSelectedIds] = useState(() =>
+    patientId != null ? readPharmacyFlipRxSelection(patientId) : new Set<string>(),
+  );
 
   const sorted = useMemo(() => sortByDateDesc(list), [list]);
   const total = sorted.length;
@@ -103,7 +111,21 @@ export function PharmacySelectPrescriptionPage() {
       const items = await fetchPatientPrescriptions();
       writePharmacyPrescriptionsCache(patientId, items);
       setList(items);
-      setSelectedIds(new Set());
+      setSelectedIds((prev) => {
+        const valid = new Set(items.map((rx) => pharmacyFlipRxSelectionKey(rx)));
+        const next = new Set<string>();
+        for (const id of prev) {
+          if (valid.has(id)) next.add(id);
+        }
+        if (next.size === 0) {
+          const stored = readPharmacyFlipRxSelection(patientId);
+          for (const id of stored) {
+            if (valid.has(id)) next.add(id);
+          }
+        }
+        writePharmacyFlipRxSelection(patientId, next);
+        return next;
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not load prescriptions";
       setError(msg);
@@ -118,22 +140,32 @@ export function PharmacySelectPrescriptionPage() {
     void load();
   }, [load]);
 
-  const toggleKey = useCallback((key: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
+  const toggleKey = useCallback(
+    (key: string) => {
+      if (patientId == null) return;
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        writePharmacyFlipRxSelection(patientId, next);
+        return next;
+      });
+    },
+    [patientId],
+  );
 
   const selectAll = useCallback(() => {
-    setSelectedIds(new Set(keys));
-  }, [keys]);
+    if (patientId == null) return;
+    const next = new Set(keys);
+    writePharmacyFlipRxSelection(patientId, next);
+    setSelectedIds(next);
+  }, [keys, patientId]);
 
   const clearSelection = useCallback(() => {
+    if (patientId == null) return;
+    writePharmacyFlipRxSelection(patientId, []);
     setSelectedIds(new Set());
-  }, []);
+  }, [patientId]);
 
   const onToggleSelectAll = useCallback(() => {
     if (allSelected) clearSelection();
@@ -190,17 +222,12 @@ export function PharmacySelectPrescriptionPage() {
       <div className="ph-page">
         <header className="ph-top-wrap">
           <div className="ph-top">
-            <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M15 18l-6-6 6-6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </Link>
+            <FlowScreenBack
+              fallbackTo={backPath}
+              fallbackNavigate={{ state: passState }}
+              className="ph-back"
+              onBeforeBack={clearPharmacyDownstreamFromPrescriptionSelect}
+            />
             <h1 className="ph-title">Select Prescription</h1>
             <span className="ph-top__spacer" aria-hidden />
           </div>
@@ -221,17 +248,12 @@ export function PharmacySelectPrescriptionPage() {
     <div className={`ph-page${showFooter ? " ph-page--flip-select" : ""}`}>
       <header className="ph-top-wrap">
         <div className="ph-top">
-          <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
+          <FlowScreenBack
+            fallbackTo={backPath}
+            fallbackNavigate={{ state: passState }}
+            className="ph-back"
+            onBeforeBack={clearPharmacyDownstreamFromPrescriptionSelect}
+          />
           <h1 className="ph-title">Select Prescription</h1>
           {consultAppBarAction}
         </div>

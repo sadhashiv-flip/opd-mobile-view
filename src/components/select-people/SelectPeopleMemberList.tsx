@@ -97,12 +97,14 @@ export function SelectPeopleMemberList({
     const canSubActivate = memberShowsSubscriptionActivateCta(member);
     const notActivated = !member.isSubscribed;
     const rowDisabled =
+      (!isRelaxed && member.isChildBlocked) ||
       (!isRelaxed && notActivated) ||
       (config.isDiagnosticsFlow &&
         config.restrictToAhcSelection &&
         !member.ahcAvailable);
     const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
       relaxMemberRestrictions: isRelaxed,
+      showAhcSponsorSubtitle: config.showAhcSponsorSubtitle,
     });
     const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked && !isRelaxed ? " hc-person--age-blocked" : ""}`;
     const body = (

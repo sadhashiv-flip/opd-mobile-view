@@ -101,6 +101,13 @@ import { BookingSuccessCanonicalRedirect } from "@/app/BookingSuccessCanonicalRe
 import { ChronicManagementPage } from "@/pages/ChronicManagementPage";
 import { ChronicConditionEnrollPage } from "@/pages/ChronicConditionEnrollPage";
 import { ChronicConditionDetailPage } from "@/pages/ChronicConditionDetailPage";
+import {
+  WizardFormLayout,
+  WizardScreen1,
+  WizardScreen2,
+  WizardScreen3,
+  WizardScreen4,
+} from "@/routes/wizard";
 
 /** Route table only — add screens here without touching `App` shell (OCP). */
 export function AppRoutes() {
@@ -264,6 +271,13 @@ export function AppRoutes() {
       <Route path={ROUTES.chronic} element={<ChronicManagementPage />} />
       <Route path={ROUTES.chronicCondition} element={<ChronicConditionEnrollPage />} />
       <Route path={ROUTES.chronicDetail} element={<ChronicConditionDetailPage />} />
+      <Route path={ROUTES.wizard} element={<WizardFormLayout />}>
+        <Route index element={<Navigate to={ROUTES.wizardScreen1} replace />} />
+        <Route path="screen-1" element={<WizardScreen1 />} />
+        <Route path="screen-2" element={<WizardScreen2 />} />
+        <Route path="screen-3" element={<WizardScreen3 />} />
+        <Route path="screen-4" element={<WizardScreen4 />} />
+      </Route>
       <Route path="*" element={<UnknownRouteRedirect />} />
       </Route>
     </Routes>

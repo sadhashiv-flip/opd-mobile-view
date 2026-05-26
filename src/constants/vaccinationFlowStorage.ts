@@ -91,3 +91,26 @@ export function clearVaccinationFlowState(): void {
     /* ignore */
   }
 }
+
+/** Back from slots / overview — drop slot & prescription; keep member + vaccine picks. */
+export function clearVaccinationSlotAndOverviewFields(): void {
+  const s = readVaccinationFlowState();
+  if (!s) return;
+  writeVaccinationFlowState({
+    ...s,
+    preferredDateTime: "",
+    prescriptionAttachmentId: undefined,
+  });
+}
+
+/** Back from choose-type — drop vaccine & slot picks; member stays in select-people storage. */
+export function clearVaccinationAfterChooseType(): void {
+  const s = readVaccinationFlowState();
+  if (!s) return;
+  writeVaccinationFlowState({
+    ...s,
+    selectedServices: [],
+    preferredDateTime: "",
+    prescriptionAttachmentId: undefined,
+  });
+}

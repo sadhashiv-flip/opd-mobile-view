@@ -1,10 +1,15 @@
 import { ROUTES } from "@/constants";
-import { readVaccinationFlowState, writeVaccinationFlowState } from "@/constants/vaccinationFlowStorage";
+import {
+  clearVaccinationAfterChooseType,
+  readVaccinationFlowState,
+  writeVaccinationFlowState,
+} from "@/constants/vaccinationFlowStorage";
 import { fetchAllVaccineServices, type VaccineServiceItem } from "@/api/vaccineService";
 import { VaccinationAddressBar } from "@/components/vaccination/VaccinationAddressBar";
 import { VaccinationServiceIcon } from "@/components/vaccination/VaccinationServiceIcon";
 import { useToast } from "@/hooks/useToast";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
@@ -83,17 +88,11 @@ export function VaccinationChooseTypePage() {
   return (
     <div className="hc-page vac-choose">
       <header className="hco-top">
-        <Link to={ROUTES.vaccinationSelectPeople} className="hco-back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack
+          fallbackTo={ROUTES.vaccinationSelectPeople}
+          className="hco-back"
+          onBeforeBack={clearVaccinationAfterChooseType}
+        />
         <h1 className="hco-title">Choose Vaccine Type</h1>
         <span className="hco-top__balance" aria-hidden />
       </header>

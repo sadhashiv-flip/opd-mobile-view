@@ -6,7 +6,9 @@ import {
   type LabCartItem,
   type LabCartPricing,
 } from "@/api/patientLabCart";
-import { Link, generatePath, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { clearLabVendorAndDownstream } from "@/lib/bookingFlowStackCleanup";
+import { generatePath, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./CartOverviewPage.css";
 import { HeaderTexts } from "@/constants/HeaderTexts";
@@ -92,17 +94,11 @@ export function CartOverviewPage() {
   return (
     <div className="co-page co-page--v2">
       <header className="co-top co-top--v2">
-        <Link to={generatePath(ROUTES.diagnosticsPlan, { type: "lab-tests" })} className="co-back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.diagnosticsPlan, { type: "lab-tests" })}
+          className="co-back"
+          onBeforeBack={clearLabVendorAndDownstream}
+        />
         <h1 className="co-title co-title--v2">{HeaderTexts.cartOverview.title}</h1>
         <button
           type="button"

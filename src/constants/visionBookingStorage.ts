@@ -104,6 +104,17 @@ function isVisionSheetOptionString(v: string | undefined | null): v is VisionShe
   return v === "eye-checkup" || v === "glasses-lens";
 }
 
+export function clearVisionBookingFlowState(): void {
+  try {
+    sessionStorage.removeItem(VISION_FLOW_OPTION_KEY);
+    sessionStorage.removeItem(VISION_SELECTED_CLINIC_KEY);
+    sessionStorage.removeItem(VISION_SELECTED_SLOT_KEY);
+    sessionStorage.removeItem(VISION_GLASSES_PRESCRIPTIONS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function readVisionFlowOptionFromStorage(): VisionSheetOption | null {
   try {
     const t = sessionStorage.getItem(VISION_FLOW_OPTION_KEY)?.trim();

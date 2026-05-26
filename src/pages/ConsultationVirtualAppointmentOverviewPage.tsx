@@ -1,4 +1,5 @@
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useNavigate, useParams } from "react-router-dom";
 import { SelectPeopleBottomSheet } from "@/components/select-people/SelectPeopleBottomSheet";
 import { VirtualAppointmentSlotBottomSheet } from "@/components/consultation/VirtualAppointmentSlotBottomSheet";
 import { VirtualOnlineBookingPaymentSheet } from "@/components/consultation/VirtualOnlineBookingPaymentSheet";
@@ -381,16 +382,14 @@ export function ConsultationVirtualAppointmentOverviewPage() {
     return (
       <div className="cao-page">
         <header className="cao-top">
-          <Link to={backToSlots} className="cao-back" aria-label="Back">
-            <BackIcon />
-          </Link>
+          <FlowScreenBack fallbackTo={backToSlots} className="cao-back" />
           <h1 className="cao-title">Confirm Booking</h1>
         </header>
         <main className="cao-main">
           <p className="cao-msg cao-msg--err">Select a slot to continue.</p>
-          <Link to={backToSlots} className="cao-linkback">
+          <button type="button" className="cao-linkback" onClick={() => navigate(-1)}>
             Back to slots
-          </Link>
+          </button>
         </main>
       </div>
     );
@@ -399,9 +398,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   return (
     <div className="cao-page">
       <header className="cao-top">
-        <Link to={backToSlots} className="cao-back" aria-label="Back">
-          <BackIcon />
-        </Link>
+        <FlowScreenBack fallbackTo={backToSlots} className="cao-back" />
         <h1 className="cao-title">Confirm Booking</h1>
       </header>
 
@@ -617,20 +614,6 @@ export function ConsultationVirtualAppointmentOverviewPage() {
         </button>
       </footer>
     </div>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M15 18l-6-6 6-6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 

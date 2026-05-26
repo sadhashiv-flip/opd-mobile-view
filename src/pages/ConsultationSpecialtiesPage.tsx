@@ -1,4 +1,5 @@
-import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   fetchAllSpecialityDoctors,
   type SpecialityDoctor,
@@ -358,22 +359,11 @@ export function ConsultationSpecialtiesPage() {
   return (
     <div className="csp-page">
       <header className="csp-top">
-        <Link
-          to={generatePath(ROUTES.consultationSelectPeople, { type })}
-          state={location.state}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.consultationSelectPeople, { type })}
+          fallbackNavigate={{ state: location.state }}
           className="csp-back"
-          aria-label="Back"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
         <h1 className="csp-title">
           {isHospital ? "At Hospital Consultation" : "Virtual Consultation"}
         </h1>

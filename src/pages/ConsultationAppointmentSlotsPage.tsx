@@ -1,4 +1,5 @@
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useNavigate, useParams } from "react-router-dom";
 import { ROUTES } from "@/constants";
 import { fetchNetworkSlots, type NetworkDoctorSchedule } from "@/api/networkSlots";
 import { formatNetworkBookTimeSlotForDate } from "@/utils/networkBookTimeSlot";
@@ -135,21 +136,10 @@ export function ConsultationAppointmentSlotsPage() {
   return (
     <div className="cas-page">
       <header className="cas-top">
-        <Link
-          to={generatePath(ROUTES.consultationHospitalResults, { specialtyId })}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.consultationHospitalResults, { specialtyId })}
           className="cas-back"
-          aria-label="Back"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
         <h1 className="cas-title">Appointment - {doctorName}</h1>
       </header>
 

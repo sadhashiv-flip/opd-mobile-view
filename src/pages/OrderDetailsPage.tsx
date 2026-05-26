@@ -25,6 +25,7 @@ import {
   type ConsultationAttachmentRow,
   type InvoiceConsultationCompletedView,
   type InvoiceDetailModel,
+  labBookingStatusChipUi,
   type LabSubOrderDetailRow,
 } from "@/api/patientInvoices";
 import { OrderDetailCancellationReason } from "@/components/orders/OrderDetailCancellationReason";
@@ -1228,6 +1229,7 @@ export function OrderDetailsPage() {
       return showConsultationInvoiceSection(detail.consultationInfoStatus, detail.lineItems.length);
     }
     if (detail.categoryKey === "pharmacy" && detailBookingInfoStatus === 0) return false;
+    if (detail.categoryKey === "lab" && detailBookingInfoStatus === 0) return false;
     return true;
   }, [detail, detailBookingInfoStatus]);
   const orderReferenceLabel = "Order ID";
@@ -1368,11 +1370,10 @@ export function OrderDetailsPage() {
     if (!detail) return false;
     if (detail.isConsultationOrder) return false;
     if (isServiceRequestOrderCategory(detail.categoryKey)) return false;
+    /** Lab uses Collection schedule, Tests by patient, Prescriptions — not pharmacy “Requested details”. */
+    if (detail.categoryKey === "lab") return false;
     const id = detail.consultationInfoId?.trim() ?? "";
-    return (
-      (isPartnerOrderPayFlowCategory(detail.categoryKey) || detail.categoryKey === "lab") &&
-      id.length > 0
-    );
+    return isPartnerOrderPayFlowCategory(detail.categoryKey) && id.length > 0;
   }, [detail]);
 
   const pharmacyCenterForConfirmUi = useMemo(() => {
@@ -1607,29 +1608,9 @@ export function OrderDetailsPage() {
                       </div>
                     ) : null}
                     <div className="od-row">
-                      <span className="od-row__label">Visit type</span>
-                      <span className="od-row__value od-row__value--other">
-                        {detail.serviceVisitTypeLabel ?? "—"}
-                      </span>
-                    </div>
-                    {detail.pharmacyPreferredSlotDisplay ? (
-                      <div className="od-row">
-                        <span className="od-row__label">Collection</span>
-                        <span className="od-row__value od-row__value--other">
-                          {detail.pharmacyPreferredSlotDisplay}
-                        </span>
-                      </div>
-                    ) : null}
-                    <div className="od-row">
                       <span className="od-row__label">Created at</span>
                       <span className="od-row__value od-row__value--other">{detail.orderDateTimeDisplay}</span>
                     </div>
-                    {detail.labInfoStatusTextLine ? (
-                      <div className="od-row">
-                        <span className="od-row__label">Order status</span>
-                        <span className="od-row__value od-row__value--other">{detail.labInfoStatusTextLine}</span>
-                      </div>
-                    ) : null}
                   </section>
                 ) : isServiceRequestOrder ? (
                   <OrderDetailServiceRequestSections
@@ -1816,7 +1797,23 @@ export function OrderDetailsPage() {
                           {row.visitTypeDisplay ? (
                             <p className="od-lab-sub-card__visit">Visit: {row.visitTypeDisplay}</p>
                           ) : null}
-                          <p className="od-lab-sub-card__status">Status: {row.statusLabel}</p>
+                          {(() => {
+                            const chip = labBookingStatusChipUi(row.status);
+                            return (
+                              <span
+                                className={`od-lab-status-chip od-lab-status-chip--${chip.mod}`}
+                                role="status"
+                              >
+                                {chip.label}
+                              </span>
+                            );
+                          })()}
+                          {row.cancellationReason ? (
+                            <div className="od-lab-sub-card__cancel-reason">
+                              <span className="od-lab-sub-card__cancel-reason-label">Cancellation reason</span>
+                              <p className="od-lab-sub-card__cancel-reason-text">{row.cancellationReason}</p>
+                            </div>
+                          ) : null}
                           {row.dateSlotLine ? <p className="od-lab-sub-card__slot">{row.dateSlotLine}</p> : null}
                           {row.reschedulePolicyNote ? (
                             <p className="od-lab-sub-card__note">{row.reschedulePolicyNote}</p>
@@ -1873,14 +1870,23 @@ export function OrderDetailsPage() {
                               ) : null}
                             </div>
                           ) : null}
-                          {row.riderName ? (
+                          {row.riderName || row.riderContact ? (
                             <div className="od-lab-sub-card__rider">
                               <p className="od-lab-sub-card__subhead">Rider details</p>
-                              <p className="od-lab-sub-card__rider-name">{row.riderName}</p>
+                              {row.riderName ? (
+                                <p className="od-lab-sub-card__rider-name">{row.riderName}</p>
+                              ) : null}
                               {row.riderContact ? (
-                                <a className="od-lab-sub-card__rider-phone" href={`tel:${row.riderContact.replaceAll(/[^\d+]/g, "")}`}>
-                                  {row.riderContact}
-                                </a>
+                                <div className="od-lab-sub-card__rider-contact-row">
+                                  <span className="od-lab-sub-card__rider-phone-label">Contact</span>
+                                  <span className="od-lab-sub-card__rider-phone">{row.riderContact}</span>
+                                  <a
+                                    className="od-lab-sub-card__rider-call"
+                                    href={`tel:${row.riderContact.replaceAll(/[^\d+]/g, "")}`}
+                                  >
+                                    Call
+                                  </a>
+                                </div>
                               ) : null}
                             </div>
                           ) : null}
@@ -2123,6 +2129,44 @@ export function OrderDetailsPage() {
                   <p className="od-attach-empty">No attachments</p>
                 </section>
               )
+            ) : detail.categoryKey === "lab" &&
+              (detail.consultationAttachments.length > 0 || detail.consultationReports.length > 0) ? (
+              <>
+                {detail.consultationAttachments.length > 0 ? (
+                  <section className="od-card od-card--attach" aria-label="Attachments">
+                    <h3 className="od-card__title">Attachments</h3>
+                    <ul className="od-attach-list od-attach-list--icon-rows">
+                      {detail.consultationAttachments.map((a, i) => (
+                        <AttachmentListRow
+                          key={`lab-att-${a.label}-${i}`}
+                          rows={detail.consultationAttachments}
+                          item={a}
+                          index={i}
+                          keyPrefix="lab-att"
+                          onPreview={openConsultationFilePreview}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+                {detail.consultationReports.length > 0 ? (
+                  <section className="od-card od-card--attach" aria-label="Reports">
+                    <h3 className="od-card__title">Reports</h3>
+                    <ul className="od-attach-list od-attach-list--icon-rows">
+                      {detail.consultationReports.map((a, i) => (
+                        <AttachmentListRow
+                          key={`lab-rep-${a.label}-${i}`}
+                          rows={detail.consultationReports}
+                          item={a}
+                          index={i}
+                          keyPrefix="lab-rep"
+                          onPreview={openConsultationFilePreview}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </>
             ) : showPartnerAttachmentsCard || showGenericAttachmentsCard ? (
               <ConsultationAttachReportsReadOnlyTabs
                 attachments={detail.consultationAttachments}

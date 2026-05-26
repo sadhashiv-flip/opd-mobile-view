@@ -10,6 +10,7 @@ import {
   fetchDiagnosticPackages,
   fetchDiagnosticsPackageInclusions,
   fetchHealthCheckupPackages,
+  fetchSponsoredVendorPricing,
   type DiagnosticCatalogRow,
   type DiagnosticsPackageInclusionGroup,
   type HealthCheckupPackageRow,
@@ -19,13 +20,24 @@ import {
   type DiagnosticsSelectedMemberSnapshot,
 } from "@/constants/diagnosticsSelectedMemberStorage";
 import {
+  readHealthPackageDraft,
   readHealthSponsoredFlag,
+  writeHealthPackageDraft,
   writeHealthSponsoredFlag,
   writeHealthUsersPackages,
 } from "@/constants/diagnosticsHealthFlowStorage";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { clearDiagnosticsDownstreamFromPlan } from "@/lib/bookingFlowStackCleanup";
+import {
+  clearHealthSlotSessionBeforeSlots,
+  commitHealthVendorSelection,
+  resolveHealthVendorCodes,
+  shouldSkipHealthVendorScreen,
+} from "@/lib/healthCheckupVendorFlow";
+import { clearHealthVendorStep } from "@/lib/bookingFlowStackCleanup";
 import { Link, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
 import Lottie from "lottie-react";
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import chemistryLabLottie from "@/assets/lotties/chemistry_lab.json";
 import "./HealthCheckupsPlanPage.css";
 
@@ -97,7 +109,9 @@ export function HealthCheckupsPlanPage() {
   const [healthPkgs, setHealthPkgs] = useState<readonly HealthCheckupPackageRow[]>([]);
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthErr, setHealthErr] = useState<string | null>(null);
-  const [pkgByMemberKey, setPkgByMemberKey] = useState<Record<string, number[]>>({});
+  const [pkgByMemberKey, setPkgByMemberKey] = useState<Record<string, number[]>>(() =>
+    type === "health-checkups" ? readHealthPackageDraft() : {},
+  );
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const selectedAddressId = useSyncExternalStore(
@@ -119,6 +133,8 @@ export function HealthCheckupsPlanPage() {
   const [inclusionsLoading, setInclusionsLoading] = useState(false);
   const [inclusionsGroups, setInclusionsGroups] = useState<readonly DiagnosticsPackageInclusionGroup[]>([]);
   const [inclusionsErr, setInclusionsErr] = useState<string | null>(null);
+  /** patient_app `HealthCheckupsController.isVendorLoading` on plan Continue. */
+  const [vendorContinueLoading, setVendorContinueLoading] = useState(false);
 
   const openPackageInclusions = useCallback(async (pricingId: number) => {
     setInclusionsPricingId(pricingId);
@@ -155,11 +171,16 @@ export function HealthCheckupsPlanPage() {
     setLabQuery("");
     setLabCartCount(0);
     setInCartProductIds(new Set());
-    setPkgByMemberKey({});
+    setPkgByMemberKey(type === "health-checkups" ? readHealthPackageDraft() : {});
     setActiveMemberIdx(0);
     setHealthPkgs([]);
     setHealthErr(null);
   }, [type]);
+
+  useEffect(() => {
+    if (type !== "health-checkups") return;
+    writeHealthPackageDraft(pkgByMemberKey);
+  }, [type, pkgByMemberKey]);
 
   /** URL can only promote sponsored — never force `false` (would wipe member-based flag set on Continue). */
   useEffect(() => {
@@ -171,6 +192,7 @@ export function HealthCheckupsPlanPage() {
   }, [type, location.search]);
 
   const activeHealthMember = healthMembers[activeMemberIdx] ?? null;
+  const packagesCacheRef = useRef(new Map<string, readonly HealthCheckupPackageRow[]>());
 
   useEffect(() => {
     if (activeMemberIdx >= healthMembers.length) setActiveMemberIdx(0);
@@ -178,6 +200,14 @@ export function HealthCheckupsPlanPage() {
 
   useEffect(() => {
     if (type !== "health-checkups" || !activeHealthMember) return;
+    const memberKey = activeHealthMember.id;
+    const cached = packagesCacheRef.current.get(memberKey);
+    if (cached) {
+      setHealthPkgs(cached);
+      setHealthErr(null);
+      setHealthLoading(false);
+      return;
+    }
     const uid = memberNumericId(activeHealthMember);
     if (uid == null) {
       setHealthErr("Missing patient id for this member. Go back and pick someone from your profile list.");
@@ -193,7 +223,10 @@ export function HealthCheckupsPlanPage() {
           userId: uid,
           sponsored: readHealthSponsoredFlag(),
         });
-        if (!cancelled) setHealthPkgs(rows);
+        if (!cancelled) {
+          packagesCacheRef.current.set(memberKey, rows);
+          setHealthPkgs(rows);
+        }
       } catch (e) {
         if (!cancelled) {
           const msg = e instanceof Error ? e.message : "Could not load packages";
@@ -255,7 +288,11 @@ export function HealthCheckupsPlanPage() {
     };
   }, [type, labQuery, selectedAddressId, toast]);
 
-  const continueHealthToVendors = () => {
+  /**
+   * patient_app `continueToVendorSelection`: load sponsored pricing first;
+   * when pathology/radiology only return `unknown`, go straight to slots (no vendor screen flash).
+   */
+  const continueHealthAfterPackages = useCallback(async () => {
     if (healthMembers.length === 0) {
       toast.error("Select at least one person for this booking.");
       return;
@@ -265,14 +302,47 @@ export function HealthCheckupsPlanPage() {
       const uid = memberNumericId(m);
       const pids = pkgByMemberKey[m.id] ?? [];
       if (uid == null || pids.length === 0) {
-        toast.error("Choose at least one package for each selected person.");
+        toast.error("Please select a package for each member");
         return;
       }
       rows.push({ user_id: uid, packages: [...pids] });
     }
     writeHealthUsersPackages(rows);
-    navigate(generatePath(ROUTES.diagnosticsVendors, { type }));
-  };
+
+    const addr = readSelectedAddress();
+    if (!addr?.id.trim()) {
+      toast.error("Please select an address");
+      return;
+    }
+
+    setVendorContinueLoading(true);
+    try {
+      /** Fresh vendor step when leaving plan (matches Dart `fetchVendorPricing` clearing selections). */
+      clearHealthVendorStep();
+
+      const pricing = await fetchSponsoredVendorPricing({
+        addressId: addr.id.trim(),
+        sponsored: readHealthSponsoredFlag(),
+        users: rows,
+      });
+
+      if (shouldSkipHealthVendorScreen(pricing)) {
+        const codes = resolveHealthVendorCodes(pricing);
+        commitHealthVendorSelection(pricing, codes);
+        clearHealthSlotSessionBeforeSlots();
+        navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
+        return;
+      }
+
+      /** Vendor screen loads pricing and applies picks — do not restore stale draft from a prior visit. */
+      navigate(generatePath(ROUTES.diagnosticsVendors, { type }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not load partners";
+      toast.error(msg);
+    } finally {
+      setVendorContinueLoading(false);
+    }
+  }, [healthMembers, pkgByMemberKey, navigate, toast, type]);
 
   const memberHasPackages = (memberKey: string) => (pkgByMemberKey[memberKey]?.length ?? 0) > 0;
 
@@ -294,9 +364,9 @@ export function HealthCheckupsPlanPage() {
   })();
 
   const onHealthPrimaryFooterTap = () => {
-    if (!activeMemberHasPackage || healthLoading) return;
+    if (!activeMemberHasPackage || healthLoading || vendorContinueLoading) return;
     if (allMembersHavePackage) {
-      continueHealthToVendors();
+      void continueHealthAfterPackages();
       return;
     }
     const idx = healthMembers.findIndex((m) => !memberHasPackages(m.id));
@@ -331,21 +401,12 @@ export function HealthCheckupsPlanPage() {
       className={`hcp-page${type === "health-checkups" ? " hcp-page--health-plan-viewport" : ""}`}
     >
       <header className="hcp-top">
-        <Link
-          to={generatePath(ROUTES.diagnosticsType, { type })}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.diagnosticsSelectPeople, { type })}
           className="hcp-back"
-          aria-label={`Back to ${type === "lab-tests" ? "diagnostics" : "Health Checkups"}`}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+          ariaLabel={`Back to ${type === "lab-tests" ? "diagnostics" : "Health Checkups"}`}
+          onBeforeBack={() => clearDiagnosticsDownstreamFromPlan(type)}
+        />
         <h1 className="hcp-title">{pageTitle}</h1>
         <span className="hcp-top__spacer" aria-hidden />
       </header>
@@ -632,10 +693,16 @@ export function HealthCheckupsPlanPage() {
           <button
             type="button"
             className="hcp-continue"
-            disabled={healthMembers.length === 0 || healthLoading || !activeMemberHasPackage}
+            disabled={
+              healthMembers.length === 0 ||
+              healthLoading ||
+              vendorContinueLoading ||
+              !activeMemberHasPackage
+            }
+            aria-busy={vendorContinueLoading}
             onClick={onHealthPrimaryFooterTap}
           >
-            {healthPrimaryCtaLabel}
+            {vendorContinueLoading ? "Loading…" : healthPrimaryCtaLabel}
           </button>
         </footer>
       )}

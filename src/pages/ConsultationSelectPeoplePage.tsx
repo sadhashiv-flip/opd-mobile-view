@@ -2,14 +2,17 @@
 import { VISION_FLOW_OPTION_KEY, type VisionSheetOption } from "@/constants/visionBookingStorage";
 import {
   buildConsultMemberSnapshotFromRow,
+  readConsultSelectedPersonIds,
   writeConsultSelectedMembersSnapshots,
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
 import {
   buildDiagnosticsMemberSnapshotFromRow,
+  readDiagnosticsSelectedPersonIds,
   writeDiagnosticsSelectedMembersSnapshots,
   writeDiagnosticsSelectedPersonIds,
 } from "@/constants/diagnosticsSelectedMemberStorage";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { writeHealthSponsoredFlag } from "@/constants/diagnosticsHealthFlowStorage";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { VirtualLanguageBottomSheet } from "@/components/consultation/VirtualLanguageBottomSheet";
@@ -19,20 +22,32 @@ import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { fetchAllPatientMembers } from "@/api/patientMember";
 import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
+import { SelectPeopleSelectionHint } from "@/components/select-people/SelectPeopleSelectionHint";
 import {
   defaultGymMemberSelection,
   patientMembersToGymRows,
   type GymMemberListRow,
 } from "@/lib/gymMemberDisplay";
-import { parseBoolSearchParam, SELECT_PEOPLE_COPY } from "@/lib/selectPeopleShared";
+import {
+  diagnosticsSelectionHint,
+  parseBoolSearchParam,
+  SELECT_PEOPLE_COPY,
+} from "@/lib/selectPeopleShared";
 import { toggleSelectPeopleMember } from "@/hooks/useSelectPeopleMemberSelection";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
+import {
+  readSelectPeoplePickerIds,
+  selectPeoplePickerScope,
+  writeSelectPeoplePickerIds,
+} from "@/constants/selectPeoplePickerStorage";
+import { clearSelectPeoplePickerForScope } from "@/lib/clearFlowDraftsOnBack";
+import { clearDiagnosticsDownstreamFromSelectPeople } from "@/lib/bookingFlowStackCleanup";
 import { readFlowReturnPath } from "@/lib/flowReturnPath";
-import { Link, generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { generatePath, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
@@ -113,7 +128,19 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pickerScope = selectPeoplePickerScope(flow, type);
+
+  function loadStoredPersonIds(): string[] {
+    const draft = readSelectPeoplePickerIds(pickerScope);
+    if (draft.length > 0) return draft;
+    if (flow === "consultation") return readConsultSelectedPersonIds();
+    if (flow === "diagnostics" || flow === "dental" || flow === "vision") {
+      return readDiagnosticsSelectedPersonIds();
+    }
+    return [];
+  }
+
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => loadStoredPersonIds());
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [virtualLangSheetOpen, setVirtualLangSheetOpen] = useState(false);
   /** Ephemeral — cleared whenever the language sheet opens, closes, or after Continue. */
@@ -211,13 +238,48 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     [showAhcSponsorSubtitle, restrictToAhcSelection, isDiagnosticsFlow, relaxMemberRestrictions],
   );
 
+  const selectionHint = useMemo(() => {
+    if (!isHealthCheckupsDiagnostics) return null;
+    return diagnosticsSelectionHint({
+      filterAhcEligibleOnly: filterAhcDashboardEntry,
+      restrictToAhcSelection,
+      showAhcSponsorSubtitle,
+    });
+  }, [
+    isHealthCheckupsDiagnostics,
+    filterAhcDashboardEntry,
+    restrictToAhcSelection,
+    showAhcSponsorSubtitle,
+  ]);
+
   const returnPath = `${location.pathname}${location.search}`;
   const entryReturnPath = readFlowReturnPath(location);
 
   const hideAddFamilyOnPicker =
     isHealthCheckupsDiagnostics && filterAhcDashboardEntry;
 
+  const persistPersonSelection = useCallback(
+    (ids: readonly string[]) => {
+      writeSelectPeoplePickerIds(pickerScope, ids);
+      if (flow === "consultation") {
+        writeConsultSelectedPersonIds([...ids]);
+      } else if (flow === "diagnostics" || flow === "dental" || flow === "vision") {
+        writeDiagnosticsSelectedPersonIds([...ids]);
+      }
+    },
+    [flow, pickerScope],
+  );
+
+  /** patient_app `HealthCheckupsScreen`: `allowMultiSelect: false` (one member per booking). */
+  const singleSelectOnly =
+    flow === "consultation" ||
+    flow === "dental" ||
+    flow === "vision" ||
+    type === "lab-tests" ||
+    type === "health-checkups";
+
   useEffect(() => {
+    if (loading) return;
     if (selectionBasisRows.length === 0) {
       setSelectedIds([]);
       return;
@@ -231,21 +293,46 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         }
         return selectionBasisRows.some((s) => s.id === id);
       });
-      /** User must pick a member explicitly (no default selection). */
       const skipAutoPick =
         isDiagnosticsFlow ||
         flow === "consultation" ||
         flow === "dental" ||
         flow === "vision";
+      if (next.length === 0 && skipAutoPick) {
+        const draft = readSelectPeoplePickerIds(pickerScope);
+        const stored =
+          draft.length > 0
+            ? draft
+            : flow === "consultation"
+              ? readConsultSelectedPersonIds()
+              : readDiagnosticsSelectedPersonIds();
+        next = stored.filter((id) => selectionBasisRows.some((s) => s.id === id));
+      }
       if (next.length === 0 && !skipAutoPick) {
         next = defaultGymMemberSelection(selectionBasisRows);
       }
-      if (next.length > 1) {
+      if (next.length > 1 && singleSelectOnly) {
         next = next.slice(0, 1);
       }
       return next;
     });
-  }, [selectionBasisRows, isDiagnosticsFlow, rows, flow, type, relaxMemberRestrictions]);
+  }, [
+    selectionBasisRows,
+    isDiagnosticsFlow,
+    rows,
+    flow,
+    type,
+    relaxMemberRestrictions,
+    loading,
+    singleSelectOnly,
+    pickerScope,
+    flow,
+  ]);
+
+  useEffect(() => {
+    if (loading || rows.length === 0) return;
+    persistPersonSelection(selectedIds);
+  }, [selectedIds, loading, rows.length, persistPersonSelection]);
 
   const canContinue =
     selectedIds.length > 0 &&
@@ -255,14 +342,29 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     (!requiresAddressSelection || hasDeliveryAddress);
 
   const toggleMember = (memberId: string) => {
-    setSelectedIds(
-      toggleSelectPeopleMember(memberId, rows, {
-        allowDeselect: true,
-        restrictToAhcSelection,
-        isHealthCheckupsDiagnostics,
-        relaxMemberRestrictions,
-      }),
-    );
+    setSelectedIds((prev) => {
+      let next: string[];
+      if (isHealthCheckupsDiagnostics && !singleSelectOnly) {
+        const row = rows.find((r) => r.id === memberId);
+        if (!row) return prev;
+        if (!row.isSubscribed) return prev;
+        if (restrictToAhcSelection && !row.ahcAvailable) return prev;
+        if (prev.includes(memberId)) {
+          next = prev.filter((id) => id !== memberId);
+        } else {
+          next = [...prev, memberId];
+        }
+      } else {
+        next = toggleSelectPeopleMember(memberId, rows, {
+          allowDeselect: true,
+          restrictToAhcSelection,
+          isHealthCheckupsDiagnostics,
+          relaxMemberRestrictions,
+        })(prev);
+      }
+      persistPersonSelection(next);
+      return next;
+    });
   };
 
   const goProfileSubscriptions = () => {
@@ -376,36 +478,16 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   return (
     <div className="hc-page">
       <header className="hco-top">
-        {entryReturnPath ? (
-          <Link to={entryReturnPath} className="hco-back" aria-label="Back">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
-        ) : (
-          <button
-            type="button"
-            className="hco-back"
-            aria-label="Back"
-            onClick={() => navigate(-1)}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        )}
+        <FlowScreenBack
+          fallbackTo={entryReturnPath ?? ROUTES.dashboard}
+          className="hco-back"
+          onBeforeBack={() => {
+            if (flow === "diagnostics") {
+              clearDiagnosticsDownstreamFromSelectPeople(type);
+            }
+            clearSelectPeoplePickerForScope(pickerScope, flow);
+          }}
+        />
         {flow === "consultation" ? (
           <div className="hco-title-wrap">
             <h1 className="hco-title">{headerTitle}</h1>
@@ -512,6 +594,8 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
         ) : null}
 
         {!loading && !fetchError && selectionBasisRows.length > 0 ? (
+          <>
+            <SelectPeopleSelectionHint hint={selectionHint} />
           <SelectPeopleMemberList
             members={selectionBasisRows}
             selectedIds={selectedIds}
@@ -522,6 +606,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
             hideAddFamily={hideAddFamilyOnPicker}
             returnPath={returnPath}
           />
+          </>
         ) : null}
       </main>
 

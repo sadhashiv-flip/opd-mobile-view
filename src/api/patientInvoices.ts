@@ -849,7 +849,37 @@ export type LabSubOrderDetailRow = Readonly<{
   requestedUpdateDisplay: string | null;
   riderName: string | null;
   riderContact: string | null;
+  /** Shown when `status === 2` (cancelled sub-order). */
+  cancellationReason: string | null;
 }>;
+
+export type LabBookingStatusChipMod =
+  | "completed"
+  | "cancelled"
+  | "paymentPending"
+  | "upcoming"
+  | "confirmPending"
+  | "processing";
+
+export function labBookingStatusChipUi(status: number): Readonly<{
+  label: string;
+  mod: LabBookingStatusChipMod;
+}> {
+  const mod = labInvoiceInfoStatusTone(status);
+  const chipMod: LabBookingStatusChipMod =
+    mod === "completed"
+      ? "completed"
+      : mod === "cancelled"
+        ? "cancelled"
+        : mod === "paymentPending"
+          ? "paymentPending"
+          : mod === "upcoming"
+            ? "upcoming"
+            : mod === "confirmPending"
+              ? "confirmPending"
+              : "processing";
+  return { label: labBookingStatusLabelFromCode(status), mod: chipMod };
+}
 
 /** Invoice line items grouped by `details[].user.id` — patient_app “Tests by patient”. */
 export type LabPatientLineGroupUi = Readonly<{
@@ -1876,6 +1906,33 @@ function parseConsultationReports(info: Record<string, unknown>): ConsultationAt
   return out;
 }
 
+/** patient_app `LabOrderDetailController._syncAttachmentsAndReports` — `status === 1` only. */
+function parseLabActiveAttachments(info: Record<string, unknown>): ConsultationAttachmentRow[] {
+  const raw = info.attachments;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    if (r.status !== 1) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Attachment ${i + 1}`));
+  }
+  return out;
+}
+
+function parseLabActiveReports(info: Record<string, unknown>): ConsultationAttachmentRow[] {
+  const raw = info.reports;
+  if (!Array.isArray(raw)) return [];
+  const out: ConsultationAttachmentRow[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = asRecord(raw[i]);
+    if (!r) continue;
+    if (r.status !== 1) continue;
+    out.push(consultationAttachmentRowFromRecord(r, `Report ${i + 1}`));
+  }
+  return out;
+}
+
 /** patient_app service request detail — only `status === 1` rows. */
 function parseServiceRequestActiveAttachments(
   info: Record<string, unknown>,
@@ -2464,9 +2521,7 @@ function parseLabSubOrderCenterFromRow(
   const v = visitTypeRaw.trim().toUpperCase();
   if (v !== "SELF_VISIT") return null;
   const center = add != null ? asRecord(add.center) : null;
-  if (!center || Object.keys(center).length === 0) {
-    return { centerName: null, centerAddress: null, centerPhone: null, mapsUrl: null };
-  }
+  if (!center || Object.keys(center).length === 0) return null;
   const display = str(center.display_address)?.trim();
   const centerName = str(center.name)?.trim() || null;
   const centerAddress =
@@ -2515,12 +2570,12 @@ function parseLabSubOrderRiderFromRow(
   const rider = asRecord(rec.rider_info) ?? asRecord(rec.rider);
   if (!rider) return null;
   const name = str(rider.name)?.trim() ?? "";
-  if (!name.length) return null;
   const contact =
     str(rider.contact)?.trim() ||
     str(rider.phone)?.trim() ||
     str(rider.mobile)?.trim() ||
     "";
+  if (!name.length && !contact.length) return null;
   return { name, contact };
 }
 
@@ -2597,7 +2652,12 @@ function parseLabUploadedPrescriptions(info: Record<string, unknown> | null): Co
   return out;
 }
 
-function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | null): readonly LabSubOrderDetailRow[] {
+function parseLabSubOrderRows(
+  o: Record<string, unknown>,
+  addressId: string | null,
+  vendorCode: string | null,
+  info: Record<string, unknown> | null,
+): readonly LabSubOrderDetailRow[] {
   const raw = o.orders;
   if (!Array.isArray(raw) || raw.length === 0) return [];
   const rows: LabSubOrderDetailRow[] = [];
@@ -2635,6 +2695,7 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
               const n = num(limitRaw);
               return n != null && !Number.isNaN(n) ? Math.trunc(n) : null;
             })();
+    const addRec = asRecord(rec.additional_info);
     let reschedulePolicyNote: string | null = null;
     if (status === 5 && addressId != null && addressId.length > 0 && hasRescheduleKey) {
       if (availableReschedule === true) {
@@ -2647,13 +2708,33 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
           "Note: You have reached the maximum number of reschedules. Please contact support for cancellation.";
       }
     }
+    const vendorForReschedule = (() => {
+      const pick = (v: unknown) => str(v)?.trim() ?? "";
+      const subAdd = addRec;
+      const infoAdd = info != null ? asRecord(info.additional_info) : null;
+      const candidates = [
+        pick(rec.source),
+        pick(rec.vendor_code),
+        subAdd != null ? pick(subAdd.source) : "",
+        subAdd != null ? pick(subAdd.vendor_code) : "",
+        info != null ? pick(info.source) : "",
+        info != null ? pick(info.vendor_code) : "",
+        infoAdd != null ? pick(infoAdd.source) : "",
+        infoAdd != null ? pick(infoAdd.vendor_code) : "",
+        vendorCode?.trim() ?? "",
+      ];
+      for (const c of candidates) {
+        if (c.length > 0) return c;
+      }
+      return "";
+    })();
     const showRescheduleButton =
       status === 5 &&
       (addressId?.length ?? 0) > 0 &&
+      vendorForReschedule.length > 0 &&
       availableReschedule === true &&
       isLabSubOrderReschedulableNow(date, slotTime);
     const rs = parseLabSubOrderRescheduleApiFields(rec);
-    const addRec = asRecord(rec.additional_info);
     const subOrderCenter = parseLabSubOrderCenterFromRow(addRec, status, visitTypeRaw);
     const subOrderCenterBookingTimeLine = subOrderCenterBookingTimeFromAdd(addRec);
     const requestedMap =
@@ -2665,6 +2746,12 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
       status === 3 &&
       subOrderCenter != null &&
       pharmacyOrderConfirmCenterUiHasContent(subOrderCenter);
+    const cancellationReason =
+      status === 2
+        ? nonEmptyTrimmed(rec.cancellation_reason) ??
+          (addRec != null ? nonEmptyTrimmed(addRec.cancellation_reason) : null) ??
+          (info != null ? nonEmptyTrimmed(info.cancellation_reason) : null)
+        : null;
     rows.push({
       id,
       categoryLabel: catRaw.length > 0 ? catRaw : "—",
@@ -2685,6 +2772,7 @@ function parseLabSubOrderRows(o: Record<string, unknown>, addressId: string | nu
       requestedUpdateDisplay,
       riderName: riderPair?.name ?? null,
       riderContact: riderPair?.contact ?? null,
+      cancellationReason,
     });
   }
   return rows;
@@ -3304,17 +3392,21 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   /** `info.attachments` for any invoice type (e.g. pharmacy prescriptions); reports stay consultation-only. */
   const consultationAttachments =
     infoForStatus != null
-      ? SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
-        ? parseServiceRequestActiveAttachments(infoForStatus)
-        : parseConsultationAttachments(infoForStatus)
+      ? categoryKey === "lab"
+        ? parseLabActiveAttachments(infoForStatus)
+        : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+          ? parseServiceRequestActiveAttachments(infoForStatus)
+          : parseConsultationAttachments(infoForStatus)
       : [];
   const consultationReports =
     infoForStatus != null
-      ? isConsultationInvoice
-        ? parseConsultationReports(infoForStatus)
-        : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
-          ? parseServiceRequestActiveReports(infoForStatus)
-          : []
+      ? categoryKey === "lab"
+        ? parseLabActiveReports(infoForStatus)
+        : isConsultationInvoice
+          ? parseConsultationReports(infoForStatus)
+          : SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
+            ? parseServiceRequestActiveReports(infoForStatus)
+            : []
       : [];
   const consultationAttachmentUi =
     isConsultationInvoice && infoForStatus != null
@@ -3432,7 +3524,9 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const labRescheduleVendorCode =
     categoryKey === "lab" ? parseLabRescheduleVendorCode(o, infoForStatus) : null;
   const labSubOrders =
-    categoryKey === "lab" ? parseLabSubOrderRows(o, labCollectionAddressId) : [];
+    categoryKey === "lab"
+      ? parseLabSubOrderRows(o, labCollectionAddressId, labRescheduleVendorCode, infoForStatus)
+      : [];
 
   const invoiceRootId = str(o.invoice_id) ?? str(o.invoiceId) ?? id;
   const labInvoiceReferenceDisplay =

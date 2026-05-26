@@ -1,4 +1,5 @@
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useNavigate, useParams } from "react-router-dom";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
@@ -324,21 +325,10 @@ export function ConsultationHospitalResultsPage() {
   return (
     <div className="chr-page">
       <header className="chr-top">
-        <Link
-          to={generatePath(ROUTES.consultationSpecialties, { type: "at_hospital" })}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.consultationSpecialties, { type: "at_hospital" })}
           className="chr-back"
-          aria-label="Back"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
         <h1 className="chr-title">At Hospital Consultation</h1>
       </header>
 

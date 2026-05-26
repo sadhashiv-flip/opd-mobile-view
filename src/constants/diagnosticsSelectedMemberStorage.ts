@@ -32,6 +32,24 @@ export function buildDiagnosticsMemberSnapshotFromRow(row: GymMemberListRow): Di
   };
 }
 
+/** Ordered ids from localStorage; migrates legacy single {@link DIAG_SELECTED_PERSON_KEY}. */
+export function readDiagnosticsSelectedPersonIds(): string[] {
+  try {
+    const multi = localStorage.getItem(DIAG_SELECTED_PERSON_IDS_KEY);
+    if (multi) {
+      const parsed = JSON.parse(multi) as unknown;
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((x) => typeof x === "string")) {
+        return parsed as string[];
+      }
+    }
+    const legacy = localStorage.getItem(DIAG_SELECTED_PERSON_KEY);
+    if (legacy?.trim()) return [legacy.trim()];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 export function writeDiagnosticsSelectedPersonIds(ids: string[]): void {
   try {
     if (ids.length === 0) {

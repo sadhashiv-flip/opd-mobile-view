@@ -1,6 +1,6 @@
 import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
-import { DIAG_LAB_SLOT_PAYLOAD_KEY } from "@/constants/diagnosticsLabFlowStorage";
+import { readLabSlotPayload } from "@/constants/diagnosticsLabFlowStorage";
 import { readDiagnosticsSelectedMembersSnapshots } from "@/constants/diagnosticsSelectedMemberStorage";
 import {
   ADD_DELIVERY_ADDRESS_PROMPT,
@@ -42,7 +42,8 @@ import {
   normalizeRazorpayCheckoutPayload,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useNavigate, useParams } from "react-router-dom";
 import {
   useCallback,
   useEffect,
@@ -336,25 +337,6 @@ const LT_IC_PAY = (
   </svg>
 );
 
-function readSlotPayload(): DiagnosticSlotPick | null {
-  try {
-    const raw = localStorage.getItem(DIAG_LAB_SLOT_PAYLOAD_KEY);
-    if (!raw?.trim()) return null;
-    const p = JSON.parse(raw) as unknown;
-    if (!p || typeof p !== "object" || Array.isArray(p)) return null;
-    const o = p as Record<string, unknown>;
-    const slot_id = String(o.slot_id ?? "");
-    const vendor_code = String(o.vendor_code ?? "");
-    const slot_date = String(o.slot_date ?? "");
-    const start_time = String(o.start_time ?? "");
-    const end_time = String(o.end_time ?? "");
-    if (!slot_id || !vendor_code || !slot_date || !start_time) return null;
-    return { slot_id, vendor_code, slot_date, start_time, end_time };
-  } catch {
-    return null;
-  }
-}
-
 function parseStoredHealthSlot(raw: string | null): DiagnosticSlotPick | null {
   if (!raw?.trim()) return null;
   try {
@@ -421,7 +403,7 @@ export function HealthCheckupsOverviewPage() {
   const loadLabOverview = useCallback(async () => {
     if (!isLabTests) return;
     const addr = readSelectedAddress();
-    const slot = readSlotPayload();
+    const slot = readLabSlotPayload();
     if (!addr?.id.trim() || !slot) {
       setLabOverview(null);
       setLabOverviewError(!addr?.id.trim() ? "Choose a delivery address." : "Choose a slot first.");
@@ -760,7 +742,7 @@ export function HealthCheckupsOverviewPage() {
   const runLabPlaceOrder = async (wallet: boolean) => {
     if (!isLabTests || labSubmitting) return;
     const addr = readSelectedAddress();
-    const slot = readSlotPayload();
+    const slot = readLabSlotPayload();
     if (!addr?.id.trim() || !slot) {
       toast.error("Missing address or slot.");
       return;
@@ -820,22 +802,10 @@ export function HealthCheckupsOverviewPage() {
   return (
     <div className={`hco-page ${isLabTests ? "hco-page--lab-review" : "hco-page--ahc-overview"}`}>
       <header className="hco-top">
-        <Link
-          to={isLabTests ? ROUTES.orders : generatePath(ROUTES.diagnosticsSlots, { type })}
-          replace={isLabTests}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.diagnosticsSlots, { type })}
           className="hco-back"
-          aria-label={isLabTests ? "Back to orders" : "Back to slots"}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
         <h1 className="hco-title">{isLabTests ? "Review Booking" : "Booking Overview"}</h1>
         <span className="hco-top__balance" aria-hidden="true" />
       </header>

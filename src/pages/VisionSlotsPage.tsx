@@ -10,7 +10,8 @@ import { useVisionSlotsLoader } from "@/hooks/useVisionSlotsLoader";
 import { findVisionSlotInPayload } from "@/lib/visionSlotSelection";
 import { VISION_NO_SLOTS_AVAILABLE_COPY } from "@/api/visionServiceSlots";
 import { useToast } from "@/hooks/useToast";
-import { generatePath, Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
@@ -113,21 +114,10 @@ export function VisionSlotsPage() {
   return (
     <div className="hc-page dental-slots-page">
       <header className="hco-top">
-        <Link
-          to={generatePath(ROUTES.visionNetworkList, { visionType })}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.visionNetworkList, { visionType })}
           className="hco-back"
-          aria-label="Back"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
         <h1 className="hco-title">Select Your Vision Slots</h1>
         <span className="hco-top__balance" aria-hidden />
       </header>

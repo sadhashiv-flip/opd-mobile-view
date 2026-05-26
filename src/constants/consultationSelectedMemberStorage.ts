@@ -29,6 +29,24 @@ export function buildConsultMemberSnapshotFromRow(row: GymMemberListRow): Consul
   };
 }
 
+/** Ordered ids from localStorage; migrates legacy single {@link CONSULT_SELECTED_PERSON_KEY}. */
+export function readConsultSelectedPersonIds(): string[] {
+  try {
+    const multi = localStorage.getItem(CONSULT_SELECTED_PERSON_IDS_KEY);
+    if (multi) {
+      const parsed = JSON.parse(multi) as unknown;
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed.every((x) => typeof x === "string")) {
+        return parsed as string[];
+      }
+    }
+    const legacy = localStorage.getItem(CONSULT_SELECTED_PERSON_KEY);
+    if (legacy?.trim()) return [legacy.trim()];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 export function writeConsultSelectedPersonIds(ids: string[]): void {
   try {
     if (ids.length === 0) {

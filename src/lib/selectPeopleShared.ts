@@ -43,18 +43,27 @@ export function memberRowSubtitle(
   return member.subtitle;
 }
 
-/** Minimal picker copy: age-below label (muted) or not-activated (orange) only. */
+/**
+ * Member row subtitle — mirrors patient_app `CommonMemberSelectionScreen` / `UserCard`:
+ * age block → not activated → sponsored (when `showAhcSponsorSubtitle` + `ahcAvailable`).
+ */
 export function selectPeopleMemberLine(
   member: GymMemberListRow,
-  opts: Readonly<{ relaxMemberRestrictions: boolean }>,
+  opts: Readonly<{ relaxMemberRestrictions: boolean; showAhcSponsorSubtitle?: boolean }>,
 ): Readonly<{ text: string | null; subClass: string }> {
   if (!opts.relaxMemberRestrictions && member.isChildBlocked) {
     return { text: DIAGNOSTICS_CHILD_AGE_BLOCK_REASON, subClass: " hc-person__sub--muted" };
   }
-  if (!member.isSubscribed) {
+  if (!opts.relaxMemberRestrictions && !member.isSubscribed) {
     return { text: MEMBER_NOT_ACTIVATED_LABEL, subClass: " hc-person__sub--not-activated" };
   }
-  return { text: null, subClass: "" };
+  if (opts.showAhcSponsorSubtitle && member.ahcAvailable) {
+    return {
+      text: SELECT_PEOPLE_COPY.sponsoredByCompany,
+      subClass: " hc-person__sub--sponsored",
+    };
+  }
+  return { text: member.subtitle.trim() || null, subClass: "" };
 }
 
 export function diagnosticsSelectionHint(

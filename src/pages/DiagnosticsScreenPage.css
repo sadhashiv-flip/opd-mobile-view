@@ -6,6 +6,16 @@
   color: #111111;
 }
 
+.ds-health-empty {
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.ds-location__addr--hint {
+  margin-top: 8px;
+  color: #6b7280;
+}
+
 .ds-top {
   display: flex;
   align-items: center;

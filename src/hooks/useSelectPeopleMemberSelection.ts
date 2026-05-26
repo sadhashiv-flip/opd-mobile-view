@@ -92,6 +92,9 @@ export function toggleSelectPeopleMember(
   return (prev) => {
     const row = rows.find((r) => r.id === memberId);
     if (!row) return prev;
+    if (!opts.relaxMemberRestrictions && row.isChildBlocked) {
+      return prev;
+    }
     if (!opts.relaxMemberRestrictions && !row.isSubscribed) {
       return prev;
     }

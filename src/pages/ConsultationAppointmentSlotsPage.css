@@ -434,11 +434,15 @@
   color: #9e9e9e;
 }
 
+/* patient_app `HealthCheckUpSlotSelectionPage._buildCategoryIndicator` */
 .cas-ahc-tabs {
-  margin-top: 10px;
+  margin: 12px 0 4px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f4f4f4;
 }
 
 .cas-ahc-tab {
@@ -446,19 +450,27 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 12px;
+  padding: 10px 8px;
   border-radius: 10px;
-  border: 1px solid #e6e6e6;
-  background: #ffffff;
-  font-size: max(7px, calc(11 * 100cqw / 375));
-  font-weight: 700;
+  border: none;
+  background: transparent;
+  font-size: max(7px, calc(13 * 100cqw / 375));
+  font-weight: 500;
   color: #757575;
+  box-shadow: none;
 }
 
 .cas-ahc-tab--active {
-  border-color: #0b0b0b;
-  background: #f4f4f4;
+  background: #ffffff;
   color: #111111;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.cas-ahc-tab__ic {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: inherit;
 }
 
 .cas-ahc-tab__done {

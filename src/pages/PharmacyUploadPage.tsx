@@ -10,7 +10,8 @@ import {
   readPharmacyHubReturn,
 } from "@/lib/pharmacyFlowNav";
 import { useToast } from "@/hooks/useToast";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./PharmacyPages.css";
 
@@ -183,17 +184,11 @@ export function PharmacyUploadPage() {
       <div className="ph-page">
         <header className="ph-top-wrap">
           <div className="ph-top">
-            <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M15 18l-6-6 6-6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </Link>
+            <FlowScreenBack
+              fallbackTo={backPath}
+              fallbackNavigate={{ state: passState }}
+              className="ph-back"
+            />
             <h1 className="ph-title">Upload Prescription</h1>
             <span className="ph-top__spacer" aria-hidden />
           </div>
@@ -217,17 +212,11 @@ export function PharmacyUploadPage() {
     <div className="ph-page ph-page--dart-upload">
       <header className="ph-top-wrap">
         <div className="ph-top">
-          <Link to={backPath} state={passState} className="ph-back" aria-label="Back">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
+          <FlowScreenBack
+            fallbackTo={backPath}
+            fallbackNavigate={{ state: passState }}
+            className="ph-back"
+          />
           <h1 className="ph-title">Upload Prescription</h1>
           <span className="ph-top__spacer" aria-hidden />
         </div>

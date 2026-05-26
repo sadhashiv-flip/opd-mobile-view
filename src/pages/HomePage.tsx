@@ -45,6 +45,7 @@ import { rankHomeSearchActions } from "@/lib/homeSearchScore";
 import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
 import { useHomeDashboard } from "@/hooks/useHomeDashboard";
+import { resetBookingFlowStorageOnDashboard } from "@/lib/resetBookingFlowStorage";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { DashboardHalfTileGraphic } from "@/lib/dashboardHalfTileGraphic";
 import {
@@ -203,6 +204,10 @@ export function HomePage() {
   }, [mod.diagnosticsHiddenSubSlugs]);
 
   const hasDeliveryAddress = useHasSelectedDeliveryAddress();
+
+  useEffect(() => {
+    resetBookingFlowStorageOnDashboard();
+  }, []);
 
   useEffect(() => {
     void ensureDefaultSelectedAddressIfNeeded();

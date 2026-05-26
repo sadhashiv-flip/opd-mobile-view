@@ -2,9 +2,15 @@ import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import {
-  DIAG_LAB_VENDOR_CODE_KEY,
-  DIAG_LAB_VENDOR_NAME_KEY,
+  clearLabSlotPayload,
+  readLabVendorCode,
+  writeLabVendorSelection,
 } from "@/constants/diagnosticsLabFlowStorage";
+import {
+  readHealthVendorDraft,
+  readHealthVendorMeta,
+  writeHealthVendorDraft,
+} from "@/constants/diagnosticsHealthFlowStorage";
 import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { getPatientApiRootBase } from "@/api/patientClient";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
@@ -18,14 +24,22 @@ import {
   type SponsoredVendorPricingResult,
 } from "@/api/patientDiagnosticsLab";
 import {
-  DIAG_HEALTH_PATH_SLOT_KEY,
-  DIAG_HEALTH_RAD_SLOT_KEY,
   readHealthSponsoredFlag,
   readHealthUsersPackages,
-  writeHealthVendorMeta,
 } from "@/constants/diagnosticsHealthFlowStorage";
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import {
+  clearHealthSlotSessionBeforeSlots,
+  commitHealthVendorSelection,
+  resolveHealthVendorCodes,
+  writeHealthVendorCategoryMeta,
+} from "@/lib/healthCheckupVendorFlow";
+import {
+  clearHealthVendorStep,
+  clearLabVendorAndDownstream,
+} from "@/lib/bookingFlowStackCleanup";
+import { generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import "./DiagnosticsScreenPage.css";
 
 function labVendorImageBase(): string {
@@ -43,18 +57,9 @@ function vendorLogoUrl(logo: string | null): string | null {
   return `${base}${p}`;
 }
 
-function clearHealthSlotSessionKeys(): void {
-  try {
-    globalThis.sessionStorage?.removeItem("opd-mobile-view.diagnostics.health.slotPhase");
-    globalThis.sessionStorage?.removeItem(DIAG_HEALTH_PATH_SLOT_KEY);
-    globalThis.sessionStorage?.removeItem(DIAG_HEALTH_RAD_SLOT_KEY);
-  } catch {
-    // ignore
-  }
-}
-
 export function DiagnosticsScreenPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
   const toast = useToast();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
@@ -77,6 +82,17 @@ export function DiagnosticsScreenPage() {
   const [healthError, setHealthError] = useState<string | null>(null);
   const [pathVendorCode, setPathVendorCode] = useState<string | null>(null);
   const [radVendorCode, setRadVendorCode] = useState<string | null>(null);
+
+  /** Back from vendors → drop vendor/slot storage and in-memory picks (plan data stays on plan screen). */
+  const onHealthVendorBack = useCallback(() => {
+    clearHealthVendorStep();
+    setHealthPricing(null);
+    setPathVendorCode(null);
+    setRadVendorCode(null);
+    setHealthError(null);
+    setHealthLoading(false);
+    healthAutoSlotsKeyRef.current = null;
+  }, []);
 
   const loadHealthPricing = useCallback(async () => {
     const rows = readHealthUsersPackages();
@@ -101,14 +117,27 @@ export function DiagnosticsScreenPage() {
         users: rows,
       });
       setHealthPricing(res);
-      const pv = res.pathologyVendors;
-      const rv = res.radiologyVendors;
-      setPathVendorCode(
-        pv.length === 1 ? pv[0].code : pv.length === 0 && res.pathologyCategoryExists ? "unknown" : null,
-      );
-      setRadVendorCode(
-        rv.length === 1 ? rv[0].code : rv.length === 0 && res.radiologyCategoryExists ? "unknown" : null,
-      );
+      const draft = readHealthVendorDraft();
+      const meta = readHealthVendorMeta();
+      const hasStoredVendorPick =
+        Boolean(draft?.pathVendorCode?.trim()) || Boolean(draft?.radVendorCode?.trim());
+      const requireUserSelection = !hasStoredVendorPick;
+      const { pathVendorCode: pathCode, radVendorCode: radCode } = resolveHealthVendorCodes(res, {
+        requireUserSelection,
+        preferred: hasStoredVendorPick
+          ? {
+              pathVendorCode: draft?.pathVendorCode ?? meta?.pathVendorCode,
+              radVendorCode: draft?.radVendorCode ?? meta?.radVendorCode,
+            }
+          : undefined,
+      });
+      setPathVendorCode(pathCode);
+      setRadVendorCode(radCode);
+      if (requireUserSelection) {
+        writeHealthVendorCategoryMeta(res);
+      } else {
+        commitHealthVendorSelection(res, { pathVendorCode: pathCode, radVendorCode: radCode });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not load partners";
       setHealthError(msg);
@@ -122,19 +151,17 @@ export function DiagnosticsScreenPage() {
   useEffect(() => {
     if (isLabTests) return;
     void loadHealthPricing();
-  }, [isLabTests, loadHealthPricing, selectedAddressId]);
+  }, [isLabTests, loadHealthPricing, selectedAddressId, location.key]);
 
   const goHealthSlots = useCallback(
     (opts?: { replace?: boolean }) => {
       const hp = healthPricing;
       if (!hp) return;
-      writeHealthVendorMeta({
-        needPathology: hp.pathologyCategoryExists,
-        needRadiology: hp.radiologyCategoryExists,
-        pathVendorCode: hp.pathologyCategoryExists ? pathVendorCode ?? "unknown" : "unknown",
-        radVendorCode: hp.radiologyCategoryExists ? radVendorCode ?? "unknown" : "unknown",
+      commitHealthVendorSelection(hp, {
+        pathVendorCode: pathVendorCode,
+        radVendorCode: radVendorCode,
       });
-      clearHealthSlotSessionKeys();
+      clearHealthSlotSessionBeforeSlots();
       const path = generatePath(ROUTES.diagnosticsSlots, { type });
       navigate(path, opts?.replace ? { replace: true } : undefined);
     },
@@ -145,9 +172,7 @@ export function DiagnosticsScreenPage() {
   useEffect(() => {
     if (isLabTests) return;
     if (healthLoading || healthError || !healthPricing) return;
-    const pv = healthPricing.pathologyVendors.length;
-    const rv = healthPricing.radiologyVendors.length;
-    if (pv > 0 || rv > 0) return;
+    if (healthPricing.hasSelectablePathology || healthPricing.hasSelectableRadiology) return;
 
     const autoKey = `${selectedAddressId}|${JSON.stringify(readHealthUsersPackages())}|p${healthPricing.pathologyCategoryExists ? 1 : 0}r${healthPricing.radiologyCategoryExists ? 1 : 0}`;
     if (healthAutoSlotsKeyRef.current === autoKey) return;
@@ -166,7 +191,7 @@ export function DiagnosticsScreenPage() {
   const [labApiVendors, setLabApiVendors] = useState<readonly DiagnosticVendorPricingRow[]>([]);
   const [labApiLoading, setLabApiLoading] = useState(false);
   const [labApiError, setLabApiError] = useState<string | null>(null);
-  const [labSelectedCode, setLabSelectedCode] = useState("");
+  const [labSelectedCode, setLabSelectedCode] = useState(() => readLabVendorCode());
 
   useEffect(() => {
     if (!isLabTests) return;
@@ -207,27 +232,35 @@ export function DiagnosticsScreenPage() {
 
   useEffect(() => {
     if (!isLabTests) return;
-    setLabSelectedCode("");
     labEmptySlotsSkipRef.current = false;
     labVendorFetchSettledRef.current = false;
   }, [isLabTests, selectedAddressId]);
 
+  useEffect(() => {
+    if (!isLabTests || labApiVendors.length === 0) return;
+    const stored = readLabVendorCode();
+    setLabSelectedCode((prev) => {
+      const candidate = prev.trim() || stored;
+      if (candidate && labApiVendors.some((v) => v.code === candidate)) return candidate;
+      return "";
+    });
+  }, [isLabTests, labApiVendors]);
+
   /** Lab (Dart `LabSelectionScreen`): no vendors → skip picker and open slots; vendor_code falls back to `unknown` like health slots. */
   const goLabSlotsWithUnknownVendor = useCallback(
     (opts?: { replace?: boolean }) => {
-      try {
-        globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorId", "unknown");
-        globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
-        globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_CODE_KEY, "unknown");
-        globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_NAME_KEY, "");
-      } catch {
-        // ignore
-      }
+      writeLabVendorSelection("unknown", "");
+      clearLabSlotPayload();
       const path = generatePath(ROUTES.diagnosticsSlots, { type });
       navigate(path, opts?.replace ? { replace: true } : undefined);
     },
     [navigate, type],
   );
+
+  const selectLabVendor = useCallback((code: string, displayName: string) => {
+    setLabSelectedCode(code);
+    writeLabVendorSelection(code, displayName);
+  }, []);
 
   useEffect(() => {
     if (!isLabTests) return;
@@ -257,21 +290,12 @@ export function DiagnosticsScreenPage() {
       <>
       <div className="ds-page ds-page--lab">
         <header className="ds-top">
-          <Link
-            to={ROUTES.cartOverview}
+          <FlowScreenBack
+            fallbackTo={generatePath(ROUTES.diagnosticsPlan, { type: "lab-tests" })}
             className="ds-back ds-back--lab"
-            aria-label="Back to cart"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
+            ariaLabel="Back"
+            onBeforeBack={clearLabVendorAndDownstream}
+          />
           <h1 className="ds-title ds-title--flex">Select Lab</h1>
         </header>
 
@@ -337,7 +361,7 @@ export function DiagnosticsScreenPage() {
                   key={v.code || String(v.id)}
                   type="button"
                   className={`ds-lab-card ds-lab-card--sel${sel ? " ds-lab-card--selected" : ""}`}
-                  onClick={() => setLabSelectedCode(v.code)}
+                  onClick={() => selectLabVendor(v.code, v.name)}
                 >
                   <div className="ds-lab-card__top ds-lab-card__top--sel">
                     <div className="ds-lab-card__brand ds-lab-card__brand--sel">
@@ -404,14 +428,8 @@ export function DiagnosticsScreenPage() {
                 return;
               }
               const v = labApiVendors.find((x) => x.code === labSelectedCode);
-              try {
-                globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorId", labSelectedCode);
-                globalThis.localStorage?.setItem("opd-mobile-view.diagnostics.vendorMode", "home");
-                globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_CODE_KEY, labSelectedCode);
-                globalThis.localStorage?.setItem(DIAG_LAB_VENDOR_NAME_KEY, v?.name ?? "");
-              } catch {
-                // ignore
-              }
+              writeLabVendorSelection(labSelectedCode, v?.name ?? "");
+              clearLabSlotPayload();
               navigate(generatePath(ROUTES.diagnosticsSlots, { type }));
             }}
           >
@@ -467,31 +485,24 @@ export function DiagnosticsScreenPage() {
     );
   };
 
-  const healthContinueDisabled =
-    healthLoading ||
-    !healthPricing ||
-    (healthPricing.pathologyVendors.length > 1 && !pathVendorCode) ||
-    (healthPricing.radiologyVendors.length > 1 && !radVendorCode);
+  const healthContinueDisabled = useMemo(() => {
+    if (healthLoading || !healthPricing) return true;
+    const hp = healthPricing;
+    const needPathPick = hp.hasSelectablePathology && !pathVendorCode?.trim();
+    const needRadPick = hp.hasSelectableRadiology && !radVendorCode?.trim();
+    return needPathPick || needRadPick;
+  }, [healthLoading, healthPricing, pathVendorCode, radVendorCode]);
 
   return (
     <>
       <div className="ds-page">
         <header className="ds-top">
-          <Link
-            to={generatePath(ROUTES.diagnosticsPlan, { type })}
+          <FlowScreenBack
+            fallbackTo={generatePath(ROUTES.diagnosticsPlan, { type })}
             className="ds-back"
-            aria-label="Back to Health Checkups plan"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
+            ariaLabel="Back"
+            onBeforeBack={onHealthVendorBack}
+          />
           <h1 className="ds-title">Select Vendor</h1>
         </header>
 
@@ -532,13 +543,29 @@ export function DiagnosticsScreenPage() {
           </button>
 
           {healthLoading ? <p className="ds-location__addr">Loading partners…</p> : null}
-          {healthError && !healthLoading ? (
+          {!healthLoading && !healthPricing && !healthError ? (
+            <div className="ds-health-empty">
+              <p className="ds-location__addr">No vendors available</p>
+              <p className="ds-location__addr ds-location__addr--hint">
+                Try changing your address
+              </p>
+            </div>
+          ) : null}
+          {healthError && !healthLoading && !healthPricing ? (
+            <div className="ds-health-empty" role="alert">
+              <p className="ds-location__addr">{healthError}</p>
+              <p className="ds-location__addr ds-location__addr--hint">
+                Try changing your address
+              </p>
+            </div>
+          ) : null}
+          {healthError && !healthLoading && healthPricing ? (
             <p className="ds-location__addr" role="alert">
               {healthError}
             </p>
           ) : null}
 
-          {healthPricing?.pathologyCategoryExists ? (
+          {healthPricing?.hasSelectablePathology ? (
             <section className="ds-health-sec" aria-label="Pathology vendors">
               <div className="ds-health-sec-head">
                 <span className="ds-health-sec-head__ic ds-health-sec-head__ic--path" aria-hidden="true">
@@ -554,19 +581,23 @@ export function DiagnosticsScreenPage() {
                 </span>
                 <h2 className="ds-health-sec-head__title">Pathology Vendors</h2>
               </div>
-              {healthPricing.pathologyVendors.length === 0 ? (
-                <p className="ds-location__addr">Partner will be assigned for you.</p>
-              ) : (
-                <div className="ds-vendors ds-vendors--lab" aria-label="Pathology vendors">
-                  {healthPricing.pathologyVendors.map((v) =>
-                    renderHealthVendor(v, pathVendorCode === v.code, () => setPathVendorCode(v.code)),
-                  )}
-                </div>
-              )}
+              <div className="ds-vendors ds-vendors--lab" aria-label="Pathology vendors">
+                {healthPricing.pathologyVendors.map((v) =>
+                  renderHealthVendor(v, pathVendorCode === v.code, () => {
+                    const next = v.code;
+                    const nextRad = radVendorCode;
+                    setPathVendorCode(next);
+                    commitHealthVendorSelection(healthPricing, {
+                      pathVendorCode: next,
+                      radVendorCode: nextRad,
+                    });
+                  }),
+                )}
+              </div>
             </section>
           ) : null}
 
-          {healthPricing?.radiologyCategoryExists ? (
+          {healthPricing?.hasSelectableRadiology ? (
             <section className="ds-health-sec" aria-label="Radiology vendors">
               <div className="ds-health-sec-head">
                 <span className="ds-health-sec-head__ic ds-health-sec-head__ic--rad" aria-hidden="true">
@@ -581,15 +612,19 @@ export function DiagnosticsScreenPage() {
                 </span>
                 <h2 className="ds-health-sec-head__title">Radiology Vendors</h2>
               </div>
-              {healthPricing.radiologyVendors.length === 0 ? (
-                <p className="ds-location__addr">Partner will be assigned for you.</p>
-              ) : (
-                <div className="ds-vendors ds-vendors--lab" aria-label="Radiology vendors">
-                  {healthPricing.radiologyVendors.map((v) =>
-                    renderHealthVendor(v, radVendorCode === v.code, () => setRadVendorCode(v.code)),
-                  )}
-                </div>
-              )}
+              <div className="ds-vendors ds-vendors--lab" aria-label="Radiology vendors">
+                {healthPricing.radiologyVendors.map((v) =>
+                  renderHealthVendor(v, radVendorCode === v.code, () => {
+                    const next = v.code;
+                    const nextPath = pathVendorCode;
+                    setRadVendorCode(next);
+                    commitHealthVendorSelection(healthPricing, {
+                      pathVendorCode: nextPath,
+                      radVendorCode: next,
+                    });
+                  }),
+                )}
+              </div>
             </section>
           ) : null}
         </main>

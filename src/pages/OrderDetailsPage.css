@@ -2007,6 +2007,93 @@
 }
 
 /* --- Lab order detail (patient_app parity) --- */
+.od-lab-status-chip {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.od-lab-status-chip--completed {
+  color: #2e7d32;
+  background: #e8f5e9;
+}
+
+.od-lab-status-chip--cancelled {
+  color: #c62828;
+  background: #ffebee;
+}
+
+.od-lab-status-chip--paymentPending {
+  color: #e65100;
+  background: #fff3e0;
+}
+
+.od-lab-status-chip--upcoming {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+
+.od-lab-status-chip--confirmPending {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+
+.od-lab-status-chip--processing {
+  color: #616161;
+  background: #f4f4f4;
+}
+
+.od-lab-sub-card__cancel-reason {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-lab-sub-card__cancel-reason-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8a827a;
+}
+
+.od-lab-sub-card__cancel-reason-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #4a423b;
+}
+
+.od-lab-sub-card__rider-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.od-lab-sub-card__rider-phone-label {
+  font-size: 0.75rem;
+  color: #8a827a;
+}
+
+.od-lab-sub-card__rider-call {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #5c4a3a;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .od-banner__cancel-reason-block {
   margin: 10px 0 0;
   text-align: left;

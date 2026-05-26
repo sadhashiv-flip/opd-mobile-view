@@ -13,8 +13,15 @@ import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { clearSelectPeoplePickerForScope } from "@/lib/clearFlowDraftsOnBack";
+import {
+  readSelectPeoplePickerIds,
+  selectPeoplePickerScope,
+  writeSelectPeoplePickerIds,
+} from "@/constants/selectPeoplePickerStorage";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
 
@@ -27,7 +34,10 @@ export function VaccinationSelectPeoplePage() {
   const [rows, setRows] = useState<GymMemberListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const pickerScope = selectPeoplePickerScope("vaccination", "default");
+  const [selectedIds, setSelectedIds] = useState<string[]>(() =>
+    readSelectPeoplePickerIds(pickerScope),
+  );
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const hasDeliveryAddress = useHasSelectedDeliveryAddress();
   const returnPath = `${location.pathname}${location.search}`;
@@ -42,9 +52,12 @@ export function VaccinationSelectPeoplePage() {
     [],
   );
 
-  useEffect(() => {
-    clearVaccinationFlowState();
-  }, []);
+  const persistPickerSelection = useCallback(
+    (ids: readonly string[]) => {
+      writeSelectPeoplePickerIds(pickerScope, ids);
+    },
+    [pickerScope],
+  );
 
   useEffect(() => {
     void ensureDefaultSelectedAddressIfNeeded();
@@ -78,24 +91,41 @@ export function VaccinationSelectPeoplePage() {
   }, [toast, location.key]);
 
   useEffect(() => {
+    if (loading) return;
     if (rows.length === 0) {
       setSelectedIds([]);
       return;
     }
-    setSelectedIds((prev) =>
-      prev.filter((id) => {
+    setSelectedIds((prev) => {
+      let next = prev.filter((id) => {
         const r = rows.find((x) => x.id === id);
         return Boolean(r?.isSubscribed);
-      }),
-    );
-  }, [rows]);
+      });
+      if (next.length === 0) {
+        next = readSelectPeoplePickerIds(pickerScope).filter((id) => {
+          const r = rows.find((x) => x.id === id);
+          return Boolean(r?.isSubscribed);
+        });
+      }
+      return next.length > 1 ? next.slice(0, 1) : next;
+    });
+  }, [rows, loading, pickerScope]);
+
+  useEffect(() => {
+    if (loading || rows.length === 0) return;
+    persistPickerSelection(selectedIds);
+  }, [selectedIds, loading, rows.length, persistPickerSelection]);
 
   const hasAddress = hasDeliveryAddress;
   const canContinue =
     selectedIds.length > 0 && !loading && !fetchError && rows.length > 0 && hasAddress;
 
   const toggleMember = (memberId: string) => {
-    setSelectedIds(toggleSelectPeopleMember(memberId, rows, { allowDeselect: true }));
+    setSelectedIds((prev) => {
+      const next = toggleSelectPeopleMember(memberId, rows, { allowDeselect: true })(prev);
+      persistPickerSelection(next);
+      return next;
+    });
   };
 
   const goProfileSubscriptions = () => {
@@ -139,17 +169,14 @@ export function VaccinationSelectPeoplePage() {
   return (
     <div className="hc-page">
       <header className="hco-top">
-        <Link to={ROUTES.services} className="hco-back" aria-label="Back to services">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack
+          fallbackTo={ROUTES.services}
+          className="hco-back"
+          onBeforeBack={() => {
+            clearVaccinationFlowState();
+            clearSelectPeoplePickerForScope(pickerScope, "vaccination");
+          }}
+        />
         <h1 className="hco-title">Vaccination</h1>
         <span className="hco-top__spacer" aria-hidden />
       </header>

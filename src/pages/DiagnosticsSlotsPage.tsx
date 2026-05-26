@@ -1,24 +1,32 @@
 import { ROUTES } from "@/constants";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import {
-  DIAG_LAB_SLOT_PAYLOAD_KEY,
   DIAG_LAB_SLOTS_PACKAGE,
   DIAG_LAB_VENDOR_CODE_KEY,
+  readLabSlotPayload,
+  writeLabSlotPayload,
 } from "@/constants/diagnosticsLabFlowStorage";
 import {
   DIAG_HEALTH_SLOTS_PACKAGE,
+  readHealthPathologySlotPick,
+  readHealthRadiologySlotPick,
+  readHealthSlotPhase,
   readHealthVendorMeta,
   writeHealthPathologySlotJson,
   writeHealthRadiologySlotJson,
+  writeHealthSlotPhase,
+  type HealthSlotPhase,
 } from "@/constants/diagnosticsHealthFlowStorage";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { readSelectedAddress, subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import { fetchDiagnosticSlots, type DiagnosticSlotPick } from "@/api/patientDiagnosticsLab";
-import { Link, generatePath, useNavigate, useParams } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { generatePath, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { labSlotsBucketsEmpty, type LabSlotBuckets } from "@/lib/labSlotSelection";
 import { LabTestSlotPicker } from "@/components/diagnostics/LabTestSlotPicker";
 import { SlotPeriodSectionHead } from "@/components/slots/SlotPeriodIcon";
+import { clearLabSlotStep } from "@/lib/bookingFlowStackCleanup";
 import { useToast } from "@/hooks/useToast";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
 import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
@@ -30,12 +38,36 @@ function slotKey(p: DiagnosticSlotPick): string {
   return `${p.slot_id}|${p.slot_date}|${p.start_time}|${p.end_time}`;
 }
 
-function initialHealthPhase(): "pathology" | "radiology" {
+function labDateFromStored(
+  days: readonly DayChip[],
+  stored: DiagnosticSlotPick | null,
+): string {
+  const storedDate = stored?.slot_date?.trim();
+  if (storedDate && days.some((d) => d.date === storedDate)) return storedDate;
+  return days[0]?.date ?? "";
+}
+
+function healthDateFromStored(
+  days: readonly DayChip[],
+  stored: DiagnosticSlotPick | null,
+): string {
+  const storedDate = stored?.slot_date?.trim();
+  if (storedDate && days.some((d) => d.date === storedDate)) return storedDate;
+  return days[0]?.date ?? "";
+}
+
+function initialHealthPhase(): HealthSlotPhase {
+  const stored = readHealthSlotPhase();
+  if (stored) return stored;
   const m = readHealthVendorMeta();
   if (!m) return "pathology";
   if (m.needPathology) return "pathology";
   if (m.needRadiology) return "radiology";
   return "pathology";
+}
+
+function initialHealthSlotPick(phase: HealthSlotPhase): DiagnosticSlotPick | null {
+  return phase === "pathology" ? readHealthPathologySlotPick() : readHealthRadiologySlotPick();
 }
 
 export function DiagnosticsSlotsPage() {
@@ -44,7 +76,6 @@ export function DiagnosticsSlotsPage() {
   const toast = useToast();
   const type = typeof params.type === "string" ? params.type : "health-checkups";
   const isLabTests = type === "lab-tests";
-
   const selectedAddressId = useSyncExternalStore(
     subscribeSelectedAddress,
     () => readSelectedAddress()?.id?.trim() ?? "",
@@ -96,7 +127,15 @@ export function DiagnosticsSlotsPage() {
 
   const displayDays = isLabTests ? labDays : ahcSlotDays;
 
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const storedLabPick = isLabTests ? readLabSlotPayload() : null;
+
+  const initialHealthPhaseValue = initialHealthPhase();
+  const initialHealthPick = initialHealthSlotPick(initialHealthPhaseValue);
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (isLabTests) return labDateFromStored(labDays, storedLabPick);
+    return healthDateFromStored(ahcSlotDays, initialHealthPick);
+  });
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
@@ -107,23 +146,57 @@ export function DiagnosticsSlotsPage() {
       return "";
     }
   });
-  const [healthPhase, setHealthPhase] = useState<"pathology" | "radiology">(initialHealthPhase);
+  const [healthPhase, setHealthPhase] = useState<HealthSlotPhase>(initialHealthPhaseValue);
 
   const [labMorning, setLabMorning] = useState<readonly DiagnosticSlotPick[]>([]);
   const [labAfternoon, setLabAfternoon] = useState<readonly DiagnosticSlotPick[]>([]);
   const [labEvening, setLabEvening] = useState<readonly DiagnosticSlotPick[]>([]);
   const [labSlotLoading, setLabSlotLoading] = useState(false);
   const [labSlotsFetched, setLabSlotsFetched] = useState(false);
-  const [labSelectedPick, setLabSelectedPick] = useState<DiagnosticSlotPick | null>(null);
+  const [labSelectedPick, setLabSelectedPick] = useState<DiagnosticSlotPick | null>(() =>
+    isLabTests ? storedLabPick : initialHealthPick,
+  );
   /** First load scans forward from today when the current day has no slots (patient_app lab flow). */
-  const labSlotScanForwardRef = useRef(true);
+  const labSlotScanForwardRef = useRef(!storedLabPick);
   const [labAutoAdvancedToDate, setLabAutoAdvancedToDate] = useState<string | null>(null);
 
-  /** Reset date strip when switching pathology ↔ radiology (patient_app re-inits per category). */
+  /**
+   * Lab: restore date/slot when returning with a saved pick (back from overview).
+   * Health: restore date/slot per pathology/radiology phase when navigating back into this screen.
+   */
   useEffect(() => {
-    const days = isLabTests ? labDays : ahcSlotDays;
-    const first = days[0]?.date;
-    if (first) setSelectedDate(first);
+    if (isLabTests) {
+      const stored = readLabSlotPayload();
+      if (stored) {
+        const d = labDateFromStored(labDays, stored);
+        if (d) {
+          labSlotScanForwardRef.current = false;
+          setSelectedDate(d);
+          setLabSelectedPick(stored);
+          return;
+        }
+      }
+      const first = labDays[0]?.date;
+      if (first) setSelectedDate(first);
+      setLabSelectedPick(null);
+      labSlotScanForwardRef.current = true;
+      return;
+    }
+
+    writeHealthSlotPhase(healthPhase);
+    const phasePick =
+      healthPhase === "pathology" ? readHealthPathologySlotPick() : readHealthRadiologySlotPick();
+    const d = healthDateFromStored(ahcSlotDays, phasePick);
+    if (d) {
+      setSelectedDate(d);
+      setLabSelectedPick(phasePick);
+      return;
+    }
+    const first = ahcSlotDays[0]?.date;
+    if (first) {
+      setSelectedDate(first);
+      setLabSelectedPick(null);
+    }
   }, [isLabTests, labDays, ahcSlotDays, healthPhase]);
 
   useEffect(() => {
@@ -139,16 +212,25 @@ export function DiagnosticsSlotsPage() {
     }
   }, [isLabTests, selectedAddressId]);
 
-  const applyLabSlotBuckets = useCallback((res: LabSlotBuckets) => {
-    setLabMorning(res.morning);
-    setLabAfternoon(res.afternoon);
-    setLabEvening(res.evening);
-    setLabSelectedPick((prev) => {
-      if (!prev) return prev;
+  const applyLabSlotBuckets = useCallback(
+    (res: LabSlotBuckets, dateForRestore: string) => {
+      setLabMorning(res.morning);
+      setLabAfternoon(res.afternoon);
+      setLabEvening(res.evening);
       const all = [...res.morning, ...res.afternoon, ...res.evening];
-      return all.some((s) => slotKey(s) === slotKey(prev)) ? prev : null;
-    });
-  }, []);
+      const keepIfListed = (pick: DiagnosticSlotPick | null) =>
+        pick && all.some((s) => slotKey(s) === slotKey(pick)) ? pick : null;
+
+      setLabSelectedPick((prev) => {
+        if (prev) return keepIfListed(prev);
+        if (!isLabTests) return null;
+        const stored = readLabSlotPayload();
+        if (stored && stored.slot_date === dateForRestore) return keepIfListed(stored);
+        return null;
+      });
+    },
+    [isLabTests],
+  );
 
   const loadLabSlots = useCallback(async () => {
     if (!isLabTests) return;
@@ -187,7 +269,7 @@ export function DiagnosticsSlotsPage() {
         });
         if (!labSlotsBucketsEmpty(res)) {
           matchedDate = date;
-          applyLabSlotBuckets(res);
+          applyLabSlotBuckets(res, date);
           if (scanForward && date !== selectedDate) {
             setLabAutoAdvancedToDate(date);
             setSelectedDate(date);
@@ -198,7 +280,7 @@ export function DiagnosticsSlotsPage() {
       }
 
       if (!matchedDate) {
-        applyLabSlotBuckets(lastEmpty);
+        applyLabSlotBuckets(lastEmpty, selectedDate);
         setLabAutoAdvancedToDate(null);
       }
     } catch (e) {
@@ -232,14 +314,17 @@ export function DiagnosticsSlotsPage() {
       return;
     }
     const category = healthPhase;
-    const vendorCode =
-      healthPhase === "pathology" ? meta.pathVendorCode.trim() : meta.radVendorCode.trim();
-    if (!vendorCode) {
+    const needCategory =
+      healthPhase === "pathology" ? meta.needPathology : meta.needRadiology;
+    if (!needCategory) {
       setLabMorning([]);
       setLabAfternoon([]);
       setLabEvening([]);
       return;
     }
+    const vendorCode =
+      (healthPhase === "pathology" ? meta.pathVendorCode : meta.radVendorCode).trim() ||
+      "unknown";
     setLabSlotLoading(true);
     try {
       const res = await fetchDiagnosticSlots({
@@ -252,16 +337,20 @@ export function DiagnosticsSlotsPage() {
       setLabMorning(res.morning);
       setLabAfternoon(res.afternoon);
       setLabEvening(res.evening);
+      const all = [...res.morning, ...res.afternoon, ...res.evening];
+      const keepIfListed = (pick: DiagnosticSlotPick | null) =>
+        pick && all.some((s) => slotKey(s) === slotKey(pick)) ? pick : null;
       setLabSelectedPick((prev) => {
-        if (!prev) return prev;
-        const all = [...res.morning, ...res.afternoon, ...res.evening];
-        return all.some((s) => slotKey(s) === slotKey(prev)) ? prev : null;
+        if (prev) return keepIfListed(prev);
+        const stored =
+          healthPhase === "pathology" ? readHealthPathologySlotPick() : readHealthRadiologySlotPick();
+        if (stored && stored.slot_date === selectedDate) return keepIfListed(stored);
+        return null;
       });
     } catch (e) {
       setLabMorning([]);
       setLabAfternoon([]);
       setLabEvening([]);
-      setLabSelectedPick(null);
       toast.error(e instanceof Error ? e.message : "Could not load slots");
     } finally {
       setLabSlotLoading(false);
@@ -279,8 +368,11 @@ export function DiagnosticsSlotsPage() {
   }, [isLabTests, loadHealthSlots, selectedAddressId]);
 
   useEffect(() => {
-    setLabSelectedPick(null);
-  }, [selectedDate, healthPhase]);
+    setLabSelectedPick((prev) => {
+      if (!prev) return null;
+      return prev.slot_date === selectedDate ? prev : null;
+    });
+  }, [selectedDate]);
 
   const monthBanner = useMemo(() => {
     if (!selectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) return "";
@@ -290,9 +382,25 @@ export function DiagnosticsSlotsPage() {
 
   const pickLabSlot = (p: DiagnosticSlotPick) => {
     setLabSelectedPick(p);
+    if (isLabTests) {
+      writeLabSlotPayload(p);
+      return;
+    }
+    if (healthPhase === "pathology") {
+      writeHealthPathologySlotJson(JSON.stringify(p));
+    } else {
+      writeHealthRadiologySlotJson(JSON.stringify(p));
+    }
   };
 
   const healthMeta = !isLabTests ? readHealthVendorMeta() : null;
+
+  /** patient_app `containsPathology` / `containsRadiology` → tab strip when both categories apply. */
+  const showPathRadTabs =
+    !isLabTests &&
+    healthMeta != null &&
+    healthMeta.needPathology &&
+    healthMeta.needRadiology;
 
   /** Lab route is always `lab-tests`; health-checkups uses pathology/radiology branch above. */
   const slotHeaderTitle = !isLabTests
@@ -301,9 +409,12 @@ export function DiagnosticsSlotsPage() {
       : "Radiology Slot"
     : "Pick a Slot";
 
+  const storedPathPick = !isLabTests ? readHealthPathologySlotPick() : null;
+  const storedRadPick = !isLabTests ? readHealthRadiologySlotPick() : null;
   const pathTabDone =
-    healthPhase === "radiology" || (healthPhase === "pathology" && labSelectedPick != null);
-  const radTabDone = healthPhase === "radiology" && labSelectedPick != null;
+    storedPathPick != null || (healthPhase === "pathology" && labSelectedPick != null);
+  const radTabDone =
+    storedRadPick != null || (healthPhase === "radiology" && labSelectedPick != null);
 
   const allBucketsEmpty =
     labMorning.length === 0 && labAfternoon.length === 0 && labEvening.length === 0;
@@ -327,25 +438,16 @@ export function DiagnosticsSlotsPage() {
   return (
     <div className="cas-page">
       <header className="cas-top">
-        <Link
-          to={
+        <FlowScreenBack
+          fallbackTo={
             isLabTests
               ? generatePath(ROUTES.diagnosticsVendors, { type })
               : generatePath(ROUTES.diagnosticsPlan, { type })
           }
           className="cas-back"
-          aria-label={isLabTests ? "Back to lab partners" : "Back to plan"}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+          ariaLabel="Back"
+          onBeforeBack={isLabTests ? clearLabSlotStep : undefined}
+        />
         <h1 className="cas-title">{slotHeaderTitle}</h1>
       </header>
 
@@ -394,17 +496,28 @@ export function DiagnosticsSlotsPage() {
 
         {!isLabTests && !healthMeta ? (
           <p className="cas-note cas-note--alert" role="alert">
-            Go back and complete vendor selection first.
+            Go back and choose a package to continue.
           </p>
         ) : null}
 
-        {!isLabTests && healthMeta?.needPathology && healthMeta.needRadiology ? (
+        {showPathRadTabs ? (
           <div className="cas-ahc-tabs" role="tablist" aria-label="Slot steps">
             <div
               className={`cas-ahc-tab${healthPhase === "pathology" ? " cas-ahc-tab--active" : ""}`}
               role="tab"
               aria-selected={healthPhase === "pathology"}
             >
+              <span className="cas-ahc-tab__ic" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M9 3h6v3h-1v4l2 7H8l2-7V6H9V3z"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M7 17h10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                </svg>
+              </span>
               <span>Pathology</span>
               {pathTabDone ? (
                 <span className="cas-ahc-tab__done" aria-hidden="true">
@@ -425,6 +538,17 @@ export function DiagnosticsSlotsPage() {
               role="tab"
               aria-selected={healthPhase === "radiology"}
             >
+              <span className="cas-ahc-tab__ic" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 21a9 9 0 100-18 9 9 0 000 18z" stroke="currentColor" strokeWidth="1.75" />
+                  <path
+                    d="M12 9v6M9 12h6"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
               <span>Radiology</span>
               {radTabDone ? (
                 <span className="cas-ahc-tab__done" aria-hidden="true">
@@ -470,7 +594,7 @@ export function DiagnosticsSlotsPage() {
               ) : null}
             </>
           )
-        ) : (
+        ) : !isLabTests && !healthMeta ? null : (
           <>
             <div className="cas-row">
               <div className="cas-row__left">
@@ -592,7 +716,7 @@ export function DiagnosticsSlotsPage() {
         <button
           type="button"
           className={`cas-confirm${isLabTests && !labSelectedPick ? " cas-confirm--dim" : ""}`}
-          disabled={!isLabTests && confirmDisabled}
+          disabled={!isLabTests && (confirmDisabled || !healthMeta)}
           onClick={() => {
             if (isLabTests && !labVendorCode.trim()) {
               toast.error("Go back and select a lab partner first.");
@@ -604,13 +728,7 @@ export function DiagnosticsSlotsPage() {
             }
             try {
               if (isLabTests && labSelectedPick) {
-                localStorage.setItem("opd-mobile-view.diagnostics.date", labSelectedPick.slot_date);
-                localStorage.setItem("opd-mobile-view.diagnostics.slotId", labSelectedPick.slot_id);
-                localStorage.setItem(
-                  "opd-mobile-view.diagnostics.slotLabel",
-                  `${labSelectedPick.start_time} – ${labSelectedPick.end_time}`,
-                );
-                localStorage.setItem(DIAG_LAB_SLOT_PAYLOAD_KEY, JSON.stringify(labSelectedPick));
+                writeLabSlotPayload(labSelectedPick);
                 navigate(generatePath(ROUTES.diagnosticsOverview, { type }));
                 return;
               }
@@ -627,8 +745,11 @@ export function DiagnosticsSlotsPage() {
                     `${labSelectedPick.start_time} – ${labSelectedPick.end_time}`,
                   );
                   if (meta.needRadiology) {
+                    writeHealthSlotPhase("radiology");
+                    const radStored = readHealthRadiologySlotPick();
                     setHealthPhase("radiology");
-                    setLabSelectedPick(null);
+                    setSelectedDate(healthDateFromStored(ahcSlotDays, radStored));
+                    setLabSelectedPick(radStored);
                     return;
                   }
                   navigate(generatePath(ROUTES.diagnosticsOverview, { type }));

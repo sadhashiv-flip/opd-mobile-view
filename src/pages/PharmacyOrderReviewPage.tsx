@@ -20,7 +20,9 @@ import {
 } from "@/lib/pharmacyFlowNav";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
 import { useToast } from "@/hooks/useToast";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { clearPharmacyReviewStep } from "@/lib/bookingFlowStackCleanup";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import "./PharmacyPages.css";
@@ -298,11 +300,12 @@ export function PharmacyOrderReviewPage() {
   return (
     <div className="ph-review-page">
       <header className="ph-review-top">
-        <Link to={reviewBackPath} state={passState} className="ph-back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </Link>
+        <FlowScreenBack
+          fallbackTo={reviewBackPath}
+          fallbackNavigate={{ state: passState }}
+          className="ph-back"
+          onBeforeBack={clearPharmacyReviewStep}
+        />
         <h1 className="ph-review-title">{COPY.title}</h1>
         <span className="ph-top__spacer" aria-hidden />
       </header>

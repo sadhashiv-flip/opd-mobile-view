@@ -44,7 +44,8 @@ import {
   sameCalendarDay,
 } from "@/utils/dentalSlotRules";
 import { useToast } from "@/hooks/useToast";
-import { Link, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@/components/address/AddressBottomSheet.css";
 import "@/components/consultation/VirtualAppointmentSlotBottomSheet.css";
@@ -331,17 +332,7 @@ export function DentalOverviewPage() {
       ) : null}
 
       <header className="dental-overview-page__top">
-        <Link to={ROUTES.dentalSlots} className="dental-overview-page__back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack fallbackTo={ROUTES.dentalSlots} className="dental-overview-page__back" />
         <h1 className="dental-overview-page__title">Dental Overview</h1>
         <span className="dental-overview-page__top-spacer" aria-hidden />
       </header>

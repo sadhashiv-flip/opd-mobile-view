@@ -13,8 +13,9 @@ import {
   writeVisionGlassesPrescriptions,
   type VisionGlassesPrescriptionStored,
 } from "@/constants/visionBookingStorage";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { useToast } from "@/hooks/useToast";
-import { generatePath, Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { generatePath, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "@/styles/primary-buttons.css";
 import "./VisionAddPrescriptionPage.css";
@@ -274,21 +275,10 @@ export function VisionAddPrescriptionPage() {
   return (
     <div className="vap-page">
       <header className="vap-page__top">
-        <Link
-          to={generatePath(ROUTES.visionSlots, { visionType })}
+        <FlowScreenBack
+          fallbackTo={generatePath(ROUTES.visionSlots, { visionType })}
           className="vap-page__back"
-          aria-label="Back"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
         <h1 className="vap-page__title">{VISION_PRESCRIPTION_PAGE_TITLE}</h1>
         <span className="vap-page__top-spacer" aria-hidden />
       </header>

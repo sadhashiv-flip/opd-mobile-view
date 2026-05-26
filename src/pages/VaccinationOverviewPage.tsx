@@ -46,7 +46,9 @@ import {
 } from "@/components/overview/OverviewSectionCard";
 import { getAccessToken } from "@/lib/authStorage";
 import { useToast } from "@/hooks/useToast";
-import { Link, useNavigate } from "react-router-dom";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { clearVaccinationSlotAndOverviewFields } from "@/constants/vaccinationFlowStorage";
+import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@/components/address/AddressBottomSheet.css";
 import "@/components/consultation/VirtualAppointmentSlotBottomSheet.css";
@@ -332,17 +334,11 @@ export function VaccinationOverviewPage() {
       ) : null}
 
       <header className="vac-overview-page__top">
-        <Link to={ROUTES.vaccinationSlots} className="vac-overview-page__back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack
+          fallbackTo={ROUTES.vaccinationSlots}
+          className="vac-overview-page__back"
+          onBeforeBack={clearVaccinationSlotAndOverviewFields}
+        />
         <h1 className="vac-overview-page__title">Vaccine Overview</h1>
         <span className="vac-overview-page__top-spacer" aria-hidden />
       </header>
