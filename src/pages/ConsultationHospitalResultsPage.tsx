@@ -2,10 +2,15 @@ import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
-import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
+import {
+  deliveryAddressChooserAriaLabel,
+  subscribeSelectedAddress,
+} from "@/constants/selectedAddressStorage";
 import { ROUTES } from "@/constants";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
-import { deliveryAddressChooserAriaLabel } from "@/constants/selectedAddressStorage";
+import { clearHospitalConsultationResultsStep } from "@/lib/bookingFlowStackCleanup";
+import { persistHospitalConsultationSummaryFields } from "@/lib/hospitalConsultationSummary";
+import { sortNetworkDoctors } from "@/lib/sortNetworkDoctors";
 import { readHospitalSpecialtyName } from "@/constants/hospitalConsultationStorage";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import {
@@ -14,6 +19,13 @@ import {
   resolveSelectedAddressLocation,
   type NetworkListDoctorRow,
 } from "@/api/networkList";
+import { readConsultSelectedPersonId } from "@/constants/consultationSelectedMemberStorage";
+import { writeHospitalVendorBookingContext } from "@/constants/consultationBookingStorage";
+import {
+  writeNetworkDoctorDetailEntry,
+  type NetworkDoctorDetailEntry,
+} from "@/constants/networkDoctorDetailStorage";
+import { NetworkDoctorListCard } from "@/components/consultation/NetworkDoctorListCard";
 import { useToast } from "@/hooks/useToast";
 import {
   useCallback,
@@ -29,16 +41,18 @@ import "@/components/sort/SortSheet.css";
 import networkDoctorsHospitalSvg from "@/assets/images/Consultation/NetworkDoctorsHospital.svg";
 import "./ConsultationHospitalResultsPage.css";
 
-function doctorNameInitial(name: string): string {
-  const t = name.trim();
-  if (!t) return "—";
-  // If name starts with 'Dr ' or 'Dr. ', use character after that
-  const drMatch = /^Dr[.\s]+/i;
-  if (drMatch.test(t)) {
-    const afterDr = t.replace(drMatch, "").trim();
-    return afterDr ? afterDr.charAt(0).toUpperCase() : "—";
-  }
-  return t.charAt(0).toUpperCase();
+/** Client-side filter — parity with patient_app `searchNearbyDoctors`. */
+function filterDoctorsBySearch(
+  rows: readonly NetworkListDoctorRow[],
+  query: string,
+): readonly NetworkListDoctorRow[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((d) => {
+    const name = d.name.trim().toLowerCase();
+    const network = d.networkName.trim().toLowerCase();
+    return name.includes(q) || (network.length > 0 && network.includes(q));
+  });
 }
 
 export function ConsultationHospitalResultsPage() {
@@ -56,6 +70,7 @@ export function ConsultationHospitalResultsPage() {
   /** Bumps when the user picks another address so doctor list refetches for the new `lat,lng`. */
   const [addrEpoch, setAddrEpoch] = useState(0);
   const [doctorsError, setDoctorsError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const nextPageRef = useRef(1);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
@@ -85,6 +100,7 @@ export function ConsultationHospitalResultsPage() {
     setDoctorsLoad("loading");
     setDoctorsError(null);
     setDoctors([]);
+    setSearchQuery("");
     nextPageRef.current = 1;
     hasMoreRef.current = true;
     loadingMoreRef.current = false;
@@ -93,6 +109,15 @@ export function ConsultationHospitalResultsPage() {
       if (cancelled) return;
       const location = await resolveSelectedAddressLocation();
       if (cancelled) return;
+      const userId = readConsultSelectedPersonId();
+      if (!userId) {
+        if (!cancelled) {
+          setDoctors([]);
+          setDoctorsLoad("error");
+          setDoctorsError("Please select a patient from the consultation flow.");
+        }
+        return;
+      }
       try {
         const list = await fetchNetworkDoctorListPage({
           location,
@@ -100,6 +125,7 @@ export function ConsultationHospitalResultsPage() {
           speciality_id: specialtyIdNum,
           page: 1,
           limit: NETWORK_LIST_PAGE_SIZE,
+          user_id: userId,
         });
         if (cancelled) return;
         setDoctors(list);
@@ -131,6 +157,8 @@ export function ConsultationHospitalResultsPage() {
     setLoadingMore(true);
     try {
       const location = await resolveSelectedAddressLocation();
+      const userId = readConsultSelectedPersonId();
+      if (!userId) return;
       const list = await fetchNetworkDoctorListPage(
         {
           location,
@@ -138,6 +166,7 @@ export function ConsultationHospitalResultsPage() {
           speciality_id: specialtyIdNum,
           page: nextPageRef.current,
           limit: NETWORK_LIST_PAGE_SIZE,
+          user_id: userId,
         },
         { skipGlobalLoading: true },
       );
@@ -189,6 +218,83 @@ export function ConsultationHospitalResultsPage() {
     return map[specialtyId] ?? "Speciality";
   }, [specialtyId]);
 
+  const filteredDoctors = useMemo(() => {
+    const searched = filterDoctorsBySearch(doctors, searchQuery);
+    return sortNetworkDoctors(searched, sortId);
+  }, [doctors, searchQuery, sortId]);
+
+  const searchActive = searchQuery.trim().length > 0;
+
+  const onBookDoctor = useCallback(
+    (d: NetworkListDoctorRow) => {
+      if (!d.networkId?.trim()) {
+        toast.error("Network information is missing for this doctor.");
+        return;
+      }
+      persistHospitalConsultationSummaryFields({
+        doctorName: d.name,
+        doctorQualification: d.degree,
+        networkName: d.networkName,
+      });
+      if (d.vendorMeta) {
+        writeHospitalVendorBookingContext({
+          vendorMeta: {
+            source: d.vendorMeta.source,
+            price: d.vendorMeta.price,
+            timings: d.vendorMeta.timings,
+            isCashless: d.vendorMeta.isCashless,
+          },
+          practiceId: d.networkId.trim(),
+          network: {
+            name: d.networkName,
+            displayAddress: d.networkAddress,
+            coordinates: d.networkCoordinates,
+          },
+          doctor: {
+            id: d.id,
+            name: d.name,
+            gender: d.gender,
+            qualification: d.degree,
+          },
+        });
+      } else {
+        writeHospitalVendorBookingContext(null);
+      }
+      navigate(
+        generatePath(ROUTES.consultationHospitalSlots, {
+          specialtyId,
+          networkId: d.networkId.trim(),
+          doctorId: d.id,
+        }),
+      );
+    },
+    [navigate, specialtyId, toast],
+  );
+
+  const onViewDoctorDetail = useCallback(
+    (d: NetworkListDoctorRow) => {
+      const vendorCode = d.vendorMeta?.source?.trim() ?? "";
+      if (!d.id.trim() || !vendorCode) {
+        toast.error("Unable to open doctor details");
+        return;
+      }
+      const entry: NetworkDoctorDetailEntry = {
+        doctor: d,
+        specialtyId,
+        specialtyLabel,
+      };
+      writeNetworkDoctorDetailEntry(entry);
+      navigate(
+        generatePath(ROUTES.consultationHospitalDoctorDetail, {
+          specialtyId,
+          doctorId: d.id,
+        }),
+        { state: entry },
+      );
+    },
+    [navigate, specialtyId, specialtyLabel, toast],
+  );
+
   let doctorsScrollBody: ReactNode;
   if (specialtyIdNum == null) {
     doctorsScrollBody = (
@@ -208,110 +314,25 @@ export function ConsultationHospitalResultsPage() {
     );
   } else if (doctors.length === 0) {
     doctorsScrollBody = <div className="chr-dlist-msg">No doctors found for this specialty.</div>;
+  } else if (filteredDoctors.length === 0 && searchActive) {
+    doctorsScrollBody = (
+      <div className="chr-dlist-msg">No doctors match your search</div>
+    );
   } else {
     doctorsScrollBody = (
       <>
-        {doctors.map((d) => (
-          <div key={d.id} className="chr-dcard">
-            <div className="chr-dcard__sec chr-dcard__sec--head">
-              <div className="chr-doc">
-                <div className="chr-doc__avatar-wrap">
-                  {d.imageUrl ? (
-                    <img className="chr-doc__avatar-img" src={d.imageUrl} alt="" width={44} height={44} />
-                  ) : (
-                    <div className="chr-doc__avatar--placeholder" aria-hidden="true">
-                      <span className="chr-doc__avatar-letter">{doctorNameInitial(d.name)}</span>
-                      <span className="chr-doc__avatar-badge" aria-hidden="true">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                          <path
-                            d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 9h16v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9z"
-                            stroke="#ffffff"
-                            strokeWidth="1.75"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="chr-doc__meta">
-                  <div className="chr-doc__name-row">
-                    <span className="chr-doc__name">{d.name}</span>
-                    <span className="chr-doc__chev" aria-hidden="true">
-                      ›
-                    </span>
-                  </div>
-                  <div className="chr-doc__deg">{d.degree || "—"}</div>
-                  <div className="chr-doc__spec">{specialtyLabel}</div>
-                </div>
-              </div>
-            </div>
-
-            {d.networkName || d.networkAddress ? (
-              <div className="chr-dcard__sec chr-dcard__sec--hospital">
-                <div className="chr-dtags__hospital-row">
-                  <div className="chr-dtags__hospital-ic" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="3" width="18" height="18" rx="4" fill="#12b10f" />
-                      <path
-                        d="M12 8v8M8 12h8"
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </div>
-                  <div className="chr-dtags__hospital-copy">
-                    {d.networkName ? (
-                      <div className="chr-dtags__hospital-name">{d.networkName}</div>
-                    ) : null}
-                    {d.networkAddress ? (
-                      <div className="chr-dtags__hospital-addr-line">{d.networkAddress}</div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="chr-dcard__sec chr-dcard__sec--cta">
-              {d.expLabel ? (
-                <div className="chr-dtags__exp">
-                  <span className="chr-dtags__exp-ic" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M4 9h16v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9z"
-                        stroke="#9a9a9a"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="chr-dtags__exp-txt">{d.expLabel}</span>
-                </div>
-              ) : null}
-              <button
-                type="button"
-                className="chr-book"
-                onClick={() => {
-                  if (!d.networkId?.trim()) {
-                    toast.error("Network information is missing for this doctor.");
-                    return;
-                  }
-                  navigate(
-                    generatePath(ROUTES.consultationHospitalSlots, {
-                      specialtyId,
-                      networkId: d.networkId.trim(),
-                      doctorId: d.id,
-                    }),
-                  );
-                }}
-              >
-                Book Appointment
-              </button>
-            </div>
-          </div>
+        {filteredDoctors.map((d) => (
+          <NetworkDoctorListCard
+            key={d.id}
+            doctor={d}
+            specialtyLabel={specialtyLabel}
+            onBook={() => onBookDoctor(d)}
+            onViewDetail={
+              d.vendorMeta?.source?.trim()
+                ? () => onViewDoctorDetail(d)
+                : undefined
+            }
+          />
         ))}
         {loadingMore ? (
           <div className="chr-dlist-more" aria-busy="true">
@@ -328,6 +349,7 @@ export function ConsultationHospitalResultsPage() {
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.consultationSpecialties, { type: "at_hospital" })}
           className="chr-back"
+          onBeforeBack={clearHospitalConsultationResultsStep}
         />
         <h1 className="chr-title">At Hospital Consultation</h1>
       </header>
@@ -385,19 +407,38 @@ export function ConsultationHospitalResultsPage() {
       </div>
 
       <main className="chr-main">
-        <div className="chr-search">
-          <span className="chr-search__ic" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <div className="chr-search-row">
+          <div className="chr-search">
+            <span className="chr-search__ic" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </span>
+            <input
+              type="search"
+              className="chr-search__input"
+              placeholder="Search Doctors"
+              aria-label="Search doctors"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button
+            type="button"
+            className="chr-filter"
+            aria-label="Sort doctors"
+            onClick={() => setIsSortOpen(true)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M4 6h16M7 12h10M10 18h4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
-          </span>
-          <input
-            type="search"
-            className="chr-search__input"
-            placeholder="Search Doctors"
-            aria-label="Search doctors"
-          />
+          </button>
         </div>
         <div className="chr-dlist" aria-label="Doctors list">
           <div className="chr-dscroll hide-scrollbar" ref={dscrollRef} onScroll={onDscroll}>

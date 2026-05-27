@@ -67,6 +67,9 @@ export const ROUTES = {
   consultationVirtualSlots: "/consultation/virtual/specialties/:issueId/slots",
   consultationVirtualOverview: "/consultation/virtual/specialties/:issueId/overview",
   consultationHospitalResults: "/consultation/at_hospital/specialties/:specialtyId",
+  /** Vendor doctor profile (Practo etc.) — requires `vendor_code` / list doctor in navigation state. */
+  consultationHospitalDoctorDetail:
+    "/consultation/at_hospital/specialties/:specialtyId/doctor/:doctorId",
   consultationHospitalSlots:
     "/consultation/at_hospital/specialties/:specialtyId/appointment/:networkId/:doctorId",
   consultationHospitalOverview:

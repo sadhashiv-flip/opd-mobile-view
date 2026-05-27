@@ -59,6 +59,11 @@ import {
 import { patchGymPaymentConfirm } from "@/api/patientGymPayment";
 import { BookingConfirmationBottomSheet } from "@/components/orders/BookingConfirmationBottomSheet";
 import { LabOrderRescheduleBottomSheet } from "@/components/orders/LabOrderRescheduleBottomSheet";
+import { ConsultationQrScanInfoSheet } from "@/components/consultation/ConsultationQrScanInfoSheet";
+import { ConsultationQrScannerSheet } from "@/components/consultation/ConsultationQrScannerSheet";
+import { ConsultationVendorRescheduleBottomSheet } from "@/components/consultation/ConsultationVendorRescheduleBottomSheet";
+import { fulfillConsultationAppointment } from "@/api/patientConsultationFulfill";
+import { CONSULT_QR_COPY } from "@/constants/consultationQrCopy";
 import {
   DIAGNOSTICS_PAYMENT_DONE_EVENT,
   GYM_PAYMENT_DONE_EVENT,
@@ -502,6 +507,10 @@ export function OrderDetailsPage() {
   /** Lab collection schedule — confirm center API runs only after user accepts this dialog. */
   const [labSubOrderConfirmDialogId, setLabSubOrderConfirmDialogId] = useState<string | null>(null);
   const [labRescheduleRow, setLabRescheduleRow] = useState<LabSubOrderDetailRow | null>(null);
+  const [consultQrInfoOpen, setConsultQrInfoOpen] = useState(false);
+  const [consultQrScannerOpen, setConsultQrScannerOpen] = useState(false);
+  const [consultVendorRescheduleOpen, setConsultVendorRescheduleOpen] = useState(false);
+  const [consultQrFulfillBusy, setConsultQrFulfillBusy] = useState(false);
   /** Lab + vision/dental/vaccine: reason step then confirm (patient_app bottom sheet). */
   const [cancelSheetPhase, setCancelSheetPhase] = useState<"reason" | "confirm">("reason");
   const [confirmLabSubOrderBusyId, setConfirmLabSubOrderBusyId] = useState<string | null>(null);
@@ -1485,12 +1494,61 @@ export function OrderDetailsPage() {
   );
 
   const onConsultationScanQr = useCallback(() => {
-    toast.info("QR scan will be available soon");
-  }, [toast]);
+    const fulfillmentType = detail?.consultationQrFulfillmentType?.trim() ?? "";
+    if (!fulfillmentType) {
+      toast.error(CONSULT_QR_COPY.fulfillmentTypeMissing);
+      return;
+    }
+    setConsultQrInfoOpen(true);
+  }, [detail?.consultationQrFulfillmentType, toast]);
+
+  const onConsultationQrContinueToScan = useCallback(() => {
+    setConsultQrInfoOpen(false);
+    setConsultQrScannerOpen(true);
+  }, []);
+
+  const onConsultationQrScanned = useCallback(
+    async (qrData: string) => {
+      const appointmentId = detail?.consultationInfoId?.trim() ?? "";
+      const fulfillmentType = detail?.consultationQrFulfillmentType?.trim() ?? "";
+      if (!appointmentId) {
+        toast.error(CONSULT_QR_COPY.appointmentIdMissing);
+        return;
+      }
+      if (!fulfillmentType) {
+        toast.error(CONSULT_QR_COPY.fulfillmentTypeMissing);
+        return;
+      }
+      setConsultQrScannerOpen(false);
+      setConsultQrFulfillBusy(true);
+      try {
+        await fulfillConsultationAppointment(appointmentId, {
+          fulfillment_type: fulfillmentType,
+          qr_data: qrData,
+        });
+        toast.success(CONSULT_QR_COPY.fulfillSuccess);
+        await load();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : CONSULT_QR_COPY.fulfillFailed);
+      } finally {
+        setConsultQrFulfillBusy(false);
+      }
+    },
+    [
+      detail?.consultationInfoId,
+      detail?.consultationQrFulfillmentType,
+      load,
+      toast,
+    ],
+  );
 
   const onConsultationReschedule = useCallback(() => {
-    toast.info("Reschedule will be available soon");
-  }, [toast]);
+    if (!detail?.consultationVendorRescheduleContext) {
+      toast.error("Reschedule is not available for this appointment.");
+      return;
+    }
+    setConsultVendorRescheduleOpen(true);
+  }, [detail?.consultationVendorRescheduleContext, toast]);
 
   return (
     <div className="od-detail-page">
@@ -2235,8 +2293,13 @@ export function OrderDetailsPage() {
             (showConsultationScanQrButton(detail) || showConsultationRescheduleButton(detail)) ? (
               <section className="od-consult-actions" aria-label="Appointment actions">
                 {showConsultationScanQrButton(detail) ? (
-                  <button type="button" className="od-btn-outline-row" onClick={onConsultationScanQr}>
-                    Scan QR code
+                  <button
+                    type="button"
+                    className="od-btn-outline-row"
+                    disabled={consultQrFulfillBusy}
+                    onClick={onConsultationScanQr}
+                  >
+                    {consultQrFulfillBusy ? "Verifying…" : "Scan QR code"}
                   </button>
                 ) : null}
                 {showConsultationRescheduleButton(detail) ? (
@@ -2310,6 +2373,35 @@ export function OrderDetailsPage() {
             }
           }}
           onProceed={onBookingSheetProceed}
+        />
+      ) : null}
+
+      {detail?.isConsultationOrder && consultQrInfoOpen ? (
+        <ConsultationQrScanInfoSheet
+          open
+          fulfillmentType={detail.consultationQrFulfillmentType?.trim() ?? ""}
+          onClose={() => setConsultQrInfoOpen(false)}
+          onContinue={onConsultationQrContinueToScan}
+        />
+      ) : null}
+
+      {detail?.isConsultationOrder ? (
+        <ConsultationQrScannerSheet
+          open={consultQrScannerOpen}
+          onClose={() => setConsultQrScannerOpen(false)}
+          onScanned={(data) => void onConsultationQrScanned(data)}
+        />
+      ) : null}
+
+      {detail?.isConsultationOrder &&
+      consultVendorRescheduleOpen &&
+      detail.consultationVendorRescheduleContext ? (
+        <ConsultationVendorRescheduleBottomSheet
+          open
+          appointmentId={detail.consultationInfoId?.trim() ?? ""}
+          context={detail.consultationVendorRescheduleContext}
+          onClose={() => setConsultVendorRescheduleOpen(false)}
+          onCompleted={load}
         />
       ) : null}
 

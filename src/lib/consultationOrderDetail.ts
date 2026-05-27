@@ -1,4 +1,5 @@
 import type { InvoiceDetailModel } from "@/api/patientInvoices";
+import { isSameCalendarDayMs } from "@/utils/vendorConsultationSlots";
 
 export type ConsultationStatusBannerTone =
   | "success"
@@ -70,12 +71,14 @@ export function showConsultationFlipPrescriptionSection(detail: InvoiceDetailMod
   return Boolean(detail.consultationInfoId?.trim());
 }
 
-/** patient_app `showScanQrButton`. */
+/** patient_app `showScanQrButton` — offline, Practo, status 5, same-day slot. */
 export function showConsultationScanQrButton(detail: InvoiceDetailModel): boolean {
   return (
     detail.isConsultationOrder &&
     detail.consultationPlaceTag === "inPerson" &&
-    detail.consultationVendorCode.trim().toLowerCase() === "practo"
+    detail.consultationVendorCode.trim().toLowerCase() === "practo" &&
+    detail.consultationInfoStatus === 5 &&
+    isSameCalendarDayMs(detail.consultationScheduledStartMs)
   );
 }
 

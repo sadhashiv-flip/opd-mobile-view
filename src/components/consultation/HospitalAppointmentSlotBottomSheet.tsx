@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchNetworkSlots, type NetworkDoctorSchedule } from "@/api/networkSlots";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatNetworkBookTimeSlotForDate } from "@/utils/networkBookTimeSlot";
 import { SlotPeriodGlyph } from "@/components/slots/SlotPeriodIcon";
-import { useToast } from "@/hooks/useToast";
+import { useHospitalConsultationSlots } from "@/hooks/useHospitalConsultationSlots";
+import { persistHospitalConsultationSummaryFromSources } from "@/lib/hospitalConsultationSummary";
 import {
-  buildFiveCalendarDaysStartingTomorrow,
   filterSlotsAfterNowIfToday,
   findScheduleForDate,
   generateSlotsFromTimings,
@@ -13,6 +12,14 @@ import {
   parseTimeToMinutes,
   type GeneratedSlot,
 } from "@/utils/consultationSlotGrid";
+import {
+  formatDateKey,
+  formatVendorBookTimeSlot,
+  groupVendorSlotsByCategory,
+  slotsForVendorDate,
+  vendorSlotKey,
+  type VendorSlotPick,
+} from "@/utils/vendorConsultationSlots";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/ConsultationAppointmentSlotsPage.css";
 import "@/components/consultation/HospitalAppointmentSlotBottomSheet.css";
@@ -26,8 +33,7 @@ function formatMonthYearIST(date: Date): string {
     });
     return `${s} (IST)`;
   } catch {
-    const s = date.toLocaleString("en-IN", { month: "long", year: "numeric" });
-    return `${s} (IST)`;
+    return date.toLocaleString("en-IN", { month: "long", year: "numeric" });
   }
 }
 
@@ -39,13 +45,12 @@ function formatWeekdayShortIST(d: Date): string {
   }
 }
 
-function slotKey(s: GeneratedSlot): string {
+function legacySlotKey(s: GeneratedSlot): string {
   return `${s.timingId}-${s.minutesFromMidnight}`;
 }
 
-/** Parse `YYYY-MM-DD` prefix from stored `time_slot` (same shape as overview). */
 function parseStoredBookingDate(timeSlotApi: string): Date | null {
-  const re = /^(\d{4})-(\d{2})-(\d{2})\s/;
+  const re = /^(\d{4})-(\d{2})-(\d{2})[\s,]/;
   const m = re.exec(timeSlotApi.trim());
   if (!m) return null;
   const y = Number(m[1]);
@@ -55,9 +60,8 @@ function parseStoredBookingDate(timeSlotApi: string): Date | null {
   return new Date(y, mo - 1, d);
 }
 
-/** Time portion after date from stored `time_slot`. */
 function parseStoredBookingTimeLine(timeSlotApi: string): string | null {
-  const re = /^(\d{4})-(\d{2})-(\d{2})\s+(.+)$/;
+  const re = /^(\d{4})-(\d{2})-(\d{2})[\s,]+(.+)$/;
   const m = re.exec(timeSlotApi.trim());
   return m ? m[4].trim() : null;
 }
@@ -77,89 +81,76 @@ export function HospitalAppointmentSlotBottomSheet({
   doctorId,
   onApplied,
 }: HospitalAppointmentSlotBottomSheetProps) {
-  const toast = useToast();
-  const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
-  const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [doctorName, setDoctorName] = useState("Doctor");
-  const [networkLabel, setNetworkLabel] = useState<string | null>(null);
-  const [schedules, setSchedules] = useState<readonly NetworkDoctorSchedule[]>([]);
+  const {
+    isVendor,
+    load,
+    loadErr,
+    payload,
+    calendarDays,
+    defaultDayIdx,
+    doctorName,
+    vendorCode,
+    vendorCtx,
+  } = useHospitalConsultationSlots(networkId, doctorId, { enabled: open });
 
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
-  const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
+  const [selectedLegacySlot, setSelectedLegacySlot] = useState<GeneratedSlot | null>(null);
+  const [selectedVendorSlot, setSelectedVendorSlot] = useState<VendorSlotPick | null>(null);
+  const daysStripRef = useRef<HTMLDivElement>(null);
 
-  const fiveDays = useMemo(() => buildFiveCalendarDaysStartingTomorrow(), []);
+  const schedules = payload?.schedules ?? [];
+  const datedSlots = payload?.datedSlots ?? [];
+  const networkLabel = payload?.networkName ?? payload?.displayAddress ?? null;
 
-  useEffect(() => {
-    if (!open) return;
-    if (!networkId.trim() || !doctorId.trim()) {
-      setLoad("error");
-      setLoadErr("Missing network or doctor.");
-      return;
-    }
-    let cancelled = false;
-    setLoad("loading");
-    setLoadErr(null);
-    const run = async () => {
-      try {
-        const data = await fetchNetworkSlots(networkId, doctorId);
-        if (cancelled) return;
-        setDoctorName(data.doctor?.name ?? "Doctor");
-        setNetworkLabel(data.networkName ?? data.displayAddress);
-        try {
-          localStorage.setItem("opd-mobile-view.consultation.networkName", data.networkName ?? "");
-          localStorage.setItem(
-            "opd-mobile-view.consultation.doctorQualification",
-            data.doctor?.qualification ?? "",
-          );
-        } catch {
-          // ignore
-        }
-        setSchedules(data.schedules);
-        setSelectedDayIdx(0);
-        setSelectedSlot(null);
-        setLoad("ok");
-      } catch (e: unknown) {
-        if (cancelled) return;
-        setLoad("error");
-        const msg = e instanceof Error ? e.message : "Could not load slots";
-        setLoadErr(msg);
-        toast.error(msg);
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, networkId, doctorId, toast]);
+  const selectedCalendarDate = calendarDays[selectedDayIdx] ?? calendarDays[0];
 
-  const selectedCalendarDate = fiveDays[selectedDayIdx] ?? fiveDays[0];
-
-  const slotsForSelectedDay = useMemo(() => {
-    if (!selectedCalendarDate) return [];
+  const legacySlotsForDay = useMemo(() => {
+    if (!selectedCalendarDate || isVendor) return [];
     const sch = findScheduleForDate(schedules, selectedCalendarDate);
     if (!sch || sch.timings.length === 0) return [];
-    const raw = generateSlotsFromTimings(sch.timings);
-    return filterSlotsAfterNowIfToday(selectedCalendarDate, raw);
-  }, [schedules, selectedCalendarDate]);
+    return filterSlotsAfterNowIfToday(
+      selectedCalendarDate,
+      generateSlotsFromTimings(sch.timings),
+    );
+  }, [schedules, selectedCalendarDate, isVendor]);
 
-  const categorized = useMemo(() => groupSlotsByCategory(slotsForSelectedDay), [slotsForSelectedDay]);
+  const vendorSlotsForDay = useMemo(() => {
+    if (!selectedCalendarDate || !isVendor) return [];
+    return slotsForVendorDate(datedSlots, selectedCalendarDate);
+  }, [datedSlots, selectedCalendarDate, isVendor]);
+
+  const categorizedLegacy = useMemo(
+    () => groupSlotsByCategory(legacySlotsForDay),
+    [legacySlotsForDay],
+  );
+  const categorizedVendor = useMemo(
+    () => groupVendorSlotsByCategory(vendorSlotsForDay),
+    [vendorSlotsForDay],
+  );
+
+  const hasAnySlots = isVendor ? datedSlots.length > 0 : schedules.length > 0;
 
   const hasNoSlotsForSelectedDate =
     load === "ok" &&
     selectedCalendarDate != null &&
-    (() => {
-      const sch = findScheduleForDate(schedules, selectedCalendarDate);
-      if (!sch || sch.timings.length === 0) return true;
-      return slotsForSelectedDay.length === 0;
-    })();
+    (isVendor
+      ? vendorSlotsForDay.length === 0
+      : legacySlotsForDay.length === 0);
 
   const activeScheduleForSelected = selectedCalendarDate
     ? findScheduleForDate(schedules, selectedCalendarDate)
     : undefined;
 
-  /** Restore prior slot from localStorage — same calendar + grid as ConsultationAppointmentSlotsPage. */
   useEffect(() => {
-    if (!open || load !== "ok" || schedules.length === 0) return;
+    if (!open || load !== "ok") return;
+    setSelectedDayIdx(defaultDayIdx);
+    setSelectedLegacySlot(null);
+    setSelectedVendorSlot(null);
+    persistHospitalConsultationSummaryFromSources(payload, vendorCtx);
+  }, [open, load, defaultDayIdx, payload, vendorCtx]);
+
+  useEffect(() => {
+    if (!open || load !== "ok" || calendarDays.length === 0) return;
     let timeSlotApi = "";
     try {
       timeSlotApi = localStorage.getItem("opd-mobile-view.consultation.timeSlot")?.trim() ?? "";
@@ -172,28 +163,46 @@ export function HospitalAppointmentSlotBottomSheet({
     const timeLine = parseStoredBookingTimeLine(timeSlotApi);
     if (!bookedDate || !timeLine) return;
 
-    const dayIdx = fiveDays.findIndex((d) => isSameCalendarDay(d, bookedDate));
+    const dayIdx = calendarDays.findIndex((d) => isSameCalendarDay(d, bookedDate));
     if (dayIdx < 0) return;
 
-    const calendarDay = fiveDays[dayIdx];
-    if (calendarDay === undefined) return;
+    const calendarDay = calendarDays[dayIdx];
+    if (!calendarDay) return;
+
+    if (isVendor) {
+      const slots = slotsForVendorDate(datedSlots, calendarDay);
+      const wantMin = parseTimeToMinutes(timeLine);
+      const match = slots.find((s) => {
+        if (wantMin != null) return s.minutesFromMidnight === wantMin;
+        return s.label.trim().toLowerCase() === timeLine.trim().toLowerCase();
+      });
+      setSelectedDayIdx(dayIdx);
+      setSelectedVendorSlot(match ?? null);
+      return;
+    }
 
     const sch = findScheduleForDate(schedules, calendarDay);
     if (!sch) return;
-
-    const raw = generateSlotsFromTimings(sch.timings);
-    const filtered = filterSlotsAfterNowIfToday(calendarDay, raw);
+    const filtered = filterSlotsAfterNowIfToday(
+      calendarDay,
+      generateSlotsFromTimings(sch.timings),
+    );
     const wantMin = parseTimeToMinutes(timeLine);
-    let match: GeneratedSlot | undefined;
-    if (wantMin === null) {
-      match = filtered.find((s) => s.label.trim() === timeLine.trim());
-    } else {
-      match = filtered.find((s) => s.minutesFromMidnight === wantMin);
-    }
-
+    const match = filtered.find((s) => {
+      if (wantMin != null) return s.minutesFromMidnight === wantMin;
+      return s.label.trim() === timeLine.trim();
+    });
     setSelectedDayIdx(dayIdx);
-    setSelectedSlot(match ?? null);
-  }, [open, load, schedules, fiveDays]);
+    setSelectedLegacySlot(match ?? null);
+  }, [open, load, schedules, calendarDays, datedSlots, isVendor]);
+
+  useEffect(() => {
+    if (!open || load !== "ok") return;
+    const active = daysStripRef.current?.querySelector(".cas-day--active");
+    if (active instanceof HTMLElement) {
+      active.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [open, load, selectedDayIdx, calendarDays.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -204,30 +213,60 @@ export function HospitalAppointmentSlotBottomSheet({
     };
   }, [open]);
 
-  const selectSlot = useCallback((s: GeneratedSlot) => {
-    setSelectedSlot(s);
-  }, []);
-
-  const isSlotSelected = useCallback(
-    (s: GeneratedSlot) => selectedSlot != null && slotKey(selectedSlot) === slotKey(s),
-    [selectedSlot],
-  );
+  const canApply = isVendor
+    ? selectedVendorSlot != null && selectedCalendarDate != null
+    : selectedLegacySlot != null &&
+      selectedCalendarDate != null &&
+      activeScheduleForSelected != null;
 
   const apply = useCallback(() => {
-    if (!selectedSlot || !selectedCalendarDate || !activeScheduleForSelected) return;
+    if (!selectedCalendarDate) return;
     try {
-      localStorage.setItem("opd-mobile-view.consultation.slotId", String(selectedSlot.timingId));
-      localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedSlot.label);
-      localStorage.setItem("opd-mobile-view.consultation.dayLabel", activeScheduleForSelected.day ?? "");
-      localStorage.setItem(
-        "opd-mobile-view.consultation.timeSlot",
-        formatNetworkBookTimeSlotForDate(selectedCalendarDate, selectedSlot.label),
-      );
       localStorage.setItem("opd-mobile-view.consultation.doctorName", doctorName);
       localStorage.setItem("opd-mobile-view.consultation.networkId", networkId);
       localStorage.setItem("opd-mobile-view.consultation.doctorId", doctorId);
+      localStorage.setItem(
+        "opd-mobile-view.consultation.isVendorOffline",
+        isVendor ? "1" : "0",
+      );
       if (networkLabel?.trim()) {
         localStorage.setItem("opd-mobile-view.consultation.networkName", networkLabel.trim());
+      }
+      if (isVendor && selectedVendorSlot) {
+        const slotId =
+          selectedVendorSlot.vendorSlotId ||
+          datedSlots.find(
+            (ds) =>
+              ds.time === selectedVendorSlot.time24 &&
+              ds.date === formatDateKey(selectedCalendarDate),
+          )?.vendorSlotId ||
+          "";
+        localStorage.setItem("opd-mobile-view.consultation.slotId", slotId);
+        localStorage.setItem("opd-mobile-view.consultation.vendorSlotId", slotId);
+        localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedVendorSlot.label);
+        localStorage.setItem("opd-mobile-view.consultation.dayLabel", "");
+        localStorage.setItem(
+          "opd-mobile-view.consultation.timeSlot",
+          formatVendorBookTimeSlot(selectedCalendarDate, selectedVendorSlot.time24),
+        );
+        if (vendorCode) {
+          localStorage.setItem("opd-mobile-view.consultation.vendorCode", vendorCode);
+        }
+      } else if (selectedLegacySlot && activeScheduleForSelected) {
+        localStorage.setItem(
+          "opd-mobile-view.consultation.slotId",
+          String(selectedLegacySlot.timingId),
+        );
+        localStorage.removeItem("opd-mobile-view.consultation.vendorSlotId");
+        localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedLegacySlot.label);
+        localStorage.setItem(
+          "opd-mobile-view.consultation.dayLabel",
+          activeScheduleForSelected.day ?? "",
+        );
+        localStorage.setItem(
+          "opd-mobile-view.consultation.timeSlot",
+          formatNetworkBookTimeSlotForDate(selectedCalendarDate, selectedLegacySlot.label),
+        );
       }
     } catch {
       // ignore
@@ -235,13 +274,17 @@ export function HospitalAppointmentSlotBottomSheet({
     onApplied?.();
     onClose();
   }, [
-    selectedSlot,
     selectedCalendarDate,
-    activeScheduleForSelected,
     doctorName,
     networkId,
     doctorId,
+    isVendor,
+    selectedVendorSlot,
+    selectedLegacySlot,
+    activeScheduleForSelected,
     networkLabel,
+    datedSlots,
+    vendorCode,
     onApplied,
     onClose,
   ]);
@@ -299,8 +342,9 @@ export function HospitalAppointmentSlotBottomSheet({
                 </svg>
               </span>
               <p className="cas-alert__txt">
-                Flip Health will call and try to schedule an appointment with the doctor on the selected date
-                and time slot.
+                {isVendor
+                  ? "Pick an available slot from the dates shown below."
+                  : "Flip Health will call and try to schedule an appointment with the doctor on the selected date and time slot."}
               </p>
             </div>
 
@@ -310,10 +354,10 @@ export function HospitalAppointmentSlotBottomSheet({
                 {loadErr ?? "Could not load slots"}
               </div>
             )}
-            {load === "ok" && schedules.length === 0 && (
+            {load === "ok" && !hasAnySlots && (
               <div className="cas-loading">No open slots for this doctor right now.</div>
             )}
-            {load === "ok" && schedules.length > 0 && (
+            {load === "ok" && hasAnySlots && calendarDays.length > 0 && (
               <>
                 <div className="cas-row">
                   <div className="cas-row__left">
@@ -330,34 +374,41 @@ export function HospitalAppointmentSlotBottomSheet({
                   </div>
                 </div>
 
-                <div className="cas-days" role="radiogroup" aria-label="Choose date">
-                  {fiveDays.map((d, idx) => {
-                    const active = idx === selectedDayIdx;
-                    return (
-                      <button
-                        key={`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
-                        type="button"
-                        className={`cas-day${active ? " cas-day--active" : ""}`}
-                        role="radio"
-                        aria-checked={active}
-                        onClick={() => {
-                          setSelectedDayIdx(idx);
-                          setSelectedSlot(null);
-                        }}
-                      >
-                        <div className="cas-day__num">{d.getDate()}</div>
-                        <div className="cas-day__dow">{formatWeekdayShortIST(d)}</div>
-                      </button>
-                    );
-                  })}
+                <div
+                  ref={daysStripRef}
+                  className="cas-days-wrap hide-scrollbar"
+                  aria-label="Scroll dates horizontally"
+                >
+                  <div className="cas-days cas-days--scroll" role="radiogroup" aria-label="Choose date">
+                    {calendarDays.map((d, idx) => {
+                      const active = idx === selectedDayIdx;
+                      return (
+                        <button
+                          key={`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
+                          type="button"
+                          className={`cas-day${active ? " cas-day--active" : ""}`}
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => {
+                            setSelectedDayIdx(idx);
+                            setSelectedLegacySlot(null);
+                            setSelectedVendorSlot(null);
+                          }}
+                        >
+                          <div className="cas-day__num">{d.getDate()}</div>
+                          <div className="cas-day__dow">{formatWeekdayShortIST(d)}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="cas-divider" />
 
                 {hasNoSlotsForSelectedDate ? (
                   <div className="cas-empty-slots">No slots available for this date</div>
-                ) : (
-                  categorized.map((group) => (
+                ) : isVendor ? (
+                  categorizedVendor.map((group) => (
                     <section key={group.category} className="cas-section">
                       <div className="cas-section__head">
                         <SlotPeriodGlyph period={group.category} />
@@ -365,15 +416,46 @@ export function HospitalAppointmentSlotBottomSheet({
                       </div>
                       <div className="cas-slots" role="radiogroup" aria-label={`${group.title} slots`}>
                         {group.slots.map((s) => {
-                          const active = isSlotSelected(s);
+                          const key = vendorSlotKey(s);
+                          const active =
+                            selectedVendorSlot != null &&
+                            vendorSlotKey(selectedVendorSlot) === key;
                           return (
                             <button
-                              key={slotKey(s)}
+                              key={key}
                               type="button"
                               className={`cas-slot${active ? " cas-slot--active" : ""}`}
                               role="radio"
                               aria-checked={active}
-                              onClick={() => selectSlot(s)}
+                              onClick={() => setSelectedVendorSlot(s)}
+                            >
+                              {s.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))
+                ) : (
+                  categorizedLegacy.map((group) => (
+                    <section key={group.category} className="cas-section">
+                      <div className="cas-section__head">
+                        <SlotPeriodGlyph period={group.category} />
+                        {group.title}
+                      </div>
+                      <div className="cas-slots" role="radiogroup" aria-label={`${group.title} slots`}>
+                        {group.slots.map((s) => {
+                          const key = legacySlotKey(s);
+                          const active =
+                            selectedLegacySlot != null && legacySlotKey(selectedLegacySlot) === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              className={`cas-slot${active ? " cas-slot--active" : ""}`}
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => setSelectedLegacySlot(s)}
                             >
                               {s.label}
                             </button>
@@ -391,7 +473,7 @@ export function HospitalAppointmentSlotBottomSheet({
             <button
               type="button"
               className="cas-confirm"
-              disabled={load !== "ok" || !selectedSlot || !selectedCalendarDate}
+              disabled={load !== "ok" || !canApply}
               onClick={apply}
             >
               Confirm

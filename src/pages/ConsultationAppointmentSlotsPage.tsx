@@ -5,17 +5,24 @@ import {
   readHospitalSlotsDraft,
   writeHospitalSlotsDraft,
 } from "@/constants/consultationBookingStorage";
-import { fetchNetworkSlots, type NetworkDoctorSchedule } from "@/api/networkSlots";
 import { formatNetworkBookTimeSlotForDate } from "@/utils/networkBookTimeSlot";
 import {
-  buildFiveCalendarDaysStartingTomorrow,
   filterSlotsAfterNowIfToday,
   findScheduleForDate,
   generateSlotsFromTimings,
   groupSlotsByCategory,
   type GeneratedSlot,
 } from "@/utils/consultationSlotGrid";
+import {
+  formatVendorBookTimeSlot,
+  groupVendorSlotsByCategory,
+  slotsForVendorDate,
+  vendorSlotKey,
+  type VendorSlotPick,
+} from "@/utils/vendorConsultationSlots";
 import { SlotPeriodGlyph } from "@/components/slots/SlotPeriodIcon";
+import { useHospitalConsultationSlots } from "@/hooks/useHospitalConsultationSlots";
+import { persistHospitalConsultationSummaryFromSources } from "@/lib/hospitalConsultationSummary";
 import { useToast } from "@/hooks/useToast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./ConsultationAppointmentSlotsPage.css";
@@ -42,7 +49,7 @@ function formatWeekdayShortIST(d: Date): string {
   }
 }
 
-function slotKey(s: GeneratedSlot): string {
+function legacySlotKey(s: GeneratedSlot): string {
   return `${s.timingId}-${s.minutesFromMidnight}`;
 }
 
@@ -54,123 +61,149 @@ export function ConsultationAppointmentSlotsPage() {
   const networkId = typeof params.networkId === "string" ? params.networkId : "";
   const specialtyId = typeof params.specialtyId === "string" ? params.specialtyId : "gp";
 
-  const [load, setLoad] = useState<"loading" | "error" | "ok">("loading");
-  const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [doctorName, setDoctorName] = useState("Doctor");
-  const [schedules, setSchedules] = useState<readonly NetworkDoctorSchedule[]>([]);
+  const {
+    isVendor,
+    load,
+    loadErr,
+    payload,
+    calendarDays,
+    defaultDayIdx,
+    doctorName,
+    vendorCode,
+    vendorCtx,
+  } = useHospitalConsultationSlots(networkId, doctorId);
 
   const hospitalDraft = useMemo(
     () => readHospitalSlotsDraft(networkId, doctorId),
     [networkId, doctorId],
   );
   const [selectedDayIdx, setSelectedDayIdx] = useState(() => hospitalDraft?.selectedDayIdx ?? 0);
-  const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
+  const [selectedLegacySlot, setSelectedLegacySlot] = useState<GeneratedSlot | null>(null);
+  const [selectedVendorSlot, setSelectedVendorSlot] = useState<VendorSlotPick | null>(null);
   const pendingSlotKeyRef = useRef(hospitalDraft?.slotKey?.trim() ?? "");
+  const dayInitRef = useRef(false);
+  const daysStripRef = useRef<HTMLDivElement>(null);
 
-  const fiveDays = useMemo(() => buildFiveCalendarDaysStartingTomorrow(), []);
+  const schedules = payload?.schedules ?? [];
+  const datedSlots = payload?.datedSlots ?? [];
 
   const persistHospitalDraft = useCallback(
-    (dayIdx: number, slot: GeneratedSlot | null) => {
+    (dayIdx: number, key: string) => {
       writeHospitalSlotsDraft(networkId, doctorId, {
         selectedDayIdx: dayIdx,
-        slotKey: slot ? slotKey(slot) : "",
+        slotKey: key,
       });
     },
     [networkId, doctorId],
   );
 
   const onBeforeBack = useCallback(() => {
-    persistHospitalDraft(selectedDayIdx, selectedSlot);
-  }, [persistHospitalDraft, selectedDayIdx, selectedSlot]);
+    const key = isVendor
+      ? selectedVendorSlot
+        ? vendorSlotKey(selectedVendorSlot)
+        : ""
+      : selectedLegacySlot
+        ? legacySlotKey(selectedLegacySlot)
+        : "";
+    persistHospitalDraft(selectedDayIdx, key);
+  }, [persistHospitalDraft, selectedDayIdx, selectedLegacySlot, selectedVendorSlot, isVendor]);
 
   useEffect(() => {
-    if (!networkId.trim() || !doctorId.trim()) {
-      setLoad("error");
-      setLoadErr("Missing network or doctor.");
-      return;
+    if (load !== "ok") return;
+    if (dayInitRef.current) return;
+    dayInitRef.current = true;
+    const draft = readHospitalSlotsDraft(networkId, doctorId);
+    const maxIdx = Math.max(0, calendarDays.length - 1);
+    const dayIdx = Math.min(draft?.selectedDayIdx ?? defaultDayIdx, maxIdx);
+    setSelectedDayIdx(dayIdx);
+    pendingSlotKeyRef.current = draft?.slotKey?.trim() ?? "";
+    setSelectedLegacySlot(null);
+    setSelectedVendorSlot(null);
+    try {
+      persistHospitalConsultationSummaryFromSources(payload, vendorCtx);
+      localStorage.setItem(
+        "opd-mobile-view.consultation.isVendorOffline",
+        isVendor ? "1" : "0",
+      );
+      if (isVendor && vendorCode) {
+        localStorage.setItem("opd-mobile-view.consultation.vendorCode", vendorCode);
+      }
+    } catch {
+      // ignore
     }
-    let cancelled = false;
-    setLoad("loading");
-    setLoadErr(null);
-    void fetchNetworkSlots(networkId, doctorId)
-      .then((data) => {
-        if (cancelled) return;
-        setDoctorName(data.doctor?.name ?? "Doctor");
-        setSchedules(data.schedules);
-        const draft = readHospitalSlotsDraft(networkId, doctorId);
-        const dayIdx = Math.min(draft?.selectedDayIdx ?? 0, 4);
-        setSelectedDayIdx(dayIdx);
-        pendingSlotKeyRef.current = draft?.slotKey?.trim() ?? "";
-        setSelectedSlot(null);
-        try {
-          localStorage.setItem("opd-mobile-view.consultation.networkName", data.networkName ?? "");
-          localStorage.setItem(
-            "opd-mobile-view.consultation.doctorQualification",
-            data.doctor?.qualification ?? "",
-          );
-        } catch {
-          // ignore
-        }
-        setLoad("ok");
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setLoad("error");
-        const msg = e instanceof Error ? e.message : "Could not load slots";
-        setLoadErr(msg);
-        toast.error(msg);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [networkId, doctorId, toast]);
+  }, [load, networkId, doctorId, calendarDays.length, defaultDayIdx, payload, isVendor, vendorCode, vendorCtx]);
 
-  const selectedCalendarDate = fiveDays[selectedDayIdx] ?? fiveDays[0];
+  useEffect(() => {
+    if (load === "error" && loadErr) toast.error(loadErr);
+  }, [load, loadErr, toast]);
 
-  const slotsForSelectedDay = useMemo(() => {
-    if (!selectedCalendarDate) return [];
+  /** Keep selected date visible in the one-line horizontal strip. */
+  useEffect(() => {
+    if (load !== "ok") return;
+    const active = daysStripRef.current?.querySelector(".cas-day--active");
+    if (active instanceof HTMLElement) {
+      active.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [load, selectedDayIdx, calendarDays.length]);
+
+  const selectedCalendarDate = calendarDays[selectedDayIdx] ?? calendarDays[0];
+
+  const legacySlotsForDay = useMemo(() => {
+    if (!selectedCalendarDate || isVendor) return [];
     const sch = findScheduleForDate(schedules, selectedCalendarDate);
     if (!sch || sch.timings.length === 0) return [];
     const raw = generateSlotsFromTimings(sch.timings);
     return filterSlotsAfterNowIfToday(selectedCalendarDate, raw);
-  }, [schedules, selectedCalendarDate]);
+  }, [schedules, selectedCalendarDate, isVendor]);
 
-  const categorized = useMemo(() => groupSlotsByCategory(slotsForSelectedDay), [slotsForSelectedDay]);
+  const vendorSlotsForDay = useMemo(() => {
+    if (!selectedCalendarDate || !isVendor) return [];
+    return slotsForVendorDate(datedSlots, selectedCalendarDate);
+  }, [datedSlots, selectedCalendarDate, isVendor]);
+
+  const categorizedLegacy = useMemo(
+    () => groupSlotsByCategory(legacySlotsForDay),
+    [legacySlotsForDay],
+  );
+  const categorizedVendor = useMemo(
+    () => groupVendorSlotsByCategory(vendorSlotsForDay),
+    [vendorSlotsForDay],
+  );
 
   const hasNoSlotsForSelectedDate =
     load === "ok" &&
     selectedCalendarDate != null &&
-    (() => {
-      const sch = findScheduleForDate(schedules, selectedCalendarDate);
-      if (!sch || sch.timings.length === 0) return true;
-      return slotsForSelectedDay.length === 0;
-    })();
+    (isVendor
+      ? vendorSlotsForDay.length === 0
+      : (() => {
+          const sch = findScheduleForDate(schedules, selectedCalendarDate);
+          if (!sch || sch.timings.length === 0) return true;
+          return legacySlotsForDay.length === 0;
+        })());
 
-  const selectSlot = useCallback(
-    (s: GeneratedSlot) => {
-      setSelectedSlot(s);
-      persistHospitalDraft(selectedDayIdx, s);
-    },
-    [persistHospitalDraft, selectedDayIdx],
-  );
+  const hasAnySlots = isVendor ? datedSlots.length > 0 : schedules.length > 0;
 
   useEffect(() => {
     if (load !== "ok") return;
     const key = pendingSlotKeyRef.current.trim();
     if (!key) return;
     pendingSlotKeyRef.current = "";
-    const match = slotsForSelectedDay.find((s) => slotKey(s) === key);
-    if (match) setSelectedSlot(match);
-  }, [load, slotsForSelectedDay]);
-
-  const isSlotSelected = useCallback(
-    (s: GeneratedSlot) => selectedSlot != null && slotKey(selectedSlot) === slotKey(s),
-    [selectedSlot],
-  );
+    if (isVendor) {
+      const match = vendorSlotsForDay.find((s) => vendorSlotKey(s) === key);
+      if (match) setSelectedVendorSlot(match);
+    } else {
+      const match = legacySlotsForDay.find((s) => legacySlotKey(s) === key);
+      if (match) setSelectedLegacySlot(match);
+    }
+  }, [load, legacySlotsForDay, vendorSlotsForDay, isVendor]);
 
   const activeScheduleForSelected = selectedCalendarDate
     ? findScheduleForDate(schedules, selectedCalendarDate)
     : undefined;
+
+  const canContinue = isVendor
+    ? selectedVendorSlot != null && selectedCalendarDate != null
+    : selectedLegacySlot != null && selectedCalendarDate != null && activeScheduleForSelected != null;
 
   return (
     <div className="cas-page">
@@ -197,7 +230,9 @@ export function ConsultationAppointmentSlotsPage() {
             </svg>
           </span>
           <p className="cas-alert__txt">
-            Check the slots available for the next day if your preferred date is unavailable.
+            {isVendor
+              ? "Pick an available slot from the dates shown below."
+              : "Check the slots available for the next day if your preferred date is unavailable."}
           </p>
         </div>
 
@@ -207,10 +242,10 @@ export function ConsultationAppointmentSlotsPage() {
             {loadErr ?? "Could not load slots"}
           </div>
         )}
-        {load === "ok" && schedules.length === 0 && (
+        {load === "ok" && !hasAnySlots && (
           <div className="cas-loading">No open slots for this doctor right now.</div>
         )}
-        {load === "ok" && schedules.length > 0 && (
+        {load === "ok" && hasAnySlots && calendarDays.length > 0 && (
           <>
             <div className="cas-row">
               <div className="cas-row__left">
@@ -227,36 +262,43 @@ export function ConsultationAppointmentSlotsPage() {
               </div>
             </div>
 
-            <div className="cas-days" role="radiogroup" aria-label="Choose date">
-              {fiveDays.map((d, idx) => {
-                const active = idx === selectedDayIdx;
-                return (
-                  <button
-                    key={`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
-                    type="button"
-                    className={`cas-day${active ? " cas-day--active" : ""}`}
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => {
-                      setSelectedDayIdx(idx);
-                      setSelectedSlot(null);
-                      pendingSlotKeyRef.current = "";
-                      persistHospitalDraft(idx, null);
-                    }}
-                  >
-                    <div className="cas-day__num">{d.getDate()}</div>
-                    <div className="cas-day__dow">{formatWeekdayShortIST(d)}</div>
-                  </button>
-                );
-              })}
+            <div
+              ref={daysStripRef}
+              className="cas-days-wrap hide-scrollbar"
+              aria-label="Scroll dates horizontally"
+            >
+              <div className="cas-days cas-days--scroll" role="radiogroup" aria-label="Choose date">
+                {calendarDays.map((d, idx) => {
+                  const active = idx === selectedDayIdx;
+                  return (
+                    <button
+                      key={`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
+                      type="button"
+                      className={`cas-day${active ? " cas-day--active" : ""}`}
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => {
+                        setSelectedDayIdx(idx);
+                        setSelectedLegacySlot(null);
+                        setSelectedVendorSlot(null);
+                        pendingSlotKeyRef.current = "";
+                        persistHospitalDraft(idx, "");
+                      }}
+                    >
+                      <div className="cas-day__num">{d.getDate()}</div>
+                      <div className="cas-day__dow">{formatWeekdayShortIST(d)}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="cas-divider" />
 
             {hasNoSlotsForSelectedDate ? (
               <div className="cas-empty-slots">No slots available for this date</div>
-            ) : (
-              categorized.map((group) => (
+            ) : isVendor ? (
+              categorizedVendor.map((group) => (
                 <section key={group.category} className="cas-section">
                   <div className="cas-section__head">
                     <SlotPeriodGlyph period={group.category} />
@@ -264,15 +306,51 @@ export function ConsultationAppointmentSlotsPage() {
                   </div>
                   <div className="cas-slots" role="radiogroup" aria-label={`${group.title} slots`}>
                     {group.slots.map((s) => {
-                      const active = isSlotSelected(s);
+                      const key = vendorSlotKey(s);
+                      const active =
+                        selectedVendorSlot != null && vendorSlotKey(selectedVendorSlot) === key;
                       return (
                         <button
-                          key={slotKey(s)}
+                          key={key}
                           type="button"
                           className={`cas-slot${active ? " cas-slot--active" : ""}`}
                           role="radio"
                           aria-checked={active}
-                          onClick={() => selectSlot(s)}
+                          onClick={() => {
+                            setSelectedVendorSlot(s);
+                            persistHospitalDraft(selectedDayIdx, key);
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))
+            ) : (
+              categorizedLegacy.map((group) => (
+                <section key={group.category} className="cas-section">
+                  <div className="cas-section__head">
+                    <SlotPeriodGlyph period={group.category} />
+                    {group.title}
+                  </div>
+                  <div className="cas-slots" role="radiogroup" aria-label={`${group.title} slots`}>
+                    {group.slots.map((s) => {
+                      const key = legacySlotKey(s);
+                      const active =
+                        selectedLegacySlot != null && legacySlotKey(selectedLegacySlot) === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          className={`cas-slot${active ? " cas-slot--active" : ""}`}
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => {
+                            setSelectedLegacySlot(s);
+                            persistHospitalDraft(selectedDayIdx, key);
+                          }}
                         >
                           {s.label}
                         </button>
@@ -290,24 +368,69 @@ export function ConsultationAppointmentSlotsPage() {
         <button
           type="button"
           className="cas-confirm"
-          disabled={load !== "ok" || !selectedSlot || !selectedCalendarDate}
+          disabled={load !== "ok" || !canContinue}
           onClick={() => {
-            if (!selectedSlot || !selectedCalendarDate || !activeScheduleForSelected) return;
-            persistHospitalDraft(selectedDayIdx, selectedSlot);
+            if (!selectedCalendarDate) return;
             try {
-              localStorage.setItem("opd-mobile-view.consultation.slotId", String(selectedSlot.timingId));
-              localStorage.setItem("opd-mobile-view.consultation.slotLabel", selectedSlot.label);
-              localStorage.setItem(
-                "opd-mobile-view.consultation.dayLabel",
-                activeScheduleForSelected.day ?? "",
-              );
-              localStorage.setItem(
-                "opd-mobile-view.consultation.timeSlot",
-                formatNetworkBookTimeSlotForDate(selectedCalendarDate, selectedSlot.label),
-              );
               localStorage.setItem("opd-mobile-view.consultation.doctorName", doctorName);
               localStorage.setItem("opd-mobile-view.consultation.networkId", networkId);
               localStorage.setItem("opd-mobile-view.consultation.doctorId", doctorId);
+              localStorage.setItem(
+                "opd-mobile-view.consultation.isVendorOffline",
+                isVendor ? "1" : "0",
+              );
+              if (isVendor && selectedVendorSlot) {
+                const key = vendorSlotKey(selectedVendorSlot);
+                persistHospitalDraft(selectedDayIdx, key);
+                const slotId =
+                  selectedVendorSlot.vendorSlotId ||
+                  datedSlots.find(
+                    (ds) =>
+                      ds.time === selectedVendorSlot.time24 &&
+                      ds.date ===
+                        `${selectedCalendarDate.getFullYear()}-${String(selectedCalendarDate.getMonth() + 1).padStart(2, "0")}-${String(selectedCalendarDate.getDate()).padStart(2, "0")}`,
+                  )?.vendorSlotId ||
+                  "";
+                localStorage.setItem("opd-mobile-view.consultation.slotId", slotId);
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.vendorSlotId",
+                  slotId,
+                );
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.slotLabel",
+                  selectedVendorSlot.label,
+                );
+                localStorage.setItem("opd-mobile-view.consultation.dayLabel", "");
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.timeSlot",
+                  formatVendorBookTimeSlot(selectedCalendarDate, selectedVendorSlot.time24),
+                );
+                if (vendorCode) {
+                  localStorage.setItem("opd-mobile-view.consultation.vendorCode", vendorCode);
+                }
+              } else if (selectedLegacySlot && activeScheduleForSelected) {
+                persistHospitalDraft(selectedDayIdx, legacySlotKey(selectedLegacySlot));
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.slotId",
+                  String(selectedLegacySlot.timingId),
+                );
+                localStorage.removeItem("opd-mobile-view.consultation.vendorSlotId");
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.slotLabel",
+                  selectedLegacySlot.label,
+                );
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.dayLabel",
+                  activeScheduleForSelected.day ?? "",
+                );
+                localStorage.setItem(
+                  "opd-mobile-view.consultation.timeSlot",
+                  formatNetworkBookTimeSlotForDate(
+                    selectedCalendarDate,
+                    selectedLegacySlot.label,
+                  ),
+                );
+              }
             } catch {
               // ignore
             }

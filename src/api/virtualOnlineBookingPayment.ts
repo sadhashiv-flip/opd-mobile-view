@@ -22,10 +22,13 @@ function formatInr(amount: number): string {
   return `₹ ${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** patient_app `OnlineBookingPaymentSheet` row model from `POST /appointment/book` preview. */
+/** Shared payment sheet model — virtual `book` and at-hospital `network_book` previews. */
 export type VirtualOnlinePaymentSheetModel = Readonly<{
+  title: string;
   consultationFeeFormatted: string;
   walletDebitFormatted: string | null;
+  /** Shown when API returns paid_amount distinct from wallet (offline flow). */
+  paidAmountFormatted: string | null;
   totalPayable: number;
   totalPayableFormatted: string;
   paymentRequired: boolean;
@@ -49,8 +52,10 @@ export function mapOnlineBookPreviewToPaymentSheet(
     : "Note: No payment is required for this consultation. Proceed to confirm your booking.";
 
   return {
+    title: "Booking confirmation",
     consultationFeeFormatted: formatInr(price),
     walletDebitFormatted: usedWallet > 0 ? `- ${formatInr(usedWallet)}` : null,
+    paidAmountFormatted: null,
     totalPayable: payable,
     totalPayableFormatted: formatInr(payable),
     paymentRequired,

@@ -1,0 +1,85 @@
+.consult-qr-info-dialog .consult-qr-info {
+  width: min(360px, calc(100vw - 48px));
+  margin: auto;
+  background: #fff;
+  border-radius: 24px;
+  padding: 20px 22px 24px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.consult-qr-info__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.consult-qr-info__badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 84, 30, 0.12);
+  color: #ff541e;
+}
+
+.consult-qr-info--upi .consult-qr-info__badge {
+  background: rgba(33, 150, 243, 0.12);
+  color: #1976d2;
+}
+
+.consult-qr-info__title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  color: #1a1a1a;
+}
+
+.consult-qr-info__message {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #555;
+  text-align: center;
+}
+
+.consult-qr-info__tips {
+  margin: 0 0 20px;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #666;
+}
+
+.consult-qr-info__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.consult-qr-info__secondary,
+.consult-qr-info__primary {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.consult-qr-info__secondary {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.consult-qr-info__primary {
+  background: #ff541e;
+  color: #fff;
+}
+
+.consult-qr-info--upi .consult-qr-info__primary {
+  background: #1976d2;
+}

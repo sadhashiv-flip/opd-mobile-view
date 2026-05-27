@@ -42,7 +42,7 @@ export function VirtualOnlineBookingPaymentSheet({
       <section className="od-bc-panel vc-pay-sheet">
         <header className="od-bc-panel__header">
           <h2 id="vc-pay-sheet-title" className="od-bc-panel__title">
-            Booking confirmation
+            {model?.title?.trim() || "Booking confirmation"}
           </h2>
           <button type="button" className="od-bc-panel__close" aria-label="Close" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -71,8 +71,14 @@ export function VirtualOnlineBookingPaymentSheet({
               </div>
               {model.walletDebitFormatted ? (
                 <div className="vc-pay-row">
-                  <span className="vc-pay-row__k">Using from wallet</span>
+                  <span className="vc-pay-row__k">Using from OPD wallet</span>
                   <span className="vc-pay-row__v">{model.walletDebitFormatted}</span>
+                </div>
+              ) : null}
+              {model.paidAmountFormatted ? (
+                <div className="vc-pay-row">
+                  <span className="vc-pay-row__k">Paid amount</span>
+                  <span className="vc-pay-row__v">{model.paidAmountFormatted}</span>
                 </div>
               ) : null}
               <div className="vc-pay-divider" aria-hidden />

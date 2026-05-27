@@ -19,6 +19,15 @@ export type FetchNetworkListParams = Readonly<{
   speciality_id: number;
   page: number;
   limit: number;
+  /** patient_app `getNearbyDoctors` — selected family member / self id. */
+  user_id?: string;
+}>;
+
+export type NetworkListVendorMeta = Readonly<{
+  source: string;
+  price: number | null;
+  timings: string;
+  isCashless: boolean;
 }>;
 
 export type NetworkListDoctorRow = Readonly<{
@@ -28,15 +37,19 @@ export type NetworkListDoctorRow = Readonly<{
   networkId: string;
   name: string;
   degree: string;
+  gender: string;
   /** e.g. "21+ years exp" */
   expLabel: string;
   networkName: string;
   /** Clinic / hospital address when provided by API. */
   networkAddress: string;
+  networkCoordinates: string;
   consultationFee: number;
   /** Minutes from speciality `jsonVault` / API when present. */
   consultationTime: number | null;
   imageUrl: string | null;
+  /** Practo / vendor doctors — drives vendor slot + book flow. */
+  vendorMeta: NetworkListVendorMeta | null;
 }>;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -134,6 +147,48 @@ function extractConsultationFromSpecialities(
   };
 }
 
+function parseVendorMeta(raw: unknown): NetworkListVendorMeta | null {
+  const o = asRecord(raw);
+  if (!o) return null;
+  const source = str(o.source) ?? str(o.vendor_code) ?? "";
+  if (!source) return null;
+  return {
+    source,
+    price: num(o.price),
+    timings: str(o.timings) ?? "",
+    isCashless: o.is_cashless === true,
+  };
+}
+
+/** Top-level `vendor_code` when `vendor_meta` is absent (some list payloads). */
+function vendorMetaFromDoctorRow(r: Record<string, unknown>): NetworkListVendorMeta | null {
+  const fromMeta = parseVendorMeta(r.vendor_meta);
+  if (fromMeta) return fromMeta;
+  const code = str(r.vendor_code) ?? str(r.vendorCode);
+  if (!code) return null;
+  return {
+    source: code,
+    price: num(r.consultation_price) ?? num(r.price),
+    timings: "",
+    isCashless: false,
+  };
+}
+
+function parseNetworkCoordinates(net: Record<string, unknown> | null, r: Record<string, unknown>): string {
+  if (net) {
+    const direct = str(net.coordinates);
+    if (direct) return direct;
+    const addr = asRecord(net.address);
+    if (addr) {
+      const nested = str(addr.coordinates) ?? str(addr.location);
+      if (nested) return nested;
+    }
+    const display = str(net.display_address);
+    if (display) return display;
+  }
+  return str(r.coordinates) ?? "";
+}
+
 function formatExperienceLabel(r: Record<string, unknown>): string {
   const years = num(r.experience);
   if (years != null) return `${years}+ years exp`;
@@ -195,18 +250,26 @@ function normalizeDoctorRow(raw: unknown, index: number, specialityId: number): 
   const imageRaw =
     str(r.image) ?? str(r.photo) ?? str(r.profile_image) ?? str(r.avatar) ?? str(r.profileImage) ?? null;
   const imageUrl = resolveProfileImageUrl(imageRaw);
+  const vendorMeta = vendorMetaFromDoctorRow(r);
+  const gender = str(r.gender) ?? "";
+  const networkCoordinates = parseNetworkCoordinates(net, r);
+  const displayAddress =
+    str(net?.display_address) ?? networkAddress;
 
   return {
     id,
     networkId,
     name,
     degree,
+    gender,
     expLabel,
     networkName,
-    networkAddress,
-    consultationFee,
+    networkAddress: displayAddress || networkAddress,
+    networkCoordinates,
+    consultationFee: vendorMeta?.price ?? consultationFee,
     consultationTime,
     imageUrl,
+    vendorMeta,
   };
 }
 
@@ -238,11 +301,14 @@ export async function fetchNetworkDoctorListPage(
   params: FetchNetworkListParams,
   init?: { skipGlobalLoading?: boolean },
 ): Promise<NetworkListDoctorRow[]> {
-  const query = [
+  const parts = [
     `location=${encodeLocationQueryParam(params.location)}`,
     `service=${encodeURIComponent(params.service)}`,
     `speciality_id=${encodeURIComponent(String(params.speciality_id))}`,
-  ].join("&");
+  ];
+  const userId = params.user_id?.trim();
+  if (userId) parts.push(`user_id=${encodeURIComponent(userId)}`);
+  const query = parts.join("&");
   const raw = await patientJsonList<unknown>(
     `network/list?${query}`,
     {

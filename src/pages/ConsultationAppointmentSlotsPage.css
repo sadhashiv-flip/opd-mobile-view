@@ -481,8 +481,10 @@
 .cas-days-wrap {
   margin-top: 12px;
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+  touch-action: pan-x;
 }
 
 .cas-days {
@@ -501,13 +503,14 @@
   flex-wrap: nowrap;
   gap: 10px;
   width: max-content;
-  min-width: 100%;
   padding-bottom: 4px;
+  align-items: stretch;
 }
 
 .cas-days--scroll .cas-day {
   flex: 0 0 auto;
   min-width: 56px;
+  width: 56px;
 }
 
 .cas-day {

@@ -954,6 +954,8 @@ export type InvoiceDetailModel = Readonly<{
   consultationNetworkPrescriptionUrls: readonly string[];
   /** Vendor code from `additional_info` / `info` — Practo QR, reschedule. */
   consultationVendorCode: string;
+  /** `additional_info.vendor_meta.fulfillment_type` — QR fulfill POST (`PRACTO`, `UPI`, …). */
+  consultationQrFulfillmentType: string | null;
   /** Offline vendor reschedule slot fetch context. */
   consultationVendorRescheduleContext: ConsultationVendorRescheduleContext | null;
   /** Parsed appointment start (ms) for reschedule CTA. */
@@ -2889,6 +2891,16 @@ function parseConsultationVendorCode(info: Record<string, unknown>): string {
   return str(info.vendor_code)?.trim() ?? "";
 }
 
+function parseConsultationQrFulfillmentType(info: Record<string, unknown>): string | null {
+  const add = asRecord(info.additional_info);
+  if (!add) return null;
+  const vm = asRecord(add.vendor_meta);
+  const fromMeta = vm ? str(vm.fulfillment_type)?.trim() : null;
+  if (fromMeta) return fromMeta;
+  const direct = str(add.fulfillment_type)?.trim();
+  return direct ?? null;
+}
+
 function parseConsultationVendorRescheduleContext(
   info: Record<string, unknown>,
 ): ConsultationVendorRescheduleContext | null {
@@ -2915,18 +2927,34 @@ function parseConsultationVendorRescheduleContext(
   return { vendorCode, networkId, doctorId };
 }
 
+function parseConsultationTimeSlotToMs(ts: string): number | null {
+  const raw = ts.trim();
+  if (!raw) return null;
+  let d = Date.parse(raw);
+  if (!Number.isNaN(d)) return d;
+  if (raw.includes(",") && !raw.includes("T")) {
+    d = Date.parse(raw.replace(/^(\d{4}-\d{2}-\d{2}),\s*/, "$1T"));
+    if (!Number.isNaN(d)) return d;
+  }
+  if (raw.includes(" ") && !raw.includes("T")) {
+    d = Date.parse(raw.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T"));
+    if (!Number.isNaN(d)) return d;
+  }
+  return null;
+}
+
 function consultationScheduledStartMsFromInfo(info: Record<string, unknown>): number | null {
   const fromSlot = consultationSlotStartMsFromInfo(info);
   if (fromSlot != null) return fromSlot;
   const add = asRecord(info.additional_info);
   const book = add ? asRecord(add.booking_details) : null;
-  const ts = book ? str(book.time_slot)?.trim() : null;
+  const ts =
+    (book ? str(book.time_slot)?.trim() : null) ??
+    (add ? str(add.time_slot)?.trim() : null) ??
+    str(info.time_slot)?.trim() ??
+    null;
   if (!ts) return null;
-  let d = Date.parse(ts);
-  if (Number.isNaN(d) && ts.includes(" ") && !ts.includes("T")) {
-    d = Date.parse(ts.replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T"));
-  }
-  return Number.isNaN(d) ? null : d;
+  return parseConsultationTimeSlotToMs(ts);
 }
 
 function parseConsultationOrderBookingUi(info: Record<string, unknown>): ConsultationOrderBookingUi {
@@ -3381,6 +3409,10 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     isConsultationInvoice && infoForStatus != null
       ? parseConsultationVendorCode(infoForStatus)
       : "";
+  const consultationQrFulfillmentTypeResolved =
+    isConsultationInvoice && infoForStatus != null
+      ? parseConsultationQrFulfillmentType(infoForStatus)
+      : null;
   const consultationVendorRescheduleContextResolved =
     isConsultationInvoice && infoForStatus != null
       ? parseConsultationVendorRescheduleContext(infoForStatus)
@@ -3600,6 +3632,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationOfflineReschedule: consultationOfflineRescheduleResolved,
     consultationNetworkPrescriptionUrls: consultationNetworkPrescriptionUrlsResolved,
     consultationVendorCode: consultationVendorCodeResolved,
+    consultationQrFulfillmentType: consultationQrFulfillmentTypeResolved,
     consultationVendorRescheduleContext: consultationVendorRescheduleContextResolved,
     consultationScheduledStartMs: consultationScheduledStartMsResolved,
     consultationAttachments,

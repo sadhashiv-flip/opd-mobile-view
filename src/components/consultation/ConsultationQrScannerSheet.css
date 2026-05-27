@@ -1,0 +1,43 @@
+.consult-qr-scanner-dialog .consult-qr-scanner {
+  width: min(400px, calc(100vw - 32px));
+  margin: auto;
+  background: #111;
+  color: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.consult-qr-scanner__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 8px;
+}
+
+.consult-qr-scanner__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.consult-qr-scanner__hint {
+  margin: 0 16px 12px;
+  font-size: 13px;
+  color: #ccc;
+  text-align: center;
+}
+
+.consult-qr-scanner__reader {
+  min-height: 280px;
+  background: #000;
+}
+
+.consult-qr-scanner__err {
+  margin: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffb4a2;
+  font-size: 14px;
+  text-align: center;
+}

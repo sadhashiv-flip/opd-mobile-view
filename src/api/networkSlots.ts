@@ -1,4 +1,5 @@
 import { patientJson } from "@/api/patientHttp";
+import { parseVendorDatedSlotsFromDoctorJson } from "@/utils/vendorConsultationSlots";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
@@ -17,8 +18,16 @@ export type NetworkDoctorSchedule = Readonly<{
   timings: readonly NetworkSlotTiming[];
 }>;
 
+/** Date-specific slot from vendor network API (e.g. Practo). */
+export type VendorDatedSlot = Readonly<{
+  date: string;
+  time: string;
+  vendorSlotId: string;
+}>;
+
 /** Normalized payload for hospital slot booking UI. */
 export type NetworkSlotsPayload = Readonly<{
+  networkId: string | null;
   networkName: string | null;
   displayAddress: string | null;
   doctor: Readonly<{
@@ -26,8 +35,10 @@ export type NetworkSlotsPayload = Readonly<{
     name: string;
     qualification: string | null;
   }> | null;
-  /** Doctor-level schedules (preferred for slot picking). */
+  /** Doctor-level schedules (legacy Flip/partner flow). */
   schedules: readonly NetworkDoctorSchedule[];
+  /** Vendor API discrete slots per date. */
+  datedSlots: readonly VendorDatedSlot[];
 }>;
 
 function normalizeTimings(raw: unknown): NetworkSlotTiming[] {
@@ -84,19 +95,26 @@ function parsePayload(body: unknown, doctorId: string | number): NetworkSlotsPay
   const data = asRecord(root?.data) ?? asRecord(body);
   if (!data) {
     return {
+      networkId: null,
       networkName: null,
       displayAddress: null,
       doctor: null,
       schedules: [],
+      datedSlots: [],
     };
   }
 
+  const networkId =
+    typeof data.id === "number" || typeof data.id === "string"
+      ? String(data.id)
+      : null;
   const networkName = typeof data.name === "string" ? data.name : null;
   const displayAddress = typeof data.display_address === "string" ? data.display_address : null;
 
   const doc = pickDoctorNetwork(data.network_doctor, doctorId);
   let doctor: NetworkSlotsPayload["doctor"] = null;
   let schedules: readonly NetworkDoctorSchedule[] = [];
+  let datedSlots: readonly VendorDatedSlot[] = [];
 
   if (doc) {
     const did = typeof doc.id === "number" ? doc.id : Number(doc.id);
@@ -106,23 +124,37 @@ function parsePayload(body: unknown, doctorId: string | number): NetworkSlotsPay
       doctor = { id: did, name, qualification };
     }
     schedules = normalizeSchedules(doc.schedules);
+    datedSlots = parseVendorDatedSlotsFromDoctorJson(doc);
   }
 
   return {
+    networkId,
     networkName,
     displayAddress,
     doctor,
     schedules,
+    datedSlots,
   };
 }
 
-/** GET `/network/slots/:network_id?doctor_id=` */
+export type FetchNetworkSlotsOptions = Readonly<{
+  vendorCode?: string;
+  /** patient_app always sends `user_id` for booking slots; omit for reschedule-only calls. */
+  userId?: string;
+}>;
+
+/** GET `/network/slots/:network_id?doctor_id=&vendor_code=&user_id=` */
 export async function fetchNetworkSlots(
   networkId: string,
   doctorId: string | number,
+  options?: FetchNetworkSlotsOptions,
 ): Promise<NetworkSlotsPayload> {
   const q = new URLSearchParams();
   q.set("doctor_id", String(doctorId));
+  const vc = options?.vendorCode?.trim();
+  if (vc) q.set("vendor_code", vc);
+  const uid = options?.userId?.trim();
+  if (uid) q.set("user_id", uid);
   const raw = await patientJson<unknown>(
     `network/slots/${encodeURIComponent(networkId)}?${q.toString()}`,
     { method: "GET" },

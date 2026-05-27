@@ -69,6 +69,13 @@ export function writeConsultSelectedMembersSnapshots(members: ConsultationSelect
   }
 }
 
+/** Primary selected member id string — `user_id` on network list/slots (patient_app `MemberController.selectedUserId`). */
+export function readConsultSelectedPersonId(): string | null {
+  const ids = readConsultSelectedPersonIds();
+  const id = ids[0]?.trim();
+  return id || null;
+}
+
 /** Primary selected member id for booking APIs (`patient_id`). */
 export function readConsultSelectedPersonIdNumber(): number | null {
   try {

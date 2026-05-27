@@ -5,6 +5,7 @@ import { ProfileMembersAddPage } from "@/pages/ProfileMembersAddPage";
 import { BookingSuccessPage } from "../pages/BookingSuccessPage";
 import { ConsultationAppointmentSlotsPage } from "../pages/ConsultationAppointmentSlotsPage";
 import { ConsultationAppointmentOverviewPage } from "../pages/ConsultationAppointmentOverviewPage";
+import { ConsultationNetworkDoctorDetailPage } from "@/pages/ConsultationNetworkDoctorDetailPage";
 import { DiagnosticsScreenPage } from "../pages/DiagnosticsScreenPage";
 import { DiagnosticsSlotsPage } from "../pages/DiagnosticsSlotsPage";
 import { ConsultationSpecialtiesPage } from "../pages/ConsultationSpecialtiesPage";
@@ -192,6 +193,10 @@ export function AppRoutes() {
       <Route path={ROUTES.consultationVirtualSlots} element={<ConsultationVirtualSlotsPage />} />
       <Route path={ROUTES.consultationVirtualOverview} element={<ConsultationVirtualAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalResults} element={<ConsultationHospitalResultsPage />} />
+      <Route
+        path={ROUTES.consultationHospitalDoctorDetail}
+        element={<ConsultationNetworkDoctorDetailPage />}
+      />
       <Route path={ROUTES.consultationHospitalSlots} element={<ConsultationAppointmentSlotsPage />} />
       <Route path={ROUTES.consultationHospitalOverview} element={<ConsultationAppointmentOverviewPage />} />
       <Route path={ROUTES.consultationHospitalBookingSuccess} element={<BookingSuccessCanonicalRedirect />} />

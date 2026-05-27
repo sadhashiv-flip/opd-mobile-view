@@ -11,6 +11,15 @@ import {
 } from "@/constants/diagnosticsLabFlowStorage";
 import { clearPharmacyFlipRxSelection } from "@/constants/pharmacyFlipRxSelectionStorage";
 import { clearPharmacyReviewDraft } from "@/constants/pharmacyReviewDraft";
+import {
+  clearHospitalConsultationBookingState,
+  clearHospitalConsultationSlotPicks,
+} from "@/lib/hospitalConsultationFlowCleanup";
+
+export {
+  clearHospitalConsultationBookingState,
+  clearHospitalConsultationSlotPicks,
+} from "@/lib/hospitalConsultationFlowCleanup";
 
 /** Step 3+ in lab flow (slots, overview). */
 export function clearLabSlotStep(): void {
@@ -78,4 +87,14 @@ export function clearPharmacyDownstreamFromPrescriptionSelect(): void {
 /** Back from order review → prescription list (keep RX picks, drop review draft). */
 export function clearPharmacyReviewStep(): void {
   clearPharmacyReviewDraft();
+}
+
+/** Back from overview → slots (keep doctor/network context). */
+export function clearHospitalConsultationOverviewStep(): void {
+  clearHospitalConsultationSlotPicks();
+}
+
+/** Back from doctor list → specialties. */
+export function clearHospitalConsultationResultsStep(): void {
+  clearHospitalConsultationBookingState();
 }

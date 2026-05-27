@@ -141,3 +141,87 @@ export function writeHospitalSlotsDraft(
     // ignore
   }
 }
+
+/** Vendor meta from network list (`vendor_meta` on doctor row). */
+export type HospitalVendorMeta = Readonly<{
+  source: string;
+  price: number | null;
+  timings: string;
+  isCashless: boolean;
+}>;
+
+export type HospitalNetworkSnapshot = Readonly<{
+  name: string;
+  displayAddress: string;
+  coordinates: string;
+}>;
+
+export type HospitalDoctorSnapshot = Readonly<{
+  id: string;
+  name: string;
+  gender: string;
+  qualification: string;
+}>;
+
+export type HospitalVendorBookingContext = Readonly<{
+  vendorMeta: HospitalVendorMeta;
+  practiceId: string;
+  network: HospitalNetworkSnapshot;
+  doctor: HospitalDoctorSnapshot;
+}>;
+
+const HOSPITAL_VENDOR_CONTEXT_KEY = "opd-mobile-view.consultation.hospitalVendorContext";
+
+export function writeHospitalVendorBookingContext(
+  ctx: HospitalVendorBookingContext | null,
+): void {
+  try {
+    if (!ctx) {
+      sessionStorage.removeItem(HOSPITAL_VENDOR_CONTEXT_KEY);
+      return;
+    }
+    sessionStorage.setItem(HOSPITAL_VENDOR_CONTEXT_KEY, JSON.stringify(ctx));
+  } catch {
+    // ignore
+  }
+}
+
+export function readHospitalVendorBookingContext(): HospitalVendorBookingContext | null {
+  try {
+    const raw = sessionStorage.getItem(HOSPITAL_VENDOR_CONTEXT_KEY)?.trim();
+    if (!raw) return null;
+    const p = JSON.parse(raw) as Partial<HospitalVendorBookingContext>;
+    const vm = p.vendorMeta;
+    if (!vm || typeof vm.source !== "string" || !vm.source.trim()) return null;
+    const network = p.network;
+    const doctor = p.doctor;
+    if (!network || !doctor) return null;
+    return {
+      vendorMeta: {
+        source: vm.source.trim(),
+        price: typeof vm.price === "number" && Number.isFinite(vm.price) ? vm.price : null,
+        timings: typeof vm.timings === "string" ? vm.timings : "",
+        isCashless: vm.isCashless === true,
+      },
+      practiceId: typeof p.practiceId === "string" ? p.practiceId.trim() : "",
+      network: {
+        name: typeof network.name === "string" ? network.name : "",
+        displayAddress:
+          typeof network.displayAddress === "string" ? network.displayAddress : "",
+        coordinates: typeof network.coordinates === "string" ? network.coordinates : "",
+      },
+      doctor: {
+        id: typeof doctor.id === "string" ? doctor.id : "",
+        name: typeof doctor.name === "string" ? doctor.name : "",
+        gender: typeof doctor.gender === "string" ? doctor.gender : "",
+        qualification: typeof doctor.qualification === "string" ? doctor.qualification : "",
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearHospitalVendorBookingContext(): void {
+  writeHospitalVendorBookingContext(null);
+}
