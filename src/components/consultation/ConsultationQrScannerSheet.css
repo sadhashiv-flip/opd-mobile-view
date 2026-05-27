@@ -32,12 +32,59 @@
   background: #000;
 }
 
-.consult-qr-scanner__err {
+.consult-qr-scanner__status {
+  margin: 0 16px 12px;
+  font-size: 14px;
+  color: #aaa;
+  text-align: center;
+}
+
+.consult-qr-scanner__blocked {
   margin: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.consult-qr-scanner__err {
+  margin: 0;
   padding: 12px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.08);
   color: #ffb4a2;
   font-size: 14px;
   text-align: center;
+}
+
+.consult-qr-scanner__secure-url {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.consult-qr-scanner__secure-link {
+  display: block;
+  word-break: break-all;
+  font-size: 13px;
+  color: #b8a8ff;
+  text-decoration: underline;
+}
+
+.consult-qr-scanner__secure-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.4;
+}
+
+.consult-qr-scanner__retry {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary, #6b4ce6);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
 }

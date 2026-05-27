@@ -64,6 +64,7 @@ import { ConsultationQrScannerSheet } from "@/components/consultation/Consultati
 import { ConsultationVendorRescheduleBottomSheet } from "@/components/consultation/ConsultationVendorRescheduleBottomSheet";
 import { fulfillConsultationAppointment } from "@/api/patientConsultationFulfill";
 import { CONSULT_QR_COPY } from "@/constants/consultationQrCopy";
+import { requestCameraAccess } from "@/lib/requestCameraAccess";
 import {
   DIAGNOSTICS_PAYMENT_DONE_EVENT,
   GYM_PAYMENT_DONE_EVENT,
@@ -1502,10 +1503,15 @@ export function OrderDetailsPage() {
     setConsultQrInfoOpen(true);
   }, [detail?.consultationQrFulfillmentType, toast]);
 
-  const onConsultationQrContinueToScan = useCallback(() => {
+  const onConsultationQrContinueToScan = useCallback(async () => {
+    const result = await requestCameraAccess();
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
     setConsultQrInfoOpen(false);
     setConsultQrScannerOpen(true);
-  }, []);
+  }, [toast]);
 
   const onConsultationQrScanned = useCallback(
     async (qrData: string) => {

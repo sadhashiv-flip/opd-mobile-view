@@ -2,6 +2,18 @@ export const CONSULT_QR_COPY = {
   scannerTitle: "Scan QR code",
   alignHint: "Align the QR code within the frame to scan",
   cameraPermissionRequired: "Camera permission is required to scan QR code",
+  cameraPermissionDenied:
+    "Camera access was denied. Allow camera permission in your browser settings, then try again.",
+  cameraNotSupported:
+    "Camera is not available in this browser. Try Microsoft Edge (Chromium) or Chrome, and allow camera access for this site in browser settings.",
+  cameraRequiresHttps:
+    "Camera needs HTTPS on mobile. On your phone, open this exact URL (not http://):",
+  cameraRequiresHttpsHint:
+    "Accept the security warning once, then allow camera when prompted.",
+  cameraNotFound: "No camera was found on this device.",
+  requestingCamera: "Requesting camera access…",
+  allowCameraAccess: "Allow camera access",
+  tryAgain: "Try again",
   fulfillmentTypeMissing: "Fulfillment type is not available for this appointment",
   practoTitle: "Scan Practo QR code",
   upiTitle: "Scan UPI QR to pay",

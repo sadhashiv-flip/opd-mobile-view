@@ -1,10 +1,35 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 const srcDir = fileURLToPath(new URL("./src", import.meta.url));
+
+/**
+ * Node 22.21.0 crashes on HTTPS WebSocket upgrade (Vite HMR) — https://github.com/nodejs/node/issues/60336
+ * Fixed in Node 22.21.1+.
+ */
+function isNodeHttpsWebsocketUpgradeBroken() {
+  const parts = process.versions.node.split(".").map((s) => Number.parseInt(s, 10));
+  const [major = 0, minor = 0, patch = 0] = parts;
+  return major === 22 && minor === 21 && patch === 0;
+}
+
+/** Hostnames/IPs included in the dev TLS cert (localhost + active LAN IPv4). */
+function getDevLanHosts() {
+  const hosts = ["localhost", "127.0.0.1"];
+  for (const ifaces of Object.values(os.networkInterfaces())) {
+    for (const net of ifaces ?? []) {
+      if (net.family === "IPv4" && !net.internal) {
+        hosts.push(net.address);
+      }
+    }
+  }
+  return [...new Set(hosts)];
+}
 
 /** Must match `firebase` in package.json (compat CDN importScripts). */
 const FIREBASE_JS_VERSION = "12.12.0";
@@ -455,6 +480,55 @@ function spaNavigationAcceptPatchPlugin() {
   };
 }
 
+/** Prints LAN https URLs so mobile web can use camera / QR over Wi‑Fi. */
+function logMobileLanHttpsUrlsPlugin() {
+  return {
+    name: "log-mobile-lan-https-urls",
+    configureServer(server) {
+      server.httpServer?.once("listening", () => {
+        const useHttps = Boolean(server.config.server.https);
+        const port = server.config.server.port ?? 3000;
+        if (!useHttps) {
+          console.warn(
+            "\n[dev] HTTPS is off — camera / QR scan will NOT work on a phone using http://<LAN-IP>.\n" +
+              "      Remove VITE_DEV_SERVER_HTTPS=false from .env and restart.\n",
+          );
+          return;
+        }
+        if (isNodeHttpsWebsocketUpgradeBroken()) {
+          console.warn(
+            `\n[dev] Node ${process.versions.node} breaks HTTPS + hot reload (server crash on phone/browser open).\n` +
+              "      Upgrade to Node 22.21.1 or newer (https://nodejs.org/en/download), then restart.\n" +
+              "      HMR is disabled for this session so https:// LAN testing still works.\n",
+          );
+        }
+        import("node:os")
+          .then((os) => {
+            const ips = [];
+            for (const ifaces of Object.values(os.networkInterfaces())) {
+              for (const net of ifaces ?? []) {
+                if (net.family === "IPv4" && !net.internal) {
+                  ips.push(net.address);
+                }
+              }
+            }
+            if (ips.length === 0) return;
+            console.info("\n[dev] Mobile QR / camera — open on your phone (same Wi‑Fi):\n");
+            for (const ip of ips) {
+              console.info(`      https://${ip}:${port}/`);
+            }
+            console.info(
+              "\n      Use https:// (not http://). Accept the certificate warning once, then allow camera.\n",
+            );
+          })
+          .catch(() => {
+            // ignore
+          });
+      });
+    },
+  };
+}
+
 /** Optional dev-only proxy to avoid browser CORS when the app and API are on different origins. */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -465,10 +539,26 @@ export default defineConfig(({ mode }) => {
     env.VITE_DEV_SERVER_HTTPS === "0" ||
     env.VITE_DEV_SERVER_HTTPS === "no";
   const devHttps = !devHttpsOff;
+  const disableHmr =
+    devHttps && isNodeHttpsWebsocketUpgradeBroken();
+
+  const devPlugins = [
+    spaNavigationAcceptPatchPlugin(),
+    logMobileLanHttpsUrlsPlugin(),
+  ];
+  if (devHttps) {
+    devPlugins.push(
+      basicSsl({
+        name: "opd-mobile-dev",
+        domains: getDevLanHosts(),
+      }),
+    );
+  }
+  devPlugins.push(react(), firebaseMessagingSwPlugin());
 
   return {
     appType: "spa",
-    plugins: [spaNavigationAcceptPatchPlugin(), react(), firebaseMessagingSwPlugin()],
+    plugins: devPlugins,
     resolve: {
       alias: {
         "@": srcDir,
@@ -481,6 +571,8 @@ export default defineConfig(({ mode }) => {
       /** Allow any Host header (localhost, LAN IP, .local names) — avoids dev-only 403 from host checks. */
       allowedHosts: true,
       ...(devHttps ? { https: true } : {}),
+      /** Prevents Node 22.21.0 crash when a client opens https:// (HMR WebSocket upgrade). */
+      ...(disableHmr ? { hmr: false } : {}),
       ...(proxyTarget
         ? {
             proxy: {
