@@ -249,6 +249,11 @@
   word-break: break-word;
 }
 
+.od-sr-summary-row__value--address {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 .od-sr-line {
   display: flex;
   align-items: flex-start;
@@ -305,6 +310,8 @@
   font-size: 0.75rem;
   color: #757575;
   line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .od-sr-center-map-icon {

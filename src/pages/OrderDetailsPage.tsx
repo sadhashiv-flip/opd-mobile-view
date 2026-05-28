@@ -137,6 +137,7 @@ import {
 } from "@/lib/orderDetailRoutes";
 import { generatePath, useLocation, useNavigate, useParams, type NavigateFunction } from "react-router-dom";
 import "./OrderDetailsPage.css";
+import { MaterialIcon } from "@/components/icons/MaterialIcon";
 
 function inferVisionBookingSuccessType(
   detail: Pick<InvoiceDetailModel, "serviceTypeLabel" | "lineItems">,
@@ -1513,6 +1514,14 @@ export function OrderDetailsPage() {
     setConsultQrScannerOpen(true);
   }, [toast]);
 
+  const refreshAfterConsultationQrFulfill = useCallback(async () => {
+    await load();
+    await new Promise<void>((resolve) => {
+      globalThis.setTimeout(resolve, 1200);
+    });
+    await load();
+  }, [load]);
+
   const onConsultationQrScanned = useCallback(
     async (qrData: string) => {
       const appointmentId = detail?.consultationInfoId?.trim() ?? "";
@@ -1533,7 +1542,7 @@ export function OrderDetailsPage() {
           qr_data: qrData,
         });
         toast.success(CONSULT_QR_COPY.fulfillSuccess);
-        await load();
+        await refreshAfterConsultationQrFulfill();
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : CONSULT_QR_COPY.fulfillFailed);
       } finally {
@@ -1543,7 +1552,7 @@ export function OrderDetailsPage() {
     [
       detail?.consultationInfoId,
       detail?.consultationQrFulfillmentType,
-      load,
+      refreshAfterConsultationQrFulfill,
       toast,
     ],
   );
@@ -1681,7 +1690,7 @@ export function OrderDetailsPage() {
                     detail={detail}
                     orderReferenceValue={orderReferenceValue}
                     onOpenConfirmDialog={() => setConfirmMedicineOrderDialogOpen(true)}
-                    onPreviewAttachment={openConsultationFilePreview}
+                    onPreviewAttachment={(item) => openConsultationFilePreview([item], item.url ?? null, item.label ?? "")}
                   />
                 ) : (
                   <OrderDetailServiceMetaCard
@@ -2305,6 +2314,7 @@ export function OrderDetailsPage() {
                     disabled={consultQrFulfillBusy}
                     onClick={onConsultationScanQr}
                   >
+                      <MaterialIcon name="qr_code_scanner" className="od-btn-outline-row__icon" />
                     {consultQrFulfillBusy ? "Verifying…" : "Scan QR code"}
                   </button>
                 ) : null}
@@ -2405,6 +2415,7 @@ export function OrderDetailsPage() {
         <ConsultationVendorRescheduleBottomSheet
           open
           appointmentId={detail.consultationInfoId?.trim() ?? ""}
+          userId={detail.consultationRescheduleUserId}
           context={detail.consultationVendorRescheduleContext}
           onClose={() => setConsultVendorRescheduleOpen(false)}
           onCompleted={load}

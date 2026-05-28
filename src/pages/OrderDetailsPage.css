@@ -1025,7 +1025,7 @@
   padding: 8px 14px;
   border-radius: 10px;
   border: none;
-  background: #1565c0;
+  background: var(--color-black, #111111);
   color: #ffffff;
   font-family: var(--font-family-app);
   font-size: 0.8125rem;
@@ -1349,6 +1349,8 @@
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #424242;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .od-visit__map-btn {
@@ -1449,6 +1451,8 @@
   font-weight: 600;
   line-height: 1.45;
   color: #111111;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .od-patient-addr__phone {
@@ -1788,6 +1792,8 @@
 
 .od-pharm-center__addr-text {
   margin: 0 0 8px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .od-pharm-center__actions {
@@ -2185,6 +2191,8 @@
   font-size: 0.8125rem;
   line-height: 1.45;
   color: #4a423b;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .od-lab-sub-card__dir {
@@ -2345,7 +2353,7 @@
   padding: 12px 16px;
   border: none;
   border-radius: 999px;
-  background: var(--color-primary-dark, #1a5f4a);
+  background: var(--color-black, #111111);
   color: #fff;
   font-family: inherit;
   font-size: 0.9375rem;

@@ -17,7 +17,9 @@ export function useHospitalConsultationSlots(
   options?: Readonly<{
     enabled?: boolean;
     vendorCode?: string;
-    /** patient_app reschedule slots omit `user_id`; booking flow requires it. */
+    /** Explicit user id override (order-detail reschedule uses invoice `user_id`). */
+    userId?: string | null;
+    /** Include `user_id` query when loading slots (patient_app uses this for reschedule too). */
     includeUserId?: boolean;
   }>,
 ) {
@@ -45,7 +47,10 @@ export function useHospitalConsultationSlots(
       setLoadErr("Vendor information is missing for this doctor.");
       return;
     }
-    const userId = includeUserId ? readConsultSelectedPersonId() : null;
+    const explicitUserId = options?.userId?.trim() ?? "";
+    const userId = includeUserId
+      ? explicitUserId || readConsultSelectedPersonId()
+      : null;
     if (includeUserId && !userId) {
       setLoad("error");
       setLoadErr("Please select a patient from the consultation flow.");
@@ -71,7 +76,7 @@ export function useHospitalConsultationSlots(
     return () => {
       cancelled = true;
     };
-  }, [networkId, doctorId, isVendor, vendorCode, enabled, includeUserId]);
+  }, [networkId, doctorId, isVendor, vendorCode, enabled, includeUserId, options?.userId]);
 
   useEffect(() => {
     if (!enabled) return;

@@ -958,6 +958,8 @@ export type InvoiceDetailModel = Readonly<{
   consultationQrFulfillmentType: string | null;
   /** Offline vendor reschedule slot fetch context. */
   consultationVendorRescheduleContext: ConsultationVendorRescheduleContext | null;
+  /** `user_id` for consultation vendor slot load (`network/slots` reschedule parity). */
+  consultationRescheduleUserId: string | null;
   /** Parsed appointment start (ms) for reschedule CTA. */
   consultationScheduledStartMs: number | null;
   /** From `info.attachments` when `info` is present (consultation, pharmacy, etc.). */
@@ -2079,7 +2081,9 @@ function parseVisionOrderConfirmCenterUi(info: Record<string, unknown>): Pharmac
   const centerName = str(center.name)?.trim() || null;
   const structured = formatStructuredAddressFromCenter(center);
   const centerAddress =
-    displayAddr != null && displayAddr.length > 0 ? displayAddr : structured;
+    displayAddr && structured
+      ? (displayAddr.length > structured.length ? displayAddr : structured)
+      : displayAddr || structured;
   const centerPhone = str(center.phone) ?? str(center.mobile);
   const mapsUrl = mapsUrlFromCenterOrNested(center);
   return { centerName, centerAddress, centerPhone, mapsUrl };
@@ -2526,8 +2530,11 @@ function parseLabSubOrderCenterFromRow(
   if (!center || Object.keys(center).length === 0) return null;
   const display = str(center.display_address)?.trim();
   const centerName = str(center.name)?.trim() || null;
+  const structured = formatStructuredAddressFromCenter(center);
   const centerAddress =
-    display != null && display.length > 0 ? display : formatStructuredAddressFromCenter(center);
+    display && structured
+      ? (display.length > structured.length ? display : structured)
+      : display || structured;
   const centerPhone = str(center.phone)?.trim() || str(center.mobile)?.trim() || null;
   const mapsUrl = mapsUrlFromCenterOrNested(center);
   return { centerName, centerAddress, centerPhone, mapsUrl };
@@ -2820,6 +2827,20 @@ function parseConsultationOrderPatientUi(o: Record<string, unknown>): Consultati
         : genderRaw ?? null;
   if (!phone && !email && !ageGenderLine) return null;
   return { phone, email, ageGenderLine };
+}
+
+function parseConsultationRescheduleUserId(
+  o: Record<string, unknown>,
+  info: Record<string, unknown> | null,
+): string | null {
+  const user = asRecord(o.user);
+  const fromUser = user ? str(user.id)?.trim() : null;
+  if (fromUser) return fromUser;
+  const fromInvoice = str(o.user_id)?.trim();
+  if (fromInvoice) return fromInvoice;
+  const fromInfo = info ? str(info.patient_id)?.trim() : null;
+  if (fromInfo) return fromInfo;
+  return null;
 }
 
 function parseConsultationRescheduleLine(
@@ -3371,6 +3392,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   const infoPaymentRequired = dataAdditionalInfoPaymentRequiredResolved;
   /** Parsed from `o.user` when present — used on consultation and other service order detail UIs. */
   const consultationPatient = parseConsultationOrderPatientUi(o);
+  const consultationRescheduleUserId = parseConsultationRescheduleUserId(o, infoForStatus);
   const consultationBooking =
     isConsultationInvoice && infoForStatus != null
       ? parseConsultationOrderBookingUi(infoForStatus)
@@ -3634,6 +3656,7 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     consultationVendorCode: consultationVendorCodeResolved,
     consultationQrFulfillmentType: consultationQrFulfillmentTypeResolved,
     consultationVendorRescheduleContext: consultationVendorRescheduleContextResolved,
+    consultationRescheduleUserId,
     consultationScheduledStartMs: consultationScheduledStartMsResolved,
     consultationAttachments,
     consultationReports,

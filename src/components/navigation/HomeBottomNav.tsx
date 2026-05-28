@@ -92,6 +92,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
           <div className="home-nav__inner">
             <NavLink
               to={ROUTES.orders}
+              id="tour-home-nav-orders"
               className={({ isActive }) =>
                 `home-nav__item${isActive ? " home-nav__item--active" : ""}`
               }
@@ -104,6 +105,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
 
             <NavLink
               to={ROUTES.services}
+              id="tour-home-nav-services"
               className={() =>
                 `home-nav__item${servicesTabActive ? " home-nav__item--active" : ""}`
               }
@@ -117,6 +119,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
             <div className="home-nav__fab-wrap">
               <NavLink
                 to={ROUTES.dashboard}
+                id="tour-home-nav-home"
                 end
                 className={({ isActive }) =>
                   `home-nav__fab${isActive ? " home-nav__fab--active" : ""}`
@@ -132,6 +135,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
 
             <NavLink
               to={ROUTES.servicesMedicalRecordsTab}
+              id="tour-home-nav-records"
               className={() =>
                 `home-nav__item${medicalTabActive ? " home-nav__item--active" : ""}`
               }
@@ -146,6 +150,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
 
             <NavLink
               to={ROUTES.servicesHelpTab}
+              id="tour-home-nav-help"
               className={() =>
                 `home-nav__item${helpTabActive ? " home-nav__item--active" : ""}`
               }

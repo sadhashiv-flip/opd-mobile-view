@@ -29,6 +29,7 @@ export type ConsultationVendorRescheduleBottomSheetProps = Readonly<{
   open: boolean;
   onClose: () => void;
   appointmentId: string;
+  userId: string | null;
   context: ConsultationVendorRescheduleContext;
   onCompleted: () => void | Promise<void>;
 }>;
@@ -37,6 +38,7 @@ export function ConsultationVendorRescheduleBottomSheet({
   open,
   onClose,
   appointmentId,
+  userId,
   context,
   onCompleted,
 }: ConsultationVendorRescheduleBottomSheetProps) {
@@ -46,7 +48,7 @@ export function ConsultationVendorRescheduleBottomSheet({
   const { load, loadErr, payload, calendarDays, defaultDayIdx } = useHospitalConsultationSlots(
     context.networkId,
     context.doctorId,
-    { enabled: open, vendorCode: context.vendorCode, includeUserId: false },
+    { enabled: open, vendorCode: context.vendorCode, includeUserId: true, userId },
   );
 
   const datedSlots = payload?.datedSlots ?? [];
@@ -163,18 +165,9 @@ export function ConsultationVendorRescheduleBottomSheet({
         </header>
 
         <div className="consult-vendor-rsch__body">
-          <label className="consult-vendor-rsch__label" htmlFor={reasonId}>
-            Reason (optional)
-          </label>
-          <textarea
-            id={reasonId}
-            className="consult-vendor-rsch__reason"
-            rows={2}
-            maxLength={300}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Why are you rescheduling?"
-          />
+          <p className="consult-vendor-rsch__sub">
+            Choose a new date and time from available vendor slots.
+          </p>
 
           {load === "loading" && <div className="cas-loading">Loading slots…</div>}
           {load === "error" && (
@@ -187,6 +180,33 @@ export function ConsultationVendorRescheduleBottomSheet({
           )}
           {load === "ok" && calendarDays.length > 0 && (
             <>
+              <div className="consult-vendor-rsch__slot-head">
+                <div className="consult-vendor-rsch__slot-title">
+                  <span className="consult-vendor-rsch__clock" aria-hidden>
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="2" />
+                      <path
+                        d="M12 7.5v4.9l3.1 1.9"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span>Choose date and time</span>
+                </div>
+                <span className="consult-vendor-rsch__month">
+                  {selectedDate
+                    ? selectedDate.toLocaleDateString("en-IN", {
+                        month: "long",
+                        year: "numeric",
+                        timeZone: "Asia/Kolkata",
+                      })
+                    : ""}
+                  {selectedDate ? " (IST)" : ""}
+                </span>
+              </div>
               <div
                 ref={daysStripRef}
                 className="cas-days-wrap hide-scrollbar consult-vendor-rsch__days-wrap"
@@ -240,6 +260,19 @@ export function ConsultationVendorRescheduleBottomSheet({
                   </section>
                 ))
               )}
+
+              <label className="consult-vendor-rsch__label" htmlFor={reasonId}>
+                Reason for reschedule (optional)
+              </label>
+              <textarea
+                id={reasonId}
+                className="consult-vendor-rsch__reason"
+                rows={3}
+                maxLength={300}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Not available at previous time"
+              />
             </>
           )}
         </div>

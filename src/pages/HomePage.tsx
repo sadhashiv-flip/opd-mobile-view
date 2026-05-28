@@ -41,6 +41,10 @@ import {
   loadHomeRecentSearches,
   saveHomeRecentSearches,
 } from "@/lib/homeRecentSearchesStorage";
+import {
+  isDashboardWalkthroughDone,
+  setDashboardWalkthroughDone,
+} from "@/lib/dashboardWalkthroughStorage";
 import { rankHomeSearchActions } from "@/lib/homeSearchScore";
 import { orderDetailKindInUrlFromDashboardOngoing } from "@/lib/orderDetailRoutes";
 import { useHomeBannerCarousel } from "@/hooks/useHomeBannerCarousel";
@@ -68,6 +72,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Joyride, ACTIONS, EVENTS, STATUS, type EventData, type Step } from "react-joyride";
 import { generatePath, Link, useNavigate } from "react-router-dom";
 import "@/components/home/HomeSearchOverlay.css";
 import "./HomePage.css";
@@ -145,6 +150,7 @@ function ongoingStatusBadgeClassForItem(item: DashboardOngoingItem): string {
 
 /** Dots for slide counts 2–7; at 8+ use compact progress + prev/next (too many dots otherwise). */
 const HOME_CAROUSEL_DOT_MAX = 7;
+const HOME_DASHBOARD_TOUR_START_DELAY_MS = 900;
 
 function homeVoiceSearchErrorMessage(code: WebSpeechErrorCode): string | null {
   switch (code) {
@@ -215,6 +221,7 @@ export function HomePage() {
 
   const ongoingCount = ongoing.length;
   const showOngoingDashboardChrome = dashboardLoading || ongoingCount > 0;
+  const [runDashboardTour, setRunDashboardTour] = useState(false);
   const apiBannerCount = apiBanners.length;
   const homeCarouselCount = apiBannerCount;
   const {
@@ -443,6 +450,107 @@ export function HomePage() {
     };
   }, [isDiagnosticsSheetOpen, isConsultationSheetOpen, isVisionSheetOpen]);
 
+  useEffect(() => {
+    if (isDashboardWalkthroughDone()) return;
+    const timer = globalThis.setTimeout(() => {
+      setRunDashboardTour(true);
+    }, HOME_DASHBOARD_TOUR_START_DELAY_MS);
+    return () => {
+      globalThis.clearTimeout(timer);
+    };
+  }, []);
+
+  const dashboardTourSteps = useMemo<Step[]>(() => {
+    const steps: Step[] = [
+      {
+        target: "#tour-home-address",
+        title: "Your location",
+        content: "Tap here to update your delivery location before booking services.",
+        placement: "bottom-start",
+      },
+      {
+        target: "#tour-home-wallet",
+        title: "OPD wallet",
+        content: "Check your wallet balance and transactions anytime.",
+        placement: "bottom",
+      },
+      {
+        target: "#tour-home-notifications",
+        title: "Notifications",
+        content: "Stay updated about appointments, orders, and important alerts.",
+        placement: "bottom",
+      },
+      {
+        target: "#tour-home-services",
+        title: "Health services",
+        content: "Consultation, diagnostics, pharmacy, and more are all available from here.",
+        placement: "top",
+      },
+      {
+        target: "#tour-home-digital-diary",
+        title: "Digital diary",
+        content: "Track habits and daily health activity in one place.",
+        placement: "top",
+      },
+    ];
+
+    if (showOngoingDashboardChrome) {
+      steps.push({
+        target: "#tour-home-ongoing",
+        title: "Ongoing orders",
+        content: "Follow active bookings and quickly jump into ongoing consultations.",
+        placement: "top",
+      });
+    }
+
+    steps.push(
+      {
+        target: "#tour-home-nav-orders",
+        title: "My orders",
+        content: "View and track all your appointments, lab tests, and pharmacy orders.",
+        placement: "top",
+      },
+      {
+        target: "#tour-home-nav-services",
+        title: "Services",
+        content: "Explore all health services available on your plan.",
+        placement: "top",
+      },
+      {
+        target: "#tour-home-nav-home",
+        title: "Home",
+        content: "Use this tab to quickly return to your dashboard.",
+        placement: "top",
+      },
+      {
+        target: "#tour-home-nav-records",
+        title: "Medical records",
+        content: "Access reports, prescriptions, and shared documents.",
+        placement: "top",
+      },
+      {
+        target: "#tour-home-nav-help",
+        title: "Need help?",
+        content: "Open support to raise a request or check FAQs.",
+        placement: "top",
+      },
+    );
+
+    return steps;
+  }, [showOngoingDashboardChrome]);
+
+  const handleDashboardTourEvent = useCallback((data: EventData) => {
+    if (data.type === EVENTS.TOUR_END || data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
+      setDashboardWalkthroughDone(true);
+      setRunDashboardTour(false);
+      return;
+    }
+    if (data.type === EVENTS.TARGET_NOT_FOUND && data.action === ACTIONS.CLOSE) {
+      setDashboardWalkthroughDone(true);
+      setRunDashboardTour(false);
+    }
+  }, []);
+
   let homeCarouselPagination: ReactNode = null;
   if (homeCarouselCount > 1) {
     if (homeCarouselCount <= HOME_CAROUSEL_DOT_MAX) {
@@ -524,10 +632,62 @@ export function HomePage() {
 
   return (
     <div className="home-page">
+      <Joyride
+        run={runDashboardTour}
+        steps={dashboardTourSteps}
+        onEvent={handleDashboardTourEvent}
+        continuous
+        showProgress
+        scrollToFirstStep
+        disableOverlayClose
+        locale={{
+          back: "Back",
+          close: "Close",
+          last: "Finish",
+          next: "Next",
+          skip: "Skip tour",
+        }}
+        options={{
+          arrowColor: "#ffffff",
+          backgroundColor: "#ffffff",
+          overlayColor: "rgba(8, 17, 35, 0.54)",
+          primaryColor: "#ff541e",
+          textColor: "#1d2433",
+          spotlightRadius: 14,
+          spotlightPadding: 6,
+          zIndex: 1300,
+        }}
+        styles={{
+          tooltip: {
+            borderRadius: 16,
+            boxShadow: "0 20px 45px rgba(0, 0, 0, 0.18)",
+          },
+          tooltipTitle: {
+            fontSize: "15px",
+            fontWeight: 700,
+          },
+          tooltipContent: {
+            fontSize: "13px",
+            lineHeight: 1.45,
+          },
+          buttonPrimary: {
+            borderRadius: 999,
+            fontWeight: 700,
+            padding: "8px 14px",
+          },
+          buttonBack: {
+            color: "#687083",
+          },
+          buttonSkip: {
+            color: "#687083",
+          },
+        }}
+      />
       <div className="home-page__chrome">
         <header className="home-top">
           <button
             type="button"
+            id="tour-home-address"
             className="home-loc"
             aria-label={deliveryAddressChooserAriaLabel(hasDeliveryAddress)}
             onClick={() => setAddrSheetOpen(true)}
@@ -565,6 +725,7 @@ export function HomePage() {
           <div className="home-top__actions">
             <button
               type="button"
+              id="tour-home-wallet"
               className="home-icon-btn"
               aria-label="Wallet"
               onClick={() => navigate(ROUTES.wallet)}
@@ -573,6 +734,7 @@ export function HomePage() {
             </button>
             <button
               type="button"
+              id="tour-home-notifications"
               className="home-icon-btn home-notif-btn"
               aria-label={
                 notificationCount > 0
@@ -673,7 +835,7 @@ export function HomePage() {
       <main
         className={`home-page__main${showOngoingDashboardChrome ? " home-page__main--ongoing-float-gap" : ""}`}
       >
-        <section className="home-section" aria-labelledby="services-heading">
+        <section id="tour-home-services" className="home-section" aria-labelledby="services-heading">
           <h2 id="services-heading" className="visually-hidden">
             Medical services
           </h2>
@@ -877,6 +1039,7 @@ export function HomePage() {
           <div className="home-promo-cards">
             <Link
               to={ROUTES.digitalDiary}
+              id="tour-home-digital-diary"
               className="home-promo-card"
               aria-label={`${DIGITAL_DIARY_COPY.dashboardActivitiesTitle}: ${DIGITAL_DIARY_COPY.dashboardActivitiesCta}`}
             >
@@ -1195,6 +1358,7 @@ export function HomePage() {
 
       {showOngoingDashboardChrome ? (
         <div
+          id="tour-home-ongoing"
           className="home-ongoing-float"
           role="region"
           aria-labelledby="ongoing-orders-float-heading"

@@ -80,11 +80,19 @@ function SrLine({ label, value }: Readonly<{ label: string; value: string }>) {
   );
 }
 
-function SrSummaryRow({ label, value }: Readonly<{ label: string; value: string }>) {
+function SrSummaryRow({
+  label,
+  value,
+  preserveLineBreaks = false,
+}: Readonly<{ label: string; value: string; preserveLineBreaks?: boolean }>) {
   return (
     <div className="od-sr-summary-row">
       <span className="od-sr-summary-row__label">{label}</span>
-      <span className="od-sr-summary-row__value">{value}</span>
+      <span
+        className={`od-sr-summary-row__value${preserveLineBreaks ? " od-sr-summary-row__value--address" : ""}`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -181,7 +189,11 @@ export function OrderDetailServiceRequestSections({
         <SrSummaryRow label="Order ID" value={orderReferenceValue} />
         <SrSummaryRow label="Created at" value={detail.serviceRequestCreatedAtDisplay} />
         <SrSummaryRow label="Visit type" value={detail.serviceVisitTypeLabel ?? "—"} />
-        <SrSummaryRow label="Address" value={detail.serviceRequestSummaryAddress} />
+        <SrSummaryRow
+          label="Address"
+          value={detail.serviceRequestSummaryAddress}
+          preserveLineBreaks
+        />
       </SrSection>
 
       <SrSection title="Patient Details" ariaLabel="Patient details">

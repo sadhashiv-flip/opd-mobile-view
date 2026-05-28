@@ -104,15 +104,30 @@ export function formatServiceRequestAddress(raw: unknown): string {
   }
   if (typeof raw !== "object" || Array.isArray(raw)) return "—";
   const m = raw as Record<string, unknown>;
-  const parts = [m.line_1, m.landmark, m.area, m.city, m.state, m.pincode]
+  const parts = [
+    m.line_1,
+    m.line1,
+    m.line_2,
+    m.line2,
+    m.landmark,
+    m.area,
+    m.city,
+    m.state,
+    m.country,
+    m.pincode,
+    m.pin_code,
+    m.pin,
+  ]
     .map((e) => (e == null ? "" : String(e).trim()))
     .filter((s) => s.length > 0);
-  if (parts.length === 0) {
-    const disp = str(m.display_address);
-    if (disp) return disp;
-    return "—";
+  const structured = parts.length > 0 ? parts.join(", ") : null;
+  const display = str(m.display_address);
+  if (structured && display) {
+    return display.length > structured.length ? display : structured;
   }
-  return parts.join(", ");
+  if (structured) return structured;
+  if (display) return display;
+  return "—";
 }
 
 function formatAddressFromUnknown(address: unknown): string {
