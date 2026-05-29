@@ -73,9 +73,9 @@
 }
 
 .gym-contact-tab--active {
-  background: var(--primary, #111827);
+  background: var(--primary, #ff5223);  
   color: #fff;
-  border-color: var(--primary, #111827);
+  border-color: var(--primary, #ff5223);
 }
 
 .gym-contact-tab__text {
@@ -134,15 +134,15 @@
 }
 
 .gym-contact-badge--emp {
-  background: color-mix(in srgb, var(--primary, #2563eb) 12%, transparent);
-  color: var(--primary, #1d4ed8);
-  border: 1px solid color-mix(in srgb, var(--primary, #2563eb) 25%, transparent);
+  background: color-mix(in srgb, var(--primary, #ff5223) 12%, transparent);
+  color: var(--primary, #ff5223);
+  border: 1px solid color-mix(in srgb, var(--primary, #ff5223) 25%, transparent);
 }
 
 .gym-contact-badge--dep {
-  background: color-mix(in srgb, var(--info, #0ea5e9) 14%, transparent);
-  color: #0369a1;
-  border: 1px solid color-mix(in srgb, var(--info, #0ea5e9) 22%, transparent);
+  background: color-mix(in srgb, var(--info, #ff5223) 14%, transparent);
+  color: #ff5223;
+  border: 1px solid color-mix(in srgb, var(--info, #ff5223) 22%, transparent);
 }
 
 .gym-contact-field {
@@ -173,8 +173,8 @@
 
 .gym-contact-input:focus,
 .gym-contact-select:focus {
-  outline: 2px solid color-mix(in srgb, var(--primary, #2563eb) 35%, transparent);
-  border-color: var(--primary, #2563eb);
+  outline: 2px solid color-mix(in srgb, var(--primary, #ff5223) 35%, transparent);
+  border-color: var(--primary, #ff5223);
 }
 
 .gym-contact-price-hint {

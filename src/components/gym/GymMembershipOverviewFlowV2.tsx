@@ -334,14 +334,7 @@ export function GymMembershipOverviewFlowV2() {
               <span className="gmov2-terms__body">{ACCEPT_TERMS}</span>
             </span>
           </button>
-        </section>
-
-        <p className="gmov2-primary-block">
-          <span className="gmov2-primary-label">Primary account</span>
-          <span className="gmov2-primary-line">
-            {payload.accountPrimaryUser.name} · {payload.accountPrimaryUser.email}
-          </span>
-        </p>
+        </section>       
       </main>
 
       <footer className="gmov2-footer mobile-frame-fixed-footer">
