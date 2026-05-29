@@ -478,6 +478,7 @@ export function ProfilePhotoSourceSheet({ open, onClose, onPicked }: ProfilePhot
               onClick={() => void handleCapturePhoto()}
             >
               {captureBusy ? "Saving…" : "Capture & upload"}
+              {/* test */}
             </button>
           </div>
         </div>
