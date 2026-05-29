@@ -145,3 +145,89 @@ export function clearGymFlowV2LineForms(): void {
     /* ignore */
   }
 }
+
+/** Contact step UI (active member tab, etc.). */
+export const GYM_FLOW_V2_CONTACT_UI_KEY = "opd-mobile-view.gym-flow-v2.contact-ui";
+
+export type GymFlowV2ContactUi = Readonly<{
+  activeIndex: number;
+}>;
+
+export function writeGymFlowV2ContactUi(ui: GymFlowV2ContactUi): void {
+  try {
+    sessionStorage.setItem(GYM_FLOW_V2_CONTACT_UI_KEY, JSON.stringify(ui));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readGymFlowV2ContactUi(): GymFlowV2ContactUi | null {
+  try {
+    const raw = sessionStorage.getItem(GYM_FLOW_V2_CONTACT_UI_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as unknown;
+    if (!p || typeof p !== "object") return null;
+    const o = p as Partial<GymFlowV2ContactUi>;
+    if (typeof o.activeIndex !== "number" || !Number.isFinite(o.activeIndex)) return null;
+    return { activeIndex: Math.max(0, Math.floor(o.activeIndex)) };
+  } catch {
+    return null;
+  }
+}
+
+export function clearGymFlowV2ContactUi(): void {
+  try {
+    sessionStorage.removeItem(GYM_FLOW_V2_CONTACT_UI_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Overview step UI (terms acceptance). */
+export const GYM_FLOW_V2_OVERVIEW_UI_KEY = "opd-mobile-view.gym-flow-v2.overview-ui";
+
+export type GymFlowV2OverviewUi = Readonly<{
+  termsAccepted: boolean;
+  termsScrolledToEnd: boolean;
+}>;
+
+export function writeGymFlowV2OverviewUi(ui: GymFlowV2OverviewUi): void {
+  try {
+    sessionStorage.setItem(GYM_FLOW_V2_OVERVIEW_UI_KEY, JSON.stringify(ui));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readGymFlowV2OverviewUi(): GymFlowV2OverviewUi | null {
+  try {
+    const raw = sessionStorage.getItem(GYM_FLOW_V2_OVERVIEW_UI_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as unknown;
+    if (!p || typeof p !== "object") return null;
+    const o = p as Partial<GymFlowV2OverviewUi>;
+    return {
+      termsAccepted: o.termsAccepted === true,
+      termsScrolledToEnd: o.termsScrolledToEnd === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearGymFlowV2OverviewUi(): void {
+  try {
+    sessionStorage.removeItem(GYM_FLOW_V2_OVERVIEW_UI_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clears all in-progress gym V2 session keys (after success or global booking reset). */
+export function clearGymFlowV2Session(): void {
+  clearGymFlowV2Draft();
+  clearGymFlowV2Overview();
+  clearGymFlowV2LineForms();
+  clearGymFlowV2ContactUi();
+  clearGymFlowV2OverviewUi();
+}

@@ -2,7 +2,12 @@ import { postGymOptInMultiConfirm } from "@/api/patientGymSubscription";
 import { getGymCheck } from "@/api/patientGym";
 import { verifyGymPayment } from "@/api/patientGymPayment";
 import { writeGymCheckSnapshot } from "@/constants/gymCheckStorage";
-import { clearGymFlowV2Overview, readGymFlowV2Overview } from "@/constants/gymFlowV2Storage";
+import {
+  clearGymFlowV2Session,
+  readGymFlowV2Overview,
+  readGymFlowV2OverviewUi,
+  writeGymFlowV2OverviewUi,
+} from "@/constants/gymFlowV2Storage";
 import { GYM_PAYMENT_DONE_EVENT } from "@/constants/windowPaymentEvents";
 import { ROUTES } from "@/constants";
 import { buildGymMembershipPaymentSuccessState } from "@/lib/bookingSuccessFromInvoice";
@@ -17,7 +22,7 @@ import {
 } from "@/lib/razorpayCheckout";
 import { GymEmployeeTncAcceptSheet } from "@/components/gym/GymEmployeeTncAcceptSheet";
 import { Link, useNavigate } from "react-router-dom";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./GymMembershipOverviewFlowV2.css";
 
 const ACCEPT_TERMS =
@@ -90,10 +95,19 @@ export function GymMembershipOverviewFlowV2() {
     [payload?.employeePackageTncHtml],
   );
   const hasEmployeeTnc = employeeTncHtml.length > 0;
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [termsScrolledToEnd, setTermsScrolledToEnd] = useState(() => !hasEmployeeTnc);
+  const savedOverviewUi = useMemo(() => readGymFlowV2OverviewUi(), []);
+  const [termsAccepted, setTermsAccepted] = useState(
+    () => savedOverviewUi?.termsAccepted ?? false,
+  );
+  const [termsScrolledToEnd, setTermsScrolledToEnd] = useState(
+    () => savedOverviewUi?.termsScrolledToEnd ?? !hasEmployeeTnc,
+  );
   const [tncSheetOpen, setTncSheetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    writeGymFlowV2OverviewUi({ termsAccepted, termsScrolledToEnd });
+  }, [termsAccepted, termsScrolledToEnd]);
 
   const scrollOk = termsScrolledToEnd || !hasEmployeeTnc;
   const canConfirm = termsAccepted && scrollOk;
@@ -111,7 +125,7 @@ export function GymMembershipOverviewFlowV2() {
 
   const finishSuccess = useCallback(
     (invoiceId: string) => {
-      clearGymFlowV2Overview();
+      clearGymFlowV2Session();
       navigate(ROUTES.bookingSuccess, {
         replace: true,
         state: buildGymMembershipPaymentSuccessState({
@@ -124,13 +138,16 @@ export function GymMembershipOverviewFlowV2() {
   );
 
   const revokeTermsAcceptance = useCallback(() => {
+    const scrolled = !hasEmployeeTnc;
     setTermsAccepted(false);
-    setTermsScrolledToEnd(!hasEmployeeTnc);
+    setTermsScrolledToEnd(scrolled);
+    writeGymFlowV2OverviewUi({ termsAccepted: false, termsScrolledToEnd: scrolled });
   }, [hasEmployeeTnc]);
 
   const acceptTermsFromSheet = useCallback(() => {
     setTermsAccepted(true);
     setTermsScrolledToEnd(true);
+    writeGymFlowV2OverviewUi({ termsAccepted: true, termsScrolledToEnd: true });
   }, []);
 
   const onTermsCardClick = useCallback(() => {
@@ -177,7 +194,7 @@ export function GymMembershipOverviewFlowV2() {
 
       if (!needsGatewayPay) {
         const contactRows = payload.contactRows;
-        clearGymFlowV2Overview();
+        clearGymFlowV2Session();
         navigate(ROUTES.bookingSuccess, {
           replace: true,
           state: buildGymMembershipPaymentSuccessState({

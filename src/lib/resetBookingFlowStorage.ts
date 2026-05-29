@@ -13,9 +13,7 @@ import {
   writeDiagnosticsSelectedPersonIds,
 } from "@/constants/diagnosticsSelectedMemberStorage";
 import {
-  clearGymFlowV2Draft,
-  clearGymFlowV2LineForms,
-  clearGymFlowV2Overview,
+  clearGymFlowV2Session,
 } from "@/constants/gymFlowV2Storage";
 import { clearGymSelectedMemberSnapshot } from "@/constants/gymSelectedMemberStorage";
 import { clearPharmacyFlipRxSelection } from "@/constants/pharmacyFlipRxSelectionStorage";
@@ -102,9 +100,7 @@ export function resetBookingFlowStorageOnDashboard(): void {
     clearVirtualConsultPurposeAndLanguage();
     clearVirtualFollowUpAppointmentId();
 
-    clearGymFlowV2Draft();
-    clearGymFlowV2Overview();
-    clearGymFlowV2LineForms();
+    clearGymFlowV2Session();
     clearGymSelectedMemberSnapshot();
 
     removeStorageKeysByPrefixes(localStorage, BOOKING_LOCAL_PREFIXES);

@@ -10,11 +10,12 @@ import { fetchAllPatientMembers } from "@/api/patientMember";
 import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { ROUTES } from "@/constants";
 import {
-  clearGymFlowV2Draft,
   readGymFlowV2Draft,
   writeGymFlowV2Overview,
   readGymFlowV2LineForms,
   writeGymFlowV2LineForms,
+  readGymFlowV2ContactUi,
+  writeGymFlowV2ContactUi,
 } from "@/constants/gymFlowV2Storage";
 import {
   aggregatedEmployeePackageTncHtml,
@@ -132,6 +133,10 @@ export function GymMembershipContactPage() {
               );
         setForms(built);
         writeGymFlowV2LineForms(built);
+        const contactUi = readGymFlowV2ContactUi();
+        setActiveIndex(
+          Math.min(contactUi?.activeIndex ?? 0, Math.max(0, built.length - 1)),
+        );
       } catch (e) {
         if (!cancelled) {
           toast.error(e instanceof Error ? e.message : "Could not load gym checkout");
@@ -145,6 +150,16 @@ export function GymMembershipContactPage() {
       cancelled = true;
     };
   }, [navigate, toast]);
+
+  useEffect(() => {
+    if (forms.length === 0) return;
+    const clamped = Math.min(activeIndex, forms.length - 1);
+    if (clamped !== activeIndex) {
+      setActiveIndex(clamped);
+      return;
+    }
+    writeGymFlowV2ContactUi({ activeIndex: clamped });
+  }, [activeIndex, forms.length]);
 
   const completedCount = useMemo(() => forms.filter((f) => isLineValid(f)).length, [forms]);
 
@@ -242,7 +257,6 @@ export function GymMembershipContactPage() {
         accountPrimaryUser,
         employeePackageTncHtml: employeeTnc.trim() || null,
       });
-      clearGymFlowV2Draft();
       setQuoteOpen(false);
       navigate(ROUTES.gymMembershipOverview);
     } catch (e) {

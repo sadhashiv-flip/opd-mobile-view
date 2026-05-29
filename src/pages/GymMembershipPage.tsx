@@ -14,7 +14,8 @@ import { ROUTES } from "@/constants";
 import {
   writeGymFlowV2Draft,
   writeGymFlowV2LineForms,
-  clearGymFlowV2Overview,
+  readGymFlowV2Draft,
+  clearGymFlowV2Session,
   clearGymFlowV2LineForms,
 } from "@/constants/gymFlowV2Storage";
 import {
@@ -93,8 +94,26 @@ export function GymMembershipPage() {
       ]);
       setPackagesRows([...pkgs]);
       setFamilyRows(members);
-      clearGymFlowV2Overview();
-      clearGymFlowV2LineForms();
+      const existingDraft = readGymFlowV2Draft();
+      if (!existingDraft) {
+        clearGymFlowV2Session();
+      } else {
+        const idx = Math.min(
+          Math.max(0, existingDraft.selectedSubscriptionIndex),
+          Math.max(0, pkgs.length - 1),
+        );
+        setSelectedSubscriptionIndex(idx);
+        setSelectedEmployeePackageCodes([...existingDraft.selectedEmployeePackageCodes]);
+        setSelectedDependentPackageCodes([...existingDraft.selectedDependentPackageCodes]);
+        setDependentMemberIdsByPackage(
+          Object.fromEntries(
+            Object.entries(existingDraft.dependentMemberIdsByPackage).map(([k, v]) => [
+              k,
+              [...v],
+            ]),
+          ),
+        );
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not load gym packages");
     } finally {
@@ -158,6 +177,27 @@ export function GymMembershipPage() {
       return next;
     });
   }, [eligibilityData, employeeRow, empMid, familyRows]);
+
+  /** Keep package selections in session so Back from contact restores the form. */
+  useEffect(() => {
+    if (loading) return;
+    const existing = readGymFlowV2Draft();
+    const hasSelection =
+      selectedEmployeePackageCodes.length > 0 || selectedDependentPackageCodes.length > 0;
+    if (!hasSelection && !existing) return;
+    writeGymFlowV2Draft({
+      selectedSubscriptionIndex,
+      selectedEmployeePackageCodes,
+      selectedDependentPackageCodes,
+      dependentMemberIdsByPackage,
+    });
+  }, [
+    loading,
+    selectedSubscriptionIndex,
+    selectedEmployeePackageCodes,
+    selectedDependentPackageCodes,
+    dependentMemberIdsByPackage,
+  ]);
 
   const selectSubscription = useCallback((index: number) => {
     setSelectedSubscriptionIndex(index);
