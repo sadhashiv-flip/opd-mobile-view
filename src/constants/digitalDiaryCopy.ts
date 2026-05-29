@@ -4,7 +4,7 @@
  */
 export const DIGITAL_DIARY_COPY = {
   /** `kDigitalDiaryAppBarTitle` */
-  appBarTitle: "Activities",
+  appBarTitle: "Digital Diary",
   /** `kDashboardActivitiesTitle` */
   dashboardActivitiesTitle: "Your Digital Diary",
   /** `kDashboardActivitiesSubtitle` */

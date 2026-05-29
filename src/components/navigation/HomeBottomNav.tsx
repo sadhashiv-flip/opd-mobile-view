@@ -149,7 +149,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
             </NavLink>
 
             <NavLink
-              to={ROUTES.servicesHelpTab}
+              to={ROUTES.servicesHelpSupport}
               id="tour-home-nav-help"
               className={() =>
                 `home-nav__item${helpTabActive ? " home-nav__item--active" : ""}`
