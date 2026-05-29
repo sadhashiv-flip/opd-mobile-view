@@ -535,7 +535,7 @@ function EmployeePackageTile({
                 </span>
               ) : (
                 <span className="gym-pkg-wallet gym-pkg-wallet--pay">
-                  Pay from pocket — ₹{p.payAmount.toFixed(0)}
+                  Pay from pocket — ₹{p.payAmount.toFixed(0)} - the full package amount. Wallet is not used for this package.
                 </span>
               )}
             </span>

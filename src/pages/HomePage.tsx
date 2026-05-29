@@ -639,7 +639,8 @@ export function HomePage() {
         continuous
         showProgress
         scrollToFirstStep
-        disableOverlayClose
+        disableOverlayClose={false}
+         showSkipButton={true} 
         locale={{
           back: "Back",
           close: "Close",
@@ -656,6 +657,7 @@ export function HomePage() {
           spotlightRadius: 14,
           spotlightPadding: 6,
           zIndex: 1300,
+          showSkipButton: true,
         }}
         styles={{
           tooltip: {
@@ -677,9 +679,21 @@ export function HomePage() {
           },
           buttonBack: {
             color: "#687083",
+            visibility: "visible" as const,
+            display: "inline-block" as const,
           },
           buttonSkip: {
             color: "#687083",
+            fontSize: "13px",
+            fontWeight: 600,
+            visibility: "visible" as const,
+            display: "inline-block" as const,
+            marginRight: "8px" as const,
+          },
+          tooltip__footer: {
+            display: "flex" as const,
+            gap: "8px" as const,
+            justifyContent: "flex-end" as const,
           },
         }}
       />

@@ -70,7 +70,7 @@
 .gmov2-sum-row--emph {
   font-weight: 800;
   font-size: 17px;
-  color: #2563eb;
+  color: #ff5223;
 }
 
 .gmov2-pay-note {
@@ -156,8 +156,8 @@
   width: 26px;
   height: 26px;
   border-radius: 8px;
-  background: color-mix(in srgb, #2563eb 12%, transparent);
-  color: #1d4ed8;
+  background: color-mix(in srgb, #ff5223 12%, transparent);
+  color: #ff5223;
   font-weight: 800;
   font-size: 12px;
   display: flex;

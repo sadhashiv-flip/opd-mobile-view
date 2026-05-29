@@ -536,7 +536,7 @@
 }
 
 .gym-pkg-tile--selected .gym-pkg-tile__main {
-  border-color: var(--primary, #2563eb);
+  border-color: #ff5223;
   border-width: 1.5px;
 }
 
@@ -568,8 +568,8 @@
 }
 
 .gym-pkg-tile__check--on {
-  border-color: var(--primary, #2563eb);
-  background: var(--primary, #2563eb);
+  border-color: #ff5223;
+  background: #ff5223;
   color: #fff;
   font-size: 12px;
   display: flex;
@@ -649,8 +649,8 @@
 }
 
 .gym-pkg-wallet--pay {
-  background: color-mix(in srgb, var(--primary, #2563eb) 12%, transparent);
-  color: #1d4ed8;
+  background: color-mix(in srgb, #ff5223 12%, transparent);
+  color: #ff5223;
 }
 
 /* Portaled under `.mobile-frame` — scope overlay to phone column */
