@@ -61,6 +61,8 @@ export type GymEmployeePackage = Readonly<{
   payAmount: number;
   enableWallet: boolean;
   mrpAmount: number;
+  /** Partner package terms HTML when provided by API. */
+  tnc: string | null;
 }>;
 
 export type GymDependentPackage = Readonly<{
@@ -182,6 +184,9 @@ function parseLocationPricing(raw: Record<string, unknown>): GymLocationPricing 
 }
 
 function parseEmployeePackage(raw: Record<string, unknown>): GymEmployeePackage {
+  const tncRaw = raw.tnc;
+  const tnc =
+    typeof tncRaw === "string" && tncRaw.trim().length > 0 ? tncRaw.trim() : null;
   return {
     packageCode: String(raw.package_code ?? ""),
     packageName: String(raw.package_name ?? raw.package_code ?? ""),
@@ -190,6 +195,7 @@ function parseEmployeePackage(raw: Record<string, unknown>): GymEmployeePackage 
     payAmount: asNum(raw.pay_amount),
     enableWallet: raw.enable_wallet === true || raw.enable_wallet === 1,
     mrpAmount: asNum(raw.mrp_amount),
+    tnc,
   };
 }
 

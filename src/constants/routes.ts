@@ -152,6 +152,8 @@ export const ROUTES = {
   gymMembershipSelectPeople: "/services/gym-membership/select-people",
   gymMembershipConfigure: "/services/gym-membership/configure",
   gymMembershipOverview: "/services/gym-membership/overview",
+  /** Gym partner centers for a selected city (`GET network/list?service=gym&city=`). */
+  gymMembershipCenters: "/services/gym-membership/centers",
   gymMembershipSelectClinic: "/services/gym-membership/select-clinic",
   /** Vaccination booking: member → vaccine list → slots → overview. */
   vaccinationSelectPeople: "/services/vaccination/select-people",

@@ -265,9 +265,22 @@
   gap: 4px;
 }
 
+.gmov2-terms__hl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .gmov2-terms__hl {
   font-weight: 700;
   font-size: 12px;
+}
+
+.gmov2-terms__open {
+  font-size: 14px;
+  color: #9ca3af;
+  flex-shrink: 0;
 }
 
 .gmov2-terms__body {

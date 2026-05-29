@@ -346,6 +346,7 @@ type GymMemberCardProps = Readonly<{
   onChooseCity: () => void;
   onChoosePackage: () => void;
   onCenterList: () => void;
+  centersListEnabled: boolean;
 }>;
 
 function GymMemberConfigureCard({
@@ -361,6 +362,7 @@ function GymMemberConfigureCard({
   onChooseCity,
   onChoosePackage,
   onCenterList,
+  centersListEnabled,
 }: GymMemberCardProps) {
   const isPrimary = isAccountPrimaryMember(member, accountPrimaryMemberId);
   const bandLabel = isPrimary ? "Primary" : "Dependent";
@@ -385,7 +387,12 @@ function GymMemberConfigureCard({
             <div className="gmc-plan-detail">
               <div className="gmc-plan-detail__head">
                 <p className="gmc-plan-detail__heading">Selected package</p>
-                <button type="button" className="gmc-card__center-list" onClick={onCenterList}>
+                <button
+                  type="button"
+                  className="gmc-card__center-list"
+                  disabled={!centersListEnabled}
+                  onClick={onCenterList}
+                >
                   <PinIcon className="gmc-card__center-list-pin" />
                   Center List
                 </button>
@@ -435,7 +442,12 @@ function GymMemberConfigureCard({
               <button type="button" className="gmc-card__link" onClick={onChoosePackage}>
                 Select Package
               </button>
-              <button type="button" className="gmc-card__center-list" onClick={onCenterList}>
+              <button
+                type="button"
+                className="gmc-card__center-list"
+                disabled={!centersListEnabled}
+                onClick={onCenterList}
+              >
                 <PinIcon className="gmc-card__center-list-pin" />
                 Center List
               </button>
@@ -1036,9 +1048,23 @@ export function GymMembershipConfigurePage() {
     return () => globalThis.removeEventListener("keydown", onKey);
   }, [quoteReviewOpen, confirmBusy]);
 
-  const onCenterList = useCallback(() => {
-    navigate(ROUTES.gymMembershipSelectClinic, { state: backState });
-  }, [navigate, backState]);
+  const onCenterListForMember = useCallback(
+    (cityKey: string, cityDisplayLabel: string, cityConfirmed: boolean) => {
+      if (!cityConfirmed) {
+        toast.error("Select a location first.");
+        return;
+      }
+      const key = cityKey.trim().toLowerCase();
+      if (!key) {
+        toast.error("Select a location first.");
+        return;
+      }
+      navigate(ROUTES.gymMembershipCenters, {
+        state: { cityKey: key, cityDisplayLabel: cityDisplayLabel.trim() || key },
+      });
+    },
+    [navigate, toast],
+  );
 
   const confirmRemoveMember = useCallback(() => {
     if (removeConfirmTarget === "primary") {
@@ -1150,7 +1176,14 @@ export function GymMembershipConfigurePage() {
             onClose={() => setRemoveConfirmTarget("primary")}
             onChooseCity={() => setPrimaryCity(true)}
             onChoosePackage={() => openPackageSheet("primary")}
-            onCenterList={onCenterList}
+            onCenterList={() =>
+              onCenterListForMember(
+                gymCheck?.order?.details?.location ?? primaryResolved?.city ?? "",
+                primaryCityDisplay,
+                primaryCityConfirmed,
+              )
+            }
+            centersListEnabled={primaryCityConfirmed}
           />
           {showSecondary && secondaryResolved ? (
             <GymMemberConfigureCard
@@ -1165,7 +1198,14 @@ export function GymMembershipConfigurePage() {
               onClose={() => setRemoveConfirmTarget("secondary")}
               onChooseCity={() => setSecondaryCity(true)}
               onChoosePackage={() => openPackageSheet("secondary")}
-              onCenterList={onCenterList}
+              onCenterList={() =>
+                onCenterListForMember(
+                  gymCheck?.order?.details?.location ?? secondaryResolved?.city ?? "",
+                  secondaryCityDisplay,
+                  secondaryCityConfirmed,
+                )
+              }
+              centersListEnabled={secondaryCityConfirmed}
             />
           ) : null}
         </div>

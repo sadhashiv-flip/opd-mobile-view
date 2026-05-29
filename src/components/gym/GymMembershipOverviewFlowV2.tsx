@@ -15,6 +15,7 @@ import {
   normalizeRazorpayCheckoutPayload,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
+import { GymEmployeeTncAcceptSheet } from "@/components/gym/GymEmployeeTncAcceptSheet";
 import { Link, useNavigate } from "react-router-dom";
 import { useCallback, useMemo, useState } from "react";
 import "./GymMembershipOverviewFlowV2.css";
@@ -84,8 +85,18 @@ export function GymMembershipOverviewFlowV2() {
   const navigate = useNavigate();
   const toast = useToast();
   const payload = useMemo(() => readGymFlowV2Overview(), []);
+  const employeeTncHtml = useMemo(
+    () => (payload?.employeePackageTncHtml ?? "").trim(),
+    [payload?.employeePackageTncHtml],
+  );
+  const hasEmployeeTnc = employeeTncHtml.length > 0;
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsScrolledToEnd, setTermsScrolledToEnd] = useState(() => !hasEmployeeTnc);
+  const [tncSheetOpen, setTncSheetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const scrollOk = termsScrolledToEnd || !hasEmployeeTnc;
+  const canConfirm = termsAccepted && scrollOk;
 
   const preview = payload?.preview;
   const overview = preview?.overview;
@@ -112,8 +123,39 @@ export function GymMembershipOverviewFlowV2() {
     [navigate, payload?.contactRows],
   );
 
+  const revokeTermsAcceptance = useCallback(() => {
+    setTermsAccepted(false);
+    setTermsScrolledToEnd(!hasEmployeeTnc);
+  }, [hasEmployeeTnc]);
+
+  const acceptTermsFromSheet = useCallback(() => {
+    setTermsAccepted(true);
+    setTermsScrolledToEnd(true);
+  }, []);
+
+  const onTermsCardClick = useCallback(() => {
+    if (hasEmployeeTnc) {
+      if (!termsAccepted) {
+        setTncSheetOpen(true);
+      } else {
+        revokeTermsAcceptance();
+      }
+      return;
+    }
+    setTermsAccepted((v) => !v);
+  }, [hasEmployeeTnc, termsAccepted, revokeTermsAcceptance]);
+
+  const termsSubtitle = useMemo(() => {
+    if (hasEmployeeTnc) {
+      return termsAccepted
+        ? "Accepted. Tap to clear and read again."
+        : "Tap to read the full terms and accept.";
+    }
+    return ACCEPT_TERMS;
+  }, [hasEmployeeTnc, termsAccepted]);
+
   const onConfirm = useCallback(async () => {
-    if (!payload || !termsAccepted) return;
+    if (!payload || !canConfirm) return;
     setSubmitting(true);
     try {
       const confirmed = await postGymOptInMultiConfirm({
@@ -198,7 +240,7 @@ export function GymMembershipOverviewFlowV2() {
     } finally {
       setSubmitting(false);
     }
-  }, [payload, termsAccepted, navigate, toast, finishSuccess]);
+  }, [payload, canConfirm, navigate, toast, finishSuccess]);
 
   if (!payload) {
     return (
@@ -326,15 +368,22 @@ export function GymMembershipOverviewFlowV2() {
           <button
             type="button"
             className={`gmov2-terms__btn${termsAccepted ? " gmov2-terms__btn--on" : ""}`}
-            onClick={() => setTermsAccepted((v) => !v)}
+            onClick={onTermsCardClick}
           >
             <span className="gmov2-terms__box">{termsAccepted ? "✓" : ""}</span>
             <span className="gmov2-terms__copy">
-              <span className="gmov2-terms__hl">Terms &amp; conditions</span>
-              <span className="gmov2-terms__body">{ACCEPT_TERMS}</span>
+              <span className="gmov2-terms__hl-row">
+                <span className="gmov2-terms__hl">Terms &amp; conditions</span>
+                {hasEmployeeTnc ? (
+                  <span className="gmov2-terms__open" aria-hidden>
+                    ↗
+                  </span>
+                ) : null}
+              </span>
+              <span className="gmov2-terms__body">{termsSubtitle}</span>
             </span>
           </button>
-        </section>       
+        </section>
       </main>
 
       <footer className="gmov2-footer mobile-frame-fixed-footer">
@@ -343,9 +392,15 @@ export function GymMembershipOverviewFlowV2() {
         ) : null}
         <button
           type="button"
-          className={`gmov2-cta${termsAccepted ? "" : " gmov2-cta--disabled"}`}
-          disabled={!termsAccepted || submitting}
+          className={`gmov2-cta${canConfirm ? "" : " gmov2-cta--disabled"}`}
+          disabled={!canConfirm || submitting}
           onClick={() => {
+            if (!scrollOk && hasEmployeeTnc) {
+              toast.error(
+                "Tap Terms & conditions, scroll to the end, then tap I accept.",
+              );
+              return;
+            }
             if (!termsAccepted) {
               toast.error(`Required: ${ACCEPT_TERMS}`);
               return;
@@ -356,6 +411,15 @@ export function GymMembershipOverviewFlowV2() {
           {submitting ? "Working…" : primaryBtnLabel}
         </button>
       </footer>
+
+      {hasEmployeeTnc ? (
+        <GymEmployeeTncAcceptSheet
+          open={tncSheetOpen}
+          tncHtml={employeeTncHtml}
+          onClose={() => setTncSheetOpen(false)}
+          onAccept={acceptTermsFromSheet}
+        />
+      ) : null}
     </div>
   );
 }

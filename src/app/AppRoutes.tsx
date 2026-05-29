@@ -29,6 +29,7 @@ import { GymMembershipContactPage } from "@/pages/GymMembershipContactPage";
 import { GymMembershipSelectPeoplePage } from "@/pages/GymMembershipSelectPeoplePage";
 import { GymMembershipConfigurePage } from "@/pages/GymMembershipConfigurePage";
 import { GymMembershipOverviewPage } from "@/pages/GymMembershipOverviewPage";
+import { GymCentersPage } from "@/pages/GymCentersPage";
 import { GymSelectClinicPage } from "@/pages/GymSelectClinicPage";
 import { SplashPage } from "@/pages/SplashPage";
 import { CartOverviewPage } from "@/pages/CartOverviewPage";
@@ -264,6 +265,7 @@ export function AppRoutes() {
         path={ROUTES.gymMembershipOverview}
         element={<GymMembershipOverviewPage />}
       />
+      <Route path={ROUTES.gymMembershipCenters} element={<GymCentersPage />} />
       <Route
         path={ROUTES.gymMembershipSelectClinic}
         element={<GymSelectClinicPage />}

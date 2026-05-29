@@ -17,6 +17,7 @@ import {
   writeGymFlowV2LineForms,
 } from "@/constants/gymFlowV2Storage";
 import {
+  aggregatedEmployeePackageTncHtml,
   buildLineForms,
   employeeMemberRow,
   lineFormsToOptInLines,
@@ -173,6 +174,22 @@ export function GymMembershipContactPage() {
     }
   }, [activeSubscription, forms, toast]);
 
+  const onCheckCentersTap = useCallback(() => {
+    const currentForm = forms[activeIndex];
+    if (!currentForm) return;
+    const cityKey = selectedLocationKey(currentForm);
+    if (!cityKey) {
+      toast.error("Select a location first.");
+      return;
+    }
+    navigate(ROUTES.gymMembershipCenters, {
+      state: {
+        cityKey,
+        cityDisplayLabel: locationLabelForKey(currentForm),
+      },
+    });
+  }, [forms, activeIndex, navigate, toast]);
+
   const onContinueAfterQuote = useCallback(async () => {
     if (!activeSubscription || forms.length === 0) return;
     for (const f of forms) {
@@ -201,6 +218,10 @@ export function GymMembershipContactPage() {
             phone: forms[0]?.phone?.trim() || "—",
           };
 
+      const draft = readGymFlowV2Draft();
+      const employeeTnc = draft
+        ? aggregatedEmployeePackageTncHtml(activeSubscription, draft.selectedEmployeePackageCodes)
+        : "";
       writeGymFlowV2Overview({
         subscriptionId: activeSubscription.subscriptionId,
         optInLines,
@@ -219,6 +240,7 @@ export function GymMembershipContactPage() {
           email: f.email.trim(),
         })),
         accountPrimaryUser,
+        employeePackageTncHtml: employeeTnc.trim() || null,
       });
       clearGymFlowV2Draft();
       setQuoteOpen(false);
@@ -330,10 +352,20 @@ export function GymMembershipContactPage() {
               </span>
             </div>
 
-            <label className="gym-contact-field">
-              <span className="gym-contact-field__label">
-                Location <span className="gym-contact-req">*</span>
-              </span>
+            <div className="gym-contact-field">
+              <div className="gym-contact-field__label-row">
+                <span className="gym-contact-field__label">
+                  Location <span className="gym-contact-req">*</span>
+                </span>
+                <button
+                  type="button"
+                  className="gym-contact-centers-list"
+                  disabled={!selectedLocationKey(current)}
+                  onClick={onCheckCentersTap}
+                >
+                  Centers List
+                </button>
+              </div>
               <select
                 className="gym-contact-select"
                 value={selectedLocationKey(current)}
@@ -353,7 +385,7 @@ export function GymMembershipContactPage() {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
 
             {!current.isEmployeePackage &&
             current.locationKey &&

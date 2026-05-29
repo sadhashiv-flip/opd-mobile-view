@@ -1,0 +1,146 @@
+.getas-root {
+  position: fixed;
+  inset: 0;
+  z-index: 280;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-family: var(--font-family-app);
+}
+
+.getas-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.getas-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+  animation: getas-in 0.22s ease-out;
+  min-height: 0;
+}
+
+@keyframes getas-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0.96;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.getas-handle {
+  width: 40px;
+  height: 4px;
+  margin: 10px auto 6px;
+  border-radius: 2px;
+  background: #e5e7eb;
+}
+
+.getas-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.getas-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.getas-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b7280;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.getas-hint {
+  margin: 0 16px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.getas-hint--warn {
+  color: #b45309;
+}
+
+.getas-hint--ok {
+  color: #15803d;
+}
+
+.getas-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 52dvh;
+  margin: 0 12px;
+  padding: 12px 14px 16px;
+  overflow-y: auto;
+  background: #f6f7f9;
+  border: 1px solid #e8eaee;
+  border-radius: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.getas-html {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #111827;
+}
+
+.getas-html ol,
+.getas-html ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.getas-html li {
+  margin: 0.35em 0;
+}
+
+.getas-footer {
+  flex-shrink: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0));
+}
+
+.getas-accept {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 12px;
+  background: #111827;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.getas-accept:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}

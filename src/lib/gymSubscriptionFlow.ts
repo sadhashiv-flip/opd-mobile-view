@@ -300,6 +300,23 @@ export function lineValidationMessage(f: GymLineFormModel): string {
   return "Looks good";
 }
 
+/** HTML from selected employee packages' `tnc` (matches Dart `aggregatedEmployeePackageTncHtml`). */
+export function aggregatedEmployeePackageTncHtml(
+  sub: GymSubscriptionRow,
+  selectedEmployeeCodes: readonly string[],
+): string {
+  const selected = new Set(selectedEmployeeCodes);
+  const chunks: string[] = [];
+  for (const p of sub.employeePackages) {
+    if (!selected.has(p.packageCode)) continue;
+    const raw = p.tnc?.trim();
+    if (raw) chunks.push(raw);
+  }
+  if (chunks.length === 0) return "";
+  if (chunks.length === 1) return chunks[0]!;
+  return chunks.join("<hr/><p></p>");
+}
+
 export function buildLineForms(
   sub: GymSubscriptionRow,
   familyRows: readonly GymMemberListRow[],

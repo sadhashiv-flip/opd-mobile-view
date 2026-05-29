@@ -39,6 +39,8 @@ export type GymFlowV2OverviewPayload = Readonly<{
     email: string;
     phone: string;
   }>;
+  /** Aggregated employee-package TNC HTML for overview accept sheet (Dart `aggregatedEmployeePackageTncHtml`). */
+  employeePackageTncHtml?: string | null;
 }>;
 
 export function writeGymFlowV2Draft(draft: GymFlowV2Draft): void {
