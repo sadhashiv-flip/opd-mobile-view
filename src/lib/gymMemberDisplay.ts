@@ -72,16 +72,36 @@ export type GymMemberListRow = Readonly<{
   subscriptionCanActivate: boolean;
 }>;
 
-function subtitleForMember(m: MemberDisplay): string {
-  if (m.memberKind === "primary") {
-    const r = m.relationship?.trim();
-    if (r) return r;
-    return "Primary account";
-  }
-  const r = m.relationship?.trim();
-  if (r) return r;
-  if (m.statusLabel?.trim()) return m.statusLabel;
-  return "Family member";
+const HIDDEN_RELATION_SUBTITLES = new Set([
+  "primary account",
+  "child",
+  "parent",
+  "daughter",
+  "son",
+  "father",
+  "mother",
+  "active",
+]);
+
+const HIDDEN_MEMBER_SUBTITLES = new Set([
+  "primary account",
+  "child",
+  "parent",
+  "daughter",
+  "son",
+  "father",
+  "mother",
+  "active",
+]);
+
+function normalizeSubtitle(value: string | null | undefined): string {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return "";
+  return HIDDEN_MEMBER_SUBTITLES.has(trimmed.toLowerCase()) ? "" : trimmed;
+}
+
+export function memberSubtitleFromDisplay(m: MemberDisplay): string {
+  return normalizeSubtitle(m.statusLabel);
 }
 
 export type PatientMembersToGymRowsOpts = Readonly<{
@@ -96,7 +116,7 @@ export function patientMembersToGymRows(
   return members.map((m) => ({
     id: m.id,
     name: m.name,
-    subtitle: subtitleForMember(m),
+    subtitle: memberSubtitleFromDisplay(m),
     section: m.memberKind === "primary" ? "self" : "family",
     userId: m.patientNumericId,
     phone: m.phone ?? undefined,

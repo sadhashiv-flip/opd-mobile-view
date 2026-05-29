@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import type { AuthUser } from "@/types/authSession";
 import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
-import { MEMBER_NOT_ACTIVATED_LABEL } from "@/lib/gymMemberDisplay";
+import { MEMBER_NOT_ACTIVATED_LABEL, memberSubtitleFromDisplay } from "@/lib/gymMemberDisplay";
 import { getAuthSession } from "@/lib/authStorage";
 import {
   fetchMentalWellnessTypes,
@@ -45,10 +45,7 @@ function memberLabel(m: MemberDisplay): string {
 }
 
 function memberDescription(m: MemberDisplay): string {
-  if (m.memberKind === "primary") {
-    return m.relationship?.trim() || "Primary account";
-  }
-  return m.relationship?.trim() || m.statusLabel?.trim() || "Family member";
+  return memberSubtitleFromDisplay(m);
 }
 
 export function WellnessSessionPage() {
