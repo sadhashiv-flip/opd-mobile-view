@@ -7,6 +7,7 @@ import type {
   GymDependentPackage,
   GymEligibilityData,
   GymEmployeePackage,
+  GymLocationOption,
   GymLocationPricing,
   GymOptInLinePayload,
   GymSubscriptionRow,
@@ -23,7 +24,7 @@ export type GymLineFormModel = Readonly<{
   phone: string;
   email: string;
   personalEmail: string;
-  locationOptions: readonly string[];
+  locationOptions: readonly GymLocationOption[];
 }>;
 
 export function parseMemberId(row: GymMemberListRow): number {
@@ -149,6 +150,20 @@ export function gymDependentMemberEligibleForApply(
   return true;
 }
 
+function locationOptionFromKey(key: string): GymLocationOption {
+  const trimmed = key.trim();
+  return {
+    key: trimmed,
+    label: trimmed ? trimmed[0].toUpperCase() + trimmed.slice(1) : "",
+  };
+}
+
+function locationOptionFromMap(sub: GymSubscriptionRow, key: string): GymLocationOption {
+  const existing = sub.serviceableLocationOptions.find((o) => o.key === key);
+  if (existing) return existing;
+  return locationOptionFromKey(key);
+}
+
 export function allPricingLocationKeys(sub: GymSubscriptionRow): string[] {
   const keys = new Set<string>();
   for (const p of sub.dependentPackages) {
@@ -160,17 +175,17 @@ export function allPricingLocationKeys(sub: GymSubscriptionRow): string[] {
   return [...keys].sort();
 }
 
-export function locationOptionsForEmployeeLine(sub: GymSubscriptionRow): string[] {
-  if (sub.serviceableLocations.length > 0) {
-    return [...sub.serviceableLocations];
+export function locationOptionsForEmployeeLine(sub: GymSubscriptionRow): GymLocationOption[] {
+  if (sub.serviceableLocationOptions.length > 0) {
+    return [...sub.serviceableLocationOptions];
   }
-  return allPricingLocationKeys(sub);
+  return allPricingLocationKeys(sub).map(locationOptionFromKey);
 }
 
 export function locationOptionsForDependentPackage(
   sub: GymSubscriptionRow,
   packageCode: string,
-): string[] {
+): GymLocationOption[] {
   let pkg: GymDependentPackage | undefined;
   for (const p of sub.dependentPackages) {
     if (p.packageCode === packageCode) {
@@ -179,9 +194,11 @@ export function locationOptionsForDependentPackage(
     }
   }
   if (!pkg || pkg.pricing.length === 0) {
-    return allPricingLocationKeys(sub);
+    return allPricingLocationKeys(sub).map(locationOptionFromKey);
   }
-  return pkg.pricing.map((p) => p.locationKey).filter((k) => k.trim().length > 0);
+  return pkg.pricing
+    .map((p) => locationOptionFromMap(sub, p.locationKey))
+    .filter((o) => o.key.trim().length > 0);
 }
 
 export function pricingForDependent(

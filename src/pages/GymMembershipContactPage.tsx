@@ -40,6 +40,31 @@ function prettyLocation(key: string): string {
   return t[0].toUpperCase() + t.slice(1);
 }
 
+function selectedLocationKey(current: GymLineFormModel): string {
+  return current.locationOptions.some((option) => option.key === current.locationKey)
+    ? current.locationKey
+    : "";
+}
+
+function locationLabelForKey(current: GymLineFormModel): string {
+  return (
+    current.locationOptions.find((option) => option.key === current.locationKey)?.label ||
+    prettyLocation(current.locationKey)
+  );
+}
+
+function normalizeGymLineForms(forms: GymLineFormModel[]): GymLineFormModel[] {
+  return forms.map((form) => {
+    const firstOption = form.locationOptions[0] as unknown;
+    if (typeof firstOption !== "string") return form;
+    const restoredOptions = (form.locationOptions as unknown as string[]).map((key) => ({
+      key,
+      label: prettyLocation(key),
+    }));
+    return { ...form, locationOptions: restoredOptions };
+  });
+}
+
 function patchForm(
   forms: GymLineFormModel[],
   index: number,
@@ -96,7 +121,7 @@ export function GymMembershipContactPage() {
         const storedLines = readGymFlowV2LineForms();
         const built =
           storedLines && storedLines.length > 0
-            ? storedLines
+            ? normalizeGymLineForms(storedLines)
             : buildLineForms(
                 sub,
                 members,
@@ -189,7 +214,7 @@ export function GymMembershipContactPage() {
           packageDisplayName: f.packageDisplayName,
           memberDisplayName: f.memberDisplayName,
           isEmployeePackage: f.isEmployeePackage,
-          locationLabel: prettyLocation(f.locationKey),
+          locationLabel: locationLabelForKey(f),
           phone: f.phone.trim(),
           email: f.email.trim(),
         })),
@@ -311,7 +336,7 @@ export function GymMembershipContactPage() {
               </span>
               <select
                 className="gym-contact-select"
-                value={current.locationOptions.includes(current.locationKey) ? current.locationKey : ""}
+                value={selectedLocationKey(current)}
                 onChange={(e) => {
                   const v = e.target.value;
                   setForms((prev) => {
@@ -322,9 +347,9 @@ export function GymMembershipContactPage() {
                 }}
               >
                 <option value="">Choose location</option>
-                {current.locationOptions.map((k) => (
-                  <option key={k} value={k}>
-                    {prettyLocation(k)}
+                {current.locationOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
                   </option>
                 ))}
               </select>

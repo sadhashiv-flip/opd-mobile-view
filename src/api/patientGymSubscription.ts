@@ -43,6 +43,11 @@ function asInt(v: unknown): number {
   return 0;
 }
 
+export type GymLocationOption = Readonly<{
+  key: string;
+  label: string;
+}>;
+
 export type GymLocationPricing = Readonly<{
   locationKey: string;
   finalAmount: number;
@@ -74,6 +79,7 @@ export type GymSubscriptionRow = Readonly<{
   forDependents: boolean;
   dependents: readonly string[];
   serviceableLocations: readonly string[];
+  serviceableLocationOptions: readonly GymLocationOption[];
   employeePackages: readonly GymEmployeePackage[];
   dependentPackages: readonly GymDependentPackage[];
 }>;
@@ -207,11 +213,55 @@ function parseDependentPackage(raw: Record<string, unknown>): GymDependentPackag
   };
 }
 
+function safeString(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return null;
+}
+
+function parseGymLocationOption(raw: unknown): GymLocationOption | null {
+  if (typeof raw === "string" && raw.trim()) {
+    const key = raw.trim();
+    return { key, label: key };
+  }
+
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    const nested =
+      o.location && typeof o.location === "object" && !Array.isArray(o.location)
+        ? (o.location as Record<string, unknown>)
+        : o;
+
+    const key =
+      safeString(nested.key ?? nested.location_key ?? nested.locationKey ?? nested.id ?? nested.code ?? nested.value) ??
+      "";
+    if (!key) return null;
+
+    const label =
+      safeString(nested.label ?? nested.name ?? nested.value ?? nested.text) ??
+      key;
+    return { key, label };
+  }
+
+  return null;
+}
+
 function parseSubscriptionRow(raw: Record<string, unknown>): GymSubscriptionRow {
   const deps = raw.dependents;
   const locs = raw.serviceable_locations;
   const ep = raw.employee_packages;
   const dp = raw.dependent_packages;
+
+  const serviceableLocationOptions: GymLocationOption[] = Array.isArray(locs)
+    ? locs
+      .map((e) => parseGymLocationOption(e))
+      .filter((x): x is GymLocationOption => x != null)
+    : [];
 
   return {
     subscriptionId: String(raw.subscription_id ?? ""),
@@ -219,16 +269,17 @@ function parseSubscriptionRow(raw: Record<string, unknown>): GymSubscriptionRow 
     paymentAvailable: raw.payment_available === true || raw.payment_available === 1,
     forDependents: raw.forDependents === true || raw.forDependents === 1,
     dependents: Array.isArray(deps) ? deps.map((e) => String(e)) : [],
-    serviceableLocations: Array.isArray(locs) ? locs.map((e) => String(e)) : [],
+    serviceableLocations: serviceableLocationOptions.map((o) => o.key),
+    serviceableLocationOptions,
     employeePackages: Array.isArray(ep)
       ? ep
-          .filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
-          .map((x) => parseEmployeePackage(x))
+        .filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
+        .map((x) => parseEmployeePackage(x))
       : [],
     dependentPackages: Array.isArray(dp)
       ? dp
-          .filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
-          .map((x) => parseDependentPackage(x))
+        .filter((x): x is Record<string, unknown> => x != null && typeof x === "object")
+        .map((x) => parseDependentPackage(x))
       : [],
   };
 }
@@ -364,14 +415,14 @@ export async function postGymQuote(body: GymQuoteRequestBody): Promise<GymQuoteD
     ov && typeof ov === "object"
       ? parseQuoteOverview(ov as Record<string, unknown>)
       : {
-          lineCount: 0,
-          totalPackageAmount: 0,
-          totalPayAmount: 0,
-          totalPendingAmount: 0,
-          totalOpdPaidAmount: 0,
-          paymentRequired: false,
-          amountRequiredForPayment: 0,
-        };
+        lineCount: 0,
+        totalPackageAmount: 0,
+        totalPayAmount: 0,
+        totalPendingAmount: 0,
+        totalOpdPaidAmount: 0,
+        paymentRequired: false,
+        amountRequiredForPayment: 0,
+      };
 
   return {
     subscriptionId: String(d.subscription_id ?? body.subscription_id),
