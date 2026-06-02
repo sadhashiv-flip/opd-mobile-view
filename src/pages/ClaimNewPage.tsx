@@ -24,7 +24,9 @@ import { uploadReimbursementBillDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
 import { CLAIMS_DISCLOSURES_GATE_SESSION_KEY } from "@/constants/appSessionStorageKeys";
 import { CLAIM_CHECKLIST_ESCROW_STORAGE_KEY } from "@/constants/claimsChecklistEscrow";
+import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import { useTermsScrollGate } from "@/hooks/useTermsScrollGate";
 import { useToast } from "@/hooks/useToast";
 import type { ClaimBillChecklistLocationState } from "@/pages/ClaimBillChecklistPage";
 import "@/components/address/AddressBottomSheet.css";
@@ -79,6 +81,17 @@ function formatInrInteger(amountStr: string): string {
 function formatInrNumber(n: number): string {
   if (!Number.isFinite(n)) return "0";
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(n);
+}
+
+/** Required fields for “Save Bill” on the add-bill sheet (matches patient-app `isMedicalBillFormComplete`). */
+function isBillDraftFormComplete(d: DraftBill): boolean {
+  if (!d.billNumber.trim() || !d.billDate || !d.billAmount.trim() || !d.clinicName.trim() || !d.clinicAddress.trim()) {
+    return false;
+  }
+  if (!d.billFiles.length) return false;
+  const amt = Number(String(d.billAmount).replace(/,/g, ""));
+  if (!Number.isFinite(amt) || amt < 1) return false;
+  return true;
 }
 
 /** Same rules as saving a bill from the review sheet (without toast). */
@@ -209,14 +222,17 @@ function ClaimImportantNoteBody() {
   );
 }
 
-type OpdTermsSheetState =
-  | { open: false }
-  | { open: true; variant: "step1" | "browse" | "beforeSubmit" };
+type OpdTermsSheetState = { open: false } | { open: true; variant: "step1" | "browse" };
+
+/** patient_app `AppString.kBillReviewDisclaimer` */
+const BILL_REVIEW_DISCLAIMER =
+  "Claims may be rejected if details are incomplete or do not match the bill. Please review carefully before proceeding.";
 
 export function ClaimNewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const confirm = useAppConfirm();
   const mod = useProfileModuleGates();
   const canAddFamilyMember = mod.planDependents.dependentAddAllowed;
   const returnPath =
@@ -250,18 +266,21 @@ export function ClaimNewPage() {
   const [bankSheetOpen, setBankSheetOpen] = useState(false);
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);
   const [billSheetOpen, setBillSheetOpen] = useState(false);
-  const [billSaveReviewOpen, setBillSaveReviewOpen] = useState(false);
+  /** patient_app `showBillReviewTermsBottomSheet` — short disclaimer before service types (new bills only). */
+  const [billReviewDisclaimerOpen, setBillReviewDisclaimerOpen] = useState(false);
   const [multiDocLoading, setMultiDocLoading] = useState(false);
   const [billDraft, setBillDraft] = useState<DraftBill>(emptyDraftBill);
   const billDraftRef = useRef(billDraft);
   billDraftRef.current = billDraft;
   const [serviceSheetOpen, setServiceSheetOpen] = useState(false);
   const [serviceDraftSelection, setServiceDraftSelection] = useState<ReimbursementServiceType[]>([]);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [billUploading, setBillUploading] = useState(false);
   const [opdTermsSheet, setOpdTermsSheet] = useState<OpdTermsSheetState>({ open: false });
   const [step1ImportantNoteOpen, setStep1ImportantNoteOpen] = useState(false);
+
+  const gateTermsScroll = useTermsScrollGate(gate === "terms");
+  const opdTermsScroll = useTermsScrollGate(opdTermsSheet.open);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,7 +345,7 @@ export function ClaimNewPage() {
         setBillDraft(escrow.billDraft);
         setStep(2);
         setBillSheetOpen(true);
-        setBillSaveReviewOpen(true);
+        setBillReviewDisclaimerOpen(false);
         setServiceSheetOpen(false);
       }
       const rp = typeof st?.returnPath === "string" && st.returnPath.trim() ? st.returnPath.trim() : undefined;
@@ -358,6 +377,9 @@ export function ClaimNewPage() {
           }
         }
         setBills(nextBills);
+        setBillSheetOpen(false);
+        setBillReviewDisclaimerOpen(false);
+        setServiceSheetOpen(false);
       } else {
         setBillDraft((b) => {
           if (b.localId !== done.localBillId) return b;
@@ -377,12 +399,15 @@ export function ClaimNewPage() {
           if (prev.some((x) => x.localId === merged.localId)) return prev;
           return [...prev, merged];
         });
+        setBillSheetOpen(false);
+        setBillReviewDisclaimerOpen(false);
+        setServiceSheetOpen(false);
       }
     }
     if (afterChecklistReview) {
       setStep(3);
       setBillSheetOpen(false);
-      setBillSaveReviewOpen(false);
+      setBillReviewDisclaimerOpen(false);
     }
     if (!done?.localBillId && !afterChecklistReview) return;
     const rp = typeof st?.returnPath === "string" && st.returnPath.trim() ? st.returnPath.trim() : undefined;
@@ -399,7 +424,7 @@ export function ClaimNewPage() {
       !opdTermsSheet.open &&
       !step1ImportantNoteOpen &&
       !billSheetOpen &&
-      !billSaveReviewOpen &&
+      !billReviewDisclaimerOpen &&
       !serviceSheetOpen
     )
       return;
@@ -414,7 +439,7 @@ export function ClaimNewPage() {
     opdTermsSheet.open,
     step1ImportantNoteOpen,
     billSheetOpen,
-    billSaveReviewOpen,
+    billReviewDisclaimerOpen,
     serviceSheetOpen,
   ]);
 
@@ -466,23 +491,30 @@ export function ClaimNewPage() {
 
   const closeBillSheet = useCallback(() => {
     editingBillLocalIdRef.current = null;
-    setBillSaveReviewOpen(false);
+    setBillReviewDisclaimerOpen(false);
+    setServiceSheetOpen(false);
     setBillSheetOpen(false);
   }, []);
 
   const openAddBill = useCallback(() => {
     editingBillLocalIdRef.current = null;
     setBillDraft(emptyDraftBill());
-    setBillSaveReviewOpen(false);
+    setBillReviewDisclaimerOpen(false);
+    setServiceSheetOpen(false);
     setBillSheetOpen(true);
   }, []);
 
   const openEditBill = useCallback((b: DraftBill) => {
     editingBillLocalIdRef.current = b.localId;
     setBillDraft({ ...b });
-    const hasServices = b.serviceTypes.length > 0;
+    setBillReviewDisclaimerOpen(false);
+    setServiceSheetOpen(false);
     setBillSheetOpen(true);
-    setBillSaveReviewOpen(hasServices);
+  }, []);
+
+  const openServiceTypesSheet = useCallback(() => {
+    setServiceDraftSelection([...billDraftRef.current.serviceTypes]);
+    setServiceSheetOpen(true);
   }, []);
 
   const toggleServiceInDraft = useCallback((t: ReimbursementServiceType) => {
@@ -491,6 +523,39 @@ export function ClaimNewPage() {
       if (on) return prev.filter((x) => x.id !== t.id);
       return [...prev, t];
     });
+  }, []);
+
+  const persistBillDraft = useCallback(
+    (d: DraftBill): boolean => {
+      if (!d.serviceTypes.length) {
+        toast.error("Select at least one service type");
+        return false;
+      }
+      const rows = d.multiDocChecklist?.rows ?? [];
+      if (rows.length > 0) {
+        const slots = buildBillChecklistSlots(rows);
+        if (!areBillChecklistRequirementsMet(slots, d.checklistFilesBySlot)) {
+          toast.error("Upload required checklist documents before saving this bill");
+          return false;
+        }
+      }
+      const replaceId = editingBillLocalIdRef.current;
+      editingBillLocalIdRef.current = null;
+      setBills((prev) => {
+        if (replaceId) {
+          return prev.map((x) => (x.localId === replaceId ? d : x));
+        }
+        return [...prev, d];
+      });
+      return true;
+    },
+    [toast],
+  );
+
+  const closeBillFlowSheets = useCallback(() => {
+    setServiceSheetOpen(false);
+    setBillReviewDisclaimerOpen(false);
+    setBillSheetOpen(false);
   }, []);
 
   const finishServiceSelection = useCallback(async () => {
@@ -503,7 +568,6 @@ export function ClaimNewPage() {
       toast.error("Service type keys missing for this selection");
       return;
     }
-    setServiceSheetOpen(false);
     setMultiDocLoading(true);
     try {
       const raw = await fetchReimbursementMultiDocumentTypes(keys);
@@ -519,6 +583,7 @@ export function ClaimNewPage() {
       };
       setBillDraft(next);
       if (rows.length > 0) {
+        setServiceSheetOpen(false);
         const returnTo = `${location.pathname}${location.search}`;
         const state: ClaimBillChecklistLocationState = {
           returnTo,
@@ -539,13 +604,29 @@ export function ClaimNewPage() {
         };
         writeChecklistEscrow(billsRef.current, next);
         navigate(ROUTES.claimBillChecklist, { state });
+        return;
+      }
+      const replaceId = editingBillLocalIdRef.current;
+      if (persistBillDraft(next)) {
+        closeBillFlowSheets();
+        toast.success(replaceId ? "Bill updated" : "Bill added");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not load document checklist");
     } finally {
       setMultiDocLoading(false);
     }
-  }, [serviceDraftSelection, toast, location.pathname, location.search, navigate, returnPath, serviceTypesCatalog]);
+  }, [
+    serviceDraftSelection,
+    toast,
+    location.pathname,
+    location.search,
+    navigate,
+    returnPath,
+    serviceTypesCatalog,
+    persistBillDraft,
+    closeBillFlowSheets,
+  ]);
 
   const onPickBillFiles = useCallback(
     async (files: FileList | null) => {
@@ -572,83 +653,32 @@ export function ClaimNewPage() {
     [billDraft.billNumber, toast],
   );
 
-  /** After “Save Bill” on the form — opens review sheet (service types picked next). */
+  /**
+   * patient_app `onSaveMedicalBillPressed`: new bill → disclaimer sheet → service types;
+   * edit bill → service types directly.
+   */
   const submitBillDraftToReview = useCallback(() => {
     const d = billDraft;
-    if (!d.billNumber.trim() || !d.billDate || !d.billAmount.trim() || !d.clinicName.trim() || !d.clinicAddress.trim()) {
-      toast.error("Please fill all required bill fields");
+    if (!isBillDraftFormComplete(d)) {
+      toast.error("Please fill mandatory bill fields and attach at least one bill image");
       return;
     }
-    if (!d.billFiles.length) {
-      toast.error("Add at least one bill image");
+    if (!serviceTypesCatalog.length) {
+      toast.error("Could not load service types. Try again.");
       return;
     }
-    setBillSaveReviewOpen(true);
-  }, [billDraft, toast]);
+    if (editingBillLocalIdRef.current) {
+      openServiceTypesSheet();
+      return;
+    }
+    setBillReviewDisclaimerOpen(true);
+  }, [billDraft, serviceTypesCatalog.length, openServiceTypesSheet, toast]);
 
-  /** From review sheet — append bill and close add-bill flow. */
-  const confirmBillFromReview = useCallback(() => {
-    const d = billDraft;
-    if (!d.serviceTypes.length) {
-      toast.error("Select at least one service type");
-      return;
-    }
-    const rows = d.multiDocChecklist?.rows ?? [];
-    if (rows.length > 0) {
-      const slots = buildBillChecklistSlots(rows);
-      if (!areBillChecklistRequirementsMet(slots, d.checklistFilesBySlot)) {
-        toast.error("Upload required checklist documents before saving this bill");
-        return;
-      }
-    }
-    const replaceId = editingBillLocalIdRef.current;
-    editingBillLocalIdRef.current = null;
-    setBills((prev) => {
-      if (replaceId) {
-        return prev.map((x) => (x.localId === replaceId ? d : x));
-      }
-      return [...prev, d];
-    });
-    setBillSaveReviewOpen(false);
-    setBillSheetOpen(false);
-    toast.success(replaceId ? "Bill updated" : "Bill added");
-  }, [billDraft, toast]);
-
-  const openServiceTypesFromBillReview = useCallback(() => {
-    setServiceDraftSelection([...billDraft.serviceTypes]);
+  const onBillReviewDisclaimerAgree = useCallback(() => {
+    setBillReviewDisclaimerOpen(false);
+    setServiceDraftSelection([]);
     setServiceSheetOpen(true);
-  }, [billDraft.serviceTypes]);
-
-  const billChecklistOk = useMemo(() => {
-    const rows = billDraft.multiDocChecklist?.rows ?? [];
-    if (!rows.length) return true;
-    return areBillChecklistRequirementsMet(buildBillChecklistSlots(rows), billDraft.checklistFilesBySlot);
-  }, [billDraft.multiDocChecklist, billDraft.checklistFilesBySlot]);
-
-  const goToBillChecklist = useCallback(() => {
-    const rows = billDraft.multiDocChecklist?.rows ?? [];
-    if (!rows.length) return;
-    const returnTo = `${location.pathname}${location.search}`;
-    const state: ClaimBillChecklistLocationState = {
-      returnTo,
-      billNumber: billDraft.billNumber.trim(),
-      localBillId: billDraft.localId,
-      multiDocRows: rows,
-      apiMessage: billDraft.multiDocChecklist?.message ?? null,
-      initialFilesBySlot: billDraft.checklistFilesBySlot,
-      claimReturnPath: returnPath,
-      serviceTypesCatalog,
-      billServiceTypeKeys: billDraft.serviceTypes.map((s) => s.key.trim()).filter(Boolean),
-      billSummary: {
-        billDate: billDraft.billDate,
-        billAmount: billDraft.billAmount.trim(),
-        clinicName: billDraft.clinicName.trim(),
-        fileCount: billDraft.billFiles.length,
-      },
-    };
-    writeChecklistEscrow(billsRef.current, billDraft);
-    navigate(ROUTES.claimBillChecklist, { state });
-  }, [billDraft, location.pathname, location.search, navigate, returnPath, serviceTypesCatalog]);
+  }, []);
 
   const claimTotal = useMemo(
     () =>
@@ -738,23 +768,18 @@ export function ClaimNewPage() {
       toast.error(e instanceof Error ? e.message : "Submit failed");
     } finally {
       setSubmitting(false);
-      setReviewModalOpen(false);
     }
   }, [selectedMember, bankId, altPhone, bills, claimTotal, navigate, returnPath, toast]);
 
   const onOpdTermsSheetContinue = useCallback(() => {
     setOpdTermsSheet((prev) => {
       if (!prev.open) return prev;
-      const { variant } = prev;
-      if (variant === "step1") {
+      if (prev.variant === "step1") {
         setStep1ImportantNoteOpen(true);
-      }
-      if (variant === "beforeSubmit") {
-        void submitClaim();
       }
       return { open: false };
     });
-  }, [submitClaim]);
+  }, []);
 
   const onStep1ImportantNoteContinue = useCallback(() => {
     const ready =
@@ -776,14 +801,74 @@ export function ClaimNewPage() {
     setStep1ImportantNoteOpen(false);
   }, []);
 
+  const confirmRemoveBill = useCallback(
+    async (localId: string) => {
+      const ok = await confirm({
+        title: "Remove bill?",
+        message: "Are you sure you want to remove this bill?",
+        confirmLabel: "Remove",
+        cancelLabel: "Cancel",
+        variant: "destructive",
+      });
+      if (!ok) return;
+      setBills((prev) => prev.filter((b) => b.localId !== localId));
+      toast.success("Bill removed");
+    },
+    [confirm, toast],
+  );
+
+  const canSaveBillDraft = useMemo(() => isBillDraftFormComplete(billDraft), [billDraft]);
+
   const onBack = useCallback(() => {
+    if (opdTermsSheet.open) {
+      closeOpdTermsSheet();
+      return;
+    }
+    if (step1ImportantNoteOpen) {
+      closeStep1ImportantNote();
+      return;
+    }
+    if (serviceSheetOpen) {
+      setServiceSheetOpen(false);
+      return;
+    }
+    if (billReviewDisclaimerOpen) {
+      setBillReviewDisclaimerOpen(false);
+      return;
+    }
+    if (billSheetOpen) {
+      closeBillSheet();
+      return;
+    }
+    if (bankSheetOpen) {
+      setBankSheetOpen(false);
+      return;
+    }
+    if (memberSheetOpen) {
+      setMemberSheetOpen(false);
+      return;
+    }
     if (step === 1) {
       navigate(returnPath);
       return;
     }
     if (step === 2) setStep(1);
     if (step === 3) setStep(2);
-  }, [navigate, returnPath, step]);
+  }, [
+    opdTermsSheet.open,
+    step1ImportantNoteOpen,
+    serviceSheetOpen,
+    billReviewDisclaimerOpen,
+    billSheetOpen,
+    bankSheetOpen,
+    memberSheetOpen,
+    closeOpdTermsSheet,
+    closeStep1ImportantNote,
+    closeBillSheet,
+    navigate,
+    returnPath,
+    step,
+  ]);
 
   const stepper = (
     <div className="claim-stepper">
@@ -1007,22 +1092,39 @@ export function ClaimNewPage() {
                           <p className="claim-review-block__clinic">{b.clinicName.trim()}</p>
                         ) : null}
                       </div>
-                      <button
-                        type="button"
-                        className="claim-review-block__exit"
-                        aria-label="Edit this bill"
-                        onClick={() => openEditBill(b)}
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                          <path
-                            d="M12 15h8M16 5l3 3-9.5 9.5-4 1 1-4L16 5z"
-                            stroke="currentColor"
-                            strokeWidth="1.75"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
+                      <div className="claim-review-block__actions">
+                        <button
+                          type="button"
+                          className="claim-review-block__exit"
+                          aria-label="Edit this bill"
+                          onClick={() => openEditBill(b)}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M12 15h8M16 5l3 3-9.5 9.5-4 1 1-4L16 5z"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="claim-review-block__exit claim-review-block__exit--danger"
+                          aria-label="Remove this bill"
+                          onClick={() => void confirmRemoveBill(b.localId)}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M18 6L6 18M6 6l12 12"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                     <dl className="claim-review-block__facts">
                       <div className="claim-review-block__fact">
@@ -1041,6 +1143,62 @@ export function ClaimNewPage() {
                   </li>
                 ))}
               </ul>
+            ) : null}
+            {bills.length > 0 ? (
+              <section className="claim-ro-card claim-step2-docs" aria-labelledby="claim-step2-docs-title">
+                <div className="claim-ro-card__head">
+                  <span className="claim-ro-card__icon" aria-hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M3 7a2 2 0 012-2h4l2 2h10a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <h2 id="claim-step2-docs-title" className="claim-ro-card__title">
+                    Supporting documents
+                  </h2>
+                </div>
+                <ul className="claim-ro-doc-list">
+                  <li className="claim-ro-doc-row">
+                    <span className="claim-ro-doc-row__label">Bill images (scans)</span>
+                    <span
+                      className={`claim-ro-pill${overviewBillImageCount > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
+                    >
+                      {overviewBillImageCount} file{overviewBillImageCount === 1 ? "" : "s"}
+                    </span>
+                  </li>
+                  <li className="claim-ro-doc-row">
+                    <span className="claim-ro-doc-row__label">Payment receipts</span>
+                    <span
+                      className={`claim-ro-pill${overviewDocCounts.payment > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
+                    >
+                      {overviewDocCounts.payment} file{overviewDocCounts.payment === 1 ? "" : "s"}
+                    </span>
+                  </li>
+                  <li className="claim-ro-doc-row">
+                    <span className="claim-ro-doc-row__label">Medical reports</span>
+                    <span
+                      className={`claim-ro-pill${overviewDocCounts.reports > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
+                    >
+                      {overviewDocCounts.reports} file{overviewDocCounts.reports === 1 ? "" : "s"}
+                    </span>
+                  </li>
+                  <li className="claim-ro-doc-row">
+                    <span className="claim-ro-doc-row__label">Other documents</span>
+                    <span
+                      className={`claim-ro-pill${overviewDocCounts.other > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
+                    >
+                      {overviewDocCounts.other} file{overviewDocCounts.other === 1 ? "" : "s"}
+                    </span>
+                  </li>
+                </ul>
+                <p className="claim-step2-docs__hint">
+                  Edit a bill and open the document checklist to upload or remove supporting files.
+                </p>
+              </section>
             ) : null}
           </>
         ) : null}
@@ -1080,14 +1238,37 @@ export function ClaimNewPage() {
                   <dt>Alternate phone number</dt>
                   <dd>{altPhone.trim() || "—"}</dd>
                 </div>
-                <div className="claim-ro-dl__row">
-                  <dt>Bank details</dt>
-                  <dd>
-                    {selectedBank
-                      ? `${selectedBank.bankName} · ****${bankAccountTail(selectedBank)}`
-                      : "—"}
-                  </dd>
-                </div>
+                {selectedBank ? (
+                  <>
+                    <div className="claim-ro-dl__row">
+                      <dt>Account holder</dt>
+                      <dd>{selectedBank.accountHolderName.trim() || "—"}</dd>
+                    </div>
+                    <div className="claim-ro-dl__row">
+                      <dt>Bank name</dt>
+                      <dd>{selectedBank.bankName.trim() || "—"}</dd>
+                    </div>
+                    <div className="claim-ro-dl__row">
+                      <dt>Account number</dt>
+                      <dd>****{bankAccountTail(selectedBank)}</dd>
+                    </div>
+                    <div className="claim-ro-dl__row">
+                      <dt>IFSC code</dt>
+                      <dd>{selectedBank.ifscCode.trim() || "—"}</dd>
+                    </div>
+                    {selectedBank.branch?.trim() ? (
+                      <div className="claim-ro-dl__row">
+                        <dt>Branch</dt>
+                        <dd>{selectedBank.branch.trim()}</dd>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="claim-ro-dl__row">
+                    <dt>Bank details</dt>
+                    <dd>—</dd>
+                  </div>
+                )}
               </dl>
             </section>
 
@@ -1299,7 +1480,7 @@ export function ClaimNewPage() {
               type="button"
               className="claim-footer__primary"
               disabled={!canStep1Continue}
-              onClick={() => setStep(2)}
+              onClick={() => setStep1ImportantNoteOpen(true)}
             >
               Continue
             </button>
@@ -1319,9 +1500,9 @@ export function ClaimNewPage() {
               type="button"
               className="claim-footer__primary"
               disabled={bills.length === 0 || submitting}
-              onClick={() => setReviewModalOpen(true)}
+              onClick={() => void submitClaim()}
             >
-              Submit claim
+              {submitting ? "Submitting…" : "Submit claim"}
             </button>
           ) : null}
         </div>
@@ -1337,7 +1518,11 @@ export function ClaimNewPage() {
                 ×
               </button>
             </div>
-            <div className="claim-sheet__body claim-sheet__body--terms">
+            <div
+              ref={gateTermsScroll.scrollRef}
+              className="claim-sheet__body claim-sheet__body--terms"
+              onScroll={gateTermsScroll.onScroll}
+            >
               <ClaimOpdGeneralTermsBody />
             </div>
             <div className="claim-sheet__footer">
@@ -1345,6 +1530,7 @@ export function ClaimNewPage() {
                 type="button"
                 className="claim-sheet__btn-black"
                 style={{ flex: 1 }}
+                disabled={!gateTermsScroll.scrolledToEnd}
                 onClick={() => setGate("note")}
               >
                 Continue
@@ -1571,7 +1757,10 @@ export function ClaimNewPage() {
                           className="addr-sheet__radio"
                           name="claim-bank-sheet"
                           checked={bankId === b.id}
-                          onChange={() => setBankId(b.id)}
+                          onChange={() => {
+                            setBankId(b.id);
+                            setBankSheetOpen(false);
+                          }}
                         />
                         <span className="addr-sheet__item-body">
                           <span className="addr-sheet__tag">{b.bankName}</span>
@@ -1603,8 +1792,9 @@ export function ClaimNewPage() {
 
       {/* Add bill */}
       {billSheetOpen ? (
-        <div className="claim-overlay" role="dialog" aria-modal onClick={closeBillSheet}>
-          <div className="claim-sheet" style={{ maxHeight: "95dvh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="claim-overlay claim-overlay--bill-form" role="dialog" aria-modal>
+          <div className="claim-sheet claim-sheet--bill-form" onClick={(e) => e.stopPropagation()}>
+            <div className="claim-sheet__handle" aria-hidden />
             <div className="claim-sheet__head">
               <h2 className="claim-sheet__title">Add Medical Bill</h2>
               <button type="button" className="claim-sheet__close" aria-label="Close" onClick={closeBillSheet}>
@@ -1745,7 +1935,13 @@ export function ClaimNewPage() {
               </section>
             </div>
             <div className="claim-sheet__footer">
-              <button type="button" className="claim-sheet__btn-primary" style={{ flex: 1 }} onClick={submitBillDraftToReview}>
+              <button
+                type="button"
+                className="claim-sheet__btn-primary"
+                style={{ flex: 1 }}
+                disabled={!canSaveBillDraft}
+                onClick={submitBillDraftToReview}
+              >
                 Save Bill
               </button>
             </div>
@@ -1753,109 +1949,49 @@ export function ClaimNewPage() {
         </div>
       ) : null}
 
-      {/* After Save Bill — review draft, then open service types sheet */}
-      {billSaveReviewOpen ? (
+      {/* patient_app `showBillReviewTermsBottomSheet` — disclaimer before service types (new bill only) */}
+      {billReviewDisclaimerOpen ? (
         <div
-          className="claim-overlay claim-overlay--bill-add-review"
+          className="claim-overlay claim-overlay--bill-disclaimer"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="claim-bill-review-title"
-          onClick={() => setBillSaveReviewOpen(false)}
+          aria-labelledby="claim-bill-disclaimer-title"
         >
-          <div className="claim-sheet claim-sheet--opd-terms" onClick={(e) => e.stopPropagation()}>
+          <div className="claim-sheet claim-sheet--bill-disclaimer" onClick={(e) => e.stopPropagation()}>
             <div className="claim-sheet__head">
-              <h2 id="claim-bill-review-title" className="claim-sheet__title">
-                Review your submission
+              <h2 id="claim-bill-disclaimer-title" className="claim-sheet__title">
+                Review Your Submission
               </h2>
-              <button type="button" className="claim-sheet__close" aria-label="Close" onClick={() => setBillSaveReviewOpen(false)}>
+              <button
+                type="button"
+                className="claim-sheet__close"
+                aria-label="Close"
+                onClick={() => setBillReviewDisclaimerOpen(false)}
+              >
                 ×
               </button>
             </div>
-            <div className="claim-sheet__body">
-              <div className="claim-bill-review">
-                <div className="claim-bill-review__row">
-                  <span className="claim-bill-review__k">Bill number</span>
-                  <span className="claim-bill-review__v">{billDraft.billNumber.trim() || "—"}</span>
-                </div>
-                <div className="claim-bill-review__row">
-                  <span className="claim-bill-review__k">Bill date</span>
-                  <span className="claim-bill-review__v">{billDraft.billDate || "—"}</span>
-                </div>
-                <div className="claim-bill-review__row">
-                  <span className="claim-bill-review__k">Bill amount</span>
-                  <span className="claim-bill-review__v">₹{billDraft.billAmount.trim() || "—"}</span>
-                </div>
-                <div className="claim-bill-review__row">
-                  <span className="claim-bill-review__k">Clinic / hospital</span>
-                  <span className="claim-bill-review__v">{billDraft.clinicName.trim() || "—"}</span>
-                </div>
-                <div className="claim-bill-review__row claim-bill-review__row--block">
-                  <span className="claim-bill-review__k">Clinic address</span>
-                  <span className="claim-bill-review__v">{billDraft.clinicAddress.trim() || "—"}</span>
-                </div>
-                {billDraft.doctorName.trim() ? (
-                  <div className="claim-bill-review__row">
-                    <span className="claim-bill-review__k">Doctor</span>
-                    <span className="claim-bill-review__v">{billDraft.doctorName.trim()}</span>
-                  </div>
-                ) : null}
-                {billDraft.doctorReg.trim() ? (
-                  <div className="claim-bill-review__row">
-                    <span className="claim-bill-review__k">Doctor reg.</span>
-                    <span className="claim-bill-review__v">{billDraft.doctorReg.trim()}</span>
-                  </div>
-                ) : null}
-                <div className="claim-bill-review__row">
-                  <span className="claim-bill-review__k">Bill images</span>
-                  <span className="claim-bill-review__v">{billDraft.billFiles.length} file(s)</span>
-                </div>
-                <div className="claim-bill-review__row claim-bill-review__row--block">
-                  <span className="claim-bill-review__k">Service type(s)</span>
-                  <span className="claim-bill-review__v">
-                    {billDraft.serviceTypes.length
-                      ? billDraft.serviceTypes.map((s) => s.value).join(", ")
-                      : "Not selected — use the button below"}
-                  </span>
-                </div>
-                {billDraft.serviceTypes.length > 0 && (billDraft.multiDocChecklist?.rows?.length ?? 0) > 0 ? (
-                  <div className="claim-bill-review__hint">
-                    <button type="button" className="link" onClick={goToBillChecklist}>
-                      Document checklist & uploads
-                    </button>
-                    {!billChecklistOk ? (
-                      <span className="claim-bill-review__warn"> Required uploads are incomplete.</span>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
+            <div className="claim-sheet__body claim-sheet__body--terms">
+              <div className="claim-terms-box">{BILL_REVIEW_DISCLAIMER}</div>
             </div>
-            <div className="claim-sheet__footer claim-sheet__footer--stack">
-              <button type="button" className="claim-sheet__btn-primary" style={{ flex: 1 }} onClick={openServiceTypesFromBillReview}>
-                Select service types
-              </button>
+            <div className="claim-sheet__footer">
               <button
                 type="button"
                 className="claim-sheet__btn-black"
                 style={{ flex: 1 }}
-                disabled={!billDraft.serviceTypes.length || !billChecklistOk}
-                onClick={confirmBillFromReview}
+                onClick={onBillReviewDisclaimerAgree}
               >
-                Save bill
+                I Agree
               </button>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Service types */}
+      {/* patient_app `showBillServiceTypesBottomSheet` */}
       {serviceSheetOpen ? (
-        <div
-          className="claim-overlay claim-overlay--claim-service-types"
-          role="dialog"
-          aria-modal
-          onClick={() => setServiceSheetOpen(false)}
-        >
-          <div className="claim-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="claim-overlay claim-overlay--claim-service-types" role="dialog" aria-modal>
+          <div className="claim-sheet claim-sheet--service-types" onClick={(e) => e.stopPropagation()}>
             <div className="claim-sheet__head">
               <h2 className="claim-sheet__title">Select Service Type(s)</h2>
               <button
@@ -1867,72 +2003,48 @@ export function ClaimNewPage() {
                 ×
               </button>
             </div>
+            <div className="claim-sheet__divider" aria-hidden />
             <div className="claim-sheet__body">
-              <div className="claim-chips">
-                {serviceTypesCatalog.map((t) => {
-                  const on = serviceDraftSelection.some((x) => x.id === t.id);
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`claim-chip${on ? " claim-chip--on" : ""}`}
-                      onClick={() => toggleServiceInDraft(t)}
-                    >
-                      {t.value}
-                    </button>
-                  );
-                })}
+              {serviceTypesCatalog.length === 0 ? (
+                <p className="claim-sheet__empty">No service types available</p>
+              ) : (
+                <div className="claim-chips">
+                  {serviceTypesCatalog.map((t) => {
+                    const on = serviceDraftSelection.some((x) => x.id === t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className={`claim-chip${on ? " claim-chip--on" : ""}`}
+                        onClick={() => toggleServiceInDraft(t)}
+                      >
+                        {t.value}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {serviceDraftSelection.length > 0 ? (
+              <div className="claim-sheet__footer claim-sheet__footer--split">
+                <button type="button" className="claim-sheet__btn-muted" onClick={() => setServiceDraftSelection([])}>
+                  Clear All
+                </button>
+                <button
+                  type="button"
+                  className="claim-sheet__btn-primary"
+                  disabled={multiDocLoading}
+                  onClick={() => void finishServiceSelection()}
+                >
+                  {multiDocLoading ? "Loading…" : "Apply"}
+                </button>
               </div>
-            </div>
-            <div className="claim-sheet__footer claim-sheet__footer--split">
-              <button type="button" className="claim-sheet__btn-muted" onClick={() => setServiceDraftSelection([])}>
-                Clear All
-              </button>
-              <button
-                type="button"
-                className="claim-sheet__btn-primary"
-                disabled={multiDocLoading}
-                onClick={() => void finishServiceSelection()}
-              >
-                {multiDocLoading ? "Loading…" : "Apply"}
-              </button>
-            </div>
+            ) : null}
           </div>
         </div>
       ) : null}
 
-      {/* Review agree */}
-      {reviewModalOpen ? (
-        <div className="claim-overlay" role="dialog" aria-modal onClick={() => setReviewModalOpen(false)}>
-          <div className="claim-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="claim-sheet__head">
-              <h2 className="claim-sheet__title">Review Your Submission</h2>
-              <button type="button" className="claim-sheet__close" aria-label="Close" onClick={() => setReviewModalOpen(false)}>
-                ×
-              </button>
-            </div>
-            <div className="claim-sheet__body">
-              <div className="claim-terms-box">
-                Claims may be rejected if details are incomplete or do not match the bill. Please review carefully before
-                proceeding.
-              </div>
-            </div>
-            <div className="claim-sheet__footer">
-              <button
-                type="button"
-                className="claim-sheet__btn-black"
-                style={{ flex: 1 }}
-                disabled={submitting}
-                onClick={() => setOpdTermsSheet({ open: true, variant: "beforeSubmit" })}
-              >
-                {submitting ? "Submitting…" : "I Agree"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* General OPD T&C: opened from step-1 agree checkbox / Terms link, or after Review “I Agree” */}
+      {/* General OPD T&C: opened from step-1 agree checkbox / Terms link */}
       {opdTermsSheet.open ? (
         <div
           className="claim-overlay claim-overlay--opd-terms"
@@ -1950,7 +2062,11 @@ export function ClaimNewPage() {
                 ×
               </button>
             </div>
-            <div className="claim-sheet__body claim-sheet__body--terms">
+            <div
+              ref={opdTermsScroll.scrollRef}
+              className="claim-sheet__body claim-sheet__body--terms"
+              onScroll={opdTermsScroll.onScroll}
+            >
               <ClaimOpdGeneralTermsBody />
             </div>
             <div className="claim-sheet__footer">
@@ -1958,7 +2074,7 @@ export function ClaimNewPage() {
                 type="button"
                 className="claim-sheet__btn-black"
                 style={{ flex: 1 }}
-                disabled={submitting}
+                disabled={!opdTermsScroll.scrolledToEnd}
                 onClick={onOpdTermsSheetContinue}
               >
                 Continue

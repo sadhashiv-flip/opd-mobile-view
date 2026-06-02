@@ -30,11 +30,29 @@ export function readDentalPreferredDateTime(): string | null {
   }
 }
 
-export function clearDentalBookingFlowState(): void {
+export function clearDentalPreferredDateTime(): void {
   try {
-    sessionStorage.removeItem(DENTAL_SELECTED_CLINIC_KEY);
     sessionStorage.removeItem(DENTAL_PREFERRED_DATETIME_KEY);
   } catch {
     // ignore
   }
+}
+
+/** Back from slots → network list — drop slot; clinic stays for restore on network list. */
+export function clearDentalSlotStep(): void {
+  clearDentalPreferredDateTime();
+}
+
+/** Back from network list → select people — drop clinic and slot picks. */
+export function clearDentalClinicAndDownstream(): void {
+  try {
+    sessionStorage.removeItem(DENTAL_SELECTED_CLINIC_KEY);
+  } catch {
+    // ignore
+  }
+  clearDentalPreferredDateTime();
+}
+
+export function clearDentalBookingFlowState(): void {
+  clearDentalClinicAndDownstream();
 }

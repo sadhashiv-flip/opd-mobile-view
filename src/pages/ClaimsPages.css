@@ -932,6 +932,45 @@ button.claim-new-page__bank-tap {
   max-height: min(94dvh, 760px);
 }
 
+/* patient_app add-bill sheet ~85% viewport */
+.claim-sheet--bill-form {
+  max-height: min(85dvh, 680px);
+}
+
+.claim-sheet__handle {
+  width: 40px;
+  height: 4px;
+  margin: 12px auto 0;
+  border-radius: 2px;
+  background: #e8e8e8;
+  flex-shrink: 0;
+}
+
+/* patient_app `showBillReviewTermsBottomSheet` ~40% */
+.claim-sheet--bill-disclaimer {
+  max-height: min(40dvh, 420px);
+}
+
+/* patient_app `showBillServiceTypesBottomSheet` ~55% */
+.claim-sheet--service-types {
+  max-height: min(55dvh, 560px);
+}
+
+.claim-sheet__divider {
+  height: 1px;
+  margin: 0 16px;
+  background: #f0f0f0;
+  flex-shrink: 0;
+}
+
+.claim-sheet__empty {
+  margin: 0;
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--claims-muted);
+}
+
 .claim-sheet__footer {
   display: flex;
   gap: 10px;
@@ -1385,6 +1424,37 @@ button.claim-new-page__bank-tap {
 
 .claim-review-block__exit:active {
   opacity: 0.88;
+}
+
+.claim-review-block__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  margin: -6px -6px 0 0;
+}
+
+.claim-review-block__actions .claim-review-block__exit {
+  margin: 0;
+}
+
+.claim-review-block__exit--danger {
+  color: #c62828;
+}
+
+.claim-step2-docs {
+  margin-top: 8px;
+}
+
+.claim-step2-docs__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--claims-muted);
+}
+
+.claim-sheet__btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .claim-review-block__facts {

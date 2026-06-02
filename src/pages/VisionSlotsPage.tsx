@@ -2,6 +2,8 @@ import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { DIAG_SELECTED_PERSON_KEY } from "@/constants/diagnosticsSelectedMemberStorage";
 import {
   readVisionSelectedClinic,
+  readVisionSelectedSlot,
+  clearVisionSlotAndDownstream,
   writeVisionSelectedSlot,
 } from "@/constants/visionBookingStorage";
 import type { VisionNetworkService } from "@/api/networkList";
@@ -65,10 +67,21 @@ export function VisionSlotsPage() {
     setNetworkId(clinic.networkEntityId.trim());
   }, [visionType, apiService, navigate, toast]);
 
+  const storedSlot = useMemo(() => readVisionSelectedSlot(), []);
+
+  const restoreSelection = useMemo(
+    () =>
+      storedSlot
+        ? { slotDate: storedSlot.slot_date, slotId: storedSlot.slot_id }
+        : null,
+    [storedSlot],
+  );
+
   const slots = useVisionSlotsLoader({
     service: apiService,
     networkId,
     enabled: networkId != null && apiService != null,
+    restoreSelection,
   });
 
   const canContinue = useMemo(
@@ -117,6 +130,7 @@ export function VisionSlotsPage() {
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.visionNetworkList, { visionType })}
           className="hco-back"
+          onBeforeBack={clearVisionSlotAndDownstream}
         />
         <h1 className="hco-title">Select Your Vision Slots</h1>
         <span className="hco-top__balance" aria-hidden />

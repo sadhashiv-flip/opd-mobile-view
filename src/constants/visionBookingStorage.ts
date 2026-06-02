@@ -104,15 +104,41 @@ function isVisionSheetOptionString(v: string | undefined | null): v is VisionShe
   return v === "eye-checkup" || v === "glasses-lens";
 }
 
-export function clearVisionBookingFlowState(): void {
+export function clearVisionSelectedSlot(): void {
   try {
-    sessionStorage.removeItem(VISION_FLOW_OPTION_KEY);
-    sessionStorage.removeItem(VISION_SELECTED_CLINIC_KEY);
     sessionStorage.removeItem(VISION_SELECTED_SLOT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** Back from slots / add-prescription → network list — drop slot & Rx; clinic stays. */
+export function clearVisionSlotAndDownstream(): void {
+  clearVisionSelectedSlot();
+  try {
     sessionStorage.removeItem(VISION_GLASSES_PRESCRIPTIONS_KEY);
   } catch {
     // ignore
   }
+}
+
+/** Back from network list → select people — drop clinic, slot, and Rx picks. */
+export function clearVisionClinicAndDownstream(): void {
+  try {
+    sessionStorage.removeItem(VISION_SELECTED_CLINIC_KEY);
+  } catch {
+    // ignore
+  }
+  clearVisionSlotAndDownstream();
+}
+
+export function clearVisionBookingFlowState(): void {
+  try {
+    sessionStorage.removeItem(VISION_FLOW_OPTION_KEY);
+  } catch {
+    // ignore
+  }
+  clearVisionClinicAndDownstream();
 }
 
 export function readVisionFlowOptionFromStorage(): VisionSheetOption | null {

@@ -107,10 +107,10 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const isConsultationAtHospital = flow === "consultation" && type === "at_hospital";
   const isVisionFlow = flow === "vision";
   /**
-   * Dental + vision (eye-checkup / glasses-lens): no age gate on member picker
-   * (patient_app `DentalMemberSelectionScreen` / `VisionMemberSelectionScreen` — no `ageBlockReason`).
+   * Dental + vision: no child age gate (`CommonMemberSelectionScreen` without `ageBlockReason`).
+   * Not-activated handling matches vaccination.
    */
-  const relaxMemberRestrictions = isDentalFlow || isVisionFlow;
+  const relaxAgeRestrictions = isDentalFlow || isVisionFlow;
   /** patient_app: diagnostics, at-hospital consultation, dental, vision require address. */
   const requiresAddressSelection =
     isDiagnosticsFlow ||
@@ -233,9 +233,9 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       showAhcSponsorSubtitle,
       restrictToAhcSelection,
       isDiagnosticsFlow,
-      relaxMemberRestrictions,
+      relaxAgeRestrictions,
     }),
-    [showAhcSponsorSubtitle, restrictToAhcSelection, isDiagnosticsFlow, relaxMemberRestrictions],
+    [showAhcSponsorSubtitle, restrictToAhcSelection, isDiagnosticsFlow, relaxAgeRestrictions],
   );
 
   const selectionHint = useMemo(() => {
@@ -288,7 +288,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       let next = prev.filter((id) => {
         const r = rows.find((x) => x.id === id);
         if (!r) return false;
-        if (!relaxMemberRestrictions && !r.isSubscribed) {
+        if (!r.isSubscribed) {
           return false;
         }
         return selectionBasisRows.some((s) => s.id === id);
@@ -322,7 +322,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     rows,
     flow,
     type,
-    relaxMemberRestrictions,
+    relaxAgeRestrictions,
     loading,
     singleSelectOnly,
     pickerScope,
@@ -359,7 +359,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
           allowDeselect: true,
           restrictToAhcSelection,
           isHealthCheckupsDiagnostics,
-          relaxMemberRestrictions,
+          relaxAgeRestrictions,
         })(prev);
       }
       persistPersonSelection(next);

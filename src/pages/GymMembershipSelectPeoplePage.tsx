@@ -301,7 +301,7 @@ export function GymMembershipSelectPeoplePage() {
                 const notActivated = !member.isSubscribed;
                 const rowDisabled = notActivated;
                 const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
-                  relaxMemberRestrictions: false,
+                  relaxAgeRestrictions: false,
                 });
                 const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked ? " hc-person--age-blocked" : ""}`;
                 const body = (
@@ -358,7 +358,7 @@ export function GymMembershipSelectPeoplePage() {
                 const notActivated = !member.isSubscribed;
                 const rowDisabled = notActivated;
                 const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
-                  relaxMemberRestrictions: false,
+                  relaxAgeRestrictions: false,
                 });
                 const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked ? " hc-person--age-blocked" : ""}`;
                 const body = (

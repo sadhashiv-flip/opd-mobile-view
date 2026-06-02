@@ -47,7 +47,7 @@ export function VaccinationSelectPeoplePage() {
       showAhcSponsorSubtitle: false,
       restrictToAhcSelection: false,
       isDiagnosticsFlow: false,
-      relaxMemberRestrictions: false,
+      relaxAgeRestrictions: false,
     }),
     [],
   );

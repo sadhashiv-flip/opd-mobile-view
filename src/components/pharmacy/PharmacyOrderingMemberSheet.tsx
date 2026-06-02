@@ -42,7 +42,7 @@ export function PharmacyOrderingMemberSheet({
       showAhcSponsorSubtitle: false,
       restrictToAhcSelection: false,
       isDiagnosticsFlow: false,
-      relaxMemberRestrictions: false,
+      relaxAgeRestrictions: false,
     }),
     [],
   );

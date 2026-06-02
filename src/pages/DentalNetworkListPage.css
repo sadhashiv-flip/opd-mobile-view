@@ -31,6 +31,14 @@
   text-decoration: none;
 }
 
+button.dnl-back {
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
 .dnl-title {
   margin: 0;
   flex: 1;

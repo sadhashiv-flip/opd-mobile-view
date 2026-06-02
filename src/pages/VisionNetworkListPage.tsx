@@ -4,6 +4,7 @@ import { ROUTES } from "@/constants";
 import { fetchVisionNetworkClinicList, resolveSelectedAddressLocation } from "@/api/networkList";
 import {
   resolveVisionBookingContext,
+  clearVisionClinicAndDownstream,
   VISION_SELECTED_CLINIC_KEY,
 } from "@/constants/visionBookingStorage";
 import { NetworkClinicListView } from "@/pages/NetworkClinicListView";
@@ -46,6 +47,7 @@ export function VisionNetworkListPage() {
       fetchClinics={fetchClinics}
       selectedClinicStorageKey={VISION_SELECTED_CLINIC_KEY}
       continueTo={generatePath(ROUTES.visionSlots, { visionType })}
+      onBeforeBack={clearVisionClinicAndDownstream}
     />
   );
 }

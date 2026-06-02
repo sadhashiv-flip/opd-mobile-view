@@ -1,17 +1,24 @@
 import { ROUTES } from "@/constants";
-import { readDentalSelectedClinicRaw, writeDentalPreferredDateTime } from "@/constants/dentalBookingStorage";
+import {
+  clearDentalSlotStep,
+  readDentalPreferredDateTime,
+  readDentalSelectedClinicRaw,
+  writeDentalPreferredDateTime,
+} from "@/constants/dentalBookingStorage";
 import { DIAG_SELECTED_PERSON_KEY } from "@/constants/diagnosticsSelectedMemberStorage";
 import { DentalSlotPicker } from "@/components/dental/DentalSlotPicker";
+import { parsePreferredApiDateTime } from "@/components/vaccination/VaccinationSlotPicker";
 import {
   DENTAL_BOOKING_DAY_COUNT,
   firstDayWithBookableDentalSlots,
   flatDentalSlotLabelsForDay,
   formatDentalPreferredDateTime,
   getDentalBookingDays,
+  sameCalendarDay,
 } from "@/utils/dentalSlotRules";
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
-import { useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/hooks/useToast";
 import "./HealthCheckupsPage.css";
 import "./HealthCheckupsOverviewPage.css";
@@ -28,7 +35,9 @@ function readDiagPersonId(): string | null {
 
 export function DentalSlotsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
+  const guardsDone = useRef(false);
 
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
@@ -61,6 +70,7 @@ export function DentalSlotsPage() {
   }, [booking.dates, bookingNow]);
 
   useEffect(() => {
+    if (guardsDone.current) return;
     const memberId = readDiagPersonId();
     const clinicRaw = readDentalSelectedClinicRaw();
     if (!memberId) {
@@ -71,8 +81,22 @@ export function DentalSlotsPage() {
     if (!clinicRaw) {
       toast.error("Select a clinic first.");
       void navigate(ROUTES.dentalNetworkList, { replace: true });
+      return;
     }
+    guardsDone.current = true;
   }, [navigate, toast]);
+
+  useEffect(() => {
+    const stored = readDentalPreferredDateTime();
+    if (!stored) return;
+    const parsed = parsePreferredApiDateTime(stored);
+    if (!parsed) return;
+    const now = new Date();
+    const strip = getDentalBookingDays(DENTAL_BOOKING_DAY_COUNT, now);
+    const match = strip.dates.find((d) => sameCalendarDay(d, parsed.day));
+    setDay(match ?? firstDayWithBookableDentalSlots(strip.dates, now));
+    setSlot(parsed.slot12h);
+  }, [location.key]);
 
   const flatAvailable = useMemo(
     () => flatDentalSlotLabelsForDay(day, bookingNow),
@@ -95,7 +119,11 @@ export function DentalSlotsPage() {
   return (
     <div className="hc-page dental-slots-page">
       <header className="hco-top">
-        <FlowScreenBack fallbackTo={ROUTES.dentalNetworkList} className="hco-back" />
+        <FlowScreenBack
+          fallbackTo={ROUTES.dentalNetworkList}
+          className="hco-back"
+          onBeforeBack={clearDentalSlotStep}
+        />
         <h1 className="hco-title">Select Your Dental Slots</h1>
         <span className="hco-top__balance" aria-hidden />
       </header>

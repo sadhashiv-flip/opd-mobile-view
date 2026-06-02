@@ -17,9 +17,10 @@ export type SelectPeopleMemberListConfig = Readonly<{
   restrictToAhcSelection: boolean;
   isDiagnosticsFlow: boolean;
   /**
-   * When true (dental, vision), no age gate; members remain selectable per subscription rules.
+   * When true (dental, vision), skip child age block only — subscription / not-activated
+   * rules match vaccination (`CommonMemberSelectionScreen` without `ageBlockReason`).
    */
-  relaxMemberRestrictions: boolean;
+  relaxAgeRestrictions: boolean;
 }>;
 
 /** Primary profile first; preserve API order within each group. */
@@ -62,8 +63,7 @@ export function SelectPeopleMemberList({
   );
 
   const renderTrailing = (member: GymMemberListRow, rowDisabled: boolean) => {
-    const isRelaxed = config.relaxMemberRestrictions;
-    if (!isRelaxed && member.isChildBlocked) {
+    if (!config.relaxAgeRestrictions && member.isChildBlocked) {
       return null;
     }
     if (selectedIds.includes(member.id)) {
@@ -72,7 +72,7 @@ export function SelectPeopleMemberList({
     if (memberShowsSubscriptionActivateCta(member)) {
       return <SubscriptionActivateCtaButton onClick={onNavigateSubscriptions} />;
     }
-    if (!member.isSubscribed && !isRelaxed) {
+    if (!member.isSubscribed) {
       return null;
     }
     const addTitle =
@@ -93,20 +93,19 @@ export function SelectPeopleMemberList({
   };
 
   const renderMemberRow = (member: GymMemberListRow) => {
-    const isRelaxed = config.relaxMemberRestrictions;
     const canSubActivate = memberShowsSubscriptionActivateCta(member);
     const notActivated = !member.isSubscribed;
     const rowDisabled =
-      (!isRelaxed && member.isChildBlocked) ||
-      (!isRelaxed && notActivated) ||
+      (!config.relaxAgeRestrictions && member.isChildBlocked) ||
+      notActivated ||
       (config.isDiagnosticsFlow &&
         config.restrictToAhcSelection &&
         !member.ahcAvailable);
     const { text: subtitle, subClass } = selectPeopleMemberLine(member, {
-      relaxMemberRestrictions: isRelaxed,
+      relaxAgeRestrictions: config.relaxAgeRestrictions,
       showAhcSponsorSubtitle: config.showAhcSponsorSubtitle,
     });
-    const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked && !isRelaxed ? " hc-person--age-blocked" : ""}`;
+    const rowClass = `hc-person${selectedIds.includes(member.id) ? " hc-person--selected" : ""}${rowDisabled && !canSubActivate ? " hc-person--disabled" : ""}${canSubActivate ? " hc-person--subscription-activate" : ""}${member.isChildBlocked && !config.relaxAgeRestrictions ? " hc-person--age-blocked" : ""}`;
     const body = (
       <>
         <span className="hc-person__avatar" aria-hidden="true">

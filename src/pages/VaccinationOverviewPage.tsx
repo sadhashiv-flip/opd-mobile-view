@@ -47,7 +47,6 @@ import {
 import { getAccessToken } from "@/lib/authStorage";
 import { useToast } from "@/hooks/useToast";
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
-import { clearVaccinationSlotAndOverviewFields } from "@/constants/vaccinationFlowStorage";
 import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@/components/address/AddressBottomSheet.css";
@@ -337,7 +336,6 @@ export function VaccinationOverviewPage() {
         <FlowScreenBack
           fallbackTo={ROUTES.vaccinationSlots}
           className="vac-overview-page__back"
-          onBeforeBack={clearVaccinationSlotAndOverviewFields}
         />
         <h1 className="vac-overview-page__title">Vaccine Overview</h1>
         <span className="vac-overview-page__top-spacer" aria-hidden />

@@ -1,7 +1,8 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useState } from "react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
+import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { subscribeSelectedAddress } from "@/constants/selectedAddressStorage";
 import type { DentalNetworkClinicRow } from "@/api/networkList";
 import { useToast } from "@/hooks/useToast";
@@ -13,11 +14,31 @@ import "./DentalNetworkListPage.css";
 
 export type NetworkClinicListViewProps = Readonly<{
   title: string;
+  /** Used only when there is no history to pop (deep link, refresh). */
   backTo: string;
   fetchClinics: () => Promise<DentalNetworkClinicRow[]>;
   selectedClinicStorageKey: string;
   continueTo: string;
+  /** Clears persisted data for the current step before popping history. */
+  onBeforeBack?: () => void;
 }>;
+
+function findStoredClinicIndex(
+  list: readonly DentalNetworkClinicRow[],
+  storageKey: string,
+): number | null {
+  try {
+    const raw = sessionStorage.getItem(storageKey);
+    if (!raw?.trim()) return null;
+    const stored = JSON.parse(raw) as DentalNetworkClinicRow;
+    const idx = list.findIndex(
+      (c) => c.clinicid === stored.clinicid && c.providerid === stored.providerid,
+    );
+    return idx >= 0 ? idx : null;
+  } catch {
+    return null;
+  }
+}
 
 export function NetworkClinicListView({
   title,
@@ -25,6 +46,7 @@ export function NetworkClinicListView({
   fetchClinics,
   selectedClinicStorageKey,
   continueTo,
+  onBeforeBack,
 }: NetworkClinicListViewProps) {
   const navigate = useNavigate();
   const toast = useToast();
@@ -47,16 +69,17 @@ export function NetworkClinicListView({
     try {
       const list = await fetchClinics();
       setClinics(list);
-      setSelectedIndex(null);
+      setSelectedIndex(findStoredClinicIndex(list, selectedClinicStorageKey));
       setLoad("ok");
     } catch (e) {
       setClinics([]);
+      setSelectedIndex(null);
       setLoad("error");
       const msg = e instanceof Error ? e.message : "Could not load clinics";
       setErrorMsg(msg);
       toast.error(msg);
     }
-  }, [fetchClinics, toast]);
+  }, [fetchClinics, selectedClinicStorageKey, toast]);
 
   useEffect(() => {
     void loadClinics();
@@ -79,17 +102,11 @@ export function NetworkClinicListView({
   return (
     <div className="dnl-page">
       <header className="dnl-top">
-        <Link to={backTo} className="dnl-back" aria-label="Back">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        <FlowScreenBack
+          fallbackTo={backTo}
+          className="dnl-back"
+          onBeforeBack={onBeforeBack}
+        />
         <h1 className="dnl-title">{title}</h1>
         <span className="dnl-spacer" aria-hidden />
       </header>

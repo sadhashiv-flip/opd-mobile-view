@@ -52,7 +52,7 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
       showAhcSponsorSubtitle: false,
       restrictToAhcSelection: false,
       isDiagnosticsFlow: false,
-      relaxMemberRestrictions: false,
+      relaxAgeRestrictions: false,
     }),
     [],
   );

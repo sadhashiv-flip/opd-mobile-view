@@ -29,12 +29,12 @@ export function parseBoolSearchParam(sp: URLSearchParams, key: string): boolean 
 
 export function memberRowSubtitle(
   member: GymMemberListRow,
-  opts: Readonly<{ showAhcSponsorSubtitle: boolean; relaxMemberRestrictions?: boolean }>,
+  opts: Readonly<{ showAhcSponsorSubtitle: boolean; relaxAgeRestrictions?: boolean }>,
 ): string {
-  if (!opts.relaxMemberRestrictions && member.isChildBlocked) {
+  if (!opts.relaxAgeRestrictions && member.isChildBlocked) {
     return DIAGNOSTICS_CHILD_AGE_BLOCK_REASON;
   }
-  if (!opts.relaxMemberRestrictions && !member.isSubscribed) {
+  if (!member.isSubscribed) {
     return MEMBER_NOT_ACTIVATED_LABEL;
   }
   if (opts.showAhcSponsorSubtitle && member.ahcAvailable) {
@@ -49,12 +49,12 @@ export function memberRowSubtitle(
  */
 export function selectPeopleMemberLine(
   member: GymMemberListRow,
-  opts: Readonly<{ relaxMemberRestrictions: boolean; showAhcSponsorSubtitle?: boolean }>,
+  opts: Readonly<{ relaxAgeRestrictions: boolean; showAhcSponsorSubtitle?: boolean }>,
 ): Readonly<{ text: string | null; subClass: string }> {
-  if (!opts.relaxMemberRestrictions && member.isChildBlocked) {
+  if (!opts.relaxAgeRestrictions && member.isChildBlocked) {
     return { text: DIAGNOSTICS_CHILD_AGE_BLOCK_REASON, subClass: " hc-person__sub--muted" };
   }
-  if (!opts.relaxMemberRestrictions && !member.isSubscribed) {
+  if (!member.isSubscribed) {
     return { text: MEMBER_NOT_ACTIVATED_LABEL, subClass: " hc-person__sub--not-activated" };
   }
   if (opts.showAhcSponsorSubtitle && member.ahcAvailable) {
