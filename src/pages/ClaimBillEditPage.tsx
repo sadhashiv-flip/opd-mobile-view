@@ -9,6 +9,7 @@ import {
 } from "@/api/patientReimbursement";
 import { uploadReimbursementBillDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
+import { clampLocalDateToMax, localYyyyMmDd } from "@/lib/localDate";
 import { useToast } from "@/hooks/useToast";
 import "@/pages/ProfileBankFormPage.css";
 import "./ClaimsPages.css";
@@ -47,6 +48,7 @@ export function ClaimBillEditPage() {
   const { claimId = "", billId = "" } = useParams<{ claimId: string; billId: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const maxBillDate = localYyyyMmDd(new Date());
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,7 +102,7 @@ export function ClaimBillEditPage() {
           return;
         }
         setBillNumber(bill.billNumber.trim());
-        setBillDate(billDateForInput(bill.billDate));
+        setBillDate(clampLocalDateToMax(billDateForInput(bill.billDate), maxBillDate));
         setBillAmount(formatAmountForInput(bill.billAmount));
         setClinicName(bill.clinicName?.trim() ?? "");
         setClinicAddress(bill.clinicAddress?.trim() ?? "");
@@ -288,8 +290,9 @@ export function ClaimBillEditPage() {
               id="edit-claim-bill-date"
               className="pbf-input"
               type="date"
+              max={maxBillDate}
               value={billDate}
-              onChange={(e) => setBillDate(e.target.value)}
+              onChange={(e) => setBillDate(clampLocalDateToMax(e.target.value, maxBillDate))}
             />
           </div>
           <div className="pbf-field">

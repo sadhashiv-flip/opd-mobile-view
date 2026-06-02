@@ -178,6 +178,8 @@ export type ReimbursementUploadFileRecord = Readonly<{
   document_type: string;
   ref_type: string;
   id: string;
+  /** Display name (upload `title` / filename — patient_app attachment tile). */
+  name?: string;
 }>;
 
 /** `service_types` on create claim (per bill and on payment/report/other file rows). */
@@ -461,6 +463,64 @@ function parseMultiDocCategoryBlocks(v: unknown): MultiDocumentCategoryBlock[] {
     });
   }
   return out;
+}
+
+/** Step-2 required document row (`payments` / `reports` categories from multi_document API). */
+export type RequiredDocRow = Readonly<{
+  category: string;
+  particulars: Readonly<{ required: boolean; key?: string; name?: string }> | null;
+  claim_type: readonly MultiDocumentClaimTypeOption[];
+  missingReports: MultiDocumentClaimTypeOption[];
+}>;
+
+export function parseReimbursementRequiredDocLists(body: unknown): {
+  payments: RequiredDocRow[];
+  reports: RequiredDocRow[];
+} {
+  const root = asRecord(body);
+  const arr = Array.isArray(root?.data) ? root.data : [];
+  const payments: RequiredDocRow[] = [];
+  const reports: RequiredDocRow[] = [];
+  for (const row of arr) {
+    const o = asRecord(row);
+    if (!o) continue;
+    const dt = str(o.document_type);
+    const cat = o.category;
+    if (!Array.isArray(cat)) continue;
+    const normalized = normalizeRequiredDocCategoryList(cat);
+    if (dt === "payments") payments.push(...normalized);
+    else if (dt === "reports") reports.push(...normalized);
+  }
+  return { payments, reports };
+}
+
+function normalizeRequiredDocCategoryList(raw: readonly unknown[]): RequiredDocRow[] {
+  const out: RequiredDocRow[] = [];
+  for (const item of raw) {
+    const o = asRecord(item);
+    if (!o) continue;
+    const particularsRaw = asRecord(o.particulars);
+    out.push({
+      category: str(o.category),
+      particulars: particularsRaw
+        ? {
+            required: Boolean(particularsRaw.required),
+            key: str(particularsRaw.key) || undefined,
+            name: str(particularsRaw.name) || undefined,
+          }
+        : null,
+      claim_type: parseMultiDocClaimTypes(o.claim_type),
+      missingReports: [],
+    });
+  }
+  return out;
+}
+
+export async function fetchReimbursementRequiredDocLists(
+  serviceKeys: readonly string[],
+): Promise<{ payments: RequiredDocRow[]; reports: RequiredDocRow[] }> {
+  const raw = await fetchReimbursementMultiDocumentTypes(serviceKeys);
+  return parseReimbursementRequiredDocLists(raw);
 }
 
 /** Normalizes `GET .../reimbursement/multi_document/type` JSON (see `api_response.json`). */
@@ -958,12 +1018,21 @@ function mapFileArray(raw: unknown, fallbackPrefix: string): readonly Reimbursem
 function reimbursementUploadFileFromBillApiRow(r: Record<string, unknown>): ReimbursementUploadFileRecord | null {
   const id = str(r.id);
   if (!id) return null;
+  const path = str(r.path) || str(r.logo) || str(r.url);
+  const name =
+    str(r.title) ||
+    str(r.name) ||
+    str(r.file_name) ||
+    str(r.fileName) ||
+    (path.includes("/") ? path.split("/").pop()?.trim() : "") ||
+    undefined;
   return {
     id,
-    path: str(r.path),
+    path,
     file_type: str(r.file_type) || str(r.fileType) || "IMG",
     document_type: str(r.document_type) || str(r.documentType) || "",
     ref_type: str(r.ref_type) || str(r.refType) || "BILL",
+    ...(name ? { name } : {}),
   };
 }
 

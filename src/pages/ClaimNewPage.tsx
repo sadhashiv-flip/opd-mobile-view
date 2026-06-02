@@ -5,14 +5,10 @@ import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember"
 import { MEMBER_NOT_ACTIVATED_LABEL } from "@/lib/gymMemberDisplay";
 import { fetchPatientProfile } from "@/api/patientProfile";
 import {
-  areBillChecklistRequirementsMet,
-  buildBillChecklistSlots,
-  countChecklistFilesForKinds,
   createReimbursement,
-  fetchReimbursementMultiDocumentTypes,
+  fetchReimbursementRequiredDocLists,
   fetchReimbursementServiceTypes,
-  parseReimbursementMultiDocumentTypes,
-  partitionChecklistFilesForCreate,
+  type RequiredDocRow,
   toReimbursementCreateClaimServiceType,
   type CreateReimbursementBillPayload,
   type MultiDocumentTypeRow,
@@ -20,15 +16,21 @@ import {
   type ReimbursementServiceType,
   type ReimbursementUploadFileRecord,
 } from "@/api/patientReimbursement";
-import { uploadReimbursementBillDocumentId } from "@/api/patientUpload";
+import { uploadReimbursementBillDocumentId, uploadReimbursementClaimDocument } from "@/api/patientUpload";
+import { ClaimBillFileThumb } from "@/components/claims/ClaimAttachmentFileRow";
+import { ClaimStep2Documents } from "@/components/claims/ClaimStep2Documents";
 import { ROUTES } from "@/constants";
+import { clampLocalDateToMax, localYyyyMmDd } from "@/lib/localDate";
 import { CLAIMS_DISCLOSURES_GATE_SESSION_KEY } from "@/constants/appSessionStorageKeys";
 import { CLAIM_CHECKLIST_ESCROW_STORAGE_KEY } from "@/constants/claimsChecklistEscrow";
 import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
 import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
 import { useTermsScrollGate } from "@/hooks/useTermsScrollGate";
 import { useToast } from "@/hooks/useToast";
-import type { ClaimBillChecklistLocationState } from "@/pages/ClaimBillChecklistPage";
+import {
+  annotateRequiredDocMissing,
+  computeStep2DocumentsValid,
+} from "@/lib/claimStep2Validation";
 import "@/components/address/AddressBottomSheet.css";
 import "@/pages/ProfileBankFormPage.css";
 import "./ClaimsPages.css";
@@ -72,6 +74,45 @@ function emptyDraftBill(): DraftBill {
   };
 }
 
+/** Deep copy so the sheet draft does not share mutable refs with `bills[]` rows. */
+type ClaimStep2ClaimFiles = Readonly<{
+  payment: ReimbursementCreateBillFileWithServices[];
+  report: ReimbursementCreateBillFileWithServices[];
+  other: ReimbursementCreateBillFileWithServices[];
+}>;
+
+const EMPTY_CLAIM_STEP2_FILES: ClaimStep2ClaimFiles = { payment: [], report: [], other: [] };
+
+type ClaimDocBucket = "payment" | "report" | "other";
+
+function claimRefTypeToBucket(refType: "PAYMENT" | "REPORT" | "OTHER"): ClaimDocBucket {
+  if (refType === "PAYMENT") return "payment";
+  if (refType === "REPORT") return "report";
+  return "other";
+}
+
+function claimBucketToRefType(bucket: ClaimDocBucket): "PAYMENT" | "REPORT" | "OTHER" {
+  if (bucket === "payment") return "PAYMENT";
+  if (bucket === "report") return "REPORT";
+  return "OTHER";
+}
+
+function cloneDraftBill(b: DraftBill): DraftBill {
+  const checklistFilesBySlot: Record<string, ReimbursementCreateBillFileWithServices[]> = {};
+  for (const [slotId, files] of Object.entries(b.checklistFilesBySlot)) {
+    checklistFilesBySlot[slotId] = files.map((f) => ({ ...f, service_types: [...f.service_types] }));
+  }
+  return {
+    ...b,
+    billFiles: [...b.billFiles],
+    serviceTypes: [...b.serviceTypes],
+    checklistFilesBySlot,
+    multiDocChecklist: b.multiDocChecklist
+      ? { rows: [...b.multiDocChecklist.rows], message: b.multiDocChecklist.message }
+      : undefined,
+  };
+}
+
 function formatInrInteger(amountStr: string): string {
   const n = Number(String(amountStr).replace(/,/g, ""));
   if (!Number.isFinite(n)) return String(amountStr).trim() || "0";
@@ -94,33 +135,63 @@ function isBillDraftFormComplete(d: DraftBill): boolean {
   return true;
 }
 
-/** Same rules as saving a bill from the review sheet (without toast). */
-function isBillDraftPersistable(d: DraftBill): boolean {
-  if (!d.billNumber.trim() || !d.billDate || !d.billAmount.trim() || !d.clinicName.trim() || !d.clinicAddress.trim()) {
-    return false;
+/** Insert or replace a bill row by `localId` (never drops other bills). */
+function upsertBillInList(
+  prev: readonly DraftBill[],
+  draft: DraftBill,
+  replaceLocalId: string | null,
+): DraftBill[] {
+  const d = cloneDraftBill(draft);
+  const replaceId = replaceLocalId?.trim() || null;
+  if (replaceId) {
+    const idx = prev.findIndex((x) => x.localId === replaceId);
+    if (idx >= 0) {
+      return prev.map((x, i) => (i === idx ? d : cloneDraftBill(x)));
+    }
   }
-  if (!d.billFiles.length) return false;
-  if (!d.serviceTypes.length) return false;
-  const rows = d.multiDocChecklist?.rows ?? [];
-  if (rows.length > 0) {
-    const slots = buildBillChecklistSlots(rows);
-    if (!areBillChecklistRequirementsMet(slots, d.checklistFilesBySlot)) return false;
+  const existingIdx = prev.findIndex((x) => x.localId === d.localId);
+  if (existingIdx >= 0) {
+    return prev.map((x, i) => (i === existingIdx ? d : cloneDraftBill(x)));
   }
-  return true;
+  return [...prev.map(cloneDraftBill), d];
 }
 
-function writeChecklistEscrow(billsSnapshot: readonly DraftBill[], billDraftSnapshot: DraftBill): void {
-  try {
-    globalThis.sessionStorage?.setItem(
-      CLAIM_CHECKLIST_ESCROW_STORAGE_KEY,
-      JSON.stringify({ bills: [...billsSnapshot], billDraft: { ...billDraftSnapshot } }),
-    );
-  } catch {
-    /* quota / private mode */
+function mergeChecklistDoneBills(
+  prev: readonly DraftBill[],
+  escrow: { bills: readonly DraftBill[]; billDraft: DraftBill } | null,
+  localBillId: string,
+  files: Readonly<Record<string, readonly ReimbursementCreateBillFileWithServices[]>>,
+  fallbackDraft?: DraftBill | null,
+): DraftBill[] {
+  let merged = prev.map(cloneDraftBill);
+  if (escrow) {
+    for (const row of escrow.bills) {
+      merged = upsertBillInList(merged, row, row.localId);
+    }
+    if (escrow.billDraft.localId === localBillId) {
+      merged = upsertBillInList(merged, { ...escrow.billDraft, checklistFilesBySlot: { ...files } }, localBillId);
+    }
+    return merged;
   }
+  const idx = merged.findIndex((x) => x.localId === localBillId);
+  if (idx >= 0) {
+    merged[idx] = cloneDraftBill({
+      ...merged[idx],
+      checklistFilesBySlot: { ...files },
+    });
+    return merged;
+  }
+  if (fallbackDraft?.localId === localBillId) {
+    return upsertBillInList(merged, { ...fallbackDraft, checklistFilesBySlot: { ...files } }, null);
+  }
+  return merged;
 }
 
-function readChecklistEscrow(): { bills: DraftBill[]; billDraft: DraftBill } | null {
+function readChecklistEscrow(): {
+  bills: DraftBill[];
+  billDraft: DraftBill;
+  editingBillLocalId: string | null;
+} | null {
   try {
     const raw = globalThis.sessionStorage?.getItem(CLAIM_CHECKLIST_ESCROW_STORAGE_KEY);
     if (!raw?.trim()) return null;
@@ -131,7 +202,15 @@ function readChecklistEscrow(): { bills: DraftBill[]; billDraft: DraftBill } | n
     if (!Array.isArray(o.bills) || o.billDraft === null || typeof o.billDraft !== "object" || Array.isArray(o.billDraft)) {
       return null;
     }
-    return { bills: o.bills as DraftBill[], billDraft: o.billDraft as DraftBill };
+    const draft = o.billDraft as DraftBill;
+    const bills = o.bills as DraftBill[];
+    const stored =
+      typeof o.editingBillLocalId === "string" && o.editingBillLocalId.trim()
+        ? o.editingBillLocalId.trim()
+        : null;
+    const editingBillLocalId =
+      stored ?? (bills.some((b) => b.localId === draft.localId) ? draft.localId : null);
+    return { bills, billDraft: draft, editingBillLocalId };
   } catch {
     return null;
   }
@@ -238,6 +317,8 @@ export function ClaimNewPage() {
   const returnPath =
     (location.state as { returnPath?: string } | null)?.returnPath?.trim() || ROUTES.claims;
 
+  const maxBillDate = localYyyyMmDd(new Date());
+
   const [gate, setGate] = useState<"terms" | "note" | "done">(() =>
     typeof globalThis.sessionStorage !== "undefined" &&
       globalThis.sessionStorage.getItem(CLAIMS_DISCLOSURES_GATE_SESSION_KEY) === "1"
@@ -259,16 +340,19 @@ export function ClaimNewPage() {
   const [bills, setBills] = useState<DraftBill[]>([]);
   const billsRef = useRef(bills);
   billsRef.current = bills;
-  /** When set, “Save bill” on review replaces this row instead of appending. */
+  /** When set, “Save bill” replaces this row instead of appending a new bill. */
+  const [editingBillLocalId, setEditingBillLocalId] = useState<string | null>(null);
   const editingBillLocalIdRef = useRef<string | null>(null);
+  editingBillLocalIdRef.current = editingBillLocalId;
   const [serviceTypesCatalog, setServiceTypesCatalog] = useState<ReimbursementServiceType[]>([]);
 
   const [bankSheetOpen, setBankSheetOpen] = useState(false);
   const [memberSheetOpen, setMemberSheetOpen] = useState(false);
   const [billSheetOpen, setBillSheetOpen] = useState(false);
+  /** Bumps when opening add/edit so the bill form remounts with the correct values. */
+  const [billSheetKey, setBillSheetKey] = useState(0);
   /** patient_app `showBillReviewTermsBottomSheet` — short disclaimer before service types (new bills only). */
   const [billReviewDisclaimerOpen, setBillReviewDisclaimerOpen] = useState(false);
-  const [multiDocLoading, setMultiDocLoading] = useState(false);
   const [billDraft, setBillDraft] = useState<DraftBill>(emptyDraftBill);
   const billDraftRef = useRef(billDraft);
   billDraftRef.current = billDraft;
@@ -276,6 +360,18 @@ export function ClaimNewPage() {
   const [serviceDraftSelection, setServiceDraftSelection] = useState<ReimbursementServiceType[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [billUploading, setBillUploading] = useState(false);
+  const [claimExtraFiles, setClaimExtraFiles] = useState<ClaimStep2ClaimFiles>(EMPTY_CLAIM_STEP2_FILES);
+  const [claimDocUploading, setClaimDocUploading] = useState(false);
+  const [requiredPayments, setRequiredPayments] = useState<RequiredDocRow[]>([]);
+  const [requiredReports, setRequiredReports] = useState<RequiredDocRow[]>([]);
+  const [claimDocPending, setClaimDocPending] = useState<{
+    refType: "PAYMENT" | "REPORT" | "OTHER";
+    file: ReimbursementUploadFileRecord;
+    documentType: string;
+    editFileId: string | null;
+  } | null>(null);
+  const [claimDocServiceSheetOpen, setClaimDocServiceSheetOpen] = useState(false);
+  const [claimDocServiceSelection, setClaimDocServiceSelection] = useState<ReimbursementServiceType[]>([]);
   const [opdTermsSheet, setOpdTermsSheet] = useState<OpdTermsSheetState>({ open: false });
   const [step1ImportantNoteOpen, setStep1ImportantNoteOpen] = useState(false);
 
@@ -334,6 +430,7 @@ export function ClaimNewPage() {
           returnPath?: string;
           afterChecklistReview?: boolean;
           restoreClaimBillEscrow?: boolean;
+          openNewBillSheet?: boolean;
           removeBillLocalId?: string;
         }
       | null
@@ -342,8 +439,16 @@ export function ClaimNewPage() {
     if (st?.restoreClaimBillEscrow) {
       const escrow = readChecklistEscrow();
       if (escrow) {
-        setBills(escrow.bills);
-        setBillDraft(escrow.billDraft);
+        if (st.openNewBillSheet) {
+          setBills(upsertBillInList(escrow.bills, escrow.billDraft, escrow.billDraft.localId));
+          setEditingBillLocalId(null);
+          setBillDraft(emptyDraftBill());
+        } else {
+          setBills(escrow.bills.map((row) => cloneDraftBill(row)));
+          setBillDraft(cloneDraftBill(escrow.billDraft));
+          setEditingBillLocalId(escrow.editingBillLocalId);
+        }
+        setBillSheetKey((k) => k + 1);
         setStep(2);
         setBillSheetOpen(true);
         setBillReviewDisclaimerOpen(false);
@@ -370,48 +475,16 @@ export function ClaimNewPage() {
     if (done?.localBillId) {
       const files = done.filesBySlot;
       const escrow = readChecklistEscrow();
-      if (escrow) {
-        const mergedForRow: DraftBill =
-          escrow.billDraft.localId === done.localBillId
-            ? { ...escrow.billDraft, checklistFilesBySlot: { ...files } }
-            : escrow.billDraft;
-        setBillDraft(mergedForRow);
-        let nextBills = [...escrow.bills];
-        const idx = nextBills.findIndex((x) => x.localId === done.localBillId);
-        if (idx >= 0) {
-          nextBills[idx] = { ...nextBills[idx], checklistFilesBySlot: { ...files } };
-        } else if (mergedForRow.localId === done.localBillId && isBillDraftPersistable(mergedForRow)) {
-          if (!nextBills.some((x) => x.localId === mergedForRow.localId)) {
-            nextBills.push(mergedForRow);
-          }
-        }
-        setBills(nextBills);
-        setBillSheetOpen(false);
-        setBillReviewDisclaimerOpen(false);
-        setServiceSheetOpen(false);
-      } else {
-        setBillDraft((b) => {
-          if (b.localId !== done.localBillId) return b;
-          return { ...b, checklistFilesBySlot: { ...files } };
-        });
-        setBills((prev) => {
-          const idx = prev.findIndex((x) => x.localId === done.localBillId);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = { ...next[idx], checklistFilesBySlot: { ...files } };
-            return next;
-          }
-          const base = billDraftRef.current;
-          if (base.localId !== done.localBillId) return prev;
-          const merged: DraftBill = { ...base, checklistFilesBySlot: { ...files } };
-          if (!isBillDraftPersistable(merged)) return prev;
-          if (prev.some((x) => x.localId === merged.localId)) return prev;
-          return [...prev, merged];
-        });
-        setBillSheetOpen(false);
-        setBillReviewDisclaimerOpen(false);
-        setServiceSheetOpen(false);
-      }
+      const completedDraft =
+        escrow?.billDraft.localId === done.localBillId
+          ? cloneDraftBill({ ...escrow.billDraft, checklistFilesBySlot: { ...files } })
+          : escrow?.billDraft ?? billDraftRef.current;
+      setBillDraft(completedDraft);
+      setBills((prev) => mergeChecklistDoneBills(prev, escrow, done.localBillId, files, billDraftRef.current));
+      setEditingBillLocalId(null);
+      setBillSheetOpen(false);
+      setBillReviewDisclaimerOpen(false);
+      setServiceSheetOpen(false);
     }
     if (afterChecklistReview) {
       setStep(3);
@@ -499,27 +572,34 @@ export function ClaimNewPage() {
     email.trim().length > 3;
 
   const closeBillSheet = useCallback(() => {
-    editingBillLocalIdRef.current = null;
+    setEditingBillLocalId(null);
     setBillReviewDisclaimerOpen(false);
     setServiceSheetOpen(false);
     setBillSheetOpen(false);
   }, []);
 
   const openAddBill = useCallback(() => {
-    editingBillLocalIdRef.current = null;
+    setEditingBillLocalId(null);
     setBillDraft(emptyDraftBill());
     setBillReviewDisclaimerOpen(false);
     setServiceSheetOpen(false);
+    setBillSheetKey((k) => k + 1);
     setBillSheetOpen(true);
   }, []);
 
   const openEditBill = useCallback((b: DraftBill) => {
-    editingBillLocalIdRef.current = b.localId;
-    setBillDraft({ ...b });
+    const latest = billsRef.current.find((x) => x.localId === b.localId) ?? b;
+    setEditingBillLocalId(latest.localId);
+    const draft = cloneDraftBill(latest);
+    setBillDraft({
+      ...draft,
+      billDate: clampLocalDateToMax(draft.billDate, maxBillDate),
+    });
     setBillReviewDisclaimerOpen(false);
     setServiceSheetOpen(false);
+    setBillSheetKey((k) => k + 1);
     setBillSheetOpen(true);
-  }, []);
+  }, [maxBillDate]);
 
   const openServiceTypesSheet = useCallback(() => {
     setServiceDraftSelection([...billDraftRef.current.serviceTypes]);
@@ -540,22 +620,9 @@ export function ClaimNewPage() {
         toast.error("Select at least one service type");
         return false;
       }
-      const rows = d.multiDocChecklist?.rows ?? [];
-      if (rows.length > 0) {
-        const slots = buildBillChecklistSlots(rows);
-        if (!areBillChecklistRequirementsMet(slots, d.checklistFilesBySlot)) {
-          toast.error("Upload required checklist documents before saving this bill");
-          return false;
-        }
-      }
       const replaceId = editingBillLocalIdRef.current;
-      editingBillLocalIdRef.current = null;
-      setBills((prev) => {
-        if (replaceId) {
-          return prev.map((x) => (x.localId === replaceId ? d : x));
-        }
-        return [...prev, d];
-      });
+      setEditingBillLocalId(null);
+      setBills((prev) => upsertBillInList(prev, d, replaceId));
       return true;
     },
     [toast],
@@ -567,75 +634,54 @@ export function ClaimNewPage() {
     setBillSheetOpen(false);
   }, []);
 
+  const allBillServiceTypes = useMemo(() => {
+    const seen = new Set<number>();
+    const out: ReimbursementServiceType[] = [];
+    for (const b of bills) {
+      for (const s of b.serviceTypes) {
+        if (seen.has(s.id)) continue;
+        seen.add(s.id);
+        out.push(s);
+      }
+    }
+    return out;
+  }, [bills]);
+
+  const syncRequiredDocuments = useCallback(async () => {
+    const keys = allBillServiceTypes.map((s) => s.key.trim()).filter(Boolean);
+    if (!keys.length) {
+      setRequiredPayments([]);
+      setRequiredReports([]);
+      return;
+    }
+    try {
+      const lists = await fetchReimbursementRequiredDocLists(keys);
+      setRequiredPayments(lists.payments);
+      setRequiredReports(lists.reports);
+    } catch {
+      setRequiredPayments([]);
+      setRequiredReports([]);
+    }
+  }, [allBillServiceTypes]);
+
   const finishServiceSelection = useCallback(async () => {
     if (!serviceDraftSelection.length) {
       toast.error("Select at least one service type");
       return;
     }
-    const keys = serviceDraftSelection.map((s) => s.key.trim()).filter(Boolean);
-    if (!keys.length) {
-      toast.error("Service type keys missing for this selection");
-      return;
+    const base = billDraftRef.current;
+    const next: DraftBill = {
+      ...base,
+      serviceTypes: [...serviceDraftSelection],
+    };
+    setBillDraft(next);
+    const replaceId = editingBillLocalIdRef.current;
+    if (persistBillDraft(next)) {
+      closeBillFlowSheets();
+      await syncRequiredDocuments();
+      toast.success(replaceId ? "Bill updated" : "Bill added");
     }
-    setMultiDocLoading(true);
-    try {
-      const raw = await fetchReimbursementMultiDocumentTypes(keys);
-      const root = raw as { message?: unknown };
-      const msg =
-        typeof root?.message === "string" && root.message.trim() ? root.message.trim() : null;
-      const rows = parseReimbursementMultiDocumentTypes(raw);
-      const base = billDraftRef.current;
-      const next: DraftBill = {
-        ...base,
-        serviceTypes: [...serviceDraftSelection],
-        multiDocChecklist: { rows, message: msg },
-      };
-      setBillDraft(next);
-      if (rows.length > 0) {
-        setServiceSheetOpen(false);
-        const returnTo = `${location.pathname}${location.search}`;
-        const state: ClaimBillChecklistLocationState = {
-          returnTo,
-          billNumber: next.billNumber.trim(),
-          localBillId: next.localId,
-          multiDocRows: rows,
-          apiMessage: msg,
-          initialFilesBySlot: next.checklistFilesBySlot,
-          claimReturnPath: returnPath,
-          serviceTypesCatalog: serviceTypesCatalog,
-          billServiceTypeKeys: next.serviceTypes.map((s) => s.key.trim()).filter(Boolean),
-          billSummary: {
-            billDate: next.billDate,
-            billAmount: next.billAmount.trim(),
-            clinicName: next.clinicName.trim(),
-            fileCount: next.billFiles.length,
-          },
-        };
-        writeChecklistEscrow(billsRef.current, next);
-        navigate(ROUTES.claimBillChecklist, { state });
-        return;
-      }
-      const replaceId = editingBillLocalIdRef.current;
-      if (persistBillDraft(next)) {
-        closeBillFlowSheets();
-        toast.success(replaceId ? "Bill updated" : "Bill added");
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load document checklist");
-    } finally {
-      setMultiDocLoading(false);
-    }
-  }, [
-    serviceDraftSelection,
-    toast,
-    location.pathname,
-    location.search,
-    navigate,
-    returnPath,
-    serviceTypesCatalog,
-    persistBillDraft,
-    closeBillFlowSheets,
-  ]);
+  }, [serviceDraftSelection, toast, persistBillDraft, closeBillFlowSheets, syncRequiredDocuments]);
 
   const onPickBillFiles = useCallback(
     async (files: FileList | null) => {
@@ -649,7 +695,8 @@ export function ClaimNewPage() {
       try {
         const recs: ReimbursementUploadFileRecord[] = [];
         for (let i = 0; i < files.length; i += 1) {
-          recs.push(await uploadReimbursementBillDocumentId(files[i], billNo));
+          const rec = await uploadReimbursementBillDocumentId(files[i], billNo);
+          recs.push(rec.name ? rec : { ...rec, name: files[i].name });
         }
         setBillDraft((b) => ({ ...b, billFiles: [...b.billFiles, ...recs] }));
         toast.success("File(s) uploaded");
@@ -676,18 +723,142 @@ export function ClaimNewPage() {
       toast.error("Could not load service types. Try again.");
       return;
     }
-    if (editingBillLocalIdRef.current) {
+    if (editingBillLocalId) {
       openServiceTypesSheet();
       return;
     }
     setBillReviewDisclaimerOpen(true);
-  }, [billDraft, serviceTypesCatalog.length, openServiceTypesSheet, toast]);
+  }, [billDraft, editingBillLocalId, serviceTypesCatalog.length, openServiceTypesSheet, toast]);
 
   const onBillReviewDisclaimerAgree = useCallback(() => {
     setBillReviewDisclaimerOpen(false);
     setServiceDraftSelection([]);
     setServiceSheetOpen(true);
   }, []);
+
+  useEffect(() => {
+    void syncRequiredDocuments();
+  }, [syncRequiredDocuments]);
+
+  const requiredPaymentsAnnotated = useMemo(
+    () => annotateRequiredDocMissing(requiredPayments, claimExtraFiles.payment),
+    [requiredPayments, claimExtraFiles.payment],
+  );
+
+  const requiredReportsAnnotated = useMemo(
+    () => annotateRequiredDocMissing(requiredReports, claimExtraFiles.report),
+    [requiredReports, claimExtraFiles.report],
+  );
+
+  const step2DocumentsValid = useMemo(
+    () =>
+      computeStep2DocumentsValid(
+        requiredPaymentsAnnotated,
+        requiredReportsAnnotated,
+        claimExtraFiles.payment,
+        claimExtraFiles.report,
+      ),
+    [requiredPaymentsAnnotated, requiredReportsAnnotated, claimExtraFiles.payment, claimExtraFiles.report],
+  );
+
+  const openClaimDocFilePicker = useCallback(
+    (refType: "PAYMENT" | "REPORT" | "OTHER", documentType: string) => {
+      if (!allBillServiceTypes.length) {
+        toast.error("Add bills and select service types before uploading documents.");
+        return;
+      }
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*,application/pdf";
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        void (async () => {
+          setClaimDocUploading(true);
+          try {
+            const rec = await uploadReimbursementClaimDocument(file, refType, documentType);
+            const fileRow = rec.name ? rec : { ...rec, name: file.name };
+            setClaimDocPending({ refType, file: fileRow, documentType, editFileId: null });
+            setClaimDocServiceSelection([]);
+            setClaimDocServiceSheetOpen(true);
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Upload failed");
+          } finally {
+            setClaimDocUploading(false);
+          }
+        })();
+      };
+      input.click();
+    },
+    [allBillServiceTypes.length, toast],
+  );
+
+  const toggleClaimDocService = useCallback((t: ReimbursementServiceType) => {
+    setClaimDocServiceSelection((prev) => {
+      const on = prev.some((x) => x.id === t.id);
+      if (on) return prev.filter((x) => x.id !== t.id);
+      return [...prev, t];
+    });
+  }, []);
+
+  const applyClaimDocServices = useCallback(() => {
+    const pending = claimDocPending;
+    if (!pending) return;
+    if (!claimDocServiceSelection.length) {
+      toast.error("Select at least one service type");
+      return;
+    }
+    const bucket = claimRefTypeToBucket(pending.refType);
+    const entry: ReimbursementCreateBillFileWithServices = {
+      ...pending.file,
+      document_type: pending.documentType,
+      service_types: claimDocServiceSelection.map(toReimbursementCreateClaimServiceType),
+    };
+    setClaimExtraFiles((prev) => {
+      const list = [...prev[bucket]];
+      if (pending.editFileId) {
+        const idx = list.findIndex((f) => f.id === pending.editFileId);
+        if (idx >= 0) list[idx] = entry;
+        else list.push(entry);
+      } else {
+        list.push(entry);
+      }
+      return { ...prev, [bucket]: list };
+    });
+    setClaimDocPending(null);
+    setClaimDocServiceSelection([]);
+    setClaimDocServiceSheetOpen(false);
+    toast.success("Document saved");
+  }, [claimDocPending, claimDocServiceSelection, toast]);
+
+  const removeClaimLevelDoc = useCallback((bucket: ClaimDocBucket, fileId: string) => {
+    setClaimExtraFiles((prev) => ({
+      ...prev,
+      [bucket]: prev[bucket].filter((f) => f.id !== fileId),
+    }));
+  }, []);
+
+  const editClaimDocServices = useCallback(
+    (bucket: ClaimDocBucket, fileId: string) => {
+      const list = claimExtraFiles[bucket];
+      const row = list.find((f) => f.id === fileId);
+      if (!row) return;
+      const refType = claimBucketToRefType(bucket);
+      setClaimDocPending({
+        refType,
+        file: row,
+        documentType: (row.document_type ?? "").trim() || refType,
+        editFileId: fileId,
+      });
+      setClaimDocServiceSelection(
+        row.service_types
+          .map((st) => allBillServiceTypes.find((x) => x.key === st.key))
+          .filter((x): x is ReimbursementServiceType => x != null),
+      );
+      setClaimDocServiceSheetOpen(true);
+    },
+    [claimExtraFiles, allBillServiceTypes],
+  );
 
   const claimTotal = useMemo(
     () =>
@@ -698,17 +869,14 @@ export function ClaimNewPage() {
     [bills],
   );
 
-  const overviewDocCounts = useMemo(() => {
-    let payment = 0;
-    let reports = 0;
-    let other = 0;
-    for (const b of bills) {
-      payment += countChecklistFilesForKinds(b, ["payment"]);
-      reports += countChecklistFilesForKinds(b, ["prescription", "report"]);
-      other += countChecklistFilesForKinds(b, ["support", "legacy"]);
-    }
-    return { payment, reports, other };
-  }, [bills]);
+  const overviewDocCounts = useMemo(
+    () => ({
+      payment: claimExtraFiles.payment.length,
+      reports: claimExtraFiles.report.length,
+      other: claimExtraFiles.other.length,
+    }),
+    [claimExtraFiles],
+  );
 
   const overviewBillImageCount = useMemo(
     () => bills.reduce((acc, b) => acc + b.billFiles.length, 0),
@@ -732,18 +900,9 @@ export function ClaimNewPage() {
       return;
     }
     const alt = parseDigits(altPhone);
-    const paymentFiles: ReimbursementCreateBillFileWithServices[] = [];
-    const reportFiles: ReimbursementCreateBillFileWithServices[] = [];
-    const otherFiles: ReimbursementCreateBillFileWithServices[] = [];
-    for (const b of bills) {
-      const part = partitionChecklistFilesForCreate({
-        multiDocRows: b.multiDocChecklist?.rows ?? [],
-        checklistFilesBySlot: b.checklistFilesBySlot,
-      });
-      paymentFiles.push(...part.payment);
-      reportFiles.push(...part.report);
-      otherFiles.push(...part.other);
-    }
+    const paymentFiles = [...claimExtraFiles.payment];
+    const reportFiles = [...claimExtraFiles.report];
+    const otherFiles = [...claimExtraFiles.other];
 
     const payloadBills: CreateReimbursementBillPayload[] = bills.map((b) => ({
       bill_number: b.billNumber.trim(),
@@ -778,7 +937,7 @@ export function ClaimNewPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [selectedMember, bankId, altPhone, bills, claimTotal, navigate, returnPath, toast]);
+  }, [selectedMember, bankId, altPhone, bills, claimExtraFiles, claimTotal, navigate, returnPath, toast]);
 
   const onOpdTermsSheetContinue = useCallback(() => {
     setOpdTermsSheet((prev) => {
@@ -821,6 +980,13 @@ export function ClaimNewPage() {
       });
       if (!ok) return;
       setBills((prev) => prev.filter((b) => b.localId !== localId));
+      if (editingBillLocalIdRef.current === localId) {
+        setEditingBillLocalId(null);
+        setBillDraft(emptyDraftBill());
+        setBillSheetOpen(false);
+        setBillReviewDisclaimerOpen(false);
+        setServiceSheetOpen(false);
+      }
       toast.success("Bill removed");
     },
     [confirm, toast],
@@ -1082,132 +1248,121 @@ export function ClaimNewPage() {
 
         {step === 2 ? (
           <>
-            <h2 className="claim-new-page__section-heading">Medical bills</h2>
-            <button type="button" className="claim-add-card" onClick={openAddBill}>
-              <span style={{ fontSize: 22 }} aria-hidden>
-                ⊕
-              </span>
-              Add Medical Bill
-            </button>
-            {bills.length > 0 ? (
-              <ul className="claim-review-block-list" aria-label="Saved bills">
-                {bills.map((b) => (
-                  <li key={b.localId} className="claim-review-block">
-                    <div className="claim-review-block__head">
-                      <div className="claim-review-block__intro">
-                        <p className="claim-review-block__label">Bill number</p>
-                        <p className="claim-review-block__bill-no">#{b.billNumber.trim() || "—"}</p>
-                        {b.clinicName.trim() ? (
-                          <p className="claim-review-block__clinic">{b.clinicName.trim()}</p>
-                        ) : null}
-                      </div>
-                      <div className="claim-review-block__actions">
-                        <button
-                          type="button"
-                          className="claim-review-block__exit"
-                          aria-label="Edit this bill"
-                          onClick={() => openEditBill(b)}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <path
-                              d="M12 15h8M16 5l3 3-9.5 9.5-4 1 1-4L16 5z"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="claim-review-block__exit claim-review-block__exit--danger"
-                          aria-label="Remove this bill"
-                          onClick={() => void confirmRemoveBill(b.localId)}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                            <path
-                              d="M18 6L6 18M6 6l12 12"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                    <dl className="claim-review-block__facts">
-                      <div className="claim-review-block__fact">
-                        <dt>Amount</dt>
-                        <dd>₹{formatInrInteger(b.billAmount)}</dd>
-                      </div>
-                      <div className="claim-review-block__fact">
-                        <dt>Date</dt>
-                        <dd>{b.billDate || "—"}</dd>
-                      </div>
-                      <div className="claim-review-block__fact claim-review-block__fact--wide">
-                        <dt>Service types</dt>
-                        <dd>{b.serviceTypes.map((s) => s.value.trim() || s.key).join(", ") || "—"}</dd>
-                      </div>
-                    </dl>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {bills.length > 0 ? (
-              <section className="claim-ro-card claim-step2-docs" aria-labelledby="claim-step2-docs-title">
-                <div className="claim-ro-card__head">
-                  <span className="claim-ro-card__icon" aria-hidden>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M3 7a2 2 0 012-2h4l2 2h10a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <h2 id="claim-step2-docs-title" className="claim-ro-card__title">
-                    Supporting documents
-                  </h2>
-                </div>
-                <ul className="claim-ro-doc-list">
-                  <li className="claim-ro-doc-row">
-                    <span className="claim-ro-doc-row__label">Bill images (scans)</span>
-                    <span
-                      className={`claim-ro-pill${overviewBillImageCount > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
-                    >
-                      {overviewBillImageCount} file{overviewBillImageCount === 1 ? "" : "s"}
-                    </span>
-                  </li>
-                  <li className="claim-ro-doc-row">
-                    <span className="claim-ro-doc-row__label">Payment receipts</span>
-                    <span
-                      className={`claim-ro-pill${overviewDocCounts.payment > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
-                    >
-                      {overviewDocCounts.payment} file{overviewDocCounts.payment === 1 ? "" : "s"}
-                    </span>
-                  </li>
-                  <li className="claim-ro-doc-row">
-                    <span className="claim-ro-doc-row__label">Medical reports</span>
-                    <span
-                      className={`claim-ro-pill${overviewDocCounts.reports > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
-                    >
-                      {overviewDocCounts.reports} file{overviewDocCounts.reports === 1 ? "" : "s"}
-                    </span>
-                  </li>
-                  <li className="claim-ro-doc-row">
-                    <span className="claim-ro-doc-row__label">Other documents</span>
-                    <span
-                      className={`claim-ro-pill${overviewDocCounts.other > 0 ? " claim-ro-pill--accent" : " claim-ro-pill--muted"}`}
-                    >
-                      {overviewDocCounts.other} file{overviewDocCounts.other === 1 ? "" : "s"}
-                    </span>
-                  </li>
+            <section className="claim-med-bills" aria-labelledby="claim-med-bills-title">
+              <div className="claim-med-bills__head">
+                <span className="claim-med-bills__icon" aria-hidden>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M9 2h6l4 4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V4a2 2 0 012-2z"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M9 8h6M9 12h6M9 16h4"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+                <h2 id="claim-med-bills-title" className="claim-med-bills__title">
+                  Medical Bills
+                </h2>
+              </div>
+              {bills.length > 0 ? (
+                <ul className="claim-med-bill-list" aria-label="Saved bills">
+                  {bills.map((b) => {
+                    const clinic = b.clinicName.trim() || "—";
+                    const date = b.billDate || "—";
+                    return (
+                      <li key={b.localId} className="claim-med-bill-card">
+                        <div className="claim-med-bill-card__row">
+                          <button
+                            type="button"
+                            className="claim-med-bill-card__tap"
+                            aria-label={`Edit bill ${b.billNumber.trim() || "—"}`}
+                            onClick={() => openEditBill(b)}
+                          >
+                            <span className="claim-med-bill-card__ic" aria-hidden>
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M9 2h6l4 4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V4a2 2 0 012-2z"
+                                  stroke="currentColor"
+                                  strokeWidth="1.75"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M9 8h6M9 12h6M9 16h4"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                            </span>
+                            <span className="claim-med-bill-card__body">
+                              <span className="claim-med-bill-card__title">
+                                Bill #{b.billNumber.trim() || "—"}
+                              </span>
+                              <span className="claim-med-bill-card__sub">
+                                {clinic} • {date}
+                              </span>
+                            </span>
+                            <span className="claim-med-bill-card__amt">₹{formatInrInteger(b.billAmount)}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="claim-med-bill-card__remove"
+                            aria-label={`Remove bill ${b.billNumber.trim() || "—"}`}
+                            onClick={() => void confirmRemoveBill(b.localId)}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                              <path
+                                d="M18 6L6 18M6 6l12 12"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
-                <p className="claim-step2-docs__hint">
-                  Edit a bill and open the document checklist to upload or remove supporting files.
-                </p>
+              ) : null}
+              <button type="button" className="claim-add-card" onClick={openAddBill}>
+                <span className="claim-add-card__plus" aria-hidden>
+                  +
+                </span>
+                Add Medical Bill
+              </button>
+            </section>
+            {bills.length > 0 ? (
+              <section className="claim-ro-card" aria-labelledby="claim-step2-docs-title">
+                <h2 id="claim-step2-docs-title" className="visually-hidden">
+                  Claim documents
+                </h2>
+                <ClaimStep2Documents
+                  files={claimExtraFiles}
+                  requiredPayments={requiredPaymentsAnnotated}
+                  requiredReports={requiredReportsAnnotated}
+                  uploading={claimDocUploading}
+                  onUploadCategory={(refType, category) => openClaimDocFilePicker(refType, category)}
+                  onUploadGeneral={(bucket) => {
+                    const ref = claimBucketToRefType(bucket);
+                    const docType = bucket === "payment" ? "PAYMENT" : bucket === "report" ? "REPORT" : "OTHER";
+                    openClaimDocFilePicker(ref, docType);
+                  }}
+                  onRemoveFile={removeClaimLevelDoc}
+                  onEditFileServices={editClaimDocServices}
+                />
               </section>
+            ) : null}
+            {claimDocUploading && step === 2 ? (
+              <div className="claim-step2-upload-overlay" aria-live="polite" aria-busy="true">
+                Uploading…
+              </div>
             ) : null}
           </>
         ) : null}
@@ -1498,8 +1653,9 @@ export function ClaimNewPage() {
             <button
               type="button"
               className="claim-footer__primary"
-              disabled={bills.length === 0}
+              disabled={bills.length === 0 || !step2DocumentsValid}
               onClick={() => setStep(3)}
+              title={!step2DocumentsValid ? "Upload required documents for all service types" : undefined}
             >
               Review Claim
             </button>
@@ -1805,13 +1961,17 @@ export function ClaimNewPage() {
           <div className="claim-sheet claim-sheet--bill-form" onClick={(e) => e.stopPropagation()}>
             <div className="claim-sheet__handle" aria-hidden />
             <div className="claim-sheet__head">
-              <h2 className="claim-sheet__title">Add Medical Bill</h2>
+              <h2 className="claim-sheet__title">{editingBillLocalId ? "Edit Medical Bill" : "Add Medical Bill"}</h2>
               <button type="button" className="claim-sheet__close" aria-label="Close" onClick={closeBillSheet}>
                 ×
               </button>
             </div>
             <div className="claim-sheet__body claim-new-page__sheet-pbf">
-              <section className="pbf-card" aria-label="Bill details">
+              <section
+                key={`bill-form-${billSheetKey}-${editingBillLocalId ?? "new"}`}
+                className="pbf-card"
+                aria-label="Bill details"
+              >
                 <div className="pbf-field">
                   <label className="pbf-label" htmlFor="claim-bill-no">
                     Bill number
@@ -1833,8 +1993,15 @@ export function ClaimNewPage() {
                     id="claim-bill-date"
                     className="pbf-input"
                     type="date"
+                    max={maxBillDate}
                     value={billDraft.billDate}
-                    onChange={(e) => setBillDraft((b) => ({ ...b, billDate: e.target.value }))}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setBillDraft((b) => ({
+                        ...b,
+                        billDate: clampLocalDateToMax(v, maxBillDate),
+                      }));
+                    }}
                   />
                 </div>
                 <div className="pbf-field">
@@ -1920,22 +2087,16 @@ export function ClaimNewPage() {
                     {billDraft.billFiles.length > 0 ? (
                       <div className="claim-thumb-row" aria-label="Uploaded files">
                         {billDraft.billFiles.map((f) => (
-                          <div key={f.id} className="claim-thumb" title={f.id}>
-                            <span className="claim-thumb__label">File</span>
-                            <button
-                              type="button"
-                              className="claim-thumb__remove"
-                              aria-label="Remove"
-                              onClick={() =>
-                                setBillDraft((b) => ({
-                                  ...b,
-                                  billFiles: b.billFiles.filter((x) => x.id !== f.id),
-                                }))
-                              }
-                            >
-                              ×
-                            </button>
-                          </div>
+                          <ClaimBillFileThumb
+                            key={f.id}
+                            file={f}
+                            onRemove={() =>
+                              setBillDraft((b) => ({
+                                ...b,
+                                billFiles: b.billFiles.filter((x) => x.id !== f.id),
+                              }))
+                            }
+                          />
                         ))}
                       </div>
                     ) : null}
@@ -1951,7 +2112,7 @@ export function ClaimNewPage() {
                 disabled={!canSaveBillDraft}
                 onClick={submitBillDraftToReview}
               >
-                Save Bill
+                {editingBillLocalId ? "Update Bill" : "Save Bill"}
               </button>
             </div>
           </div>
@@ -2042,10 +2203,67 @@ export function ClaimNewPage() {
                 <button
                   type="button"
                   className="claim-sheet__btn-primary"
-                  disabled={multiDocLoading}
                   onClick={() => void finishServiceSelection()}
                 >
-                  {multiDocLoading ? "Loading…" : "Apply"}
+                  Apply
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {claimDocServiceSheetOpen && claimDocPending ? (
+        <div className="claim-overlay claim-overlay--claim-service-types" role="dialog" aria-modal>
+          <div className="claim-sheet claim-sheet--service-types" onClick={(e) => e.stopPropagation()}>
+            <div className="claim-sheet__head">
+              <h2 className="claim-sheet__title">Select Service Type(s)</h2>
+              <button
+                type="button"
+                className="claim-sheet__close"
+                aria-label="Close"
+                onClick={() => {
+                  setClaimDocServiceSheetOpen(false);
+                  setClaimDocPending(null);
+                  setClaimDocServiceSelection([]);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="claim-sheet__divider" aria-hidden />
+            <div className="claim-sheet__body">
+              {allBillServiceTypes.length === 0 ? (
+                <p className="claim-sheet__empty">No service types available</p>
+              ) : (
+                <div className="claim-chips">
+                  {allBillServiceTypes.map((t) => {
+                    const on = claimDocServiceSelection.some((x) => x.id === t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className={`claim-chip${on ? " claim-chip--on" : ""}`}
+                        onClick={() => toggleClaimDocService(t)}
+                      >
+                        {t.value}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {claimDocServiceSelection.length > 0 ? (
+              <div className="claim-sheet__footer claim-sheet__footer--split">
+                <button
+                  type="button"
+                  className="claim-sheet__btn-muted"
+                  onClick={() => setClaimDocServiceSelection([])}
+                >
+                  Clear All
+                </button>
+                <button type="button" className="claim-sheet__btn-primary" onClick={applyClaimDocServices}>
+                  Apply
                 </button>
               </div>
             ) : null}

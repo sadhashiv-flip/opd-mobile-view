@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   areBillChecklistRequirementsMet,
@@ -14,7 +14,11 @@ import {
 } from "@/api/patientReimbursement";
 import { uploadReimbursementChecklistDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
-import { clearClaimChecklistEscrow, mergeClaimChecklistEscrowProgress } from "@/constants/claimsChecklistEscrow";
+import {
+  clearClaimChecklistEscrow,
+  mergeClaimChecklistEscrowProgress,
+  peekClaimChecklistEscrowBills,
+} from "@/constants/claimsChecklistEscrow";
 import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
 import { useToast } from "@/hooks/useToast";
 import "./ClaimsPages.css";
@@ -24,6 +28,12 @@ export type ClaimBillChecklistBillSummary = Readonly<{
   billAmount: string;
   clinicName: string;
   fileCount: number;
+}>;
+
+export type ClaimBillChecklistSavedBill = Readonly<{
+  localBillId: string;
+  billNumber: string;
+  billSummary: ClaimBillChecklistBillSummary;
 }>;
 
 type PendingServiceAttach = Readonly<{
@@ -44,7 +54,51 @@ export type ClaimBillChecklistLocationState = Readonly<{
   serviceTypesCatalog?: readonly ReimbursementServiceType[];
   /** Keys from the bill’s chosen service types — used when a slot has no `claim_type` list. */
   billServiceTypeKeys?: readonly string[];
+  /** All bills saved on step 2 (not only the bill open for this checklist). */
+  savedBills?: readonly ClaimBillChecklistSavedBill[];
 }>;
+
+function parseEscrowSavedBill(row: Readonly<Record<string, unknown>>): ClaimBillChecklistSavedBill | null {
+  const localBillId = String(row.localId ?? "").trim();
+  const billNumber = String(row.billNumber ?? "").trim();
+  if (!localBillId) return null;
+  const billFiles = Array.isArray(row.billFiles) ? row.billFiles : [];
+  return {
+    localBillId,
+    billNumber: billNumber || "—",
+    billSummary: {
+      billDate: String(row.billDate ?? "").trim() || "—",
+      billAmount: String(row.billAmount ?? "").trim() || "0",
+      clinicName: String(row.clinicName ?? "").trim(),
+      fileCount: billFiles.length,
+    },
+  };
+}
+
+function buildSavedBillsList(
+  fromState: readonly ClaimBillChecklistSavedBill[] | undefined,
+  current: { localBillId: string; billNumber: string; billSummary: ClaimBillChecklistBillSummary },
+): readonly ClaimBillChecklistSavedBill[] {
+  const byId = new Map<string, ClaimBillChecklistSavedBill>();
+  const order: string[] = [];
+  const add = (row: ClaimBillChecklistSavedBill) => {
+    const id = row.localBillId.trim();
+    if (!id) return;
+    if (!byId.has(id)) order.push(id);
+    byId.set(id, row);
+  };
+  for (const row of fromState ?? []) add(row);
+  for (const raw of peekClaimChecklistEscrowBills()) {
+    const parsed = parseEscrowSavedBill(raw);
+    if (parsed) add(parsed);
+  }
+  add({
+    localBillId: current.localBillId,
+    billNumber: current.billNumber,
+    billSummary: current.billSummary,
+  });
+  return order.map((id) => byId.get(id)).filter((x): x is ClaimBillChecklistSavedBill => x != null);
+}
 
 function normalizeFilesMap(
   raw: Readonly<Record<string, readonly unknown[]>> | undefined,
@@ -203,6 +257,26 @@ export function ClaimBillChecklistPage() {
 
   const slots = useMemo(() => buildBillChecklistSlots(rows), [rows]);
   const groups = useMemo(() => partitionSlots(slots), [slots]);
+  const supportSlots = useMemo(() => {
+    if (groups.support.length > 0) return groups.support;
+    if (groups.rxReport.length > 0 || groups.payment.length > 0) {
+      const genericSupportSlot: BillChecklistSlot = {
+        slotId: "slot:support:generic",
+        required: false,
+        sectionTitle: "Supporting Documents",
+        particularsName: "Supporting Documents",
+        particularsKey: "other",
+        categoryLabel: "",
+        claimLabels: [] as string[],
+        claimTypeKeys: [] as string[],
+        bullets: [] as string[],
+        rowDocumentType: "other",
+        uploadKind: "support",
+      };
+      return [genericSupportSlot];
+    }
+    return [] as BillChecklistSlot[];
+  }, [groups.support, groups.rxReport.length, groups.payment.length]);
 
   const [filesBySlot, setFilesBySlot] = useState<Record<string, ReimbursementCreateBillFileWithServices[]>>(() =>
     normalizeFilesMap(state?.initialFilesBySlot as Readonly<Record<string, readonly unknown[]>> | undefined),
@@ -359,6 +433,22 @@ export function ClaimBillChecklistPage() {
       replace: true,
       state: {
         restoreClaimBillEscrow: true as const,
+        ...(echoPath ? { returnPath: echoPath } : {}),
+      },
+    });
+  }, [filesBySlot, localBillId, navigate, returnTo, state?.claimReturnPath]);
+
+  /** Step 2 “Add Medical Bill” — open a blank bill sheet (not the in-progress checklist bill). */
+  const onAddNewBill = useCallback(() => {
+    if (localBillId.trim()) {
+      mergeClaimChecklistEscrowProgress(localBillId, filesBySlot);
+    }
+    const echoPath = state?.claimReturnPath?.trim();
+    navigate(returnTo, {
+      replace: true,
+      state: {
+        restoreClaimBillEscrow: true as const,
+        openNewBillSheet: true as const,
         ...(echoPath ? { returnPath: echoPath } : {}),
       },
     });
@@ -580,7 +670,20 @@ export function ClaimBillChecklistPage() {
     );
   }
 
-  const summary = state.billSummary;
+  const summary =
+    state.billSummary ??
+    ({
+      billDate: "—",
+      billAmount: "0",
+      clinicName: "",
+      fileCount: 0,
+    } satisfies ClaimBillChecklistBillSummary);
+
+  const savedBillsList = buildSavedBillsList(state.savedBills, {
+    localBillId,
+    billNumber,
+    billSummary: summary,
+  });
 
   return (
     <div className="claim-bc-page">
@@ -614,41 +717,69 @@ export function ClaimBillChecklistPage() {
               Medical bills
             </h2>
           </div>
-          <div className="claim-bc-bill-card">
-            <div className="claim-bc-bill-card__top">
-              <div>
-                <div className="claim-bc-bill-card__no">Bill #{billNumber}</div>
-                {summary ? (
-                  <div className="claim-bc-bill-card__sub">
-                    {summary.billDate}
-                    {summary.clinicName ? ` · ${summary.clinicName}` : ""}
-                  </div>
-                ) : null}
-              </div>
-              <div className="claim-bc-bill-card__amt-block">
-              {summary ? <div className="claim-bc-bill-card__amt">₹{summary.billAmount}</div> : null}
-              {summary ? (
-                <button
-                  type="button"
-                  className="claim-review-block__exit claim-review-block__exit--danger"
-                  aria-label="Remove this bill"
-                  onClick={onRemoveBill}
+          <ul className="claim-bc-bill-list" aria-label="All medical bills">
+            {savedBillsList.map((bill) => {
+              const isActive = bill.localBillId === localBillId;
+              const s = bill.billSummary;
+              const displayNo = bill.billNumber.trim() || "—";
+              const subLine = s.clinicName.trim()
+                ? `${s.clinicName.trim()} · ${s.billDate}`
+                : s.billDate;
+              return (
+                <li
+                  key={bill.localBillId}
+                  className={`claim-bc-bill-card${isActive ? " claim-bc-bill-card--active" : ""}${isActive ? " claim-bc-bill-card--clickable" : ""}`}
+                  {...(isActive
+                    ? {
+                        role: "button" as const,
+                        tabIndex: 0,
+                        onClick: onBack,
+                        onKeyDown: (e: KeyboardEvent) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onBack();
+                          }
+                        },
+                      }
+                    : {})}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M18 6L6 18M6 6l12 12"
-                      stroke="currentColor"
-                      strokeWidth="1.75"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-              ) : null}
-            </div>
-            </div>
-            {summary ? <p className="claim-bc-bill-card__files">{summary.fileCount} bill image(s)</p> : null}
-          </div>
-          <button type="button" className="claim-bc-outline-add" onClick={onBack}>
+                  <div className="claim-bc-bill-card__top">
+                    <div>
+                      <div className="claim-bc-bill-card__no">Bill #{displayNo}</div>
+                      <div className="claim-bc-bill-card__sub">{subLine}</div>
+                    </div>
+                    <div className="claim-bc-bill-card__amt-block">
+                      <div className="claim-bc-bill-card__amt">₹{s.billAmount}</div>
+                      {isActive ? (
+                        <button
+                          type="button"
+                          className="claim-review-block__exit claim-review-block__exit--danger"
+                          aria-label="Remove this bill"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void onRemoveBill();
+                          }}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path
+                              d="M18 6L6 18M6 6l12 12"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p className="claim-bc-bill-card__files">
+                    {s.fileCount} bill image{s.fileCount === 1 ? "" : "s"}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+          <button type="button" className="claim-bc-outline-add" onClick={onAddNewBill}>
             <span className="claim-bc-outline-add__plus" aria-hidden>
               +
             </span>
@@ -683,24 +814,27 @@ export function ClaimBillChecklistPage() {
                 <h2 id="claim-bc-rx-title" className="claim-bc-section__title">
                   Reports & prescriptions
                 </h2>
-                <p className="claim-bc-section__desc">Upload prescriptions,reports or payment proofs as required for your service types.</p>
+                <p className="claim-bc-section__desc">Upload prescriptions, reports, or payment proofs as required for your service types.</p>
               </div>
             </div>
             <div className="claim-bc-card-stack claim-bc-card-stack--gap">{groups.rxReport.map((s) => renderDetailedSlot(s))}</div>
           </section>
         ) : null}
 
-        {groups.support.length > 0 ? (
+        {supportSlots.length > 0 ? (
           <section className="claim-bc-section" aria-labelledby="claim-bc-sup-title">
             <div className="claim-bc-section__head">
               <div className="claim-bc-section__icon" aria-hidden>
                 <IconClip />
               </div>
-              <h2 id="claim-bc-sup-title" className="claim-bc-section__title">
-                Supporting Documents
-              </h2>
+              <div>
+                <h2 id="claim-bc-sup-title" className="claim-bc-section__title">
+                  Supporting Documents
+                </h2>
+                <p className="claim-bc-section__desc">Upload additional supporting documents such as referral notes, discharge summaries, or other evidence.</p>
+              </div>
             </div>
-            <div className="claim-bc-card-stack">{groups.support.map((s) => renderSupportSlot(s))}</div>
+            <div className="claim-bc-card-stack">{supportSlots.map((s) => renderSupportSlot(s))}</div>
           </section>
         ) : null}
 

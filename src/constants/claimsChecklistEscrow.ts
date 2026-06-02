@@ -21,6 +21,29 @@ function cloneFilesBySlot(
   return out;
 }
 
+type EscrowBillRow = Readonly<Record<string, unknown>>;
+
+function readEscrowRoot(): Record<string, unknown> | null {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(CLAIM_CHECKLIST_ESCROW_STORAGE_KEY);
+    if (!raw?.trim()) return null;
+    const v = JSON.parse(raw) as unknown;
+    if (v === null || typeof v !== "object" || Array.isArray(v)) return null;
+    return v as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Read escrow `bills` without removing (checklist page can list every saved bill). */
+export function peekClaimChecklistEscrowBills(): readonly EscrowBillRow[] {
+  const o = readEscrowRoot();
+  if (!o || !Array.isArray(o.bills)) return [];
+  return o.bills.filter(
+    (row): row is EscrowBillRow => row !== null && typeof row === "object" && !Array.isArray(row),
+  );
+}
+
 /** Merges in-progress checklist uploads into escrow before leaving the checklist route (e.g. Back). */
 export function mergeClaimChecklistEscrowProgress(
   localBillId: string,

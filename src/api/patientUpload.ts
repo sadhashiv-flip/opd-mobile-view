@@ -1,5 +1,10 @@
 import { patientFetchChecked, patientFetchUploadChecked } from "@/api/patientHttp";
 import type { ChecklistUploadKind, ReimbursementUploadFileRecord } from "@/api/patientReimbursement";
+import {
+  inferReimbursementFileType,
+  pickReimbursementUploadNameFromData,
+  pickReimbursementUploadPathFromData,
+} from "@/lib/reimbursementFileDisplay";
 import { getAccessToken } from "@/lib/authStorage";
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -307,17 +312,19 @@ export function parseReimbursementUploadResponse(
         : "";
   if (!id) throw new Error("Upload response missing data.id");
 
-  const path = str(data.path);
-  const file_type =
+  const path = pickReimbursementUploadPathFromData(data);
+  const name = pickReimbursementUploadNameFromData(data, path);
+  const declaredType =
     str(data.file_type) ||
     str((data as Record<string, unknown>).fileType) ||
     str(data.type) ||
     "IMG";
+  const file_type = inferReimbursementFileType(path, name, declaredType);
   const document_type = str(data.document_type) || str((data as Record<string, unknown>).documentType) || fallback.document_type;
   const ref_type =
     str(data.ref_type) || str((data as Record<string, unknown>).refType) || str(data.ref) || fallback.ref_type;
 
-  return { id, path, file_type, document_type, ref_type };
+  return { id, path, file_type, document_type, ref_type, ...(name ? { name } : {}) };
 }
 
 /**
@@ -361,6 +368,50 @@ export async function uploadReimbursementBillDocumentId(file: File, billNumber: 
   }
 
   return parseReimbursementUploadResponse(parsed, { document_type: docKey, ref_type: "BILL" });
+}
+
+/** patient_app `uploadReimbursementFile` — step-2 payment / report / other attachments. */
+export async function uploadReimbursementClaimDocument(
+  file: File,
+  refType: "PAYMENT" | "REPORT" | "OTHER",
+  documentType: string,
+): Promise<ReimbursementUploadFileRecord> {
+  const doc = documentType.trim();
+  const token = await getAccessToken();
+  if (!token) throw new Error("Not signed in");
+
+  const fd = new FormData();
+  fd.append("type", "reimbursement");
+  fd.append("file", file, file.name);
+  fd.append("ref_type", refType);
+  fd.append("document_type", doc);
+  if (doc) {
+    const docName = doc.charAt(0).toUpperCase() + doc.slice(1);
+    fd.append("document_name", docName);
+  }
+  fd.append("token", token);
+
+  const appName =
+    typeof import.meta.env.VITE_UPLOAD_APP_NAME === "string" && import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      ? import.meta.env.VITE_UPLOAD_APP_NAME.trim()
+      : "co-flip-health";
+
+  const res = await patientFetchUploadChecked("upload", {
+    method: "POST",
+    body: fd,
+    headers: { app_name: appName },
+  });
+  const text = await res.text();
+  if (!text.trim()) throw new Error("Empty upload response");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("Invalid upload response");
+  }
+
+  return parseReimbursementUploadResponse(parsed, { document_type: doc, ref_type: refType });
 }
 
 /**
