@@ -334,6 +334,7 @@ export function ClaimNewPage() {
           returnPath?: string;
           afterChecklistReview?: boolean;
           restoreClaimBillEscrow?: boolean;
+          removeBillLocalId?: string;
         }
       | null
       | undefined;
@@ -348,6 +349,14 @@ export function ClaimNewPage() {
         setBillReviewDisclaimerOpen(false);
         setServiceSheetOpen(false);
       }
+
+      if (st.removeBillLocalId?.trim()) {
+        const id = st.removeBillLocalId.trim();
+        setBills((prev) => prev.filter((x) => x.localId !== id));
+        setBillDraft((prev) => (prev.localId === id ? emptyDraftBill() : prev));
+        toast.success("Bill removed");
+      }
+
       const rp = typeof st?.returnPath === "string" && st.returnPath.trim() ? st.returnPath.trim() : undefined;
       navigate(`${location.pathname}${location.search}`, {
         replace: true,

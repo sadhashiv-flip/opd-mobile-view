@@ -15,6 +15,7 @@ import {
 import { uploadReimbursementChecklistDocumentId } from "@/api/patientUpload";
 import { ROUTES } from "@/constants";
 import { clearClaimChecklistEscrow, mergeClaimChecklistEscrowProgress } from "@/constants/claimsChecklistEscrow";
+import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
 import { useToast } from "@/hooks/useToast";
 import "./ClaimsPages.css";
 
@@ -363,6 +364,8 @@ export function ClaimBillChecklistPage() {
     });
   }, [filesBySlot, localBillId, navigate, returnTo, state?.claimReturnPath]);
 
+  const confirm = useAppConfirm();
+
   const onDone = useCallback(() => {
     if (!localBillId) {
       clearClaimChecklistEscrow();
@@ -383,6 +386,28 @@ export function ClaimBillChecklistPage() {
       },
     });
   }, [navigate, returnTo, localBillId, filesBySlot, state?.claimReturnPath]);
+
+  const onRemoveBill = useCallback(async () => {
+    if (!localBillId) return;
+    const ok = await confirm({
+      title: "Remove bill?",
+      message: "Are you sure you want to remove this bill?",
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      variant: "destructive",
+    });
+    if (!ok) return;
+    toast.success("Bill removed");
+    const echoPath = state?.claimReturnPath?.trim();
+    navigate(returnTo, {
+      replace: true,
+      state: {
+        restoreClaimBillEscrow: true as const,
+        removeBillLocalId: localBillId,
+        ...(echoPath ? { returnPath: echoPath } : {}),
+      },
+    });
+  }, [confirm, localBillId, navigate, returnTo, state?.claimReturnPath, toast]);
 
   const renderFileRow = (slotId: string, f: ReimbursementCreateBillFileWithServices) => {
     const stOk = f.service_types.length > 0;
@@ -600,7 +625,26 @@ export function ClaimBillChecklistPage() {
                   </div>
                 ) : null}
               </div>
+              <div className="claim-bc-bill-card__amt-block">
               {summary ? <div className="claim-bc-bill-card__amt">₹{summary.billAmount}</div> : null}
+              {summary ? (
+                <button
+                  type="button"
+                  className="claim-review-block__exit claim-review-block__exit--danger"
+                  aria-label="Remove this bill"
+                  onClick={onRemoveBill}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M18 6L6 18M6 6l12 12"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              ) : null}
+            </div>
             </div>
             {summary ? <p className="claim-bc-bill-card__files">{summary.fileCount} bill image(s)</p> : null}
           </div>
@@ -639,7 +683,7 @@ export function ClaimBillChecklistPage() {
                 <h2 id="claim-bc-rx-title" className="claim-bc-section__title">
                   Reports & prescriptions
                 </h2>
-                <p className="claim-bc-section__desc">Upload files, then pick which service types each file supports.</p>
+                <p className="claim-bc-section__desc">Upload prescriptions,reports or payment proofs as required for your service types.</p>
               </div>
             </div>
             <div className="claim-bc-card-stack claim-bc-card-stack--gap">{groups.rxReport.map((s) => renderDetailedSlot(s))}</div>

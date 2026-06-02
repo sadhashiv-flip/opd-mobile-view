@@ -3153,6 +3153,12 @@ button.claim-detail-bank-update:active {
   color: var(--claim-bc-muted);
 }
 
+.claim-bc-bill-card__amt-block{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .claim-bc-bill-card__amt {
   font-size: 16px;
   font-weight: 700;
