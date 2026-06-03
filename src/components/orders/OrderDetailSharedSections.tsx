@@ -178,6 +178,9 @@ export type OrderDetailInvoiceSectionProps = Readonly<{
   onToggleLinesExpanded: () => void;
   /** Consultation-style table (MRP / Price / Qty / Amount) + net summary inside the card. */
   consultationStyleInvoice: boolean;
+  /** Flutter `onDownloadInvoice` — shown when `info.status === 1`. */
+  onDownloadInvoice?: () => void;
+  invoiceDownloadBusy?: boolean;
 }>;
 
 export function OrderDetailInvoiceSection({
@@ -186,14 +189,38 @@ export function OrderDetailInvoiceSection({
   linesExpanded,
   onToggleLinesExpanded,
   consultationStyleInvoice,
+  onDownloadInvoice,
+  invoiceDownloadBusy = false,
 }: OrderDetailInvoiceSectionProps) {
   return (
     <section className={`od-card${consultationStyleInvoice ? " od-card--invoice-consult" : ""}`}>
       <div className="od-card__head">
         <h3 className="od-card__title">Invoice details</h3>
-        {lineItemsSlice.total > ORDER_DETAIL_LINE_ITEMS_PREVIEW ? (
-          <span className="od-card__count">{lineItemsSlice.total} items</span>
-        ) : null}
+        <span className="od-card__head-actions">
+          {lineItemsSlice.total > ORDER_DETAIL_LINE_ITEMS_PREVIEW ? (
+            <span className="od-card__count">{lineItemsSlice.total} items</span>
+          ) : null}
+          {onDownloadInvoice ? (
+            <button
+              type="button"
+              className="od-invoice-download"
+              aria-label="Download invoice PDF"
+              title="Download invoice"
+              disabled={invoiceDownloadBusy}
+              onClick={onDownloadInvoice}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M12 3v12m0 0l4-4m-4 4l-4-4M5 21h14"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+        </span>
       </div>
       {detail.lineItems.length > 0 ? (
         <>

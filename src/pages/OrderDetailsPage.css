@@ -239,6 +239,36 @@
   min-width: 0;
 }
 
+.od-card__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.od-invoice-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  background: var(--color-background-secondary, #f5f5f5);
+  color: var(--color-text-primary, #1a1d21);
+  cursor: pointer;
+}
+
+.od-invoice-download:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.od-invoice-download:active:not(:disabled) {
+  opacity: 0.88;
+}
+
 .od-card__count {
   flex-shrink: 0;
   font-size: 0.6875rem;

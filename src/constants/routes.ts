@@ -49,6 +49,7 @@ export const ROUTES = {
   /** Consultation thread (`GET /patient/chat/messages/:appointmentId`, `POST /patient/chat/:appointmentId`). */
   medicalRecordsConsultationChat: "/medical-records/consultations/chat/:appointmentId",
   medicalRecordsCategory: "/medical-records/:categorySlug",
+  medicalRecordsPrescriptionDetail: "/medical-records/prescriptions/:prescriptionId",
   diagnosticsType: "/diagnostics/:type",
   diagnosticsSelectPeople: "/diagnostics/:type/select-people",
   diagnosticsAddFamilyMember: "/diagnostics/:type/add-family-member",
@@ -165,6 +166,8 @@ export const ROUTES = {
    * `mental-wellness` | `nutrition` (see {@link WELLNESS_SESSION_KIND}).
    */
   servicesWellness: "/services/wellness/:wellnessKind",
+  servicesWellnessReview: "/services/wellness/:wellnessKind/review",
+  servicesWellnessSuccess: "/services/wellness/success",
   /** Chronic management flow (program list → enroll/details). */
   chronic: "/services/chronic",
   chronicCondition: "/services/chronic/condition/:conditionId",

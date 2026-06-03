@@ -18,6 +18,8 @@ import {
 } from "@/api/patientReimbursement";
 import { uploadReimbursementBillDocumentId, uploadReimbursementClaimDocument } from "@/api/patientUpload";
 import { ClaimBillFileThumb } from "@/components/claims/ClaimAttachmentFileRow";
+import { ClaimBillFieldLabel, ClaimBillUploadHeading } from "@/components/claims/ClaimBillFieldLabel";
+import { ClaimStep1Patient } from "@/components/claims/ClaimStep1Patient";
 import { ClaimStep2Documents } from "@/components/claims/ClaimStep2Documents";
 import { ROUTES } from "@/constants";
 import { clampLocalDateToMax, localYyyyMmDd } from "@/lib/localDate";
@@ -994,7 +996,33 @@ export function ClaimNewPage() {
 
   const canSaveBillDraft = useMemo(() => isBillDraftFormComplete(billDraft), [billDraft]);
 
-  const onBack = useCallback(() => {
+  const tryExitClaimFlow = useCallback(async () => {
+    if (bills.length > 0) {
+      const ok = await confirm({
+        title: "Leave claim?",
+        message:
+          "You have added bill details. Going back will clear all entered data. Do you want to continue?",
+        confirmLabel: "Yes, leave",
+        cancelLabel: "Stay",
+        variant: "destructive",
+      });
+      if (!ok) return;
+      setBills([]);
+      setBillDraft(emptyDraftBill());
+      setEditingBillLocalId(null);
+      setClaimExtraFiles(EMPTY_CLAIM_STEP2_FILES);
+      setRequiredPayments([]);
+      setRequiredReports([]);
+      setBillSheetOpen(false);
+      setBillReviewDisclaimerOpen(false);
+      setServiceSheetOpen(false);
+      setClaimDocPending(null);
+      setClaimDocServiceSheetOpen(false);
+    }
+    navigate(returnPath);
+  }, [bills.length, confirm, navigate, returnPath]);
+
+  const onBack = useCallback(async () => {
     if (opdTermsSheet.open) {
       closeOpdTermsSheet();
       return;
@@ -1024,7 +1052,7 @@ export function ClaimNewPage() {
       return;
     }
     if (step === 1) {
-      navigate(returnPath);
+      await tryExitClaimFlow();
       return;
     }
     if (step === 2) setStep(1);
@@ -1040,8 +1068,7 @@ export function ClaimNewPage() {
     closeOpdTermsSheet,
     closeStep1ImportantNote,
     closeBillSheet,
-    navigate,
-    returnPath,
+    tryExitClaimFlow,
     step,
   ]);
 
@@ -1087,7 +1114,7 @@ export function ClaimNewPage() {
   return (
     <div className={`claim-new-page pbf-page${step === 1 ? " claim-new-page--step1" : ""}`}>
       <header className="claims-screen-header">
-        <button type="button" className="claims-screen-header__back" aria-label="Back" onClick={onBack}>
+        <button type="button" className="claims-screen-header__back" aria-label="Back" onClick={() => void onBack()}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -1106,144 +1133,20 @@ export function ClaimNewPage() {
         {stepper}
 
         {step === 1 ? (
-          <>
-            <h2 className="claim-new-page__section-heading">Patient</h2>
-            <section className="pbf-card" aria-label="Patient selection">
-              <div className="pbf-field">
-                <span className="pbf-label" id="claim-member-label">
-                  Select patient
-                </span>
-                <button
-                  type="button"
-                  className="hcp-loc"
-                  aria-labelledby="claim-member-label"
-                  aria-label="Choose patient"
-                  onClick={() => setMemberSheetOpen(true)}
-                >
-                  <span className="hcp-loc__pin" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
-                        fill="#FF541E"
-                      />
-                      <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
-                    </svg>
-                  </span>
-                  <span className="hcp-loc__title">
-                    {selectedMember ? memberLocTag(selectedMember) : "PATIENT"}
-                  </span>
-                  <span className="hcp-loc__sep" aria-hidden="true">
-                    |
-                  </span>
-                  <span className="hcp-loc__addr">
-                    {selectedMember ? selectedMember.name : "Choose saved patient"}
-                  </span>
-                  <span className="hcp-loc__chev" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-              </div>
-            </section>
-
-            <h2 className="claim-new-page__section-heading">Contact details</h2>
-            <section className="pbf-card" aria-label="Contact details">
-              <div className="pbf-field">
-                <label className="pbf-label" htmlFor="claim-phone">
-                  Phone number
-                </label>
-                <input
-                  id="claim-phone"
-                  className="pbf-input"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <div className="pbf-field">
-                <label className="pbf-label" htmlFor="claim-email">
-                  Email address
-                </label>
-                <input
-                  id="claim-email"
-                  className="pbf-input"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="pbf-field">
-                <label className="pbf-label" htmlFor="claim-alt-phone">
-                  Alternate phone (optional)
-                </label>
-                <input
-                  id="claim-alt-phone"
-                  className="pbf-input"
-                  inputMode="numeric"
-                  placeholder="Enter alternate phone"
-                  value={altPhone}
-                  onChange={(e) => setAltPhone(e.target.value)}
-                />
-              </div>
-            </section>
-
-            <h2 className="claim-new-page__section-heading">Bank details</h2>
-            <section className="pbf-card" aria-label="Bank account">
-              <div className="pbf-field">
-                <span className="pbf-label" id="claim-bank-label">
-                  Select bank
-                </span>
-                <button
-                  type="button"
-                  className="hcp-loc"
-                  aria-labelledby="claim-bank-label"
-                  aria-label="Choose bank account"
-                  onClick={() => setBankSheetOpen(true)}
-                >
-                  <span className="hcp-loc__pin" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M12 22s7-5.1 7-12a7 7 0 10-14 0c0 6.9 7 12 7 12z"
-                        fill="#FF541E"
-                      />
-                      <circle cx="12" cy="10" r="2.5" fill="#ffffff" opacity="0.95" />
-                    </svg>
-                  </span>
-                  <span className="hcp-loc__title">
-                    {selectedBank ? `****${bankAccountTail(selectedBank)}` : "BANK"}
-                  </span>
-                  <span className="hcp-loc__sep" aria-hidden="true">
-                    |
-                  </span>
-                  <span className="hcp-loc__addr">
-                    {selectedBank
-                      ? `${selectedBank.bankName} · ${selectedBank.accountHolderName}`
-                      : "Choose saved account"}
-                  </span>
-                  <span className="hcp-loc__chev" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                </button>
-              </div>
-            </section>
-          </>
+          <ClaimStep1Patient
+            selectedMember={selectedMember}
+            selectedBank={selectedBank}
+            memberTag={selectedMember ? memberLocTag(selectedMember) : ""}
+            bankAccountTail={selectedBank ? bankAccountTail(selectedBank) : ""}
+            phone={phone}
+            email={email}
+            altPhone={altPhone}
+            onOpenMemberSheet={() => setMemberSheetOpen(true)}
+            onOpenBankSheet={() => setBankSheetOpen(true)}
+            onPhoneChange={setPhone}
+            onEmailChange={setEmail}
+            onAltPhoneChange={setAltPhone}
+          />
         ) : null}
 
         {step === 2 ? (
@@ -1636,7 +1539,7 @@ export function ClaimNewPage() {
           </div>
         ) : null}
         <div className="claim-footer">
-          <button type="button" className="claim-footer__back" onClick={onBack}>
+          <button type="button" className="claim-footer__back" onClick={() => void onBack()}>
             Back
           </button>
           {step === 1 ? (
@@ -1973,9 +1876,9 @@ export function ClaimNewPage() {
                 aria-label="Bill details"
               >
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-bill-no">
+                  <ClaimBillFieldLabel htmlFor="claim-bill-no" required>
                     Bill number
-                  </label>
+                  </ClaimBillFieldLabel>
                   <input
                     id="claim-bill-no"
                     className="pbf-input"
@@ -1986,9 +1889,9 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-bill-date">
+                  <ClaimBillFieldLabel htmlFor="claim-bill-date" required>
                     Bill date
-                  </label>
+                  </ClaimBillFieldLabel>
                   <input
                     id="claim-bill-date"
                     className="pbf-input"
@@ -2005,9 +1908,9 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-bill-amt">
+                  <ClaimBillFieldLabel htmlFor="claim-bill-amt" required>
                     Bill amount
-                  </label>
+                  </ClaimBillFieldLabel>
                   <input
                     id="claim-bill-amt"
                     className="pbf-input"
@@ -2019,9 +1922,9 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-clinic">
+                  <ClaimBillFieldLabel htmlFor="claim-clinic" required>
                     Clinic / hospital name
-                  </label>
+                  </ClaimBillFieldLabel>
                   <input
                     id="claim-clinic"
                     className="pbf-input"
@@ -2032,9 +1935,9 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-clinic-addr">
+                  <ClaimBillFieldLabel htmlFor="claim-clinic-addr" required>
                     Clinic address
-                  </label>
+                  </ClaimBillFieldLabel>
                   <input
                     id="claim-clinic-addr"
                     className="pbf-input"
@@ -2045,9 +1948,7 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-doctor">
-                    Doctor name (optional)
-                  </label>
+                  <ClaimBillFieldLabel htmlFor="claim-doctor">Doctor name</ClaimBillFieldLabel>
                   <input
                     id="claim-doctor"
                     className="pbf-input"
@@ -2058,9 +1959,7 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <label className="pbf-label" htmlFor="claim-doctor-reg">
-                    Doctor registration number (optional)
-                  </label>
+                  <ClaimBillFieldLabel htmlFor="claim-doctor-reg">Doctor registration number</ClaimBillFieldLabel>
                   <input
                     id="claim-doctor-reg"
                     className="pbf-input"
@@ -2071,7 +1970,7 @@ export function ClaimNewPage() {
                   />
                 </div>
                 <div className="pbf-field">
-                  <p className="claim-new-page__upload-heading">Bill images</p>
+                  <ClaimBillUploadHeading required>Bill images</ClaimBillUploadHeading>
                   <div className="claim-bill-upload-stack">
                     <label className="claim-upload claim-upload--pbf">
                       <input

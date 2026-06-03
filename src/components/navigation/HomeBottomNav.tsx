@@ -6,8 +6,9 @@ import {
   NavIconServices,
 } from "@/assets/icons/react";
 import { ROUTES } from "@/constants";
+import { DEFAULT_MEDICAL_RECORD_SLUG } from "@/constants/medicalRecordsCategories";
 import { useId } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { generatePath, NavLink, useLocation } from "react-router-dom";
 import "./HomeBottomNav.css";
 
 /**
@@ -29,7 +30,8 @@ function useHubBottomNavActive(): Readonly<{
   const onHub = pathname === ROUTES.services;
   const tab = onHub ? new URLSearchParams(search).get("tab") : null;
   const help = tab === "help";
-  const medicalRecords = tab === "medical-records";
+  const medicalRecords =
+    pathname === ROUTES.medicalRecords || pathname.startsWith(`${ROUTES.medicalRecords}/`);
   const onServicesSubpath = pathname.startsWith(`${ROUTES.services}/`);
   const services =
     (onHub && (tab === null || tab === "services")) || onServicesSubpath;
@@ -134,7 +136,9 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
             </div>
 
             <NavLink
-              to={ROUTES.servicesMedicalRecordsTab}
+              to={generatePath(ROUTES.medicalRecordsCategory, {
+                categorySlug: DEFAULT_MEDICAL_RECORD_SLUG,
+              })}
               id="tour-home-nav-records"
               className={() =>
                 `home-nav__item${medicalTabActive ? " home-nav__item--active" : ""}`

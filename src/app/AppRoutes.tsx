@@ -20,6 +20,7 @@ import { RequiredLabTestsPage } from "@/pages/RequiredLabTestsPage";
 import { OtpPage } from "../pages/OtpPage";
 import { MedicalRecordsPage } from "@/pages/MedicalRecordsPage";
 import { MedicalRecordsConsultationChatPage } from "@/pages/MedicalRecordsConsultationChatPage";
+import { MedicalRecordsPrescriptionDetailPage } from "@/pages/MedicalRecordsPrescriptionDetailPage";
 import { UnknownRouteRedirect } from "@/app/UnknownRouteRedirect";
 import { ServicesHubPage } from "../pages/ServicesHubPage";
 import { HelpSupportTicketsPage } from "@/pages/HelpSupportTicketsPage";
@@ -65,6 +66,8 @@ import { UserDetailsBmiResultPage } from "@/pages/UserDetailsBmiResultPage";
 import { ConsultationTypePage } from "../pages/ConsultationTypePage";
 import { ConsultationHospitalResultsPage } from "@/pages/ConsultationHospitalResultsPage";
 import { WellnessSessionPage } from "@/pages/WellnessSessionPage";
+import { WellnessSessionReviewPage } from "@/pages/WellnessSessionReviewPage";
+import { WellnessRequestSuccessPage } from "@/pages/WellnessRequestSuccessPage";
 import { HealthClubDetailPage } from "@/pages/HealthClubDetailPage";
 import { HealthClubListPage } from "@/pages/HealthClubListPage";
 import { FitnessListPage } from "@/pages/FitnessListPage";
@@ -132,9 +135,21 @@ export function AppRoutes() {
       <Route path={ROUTES.fitnessTag} element={<FitnessVideosPage />} />
       <Route path={ROUTES.digitalDiary} element={<DigitalDiaryHubPage />} />
       <Route path={ROUTES.digitalDiaryLog} element={<DigitalDiaryLogPage />} />
-      <Route path={ROUTES.medicalRecords} element={<MedicalRecordsPage />} />
+      <Route
+        path={ROUTES.medicalRecords}
+        element={
+          <Navigate
+            to={generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "consultations" })}
+            replace
+          />
+        }
+      />
       <Route path={ROUTES.medicalRecordsConsultationChat} element={<MedicalRecordsConsultationChatPage />} />
       <Route path={ROUTES.medicalRecordsCategory} element={<MedicalRecordsPage />} />
+      <Route
+        path={ROUTES.medicalRecordsPrescriptionDetail}
+        element={<MedicalRecordsPrescriptionDetailPage />}
+      />
       <Route path={ROUTES.videoCall} element={<VideoCallPage />} />
       <Route path={ROUTES.profile} element={<ProfilePage />} />
       <Route path={ROUTES.profileBank} element={<ProfileBankPage />} />
@@ -275,6 +290,8 @@ export function AppRoutes() {
       <Route path={ROUTES.vaccinationSlots} element={<VaccinationSlotsPage />} />
       <Route path={ROUTES.vaccinationOverview} element={<VaccinationOverviewPage />} />
       <Route path={ROUTES.servicesWellness} element={<WellnessSessionPage />} />
+      <Route path={ROUTES.servicesWellnessReview} element={<WellnessSessionReviewPage />} />
+      <Route path={ROUTES.servicesWellnessSuccess} element={<WellnessRequestSuccessPage />} />
       <Route path={ROUTES.chronic} element={<ChronicManagementPage />} />
       <Route path={ROUTES.chronicCondition} element={<ChronicConditionEnrollPage />} />
       <Route path={ROUTES.chronicDetail} element={<ChronicConditionDetailPage />} />

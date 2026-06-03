@@ -1,0 +1,57 @@
+/* Flutter `ServiceRequestCard` — list row layout for mental wellness & partner services */
+
+.mr-sr-card .mr-record-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mr-sr-card__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #1a1d21);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mr-sr-card__area {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary, #5c6570);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mr-sr-card__time-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary, #9aa3ad);
+}
+
+.mr-sr-visit {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+}
+
+.mr-sr-visit--online {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.mr-sr-visit--inperson {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}

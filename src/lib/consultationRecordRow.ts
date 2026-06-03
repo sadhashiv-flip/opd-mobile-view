@@ -94,50 +94,66 @@ export function consultationIsOnline(row: Record<string, unknown>): boolean {
   return consultationCommunicationRawUpper(row) === "ONLINE";
 }
 
-/** Chip label next to date/time on the card. */
+/** Chip label next to date/time on the card — Flutter `_CommunicationBadge`. */
 export function consultationCommunicationLabel(row: Record<string, unknown>): string {
-  return consultationIsOnline(row) ? "Online" : "In-person";
+  return consultationIsOnline(row) ? "Online" : "In-Person";
 }
 
-/** Mirrors Flutter `ConsultationRecordModel.statusLabel`. */
+/** Mirrors Flutter `ConsultationRecordModel.statusLabel` (+ cancellation reason). */
 export function consultationStatusLabel(row: Record<string, unknown>): string {
   const cancellation = pickStr(row.cancellation_reason, row.cancellationReason);
   if (cancellation) return "Cancelled";
 
-  const isPatientJoined = toInt(row.isPatientJoined, row.is_patient_joined);
-  const isDocJoined = toInt(row.isDocJoined, row.is_doc_joined);
-  if (isPatientJoined === 1 && isDocJoined === 1) return "Completed";
-
   const status = toInt(row.status);
-  const completed = toInt(row.completed);
-  const date = pickStr(row.date);
-  const time = pickStr(row.time);
-
-  if (status === 1 && completed === 0) {
-    const appointmentDt = Date.parse(`${date} ${time}`.trim());
-    if (!Number.isNaN(appointmentDt) && appointmentDt > Date.now()) return "Upcoming";
-    return "Missed";
-  }
-  if (status === 0) return "Pending";
-  return "Completed";
+  if (status === 1) return "Completed";
+  if (status === 2) return "Cancelled";
+  return "--";
 }
 
+export type ConsultationStatusTone = "completed" | "cancelled" | "other";
+
+/** Chip colors aligned with Flutter `OrderStatusChip` / medical-records detail banner. */
+export function consultationStatusTone(label: string): ConsultationStatusTone {
+  const s = label.trim().toLowerCase();
+  if (s.includes("complete") || s.includes("confirm")) return "completed";
+  if (s.includes("cancel")) return "cancelled";
+  return "other";
+}
+
+/** `displayDate  •  displayTime` — matches Flutter `ConsultationRecordModel`. */
 export function formatConsultationDateTime(row: Record<string, unknown>): string {
   const dateStr = pickStr(row.date);
   const timeStr = pickStr(row.time);
-  if (!dateStr) return timeStr || "—";
-  const combined = `${dateStr} ${timeStr}`.trim();
-  const d = new Date(combined);
-  if (Number.isNaN(d.getTime())) {
-    return [dateStr, timeStr].filter(Boolean).join(", ") || "—";
+
+  let displayDate = dateStr;
+  if (dateStr) {
+    const d = new Date(dateStr);
+    if (!Number.isNaN(d.getTime())) {
+      displayDate = d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    }
   }
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(d);
+
+  let displayTime = timeStr;
+  if (timeStr) {
+    const parts = timeStr.split(":");
+    const hour = Number.parseInt(parts[0] ?? "", 10);
+    const minute = Number.parseInt(parts[1] ?? "", 10);
+    if (!Number.isNaN(hour) && !Number.isNaN(minute)) {
+      const dt = new Date(2000, 0, 1, hour, minute);
+      displayTime = dt.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+  }
+
+  if (displayDate && displayTime) return `${displayDate}  •  ${displayTime}`;
+  return displayDate || displayTime || "—";
 }
 
 export function consultationDoctorImageUrl(row: Record<string, unknown>): string | null {

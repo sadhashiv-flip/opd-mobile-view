@@ -1,31 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { generatePath, Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import type { AuthUser } from "@/types/authSession";
 import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
+import {
+  WELLNESS_DESCRIPTION,
+  WELLNESS_DISCLAIMER_EMERGENCY,
+  WELLNESS_DISCLAIMER_HOURS,
+  WELLNESS_PAGE_TITLE,
+} from "@/constants/wellnessCopy";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { MEMBER_NOT_ACTIVATED_LABEL, memberSubtitleFromDisplay } from "@/lib/gymMemberDisplay";
 import { getAuthSession } from "@/lib/authStorage";
-import {
-  fetchMentalWellnessTypes,
-  postWellnessSession,
-  type WellnessTypeOption,
-} from "@/api/wellnessSession";
+import { fetchMentalWellnessTypes, type WellnessTypeOption } from "@/api/wellnessSession";
 import { useToast } from "@/hooks/useToast";
 import mentalWellnessSvg from "@/assets/icons/patient-app/hub/services/mentalWellness.svg";
 import nutritionServicesSvg from "@/assets/icons/patient-app/hub/services/nutritionServices.svg";
 import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
+import { WellnessSectionCard } from "@/components/wellness/WellnessSectionCard";
+import type { WellnessReviewLocationState } from "@/pages/WellnessSessionReviewPage";
+import {
+  memberSummaryLine,
+  normalizeWellnessPhone10,
+  validateWellnessForm,
+  WELLNESS_LANGUAGE_OPTIONS,
+  type WellnessFormSnapshot,
+} from "@/lib/wellnessSessionForm";
 import "./WellnessSessionPage.css";
+import "./WellnessFlow.css";
 
-const LANGUAGE_OPTIONS = [
-  "English",
-  "Hindi",
-  "Tamil",
-  "Telugu",
-  "Malayalam",
-  "Kannada",
-] as const;
-
-/** Session/API fields may be numbers at runtime despite TS types. */
 function trimStr(value: unknown): string {
   if (value == null) return "";
   if (typeof value === "string") return value.trim();
@@ -48,13 +50,17 @@ function memberDescription(m: MemberDisplay): string {
   return memberSubtitleFromDisplay(m);
 }
 
+type RestoreState = Readonly<{ restoreForm?: WellnessFormSnapshot }>;
+
 export function WellnessSessionPage() {
   const { wellnessKind } = useParams<{ wellnessKind: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
   const isMental = wellnessKind === WELLNESS_SESSION_KIND.mentalWellness;
   const isNutrition = wellnessKind === WELLNESS_SESSION_KIND.nutrition;
+  const restore = (location.state as RestoreState | null)?.restoreForm;
 
   const [authReady, setAuthReady] = useState(false);
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
@@ -65,28 +71,17 @@ export function WellnessSessionPage() {
   const [categories, setCategories] = useState<WellnessTypeOption[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
 
-  const [selectedMemberId, setSelectedMemberId] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [serviceArea, setServiceArea] = useState("");
-  const [language, setLanguage] = useState("English");
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState(restore?.selectedMemberId ?? "");
+  const [name, setName] = useState(restore?.name ?? "");
+  const [phone, setPhone] = useState(restore?.phone ?? "");
+  const [email, setEmail] = useState(restore?.email ?? "");
+  const [serviceArea, setServiceArea] = useState(restore?.serviceArea ?? "");
+  const [language, setLanguage] = useState(restore?.language ?? "English");
 
-  const pageTitle = isMental ? "Mental Wellness" : "Diet & Nutrition";
+  const pageTitle = isMental ? WELLNESS_PAGE_TITLE.mental : WELLNESS_PAGE_TITLE.nutrition;
   const heroIcon = isMental ? mentalWellnessSvg : nutritionServicesSvg;
-  const heroHeadline = isMental ? (
-    <>
-      Your <strong>mental health</strong> matters
-    </>
-  ) : (
-    <>
-      Your <strong>nutrition</strong> matters
-    </>
-  );
-  const heroBlurb = isMental
-    ? "Enter your details below, and once confirmed, our team will call you within 20 minutes to schedule a session with a specialist."
-    : "Enter your details here and we will connect you to a nutritionist.";
+  const description = isMental ? WELLNESS_DESCRIPTION.mental : WELLNESS_DESCRIPTION.nutrition;
+  const service = isMental ? "Mental Wellness" : "Diet & Nutrition";
 
   const selectedMember = useMemo(
     () => members.find((m) => m.id === selectedMemberId) ?? null,
@@ -105,13 +100,13 @@ export function WellnessSessionPage() {
   );
 
   const categoryPickerOptions = useMemo(
-    () => categories.map((c) => ({ value: c.value, label: c.value })),
+    () => categories.map((c) => ({ value: c.value, label: c.label })),
     [categories],
   );
 
   const languagePickerOptions = useMemo(() => {
-    const base = LANGUAGE_OPTIONS.map((lang) => ({ value: lang, label: lang }));
-    const allowed = new Set<string>(LANGUAGE_OPTIONS);
+    const base = WELLNESS_LANGUAGE_OPTIONS.map((lang) => ({ value: lang, label: lang }));
+    const allowed = new Set<string>(WELLNESS_LANGUAGE_OPTIONS);
     if (language.trim() && !allowed.has(language)) {
       return [{ value: language, label: language }, ...base];
     }
@@ -120,23 +115,22 @@ export function WellnessSessionPage() {
 
   const applyFieldsForMember = useCallback(
     (member: MemberDisplay | null, user: AuthUser) => {
+      if (restore) return;
       const primaryName = displayNameFromUser(user);
-      const primaryPhone = trimStr(user.phone);
+      const primaryPhone = normalizeWellnessPhone10(trimStr(user.phone));
       const primaryEmail = trimStr(user.email);
       const primaryLanguage = trimStr(user.language) || "English";
 
       setName(member?.name?.trim() ? member.name : primaryName);
-      const mPhone = trimStr(member?.phone);
-      setPhone(mPhone ? mPhone : primaryPhone);
+      const mPhone = normalizeWellnessPhone10(trimStr(member?.phone));
+      setPhone(mPhone || primaryPhone);
       const mEmail = trimStr(member?.email);
-      setEmail(mEmail ? mEmail : primaryEmail);
+      setEmail(mEmail || primaryEmail);
 
-      if (isMental) {
-        const mLang = trimStr(member?.language);
-        setLanguage(mLang ? mLang : primaryLanguage);
-      }
+      const mLang = trimStr(member?.language);
+      setLanguage(mLang || primaryLanguage);
     },
-    [isMental],
+    [restore],
   );
 
   useEffect(() => {
@@ -165,6 +159,7 @@ export function WellnessSessionPage() {
         const list = await fetchAllPatientMembers();
         if (cancelled) return;
         setMembers(list);
+        if (restore) return;
         const firstActive =
           list.find((m) => m.memberKind === "primary" && m.isSubscribed) ??
           list.find((m) => m.isSubscribed);
@@ -190,7 +185,7 @@ export function WellnessSessionPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionUser, toast]);
+  }, [sessionUser, toast, restore]);
 
   useEffect(() => {
     if (!isMental || !sessionUser) return;
@@ -215,67 +210,55 @@ export function WellnessSessionPage() {
   }, [isMental, sessionUser, toast]);
 
   useEffect(() => {
-    if (!sessionUser) return;
+    if (!sessionUser || restore) return;
     applyFieldsForMember(selectedMember, sessionUser);
-  }, [selectedMember, sessionUser, applyFieldsForMember]);
+  }, [selectedMember, sessionUser, applyFieldsForMember, restore]);
 
-  useEffect(() => {
-    if (isMental) setServiceArea("");
-  }, [selectedMemberId, isMental]);
-
-  const canSubmit = useMemo(() => {
-    if (!sessionUser || submitting) return false;
-    if (!selectedMember?.isSubscribed) return false;
-    if (!phone.trim()) return false;
-    if (!email.trim()) return false;
-    if (isMental) {
-      if (!serviceArea.trim() || !language.trim()) return false;
-    }
-    return true;
-  }, [sessionUser, submitting, selectedMember, phone, email, isMental, serviceArea, language]);
-
-  const handleSubmit = useCallback(async () => {
-    if (!sessionUser || !canSubmit) return;
-    const patientId = selectedMember?.patientNumericId ?? sessionUser.id;
-
-    setSubmitting(true);
-    try {
-      if (isMental) {
-        await postWellnessSession({
-          phone: phone.trim(),
-          email: email.trim(),
-          service: "Mental Wellness",
-          service_area: serviceArea.trim(),
-          language: language.trim(),
-          patient_id: patientId,
-        });
-      } else {
-        await postWellnessSession({
-          phone: phone.trim(),
-          email: email.trim(),
-          service: "Diet & Nutrition",
-          patient_id: patientId,
-        });
-      }
-      toast.success("Request submitted. Our team will contact you soon.");
-      void navigate(ROUTES.services);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit request");
-    } finally {
-      setSubmitting(false);
-    }
+  const formSnapshot = useMemo((): WellnessFormSnapshot | null => {
+    if (!sessionUser || !wellnessKind) return null;
+    if (!isMental && !isNutrition) return null;
+    return {
+      wellnessKind: isMental ? "mental-wellness" : "nutrition",
+      selectedMemberId,
+      memberSummaryLine: memberSummaryLine(selectedMember, name),
+      name: name.trim(),
+      phone: normalizeWellnessPhone10(phone),
+      email: email.trim(),
+      serviceArea: serviceArea.trim(),
+      language: language.trim(),
+      patientId: selectedMember?.patientNumericId ?? sessionUser.id,
+      service,
+    };
   }, [
     sessionUser,
-    canSubmit,
-    selectedMember,
+    wellnessKind,
     isMental,
+    isNutrition,
+    selectedMemberId,
+    selectedMember,
+    name,
     phone,
     email,
     serviceArea,
     language,
-    toast,
-    navigate,
+    service,
   ]);
+
+  const canContinue = useMemo(() => {
+    if (!formSnapshot) return false;
+    return validateWellnessForm(formSnapshot, { categoriesLoaded: categories.length > 0 }) === null;
+  }, [formSnapshot, categories.length]);
+
+  const onContinue = useCallback(() => {
+    if (!formSnapshot) return;
+    const err = validateWellnessForm(formSnapshot, { categoriesLoaded: categories.length > 0 });
+    if (err) {
+      toast.error(err);
+      return;
+    }
+    const reviewPath = generatePath(ROUTES.servicesWellnessReview, { wellnessKind: wellnessKind! });
+    void navigate(reviewPath, { state: { form: formSnapshot } satisfies WellnessReviewLocationState });
+  }, [formSnapshot, categories.length, navigate, wellnessKind, toast]);
 
   if (!wellnessKind || (!isMental && !isNutrition)) {
     return <Navigate to={ROUTES.services} replace />;
@@ -286,9 +269,9 @@ export function WellnessSessionPage() {
   }
 
   return (
-    <div className="wellness-session-page">
-      <header className="wellness-session-page__header">
-        <Link to={ROUTES.services} className="wellness-session-page__back" aria-label="Back to services">
+    <div className="wellness-session-page wellness-flow-page">
+      <header className="wellness-flow-page__header">
+        <Link to={ROUTES.services} className="wellness-flow-page__back" aria-label="Back to services">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"
@@ -299,20 +282,17 @@ export function WellnessSessionPage() {
             />
           </svg>
         </Link>
-        <h1 className="wellness-session-page__title">{pageTitle}</h1>
-        <span className="wellness-session-page__header-spacer" aria-hidden />
+        <h1 className="wellness-flow-page__title">{pageTitle}</h1>
+        <span className="wellness-flow-page__header-spacer" aria-hidden />
       </header>
 
-      <main className="wellness-session-page__main">
-        <section className="wellness-session-page__hero">
-          <div className="wellness-session-page__hero-copy">
-            <p className="wellness-session-page__hero-headline">{heroHeadline}</p>
-            <p className="wellness-session-page__hero-text">{heroBlurb}</p>
+      <main className="wellness-session-page__scroll">
+        <div className="wellness-session-page__hero-wrap">
+          <div className="wellness-session-page__hero-banner">
+            <img src={heroIcon} alt="" className="wellness-session-page__hero-img" draggable={false} />
           </div>
-          <div className="wellness-session-page__hero-art" aria-hidden>
-            <img src={heroIcon} alt="" width={120} height={120} draggable={false} />
-          </div>
-        </section>
+          <p className="wellness-session-page__description">{description}</p>
+        </div>
 
         {membersError ? <p className="wellness-session-page__error">{membersError}</p> : null}
 
@@ -321,66 +301,82 @@ export function WellnessSessionPage() {
             Loading…
           </p>
         ) : (
-          <form
-            className="wellness-session-page__form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleSubmit();
-            }}
-          >
-            <SearchablePickerField
-              label="Select family member"
-              requiredMark
-              placeholder={members.length === 0 ? "No members" : "Choose a family member"}
-              sheetTitle="Family member"
-              searchPlaceholder="Search by name…"
-              options={memberPickerOptions}
-              value={selectedMemberId}
-              onChange={setSelectedMemberId}
-              disabled={members.length === 0}
-              pageSize={8}
-              emptySearchMessage="No members match your search"
-            />
-
-            <label className="wellness-session-page__field">
-              <span className="wellness-session-page__label">Name</span>
-              <input
-                className="wellness-session-page__input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
+          <>
+            <WellnessSectionCard
+              title="Patient details"
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    fill="currentColor"
+                  />
+                </svg>
+              }
+            >
+              <SearchablePickerField
+                label="Family member"
+                requiredMark
+                placeholder={members.length === 0 ? "No members" : "Choose a family member"}
+                sheetTitle="Family member"
+                searchPlaceholder="Search by name…"
+                options={memberPickerOptions}
+                value={selectedMemberId}
+                onChange={setSelectedMemberId}
+                disabled={members.length === 0}
+                pageSize={8}
+                emptySearchMessage="No members match your search"
               />
-            </label>
 
-            <label className="wellness-session-page__field">
-              <span className="wellness-session-page__label">Mobile number</span>
-              <input
-                className="wellness-session-page__input"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                inputMode="tel"
-                autoComplete="tel"
-              />
-            </label>
+              <label className="wellness-session-page__field">
+                <span className="wellness-session-page__label">Name</span>
+                <input
+                  className="wellness-session-page__input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value.replace(/[^a-zA-Z ]/g, ""))}
+                  autoComplete="name"
+                />
+              </label>
 
-            <label className="wellness-session-page__field">
-              <span className="wellness-session-page__label">Email address</span>
-              <input
-                className="wellness-session-page__input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </label>
+              <label className="wellness-session-page__field">
+                <span className="wellness-session-page__label">Mobile number</span>
+                <input
+                  className="wellness-session-page__input"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  inputMode="tel"
+                  autoComplete="tel"
+                />
+              </label>
 
-            {isMental ? (
-              <>
+              <label className="wellness-session-page__field">
+                <span className="wellness-session-page__label">Email address</span>
+                <input
+                  className="wellness-session-page__input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </label>
+            </WellnessSectionCard>
+
+            <WellnessSectionCard
+              title="Consultation preferences"
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"
+                    fill="currentColor"
+                  />
+                </svg>
+              }
+            >
+              {isMental ? (
                 <SearchablePickerField
                   label="Select category"
                   requiredMark
-                  placeholder={categoriesLoading ? "Loading…" : "Choose a category"}
-                  sheetTitle="Wellness category"
+                  placeholder={categoriesLoading ? "Loading…" : "Select category"}
+                  sheetTitle="Select category"
                   searchPlaceholder="Search categories…"
                   options={categoryPickerOptions}
                   value={serviceArea}
@@ -389,40 +385,51 @@ export function WellnessSessionPage() {
                   pageSize={8}
                   emptySearchMessage="No categories match your search"
                 />
+              ) : null}
 
-                <SearchablePickerField
-                  label="Preferred language"
-                  placeholder="Choose language"
-                  sheetTitle="Preferred language"
-                  searchPlaceholder="Search language…"
-                  options={languagePickerOptions}
-                  value={language}
-                  onChange={setLanguage}
-                  pageSize={8}
-                  emptySearchMessage="No language matches your search"
-                />
-              </>
-            ) : null}
+              <SearchablePickerField
+                label="Preferred language"
+                placeholder="Select language"
+                sheetTitle="Select language"
+                searchPlaceholder="Search language…"
+                options={languagePickerOptions}
+                value={language}
+                onChange={setLanguage}
+                pageSize={8}
+                emptySearchMessage="No language matches your search"
+              />
+            </WellnessSectionCard>
 
-            <div className="wellness-session-page__notes">
-              <p>
-                We do not handle emergencies. For urgent care, contact your doctor or the nearest hospital
-                immediately.
-              </p>
-              <p>Service hours: 9:30 AM – 6:30 PM. Requests after hours are processed the next working day.</p>
-            </div>
-
-            <button
-              type="submit"
-              className="wellness-session-page__submit"
-              disabled={!canSubmit}
+            <WellnessSectionCard
+              title="Important notes"
+              icon={
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"
+                    fill="currentColor"
+                  />
+                </svg>
+              }
             >
-            
-              {submitting ? "Submitting…" : "Continue"}
-            </button>
-          </form>
+              <ul className="wellness-session-page__disclaimers">
+                <li>{WELLNESS_DISCLAIMER_EMERGENCY}</li>
+                <li>{WELLNESS_DISCLAIMER_HOURS}</li>
+              </ul>
+            </WellnessSectionCard>
+          </>
         )}
       </main>
+
+      <footer className="wellness-flow-page__footer">
+        <button
+          type="button"
+          className="wellness-flow-page__cta"
+          disabled={!canContinue || membersLoading}
+          onClick={onContinue}
+        >
+          Continue
+        </button>
+      </footer>
     </div>
   );
 }

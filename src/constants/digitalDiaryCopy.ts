@@ -59,4 +59,7 @@ export const DIGITAL_DIARY_COPY = {
    */
   helpHubDigitalDiaryDescription:
     "Check your activities",
+  /** `kActivitiesSubtitle` — medical records / view-more hub card */
+  activitiesHubSubtitle:
+    "Log water, mood, vitals, and daily health activities in one place.",
 } as const;

@@ -1,22 +1,26 @@
-import { ConsultationRecordsList } from "@/components/medicalRecords/ConsultationRecordsList";
 import { fetchMedicalHistoryByType } from "@/api/patientMedicalHistory";
-import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
-import { DIAG_SUB_LAB_TESTS } from "@/lib/subscriptionDashboardModules";
+import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
+import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { MedicalRecordsFilterSheet } from "@/components/medicalRecords/MedicalRecordsFilterSheet";
+import { MedicalRecordsList } from "@/components/medicalRecords/MedicalRecordsList";
+import { SymptomDetailSheet } from "@/components/medicalRecords/SymptomDetailSheet";
+import { medicalRecordSlugIconSrc } from "@/components/mobileFilter/medicalRecordFilterIcons";
+import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
 import {
-  MEDICAL_RECORD_CATEGORIES,
+  activeMedicalRecordFilterLabel,
+  DEFAULT_MEDICAL_RECORD_SLUG,
+  HEALTH_LOG_GROUP_LABEL,
+  isDefaultMedicalRecordCategory,
+  isHealthLogMedicalRecordSlug,
   medicalRecordCategoryFromSlug,
   type MedicalRecordCategoryDef,
 } from "@/constants/medicalRecordsCategories";
-import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
-import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { generatePath, Link, useNavigate, useParams } from "react-router-dom";
-import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
-import { MobileFilterChip, MobileFilterSheet } from "@/components/mobileFilter/MobileFilterSheet";
-import { medicalRecordSlugIconSrc } from "@/components/mobileFilter/medicalRecordFilterIcons";
-import familyAccountsSvg from "@/assets/icons/patient-app/hub/account_management/family_account.svg";
-import profileSvg from "@/assets/icons/patient-app/hub/account_management/profile.svg";
+import { useProfileModuleGates } from "@/hooks/useProfileModuleGates";
+import { DIAG_SUB_LAB_TESTS } from "@/lib/subscriptionDashboardModules";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { generatePath, Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import "./MedicalRecordsPage.css";
+import "@/components/medicalRecords/MedicalRecordsCards.css";
 
 const MR_USER_FILTER_KEY = "opd-mobile-view.medical-records.userFilter";
 
@@ -28,71 +32,57 @@ function readStoredUserFilter(): string {
   }
 }
 
-function asRecord(v: unknown): Record<string, unknown> | null {
-  return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-}
-
-function pickStr(...vals: unknown[]): string {
-  for (const v of vals) {
-    if (v == null) continue;
-    if (typeof v === "string" && v.trim()) return v.trim();
-    if (typeof v === "number" || typeof v === "boolean") {
-      const s = String(v).trim();
-      if (s) return s;
-    }
-  }
-  return "";
-}
-
-function recordTitle(category: MedicalRecordCategoryDef, row: Record<string, unknown>): string {
-  switch (category.slug) {
-    case "consultations": {
-      const doc = asRecord(row.doctor);
-      return pickStr(doc?.name) || "Consultation";
-    }
-    case "lab-tests":
-      return pickStr(row.title, row.name) || "Lab test";
-    case "prescriptions": {
-      const doc = asRecord(row.appointment);
-      const inner = doc ? asRecord(doc.doctor) : null;
-      return pickStr(inner?.name) || "Prescription";
-    }
-    case "conditions":
-      return pickStr(row.condition) || "Condition";
-    case "mental-wellness":
-    case "nutrition":
-      return pickStr(row.service_name, row.serviceName) || category.label;
-    default:
-      return pickStr(row.title, row.value, row.type, row.name) || category.label;
-  }
-}
-
-function recordSubtitle(category: MedicalRecordCategoryDef, row: Record<string, unknown>): string {
-  switch (category.slug) {
-    case "consultations":
-      return pickStr(row.date, row.time) || pickStr(row.statusText);
-    case "lab-tests":
-      return pickStr(row.statusText, row.date) || "";
-    case "prescriptions":
-      return pickStr(row.createdAtDate, row.created_at) || "";
-    default:
-      return pickStr(row.datetime, row.date, row.booking_time, row.bookingTime) || "";
-  }
+function emptyMessage(category: MedicalRecordCategoryDef): string {
+  return `No ${category.label.toLowerCase()} records found`;
 }
 
 export function MedicalRecordsPage() {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
+
+  if (!categorySlug?.trim()) {
+    return (
+      <Navigate
+        to={generatePath(ROUTES.medicalRecordsCategory, { categorySlug: DEFAULT_MEDICAL_RECORD_SLUG })}
+        replace
+      />
+    );
+  }
+
+  const category = medicalRecordCategoryFromSlug(categorySlug);
+  if (!category) {
+    return (
+      <Navigate
+        to={generatePath(ROUTES.medicalRecordsCategory, { categorySlug: DEFAULT_MEDICAL_RECORD_SLUG })}
+        replace
+      />
+    );
+  }
+
+  return <MedicalRecordsPageContent category={category} />;
+}
+
+function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRecordCategoryDef }>) {
   const navigate = useNavigate();
   const mod = useProfileModuleGates();
-  const category = useMemo(() => medicalRecordCategoryFromSlug(categorySlug), [categorySlug]);
+
+  const [rows, setRows] = useState<readonly Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [symptomRow, setSymptomRow] = useState<Record<string, unknown> | null>(null);
+  const [members, setMembers] = useState<readonly MemberDisplay[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
+  const [userFilterId, setUserFilterId] = useState(readStoredUserFilter);
+  const pullStartY = useRef(0);
+  const mainRef = useRef<HTMLElement>(null);
+
+  const showFilterDot =
+    userFilterId.trim().length > 0 || !isDefaultMedicalRecordCategory(category);
 
   const emptyBookNowPath = useMemo(() => {
-    if (!category) return null;
     switch (category.slug) {
       case "lab-tests":
-        if (!mod.loaded) return null;
-        if (!mod.gateOk) return null;
-        if (mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS)) return null;
+        if (!mod.loaded || !mod.gateOk || mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS)) return null;
         return generatePath(ROUTES.diagnosticsType, { type: "lab-tests" });
       case "mental-wellness":
         return generatePath(ROUTES.servicesWellness, { wellnessKind: WELLNESS_SESSION_KIND.mentalWellness });
@@ -101,42 +91,27 @@ export function MedicalRecordsPage() {
       default:
         return null;
     }
-  }, [category, mod.diagnosticsHiddenSubSlugs, mod.gateOk, mod.loaded]);
+  }, [category.slug, mod.diagnosticsHiddenSubSlugs, mod.gateOk, mod.loaded]);
 
-  const [rows, setRows] = useState<readonly Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [members, setMembers] = useState<readonly MemberDisplay[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
-  const [userFilterId, setUserFilterId] = useState(readStoredUserFilter);
-
-  /** Dot when a family member is selected or category is not the default (Consultations). */
-  const showFilterDot =
-    userFilterId.trim().length > 0 ||
-    (category != null && category.slug !== MEDICAL_RECORD_CATEGORIES[0]?.slug);
-
-  const load = useCallback(
-    async (c: MedicalRecordCategoryDef) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const uid = userFilterId.trim();
-        const raw = await fetchMedicalHistoryByType(c.apiSegment, {
-          userId: uid.length > 0 ? uid : null,
-        });
-        const list = raw.filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x));
-        setRows(list);
-      } catch (e) {
-        setRows([]);
-        setError(e instanceof Error ? e.message : "Could not load records");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [userFilterId],
-  );
+  const load = useCallback(async (c: MedicalRecordCategoryDef) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const uid = userFilterId.trim();
+      const raw = await fetchMedicalHistoryByType(c.apiSegment, {
+        userId: uid.length > 0 ? uid : null,
+      });
+      const list = raw.filter(
+        (x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x),
+      );
+      setRows(list);
+    } catch (e) {
+      setRows([]);
+      setError(e instanceof Error ? e.message : "Could not load records");
+    } finally {
+      setLoading(false);
+    }
+  }, [userFilterId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,18 +132,8 @@ export function MedicalRecordsPage() {
   }, []);
 
   useEffect(() => {
-    if (!category) {
-      setRows([]);
-      setError(null);
-      setLoading(false);
-      return;
-    }
     void load(category);
   }, [category, load]);
-
-  useEffect(() => {
-    setSelected(null);
-  }, [categorySlug]);
 
   const persistUserFilter = (id: string) => {
     const v = id.trim();
@@ -185,54 +150,28 @@ export function MedicalRecordsPage() {
     if (!uid) return;
     const m = members.find((x) => x.id === uid);
     if (m && !m.isSubscribed) {
-      setUserFilterId("");
-      try {
-        sessionStorage.setItem(MR_USER_FILTER_KEY, "");
-      } catch {
-        /* ignore */
-      }
+      persistUserFilter("");
     }
   }, [members, userFilterId]);
 
-  const reportUrl = selected ? pickStr(selected.reportUrl, selected.report_url) : "";
-  const invoiceId = selected ? pickStr(selected.invoice_id, selected.invoiceId) : "";
-  const labOrderDetailId = selected
-    ? pickStr(
-        asRecord(selected.info)?.id,
-        selected.consultation_info_id,
-        selected.consultationInfoId,
-        selected.service_id,
-        selected.serviceId,
-        selected.invoice_id,
-        selected.invoiceId,
-      )
-    : "";
+  const selectCategory = (slug: string) => {
+    setSheetOpen(false);
+    void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: slug }));
+  };
 
-  const emptyLine =
-    category && rows.length === 0 && !loading && !error
-      ? `No ${category.label.toLowerCase()} found.`
-      : "No records found.";
+  const handlePullRefresh = () => {
+    void load(category);
+  };
 
   return (
-    <div className="page medical-records-page">
-      <header className="mr-header">
-        <Link to={ROUTES.servicesMedicalRecordsTab} className="mr-back" aria-label="Back to services">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
-        <h1 className="mr-title">{category ? category.label : "Medical records"}</h1>
+    <div className="page medical-records-page medical-records-page--tab">
+      <header className="mr-header mr-header--tab">
+        <h1 className="mr-title">My Records</h1>
         <button
           type="button"
           className="mr-filter-btn"
-          aria-label="Filter medical records"
-          title="Filter medical records"
+          aria-label="Filter records"
+          title="Filter records"
           onClick={() => setSheetOpen(true)}
         >
           <span className="mr-filter-btn__icon-wrap">
@@ -252,194 +191,114 @@ export function MedicalRecordsPage() {
         </button>
       </header>
 
-      <MobileFilterSheet
+      <button
+        type="button"
+        className="mr-active-category"
+        onClick={() => setSheetOpen(true)}
+        aria-label="Change record category"
+      >
+        <img
+          className="mr-active-category__icon"
+          src={medicalRecordSlugIconSrc(category.slug)}
+          alt=""
+          width={18}
+          height={18}
+        />
+        <span className="mr-active-category__text">
+          <span className="mr-active-category__label">Showing</span>
+          <span className="mr-active-category__value">{activeMedicalRecordFilterLabel(category)}</span>
+        </span>
+        {isHealthLogMedicalRecordSlug(category.slug) ? (
+          <span className="mr-active-category__pill">{HEALTH_LOG_GROUP_LABEL}</span>
+        ) : null}
+        <span className="mr-active-category__chevron" aria-hidden>
+          ▾
+        </span>
+      </button>
+
+      <MedicalRecordsFilterSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        title="Filter medical records"
-        subtitle="Choose a record type and optionally a family member"
+        category={category}
+        userFilterId={userFilterId}
+        members={members}
+        membersLoading={membersLoading}
+        onSelectCategory={selectCategory}
+        onSelectUser={persistUserFilter}
+      />
+
+      <SymptomDetailSheet
+        open={symptomRow != null}
+        row={symptomRow}
+        onClose={() => setSymptomRow(null)}
+      />
+
+      <main
+        ref={mainRef}
+        className="mr-main mr-main--scroll"
+        onTouchStart={(e) => {
+          if (mainRef.current && mainRef.current.scrollTop <= 0) {
+            pullStartY.current = e.touches[0]?.clientY ?? 0;
+          }
+        }}
+        onTouchEnd={(e) => {
+          const el = mainRef.current;
+          if (!el || el.scrollTop > 0) return;
+          const endY = e.changedTouches[0]?.clientY ?? 0;
+          if (endY - pullStartY.current > 72) handlePullRefresh();
+        }}
       >
-        <div className="mobile-filter-sheet__divider" />
-        <div className="mobile-filter-sheet__section">
-          <div className="mobile-filter-sheet__wrap">
-            {MEDICAL_RECORD_CATEGORIES.map((c) => (
-              <MobileFilterChip
-                key={c.slug}
-                label={c.label}
-                icon={<img src={medicalRecordSlugIconSrc(c.slug)} alt="" width={18} height={18} />}
-                selected={category?.slug === c.slug}
-                onClick={() => {
-                  setSheetOpen(false);
-                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: c.slug }));
-                }}
-              />
-            ))}
+        {loading ? (
+          <div className="mr-loading" role="status" aria-live="polite">
+            <span className="mr-loading__spinner" aria-hidden />
+            <span>Loading…</span>
           </div>
-        </div>
-        <div className="mobile-filter-sheet__divider" />
-        <div className="mobile-filter-sheet__section-label">Family member</div>
-        <div className="mobile-filter-sheet__section">
-          {membersLoading ? (
-            <div className="mobile-filter-sheet__members-loading">
-              <p className="mr-status">Loading…</p>
-            </div>
-          ) : (
-            <div className="mobile-filter-sheet__wrap">
-              <MobileFilterChip
-                label="All members"
-                icon={<img src={familyAccountsSvg} alt="" width={18} height={18} />}
-                selected={userFilterId.trim().length === 0}
-                onClick={() => {
-                  persistUserFilter("");
-                  setSheetOpen(false);
-                }}
-              />
-              {members.map((m) => (
-                <MobileFilterChip
-                  key={m.id}
-                  label={m.name.trim().length > 0 ? m.name : m.id}
-                  icon={<img src={profileSvg} alt="" width={18} height={18} />}
-                  selected={userFilterId === m.id}
-                  disabled={!m.isSubscribed}
-                  onClick={() => {
-                    persistUserFilter(m.id);
-                    setSheetOpen(false);
-                  }}
+        ) : null}
+        {error ? (
+          <p className="mr-status mr-status--error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {!loading && !error && rows.length === 0 ? (
+          <div className="mr-empty">
+            <span className="mr-empty__icon" aria-hidden>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M19 8h-2V6a3 3 0 00-6 0v2H9a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V10a2 2 0 00-2-2zM11 6a1 1 0 012 0v2h-2V6zM12 14v2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
                 />
-              ))}
-            </div>
-          )}
-        </div>
-      </MobileFilterSheet>
+              </svg>
+            </span>
+            <p className="mr-empty__message">{emptyMessage(category)}</p>
+            <p className="mr-empty__hint">Pull down to refresh</p>
+            {emptyBookNowPath ? (
+              <Link className="mr-book-now" to={emptyBookNowPath}>
+                Book now
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+        {!loading && !error && rows.length > 0 ? (
+          <MedicalRecordsList
+            category={category}
+            rows={rows}
+            onSymptomOpen={(row) => setSymptomRow(row)}
+          />
+        ) : null}
+      </main>
 
-      {!category ? (
-        <main className="mr-main">
-          <p className="mr-lead">Choose a category to view your history.</p>
-          <ul className="mr-cat-grid">
-            {MEDICAL_RECORD_CATEGORIES.map((c) => (
-              <li key={c.slug}>
-                <Link className="mr-cat-card" to={generatePath(ROUTES.medicalRecordsCategory, { categorySlug: c.slug })}>
-                  <span className="mr-cat-card__name">{c.label}</span>
-                  <span className="mr-cat-card__desc">{c.description}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </main>
-      ) : (
-        <main className="mr-main">
-          <Link className="mr-all-cats" to={ROUTES.medicalRecords}>
-            All categories
-          </Link>
-          {loading ? <p className="mr-status">Loading…</p> : null}
-          {error ? (
-            <p className="mr-status mr-status--error" role="alert">
-              {error}
-            </p>
-          ) : null}
-          {!loading && !error && rows.length === 0 ? (
-            <div className="mr-empty-cta">
-              <p className="mr-status">{emptyLine}</p>
-              {emptyBookNowPath ? (
-                <Link className="mr-book-now" to={emptyBookNowPath}>
-                  Book now
-                </Link>
-              ) : null}
-            </div>
-          ) : null}
-          {category.slug === "consultations" && rows.length > 0 ? (
-            <ConsultationRecordsList rows={rows} />
-          ) : category.slug !== "consultations" ? (
-            <ul className="mr-list">
-              {rows.map((row, i) => {
-                const key = pickStr(row.id, row.appointment_id) || `row-${i}`;
-                return (
-                  <li key={key}>
-                    <button type="button" className="mr-row" onClick={() => setSelected(row)}>
-                      <span className="mr-row__title">{recordTitle(category, row)}</span>
-                      <span className="mr-row__sub">{recordSubtitle(category, row)}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </main>
-      )}
+      <button
+        type="button"
+        className="mr-refresh-fab"
+        aria-label="Refresh records"
+        onClick={() => void load(category)}
+      >
+        ↻
+      </button>
 
-      {selected && category ? (
-        <div className="mr-overlay" role="presentation" onClick={() => setSelected(null)}>
-          <article
-            className="mr-overlay__panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="mr-detail-title"
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            <header className="mr-dialog__head">
-              <h2 id="mr-detail-title">{recordTitle(category, selected)}</h2>
-              <button type="button" className="mr-dialog__close" aria-label="Close" onClick={() => setSelected(null)}>
-                ×
-              </button>
-            </header>
-            <div className="mr-dialog__body">
-              {category.slug === "consultations" && invoiceId ? (
-                <p className="mr-dialog__actions">
-                  <Link
-                    className="mr-link"
-                    to={pathToOrderDetail("consultation", invoiceId)}
-                    onClick={() => setSelected(null)}
-                  >
-                    View order / invoice
-                  </Link>
-                </p>
-              ) : null}
-              {category.slug === "lab-tests" && labOrderDetailId ? (
-                <p className="mr-dialog__actions">
-                  <Link
-                    className="mr-link"
-                    to={pathToOrderDetail("lab", labOrderDetailId)}
-                    onClick={() => setSelected(null)}
-                  >
-                    View lab order
-                  </Link>
-                </p>
-              ) : null}
-              {category.slug === "lab-tests" && reportUrl ? (
-                <p className="mr-dialog__actions">
-                  <a className="mr-link" href={reportUrl} target="_blank" rel="noopener noreferrer">
-                    Open report
-                  </a>
-                </p>
-              ) : null}
-              <dl className="mr-kv">
-                {Object.entries(selected)
-                  .filter(([k]) => !["password", "token"].includes(k.toLowerCase()))
-                  .map(([k, v]) => (
-                    <div key={k} className="mr-kv__row">
-                      <dt>{k}</dt>
-                      <dd>{formatDetailValue(v)}</dd>
-                    </div>
-                  ))}
-              </dl>
-            </div>
-          </article>
-        </div>
-      ) : null}
+      <HomeBottomNav />
     </div>
   );
-}
-
-function formatDetailValue(v: unknown): string {
-  if (v == null) return "—";
-  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
-  if (typeof v === "object") {
-    try {
-      return JSON.stringify(v, null, 2);
-    } catch {
-      return "—";
-    }
-  }
-  return String(v);
 }

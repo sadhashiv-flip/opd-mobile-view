@@ -20,6 +20,7 @@ import { fetchConsultationReportPdfObjectUrl } from "@/api/patientConsultationRe
 import {
   downloadConsultationPrescriptionPdf,
   fetchInvoiceOrderPageData,
+  invoiceDetailLinesForPdf,
   isInvoiceDetailCancelled,
   isPartnerOrderPayFlowCategory,
   type ConsultationAttachmentRow,
@@ -96,6 +97,8 @@ import {
 } from "@/components/orders/OrderDetailSharedSections";
 import { OrderDetailConsultationSections } from "@/components/orders/OrderDetailConsultationSections";
 import { OrderDetailServiceRequestSections } from "@/components/orders/OrderDetailServiceRequestSections";
+import { OrderDetailWellnessSections } from "@/components/orders/OrderDetailWellnessSections";
+import "@/components/orders/OrderDetailWellnessSections.css";
 import { patchConsultationOfflineRescheduleConfirm } from "@/api/patientConsultationOrder";
 import { serviceRequestScreenTitle } from "@/lib/serviceRequestOrderDetail";
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
@@ -105,6 +108,7 @@ import {
   buildGymBookingSuccessFromInvoice,
   buildLabBookingSuccessFromInvoice,
 } from "@/lib/bookingSuccessFromInvoice";
+import { canDownloadInvoicePdf, downloadInvoicePdf } from "@/lib/invoicePdfHelper";
 import {
   VIRTUAL_CONSULT_LANGUAGE_KEY,
   VIRTUAL_CONSULT_PURPOSE_KEY,
@@ -477,6 +481,9 @@ export function OrderDetailsPage() {
   const [prescriptionOpen, setPrescriptionOpen] = useState(false);
   const [prescriptionPdfBusy, setPrescriptionPdfBusy] = useState(false);
   const [prescriptionPdfViewer, setPrescriptionPdfViewer] = useState<AttachmentFilePreviewViewer>(null);
+  const [invoiceRawPayload, setInvoiceRawPayload] = useState<Record<string, unknown> | null>(null);
+  const [invoicePdfBusy, setInvoicePdfBusy] = useState(false);
+  const [invoicePdfViewer, setInvoicePdfViewer] = useState<AttachmentFilePreviewViewer>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -562,20 +569,23 @@ export function OrderDetailsPage() {
       setError("Missing order id");
       setDetail(null);
       setConsultationCompleted(null);
+      setInvoiceRawPayload(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const { detail: d, consultationCompleted: cc } = await fetchInvoiceOrderPageData(invoiceId);
+      const { detail: d, consultationCompleted: cc, rawPayload } = await fetchInvoiceOrderPageData(invoiceId);
       setDetail(d);
       setConsultationCompleted(cc);
+      setInvoiceRawPayload(rawPayload);
       setLinesExpanded(d.lineItems.length <= ORDER_DETAIL_LINE_ITEMS_PREVIEW);
       setPrescriptionOpen(cc != null && cc.prescriptions.length <= 1);
     } catch (e) {
       setDetail(null);
       setConsultationCompleted(null);
+      setInvoiceRawPayload(null);
       setError(e instanceof Error ? e.message : "Could not load order");
     } finally {
       setLoading(false);
@@ -674,13 +684,45 @@ export function OrderDetailsPage() {
     }
   }, [prescriptionPdfAppointmentId, toast]);
 
+  const closeInvoicePdfViewer = useCallback(() => {
+    setInvoicePdfViewer((prev) => {
+      if (prev?.url?.startsWith("blob:")) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  }, []);
+
+  const onDownloadInvoicePdf = useCallback(async () => {
+    if (!invoiceRawPayload) {
+      toast.error("Invoice data is not available.");
+      return;
+    }
+    setInvoicePdfBusy(true);
+    try {
+      const url = await downloadInvoicePdf({
+        invoice: invoiceRawPayload,
+        lines: invoiceDetailLinesForPdf(invoiceRawPayload),
+        companyNameFallback: detail?.vendorName,
+      });
+      setInvoicePdfViewer((prev) => {
+        if (prev?.url?.startsWith("blob:")) URL.revokeObjectURL(prev.url);
+        return { kind: "pdf", url, name: "Invoice.pdf" };
+      });
+      toast.success("Invoice PDF ready");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Unable to generate invoice PDF. Please try again.");
+    } finally {
+      setInvoicePdfBusy(false);
+    }
+  }, [invoiceRawPayload, detail?.vendorName, toast]);
+
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
     closePrescriptionPdfViewer();
-  }, [invoiceId, closePrescriptionPdfViewer]);
+    closeInvoicePdfViewer();
+  }, [invoiceId, closePrescriptionPdfViewer, closeInvoicePdfViewer]);
 
   useEffect(() => {
     if (!detail || !invoiceId) return;
@@ -1243,6 +1285,8 @@ export function OrderDetailsPage() {
     if (detail.categoryKey === "lab" && detailBookingInfoStatus === 0) return false;
     return true;
   }, [detail, detailBookingInfoStatus]);
+  /** Flutter `onDownloadInvoice: status == 1` on all order detail screens. */
+  const showInvoicePdfDownload = showInvoiceDetailsCard && canDownloadInvoicePdf(detailBookingInfoStatus);
   const orderReferenceLabel = "Order ID";
   const orderReferenceValue = detail?.infoOrderIdFormatted ?? "—";
   const discountRowLabel = cc != null ? "Saved (Discount)" : "Discount";
@@ -1264,6 +1308,9 @@ export function OrderDetailsPage() {
   const headerTitle = useMemo(() => {
     if (loading) return "Loading…";
     if (detail?.isConsultationOrder) return "Order details";
+    if (detail?.categoryKey === "mental_wellness" || detail?.categoryKey === "nutrition") {
+      return detail.serviceTypeLabel || "Order details";
+    }
     if (detail?.categoryKey === "lab") return "Lab order details";
     if (detail && isServiceRequestOrderCategory(detail.categoryKey)) {
       return serviceRequestScreenTitle(detail.categoryKey);
@@ -1274,6 +1321,8 @@ export function OrderDetailsPage() {
 
   const isConsultationLayout = Boolean(detail?.isConsultationOrder);
   const isServiceRequestOrder = isServiceRequestOrderCategory(detail?.categoryKey);
+  const isWellnessOrder =
+    detail?.categoryKey === "mental_wellness" || detail?.categoryKey === "nutrition";
   const showOrderCancellationReason = Boolean(
     detail &&
       isInvoiceDetailCancelled(detail) &&
@@ -1607,7 +1656,7 @@ export function OrderDetailsPage() {
 
         {!loading && !error && detail ? (
           <>
-            {!isServiceRequestOrder && !isConsultationLayout ? (
+            {!isServiceRequestOrder && !isConsultationLayout && !isWellnessOrder ? (
               <section
                 className={`od-banner od-banner--${detail.bannerTone}${isPaymentPendingBanner ? " od-banner--paymentPending" : ""}`}
               >
@@ -1692,6 +1741,8 @@ export function OrderDetailsPage() {
                     onOpenConfirmDialog={() => setConfirmMedicineOrderDialogOpen(true)}
                     onPreviewAttachment={(item) => openConsultationFilePreview([item], item.url ?? null, item.label ?? "")}
                   />
+                ) : isWellnessOrder ? (
+                  <OrderDetailWellnessSections detail={detail} />
                 ) : (
                   <OrderDetailServiceMetaCard
                     orderReferenceLabel={orderReferenceLabel}
@@ -2255,6 +2306,10 @@ export function OrderDetailsPage() {
                 linesExpanded={linesExpanded}
                 onToggleLinesExpanded={() => setLinesExpanded((x) => !x)}
                 consultationStyleInvoice
+                onDownloadInvoice={
+                  showInvoicePdfDownload ? () => void onDownloadInvoicePdf() : undefined
+                }
+                invoiceDownloadBusy={invoicePdfBusy}
               />
             ) : showPaymentSummaryFallback ? (
               <OrderDetailPaymentSummaryFallback
@@ -2716,6 +2771,7 @@ export function OrderDetailsPage() {
       />
 
       <AttachmentFilePreview viewer={prescriptionPdfViewer} onClose={closePrescriptionPdfViewer} />
+      <AttachmentFilePreview viewer={invoicePdfViewer} onClose={closeInvoicePdfViewer} />
     </div>
   );
 }

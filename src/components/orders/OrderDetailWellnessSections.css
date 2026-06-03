@@ -1,0 +1,50 @@
+.od-wellness-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+}
+
+.od-wellness-status--success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.od-wellness-status--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.od-wellness-status--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.od-wellness-status--info {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.od-wellness-status--neutral {
+  background: var(--color-background-secondary, #f3f4f6);
+  color: var(--color-text-secondary, #5c6570);
+}
+
+.od-wellness-status__icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.od-wellness-status__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.od-wellness-status__body {
+  flex: 1;
+  min-width: 0;
+}

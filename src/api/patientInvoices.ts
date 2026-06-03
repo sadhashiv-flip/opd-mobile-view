@@ -22,6 +22,10 @@ import {
   type ServiceRequestPatientRow,
   type ServiceRequestRiderUi,
 } from "@/lib/serviceRequestOrderDetail";
+import {
+  wellnessInfoStatusToListTone,
+  wellnessOrderStatusLabel,
+} from "@/lib/wellnessOrderDetail";
 
 /**
  * Query `type` for `GET /invoice` — align with backend `transaction_type` filters
@@ -1077,6 +1081,10 @@ export type InvoiceDetailModel = Readonly<{
    * (same rule as Flutter `WellnessOrderDetailController.canCancel`).
    */
   wellnessSessionCancelAllowed: boolean;
+  /** Mental wellness / nutrition: `info.details.service`. */
+  wellnessServiceType: string | null;
+  /** Mental wellness: `info.details.service_area` (consultation category). */
+  wellnessConsultationType: string | null;
   /** Gym-only: enrolment location, package meta, enrollee contacts from `info.details`. */
   gymOrderDetail: InvoiceGymOrderDetailBlock | null;
 }>;
@@ -3306,6 +3314,12 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
   } else if (categoryKey === "lab" && infoForStatus != null && infoStatusTrunc !== null) {
     statusLabel = labBookingStatusLabelFromCode(infoStatusTrunc);
     statusValueTone = labInvoiceInfoStatusTone(infoStatusTrunc);
+  } else if (
+    (categoryKey === "mental_wellness" || categoryKey === "nutrition") &&
+    infoStatusTrunc !== null
+  ) {
+    statusLabel = wellnessOrderStatusLabel(infoStatusTrunc, categoryKey);
+    statusValueTone = wellnessInfoStatusToListTone(infoStatusTrunc);
   } else if (infoForStatus != null && infoStatusTrunc !== null) {
     statusLabel = invoiceListStatusLabelFromInfoStatus(
       infoForStatus.status,
@@ -3620,6 +3634,13 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     infoForStatus,
   );
 
+  const wellnessDetails =
+    categoryKey === "mental_wellness" || categoryKey === "nutrition"
+      ? asRecord(infoForStatus?.details)
+      : null;
+  const wellnessServiceType = wellnessDetails ? str(wellnessDetails.service) : null;
+  const wellnessConsultationType = wellnessDetails ? str(wellnessDetails.service_area) : null;
+
   const gymOrderDetail = parseInvoiceGymOrderDetail(categoryKey, infoForStatus);
 
   return {
@@ -3715,6 +3736,8 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     netPayFormatted: formatInr(netPayNum),
     payments,
     wellnessSessionCancelAllowed,
+    wellnessServiceType,
+    wellnessConsultationType,
     gymOrderDetail,
   };
 }
@@ -3948,9 +3971,16 @@ export async function fetchInvoiceById(invoiceId: string): Promise<InvoiceDetail
   return normalizeInvoiceDetail(payload);
 }
 
+/** Raw line rows for client-side invoice PDF — same source as {@link buildDetailLineItems}. */
+export function invoiceDetailLinesForPdf(payload: Record<string, unknown>): unknown[] {
+  return collectLineItemArrays(payload);
+}
+
 export type InvoiceOrderPageData = Readonly<{
   detail: InvoiceDetailModel;
   consultationCompleted: InvoiceConsultationCompletedView | null;
+  /** Unparsed `GET /invoice/:id` payload for PDF generation (Flutter `invMap`). */
+  rawPayload: Record<string, unknown>;
 }>;
 
 /**
@@ -3962,6 +3992,7 @@ export async function fetchInvoiceOrderPageData(invoiceId: string): Promise<Invo
   return {
     detail: normalizeInvoiceDetail(payload),
     consultationCompleted,
+    rawPayload: payload,
   };
 }
 

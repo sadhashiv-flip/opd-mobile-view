@@ -1,0 +1,42 @@
+.wellness-section-card {
+  margin: 0 16px 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, #e6e8eb);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.wellness-section-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wellness-section-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--color-primary, #ff5224);
+}
+
+.wellness-section-card__title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #1a1d21);
+}
+
+.wellness-section-card__divider {
+  height: 1px;
+  margin: 10px 0 12px;
+  background: var(--color-border, #e6e8eb);
+}
+
+.wellness-section-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}

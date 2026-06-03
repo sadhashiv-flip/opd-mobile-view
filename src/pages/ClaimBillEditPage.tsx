@@ -8,6 +8,7 @@ import {
   updateReimbursementBill,
 } from "@/api/patientReimbursement";
 import { uploadReimbursementBillDocumentId } from "@/api/patientUpload";
+import { ClaimBillFieldLabel, ClaimBillUploadHeading } from "@/components/claims/ClaimBillFieldLabel";
 import { ROUTES } from "@/constants";
 import { clampLocalDateToMax, localYyyyMmDd } from "@/lib/localDate";
 import { useToast } from "@/hooks/useToast";
@@ -270,9 +271,9 @@ export function ClaimBillEditPage() {
         </p>
         <section className="pbf-card" aria-label="Bill details">
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-bill-no">
+            <ClaimBillFieldLabel htmlFor="edit-claim-bill-no" required>
               Bill number
-            </label>
+            </ClaimBillFieldLabel>
             <input
               id="edit-claim-bill-no"
               className="pbf-input"
@@ -283,9 +284,9 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-bill-date">
+            <ClaimBillFieldLabel htmlFor="edit-claim-bill-date" required>
               Bill date
-            </label>
+            </ClaimBillFieldLabel>
             <input
               id="edit-claim-bill-date"
               className="pbf-input"
@@ -296,9 +297,9 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-bill-amt">
+            <ClaimBillFieldLabel htmlFor="edit-claim-bill-amt" required>
               Bill amount
-            </label>
+            </ClaimBillFieldLabel>
             <input
               id="edit-claim-bill-amt"
               className="pbf-input"
@@ -310,9 +311,9 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-clinic">
+            <ClaimBillFieldLabel htmlFor="edit-claim-clinic" required>
               Clinic / hospital name
-            </label>
+            </ClaimBillFieldLabel>
             <input
               id="edit-claim-clinic"
               className="pbf-input"
@@ -323,9 +324,9 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-clinic-addr">
+            <ClaimBillFieldLabel htmlFor="edit-claim-clinic-addr" required>
               Clinic address
-            </label>
+            </ClaimBillFieldLabel>
             <input
               id="edit-claim-clinic-addr"
               className="pbf-input"
@@ -336,9 +337,7 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-doctor">
-              Doctor name (optional)
-            </label>
+            <ClaimBillFieldLabel htmlFor="edit-claim-doctor">Doctor name</ClaimBillFieldLabel>
             <input
               id="edit-claim-doctor"
               className="pbf-input"
@@ -349,9 +348,7 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <label className="pbf-label" htmlFor="edit-claim-doctor-reg">
-              Doctor registration number (optional)
-            </label>
+            <ClaimBillFieldLabel htmlFor="edit-claim-doctor-reg">Doctor registration number</ClaimBillFieldLabel>
             <input
               id="edit-claim-doctor-reg"
               className="pbf-input"
@@ -362,7 +359,7 @@ export function ClaimBillEditPage() {
             />
           </div>
           <div className="pbf-field">
-            <p className="claim-new-page__upload-heading">Bill images</p>
+            <ClaimBillUploadHeading required>Bill images</ClaimBillUploadHeading>
             <div className="claim-bill-upload-stack">
               <label className="claim-upload claim-upload--pbf">
                 <input

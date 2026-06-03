@@ -1,4 +1,4 @@
-.mr-consult-list {
+.mr-lab-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -7,7 +7,7 @@
   gap: 12px;
 }
 
-.mr-consult-card {
+.mr-lab-card {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -24,16 +24,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.mr-consult-card:active {
+.mr-lab-card:active {
   opacity: 0.92;
 }
 
-.mr-consult-card:focus-visible {
+.mr-lab-card:focus-visible {
   outline: 2px solid var(--color-primary, #ff5224);
   outline-offset: 2px;
 }
 
-.mr-consult-card__avatar {
+.mr-lab-card__icon {
   flex-shrink: 0;
   width: 46px;
   height: 46px;
@@ -41,44 +41,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 1.125rem;
-  font-weight: 700;
 }
 
-.mr-consult-card__body {
+.mr-lab-card__body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
-.mr-consult-card__name-row {
+.mr-lab-card__title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
 }
 
-.mr-consult-card__name {
+.mr-lab-card__title {
   flex: 1;
   min-width: 0;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
   color: var(--color-text-primary, #1a1d21);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.mr-consult-status {
+.mr-lab-status {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: 42%;
+  max-width: 40%;
   padding: 3px 7px;
   border-radius: 8px;
   font-size: 0.58rem;
@@ -89,73 +87,70 @@
   text-overflow: ellipsis;
 }
 
-.mr-consult-status__dot {
+.mr-lab-status__dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.mr-consult-status--completed {
+.mr-lab-status--completed {
   color: #16a34a;
   background: rgba(22, 163, 74, 0.12);
 }
 
-.mr-consult-status--completed .mr-consult-status__dot {
+.mr-lab-status--completed .mr-lab-status__dot {
   background: #16a34a;
 }
 
-.mr-consult-status--cancelled {
+.mr-lab-status--cancelled {
   color: #dc2626;
   background: rgba(220, 38, 38, 0.1);
 }
 
-.mr-consult-status--cancelled .mr-consult-status__dot {
+.mr-lab-status--cancelled .mr-lab-status__dot {
   background: #dc2626;
 }
 
-.mr-consult-status--other {
+.mr-lab-status--other {
   color: #5c6570;
   background: var(--color-surface-elevated, #f4f6f8);
 }
 
-.mr-consult-status--other .mr-consult-status__dot {
+.mr-lab-status--other .mr-lab-status__dot {
   background: #9aa3ad;
 }
 
-.mr-consult-card__spec {
-  font-size: 0.78rem;
-  font-weight: 400;
-  color: var(--color-text-secondary, #5c6570);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mr-consult-card__when-row {
+.mr-lab-card__date-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 3px;
+  flex-wrap: wrap;
+  gap: 0;
   min-width: 0;
+  color: var(--color-text-secondary, #9aa3ad);
 }
 
-.mr-consult-card__when {
-  flex: 1;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.mr-lab-card__date-row svg {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.mr-lab-card__date,
+.mr-lab-card__slot {
   font-size: 0.72rem;
   font-weight: 400;
-  color: var(--color-text-secondary, #9aa3ad);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
-.mr-consult-card__comm {
-  flex-shrink: 0;
+.mr-lab-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.mr-lab-visit {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -165,17 +160,27 @@
   font-weight: 600;
 }
 
-.mr-consult-card__comm--online {
+.mr-lab-visit--home {
+  color: var(--color-primary, #ff5224);
+  background: rgba(255, 82, 36, 0.1);
+}
+
+.mr-lab-visit--center {
   color: #2563eb;
   background: rgba(37, 99, 235, 0.1);
 }
 
-.mr-consult-card__comm--inperson {
+.mr-lab-sponsored {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.58rem;
+  font-weight: 600;
   color: #16a34a;
   background: rgba(22, 163, 74, 0.1);
 }
 
-.mr-consult-card__chevron {
+.mr-lab-card__chevron {
   flex-shrink: 0;
   align-self: center;
   color: var(--color-text-secondary, #9aa3ad);

@@ -82,6 +82,10 @@ export type HubCardItem = Readonly<{
   iconSrc?: string;
   Icon?: ComponentType<SVGProps<SVGSVGElement>>;
   badge?: "new";
+  /** My Records hub → `/medical-records/:categorySlug` (matches Flutter `MedicalRecordsHubCards`). */
+  medicalRecordSlug?: string;
+  /** My Records hub → `/digital-diary` (Flutter `DashboardNavigation.openDigitalDiary`). */
+  opensDigitalDiary?: boolean;
 }>;
 
 export const SERVICES_MAIN_ITEMS: readonly HubCardItem[] = [
@@ -236,18 +240,21 @@ export const HELP_ITEMS: readonly HubCardItem[] = [
   },
 ];
 
+/** Mirrors Flutter `MedicalRecordsHubCards.all`. */
 export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
   {
     id: "appts",
     title: "Appointments",
     description: "Check your appointments history/status here",
     iconSrc: mrAppointmentsSvg,
+    medicalRecordSlug: "consultations",
   },
   {
     id: "lab",
     title: "Lab Reports",
     description: "Check your lab test reports here",
     iconSrc: helpLabReportsSvg,
+    medicalRecordSlug: "lab-tests",
   },
   {
     id: "rx",
@@ -255,12 +262,56 @@ export const MEDICAL_RECORDS_ITEMS: readonly HubCardItem[] = [
     description: "Check your prescriptions here",
     iconSrc: helpMyPrescriptionsSvg,
     badge: "new",
+    medicalRecordSlug: "prescriptions",
   },
   {
-    id: "activity",
-    title: DIGITAL_DIARY_COPY.appBarTitle,
-    description: DIGITAL_DIARY_COPY.helpHubDigitalDiaryDescription,
+    id: "mental",
+    title: "Mental Wellness",
+    description: "View mental wellness service history",
+    iconSrc: mentalWellnessSvg,
+    medicalRecordSlug: "mental-wellness",
+  },
+  {
+    id: "nutrition",
+    title: "Nutrition",
+    description: "View nutrition service history",
+    iconSrc: nutritionServicesSvg,
+    medicalRecordSlug: "nutrition",
+  },
+  {
+    id: "dental",
+    title: "Dental",
+    description: "View dental appointment history",
+    iconSrc: dentalServicesSvg,
+    medicalRecordSlug: "dental",
+  },
+  {
+    id: "vision",
+    title: "Vision",
+    description: "View vision appointment history",
+    iconSrc: visionServicesSvg,
+    medicalRecordSlug: "vision",
+  },
+  {
+    id: "vaccine",
+    title: "Vaccine",
+    description: "View vaccination appointment history",
+    iconSrc: vaccinationServicesSvg,
+    medicalRecordSlug: "vaccine",
+  },
+  {
+    id: "health-log",
+    title: "Health Log",
+    description: "Vitals, symptoms, moods, medicines & more",
     iconSrc: helpActivitiesSvg,
+    medicalRecordSlug: "vitals",
+  },
+  {
+    id: "digital-diary",
+    title: DIGITAL_DIARY_COPY.appBarTitle,
+    description: DIGITAL_DIARY_COPY.activitiesHubSubtitle,
+    iconSrc: helpActivitiesSvg,
+    opensDigitalDiary: true,
   },
 ];
 

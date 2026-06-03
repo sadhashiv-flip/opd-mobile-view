@@ -333,21 +333,17 @@ export function ServicesHubPage() {
                 };
               }
             } else if (isMedical) {
-              cardAction = () => {
-                if (item.id === "appts") {
-                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "consultations" }));
-                } else if (item.id === "lab") {
-                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "lab-tests" }));
-                } else if (item.id === "rx") {
-                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: "prescriptions" }));
-                } else if (item.id === "activity") {
-                  void navigate(ROUTES.digitalDiary, {
-                    state: { returnPath: `${ROUTES.services}?tab=medical-records` },
-                  });
-                } else {
-                  void navigate(ROUTES.medicalRecords);
-                }
-              };
+              if (item.opensDigitalDiary) {
+                const returnPath = `${ROUTES.services}?tab=medical-records`;
+                cardAction = () => {
+                  void navigate(ROUTES.digitalDiary, { state: { returnPath } });
+                };
+              } else {
+                const slug = item.medicalRecordSlug ?? "consultations";
+                cardAction = () => {
+                  void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: slug }));
+                };
+              }
             }
 
             return (

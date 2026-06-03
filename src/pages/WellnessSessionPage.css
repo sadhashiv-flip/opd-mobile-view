@@ -42,36 +42,60 @@
   margin: 0 auto;
 }
 
-.wellness-session-page__hero {
+.wellness-session-page__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 100px;
+}
+
+.wellness-session-page__hero-wrap {
+  padding: 8px 16px 0;
+}
+
+.wellness-session-page__hero-banner {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(38, 166, 154, 0.12), rgba(128, 203, 196, 0.2));
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
+  justify-content: center;
+  min-height: 140px;
+  margin-bottom: 16px;
 }
 
-.wellness-session-page__hero-copy {
-  flex: 1;
-  min-width: 0;
+.wellness-session-page__hero-img {
+  width: min(100%, 280px);
+  height: auto;
+  object-fit: contain;
 }
 
-.wellness-session-page__hero-headline {
+.wellness-session-page__description {
   margin: 0 0 8px;
-  font-size: clamp(11px, calc(22 * 100cqw / 375), calc(22 * 1.12px));
-  font-weight: 800;
-  line-height: 1.25;
-  color: #1a1a1a;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #9aa3ad;
 }
 
-.wellness-session-page__hero-headline strong {
-  color: #ff5a1f;
-  font-weight: 800;
-}
-
-.wellness-session-page__hero-text {
+.wellness-session-page__disclaimers {
   margin: 0;
-  font-size: clamp(11px, calc(13 * 100cqw / 375), calc(13 * 1.12px));
-  line-height: 1.45;
-  color: #666666;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wellness-session-page__disclaimers li {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #9aa3ad;
+}
+
+.wellness-session-page__disclaimers li::before {
+  content: "** ";
+  font-weight: 600;
+  color: #1a1d21;
 }
 
 .wellness-session-page__hero-art {
