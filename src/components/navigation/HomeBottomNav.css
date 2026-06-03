@@ -22,6 +22,11 @@
   pointer-events: none;
 }
 
+.home-nav-shell--stacked.home-nav-shell--hidden .home-nav__plate {
+  transform: none;
+  pointer-events: none;
+}
+
 .home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate {
   transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
 }
@@ -36,20 +41,93 @@
   --home-nav-fab-size: 56px;
   /* ~55% of FAB above the bar (reference) */
   --home-nav-fab-overlap: 31px;
-  --home-nav-chrome-bottom: 14px;
-  /* Scales with mobile-frame width (100cqw); caps at design height 76px */
-  --home-nav-plate-h: min(20px, calc(100cqw * 76 / 430));
-  --home-bottom-nav-spacer-height: calc(
-    var(--home-nav-fab-overlap) + var(--home-nav-plate-h) + var(--home-nav-chrome-bottom) +
-      env(safe-area-inset-bottom, 0px)
+  /* Visible bar height (matches `.home-nav__plate` aspect-ratio) + home-indicator safe area */
+  --home-nav-plate-h: min(76px, calc(min(100vw, var(--mobile-frame-max-width, 480px)) * 76 / 430));
+  --home-bottom-nav-height: calc(
+    var(--home-nav-plate-h) + env(safe-area-inset-bottom, 0px)
   );
+  --home-bottom-nav-spacer-height: var(--home-bottom-nav-height);
+  --home-nav-dock-gap: 8px;
+  /* Reserve scroll clearance for home ongoing card above nav (see `.home-nav-dock-spacer`) */
+  --home-nav-dock-above-reserve: min(220px, 40vh);
   --home-nav-bar-fill: #ffffff;
+  /* Flutter AnimatedBottomNavigationBar splash + tab transition timing */
+  --home-nav-press-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --home-nav-color-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --home-nav-splash: rgba(var(--color-brand-orange-rgb), 0.12);
+  /* Largest tab icon (medical records); smaller icons center inside this slot */
+  --home-nav-icon-slot: 33px;
+  --home-nav-label-gap: 4px;
 }
 
 .home-nav-spacer {
   flex-shrink: 0;
   height: var(--home-bottom-nav-spacer-height);
   pointer-events: none;
+}
+
+/* In-flow clearance when home dock stacks ongoing orders + nav (fixed). */
+.home-nav-dock-spacer {
+  flex-shrink: 0;
+  height: calc(
+    var(--home-bottom-nav-height) + var(--home-nav-dock-above-reserve) + var(--home-nav-dock-gap)
+  );
+  pointer-events: none;
+}
+
+/* Home: ongoing orders slot + bottom nav in one fixed column (patient-app `DashboardMainScreen`). */
+.home-nav-shell--stacked {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 40;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--home-nav-dock-gap);
+  padding: 0 16px env(safe-area-inset-bottom, 0px);
+  pointer-events: none;
+}
+
+.home-nav-shell--stacked.home-nav-shell--hidden {
+  transform: translateX(-50%) translateY(calc(100% + 24px));
+  transition: transform 220ms cubic-bezier(0.4, 0, 1, 1);
+  pointer-events: none;
+}
+
+.home-nav-shell--stacked:not(.home-nav-shell--hidden) {
+  transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.home-nav-shell--stacked > * {
+  pointer-events: auto;
+}
+
+.home-nav-shell__above {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.home-nav-shell--stacked .home-nav {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.home-nav-shell--stacked .home-nav__plate {
+  transform: none;
+}
+
+.home-nav-shell--stacked.home-nav-shell--hidden .home-nav__plate {
+  transform: none;
 }
 
 .home-nav {
@@ -61,15 +139,8 @@
   box-sizing: border-box;
   width: 100%;
   max-width: min(var(--mobile-frame-max-width, 480px), 100%);
-  padding: 0px;
-  /* min-height: calc(
-    var(--home-nav-fab-overlap) + var(--home-nav-plate-h) + var(--home-nav-chrome-bottom) +
-      env(safe-area-inset-bottom, 0px)
-  ); */
-  /* padding: 0 max(8px, env(safe-area-inset-left, 0px)) env(safe-area-inset-bottom, 0px)
-    max(8px, env(safe-area-inset-right, 0px)); */
-  /* padding-top: var(--home-nav-fab-overlap);
-  padding-bottom: var(--home-nav-chrome-bottom); */
+  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
   background: transparent;
   pointer-events: none;
 }
@@ -77,6 +148,7 @@
 .home-nav__plate {
   position: relative;
   width: 100%;
+  min-height: var(--home-nav-plate-h);
   aspect-ratio: 430 / 76;
   flex-shrink: 0;
   transform: translateY(0);
@@ -99,11 +171,11 @@
   inset: 0;
   z-index: 2;
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 0;
   pointer-events: none;
-  padding: clamp(8px, 2.2dvh, 12px) clamp(12px, 4cqw, 16px);
+  padding: clamp(6px, 1.8dvh, 10px) clamp(12px, 4cqw, 16px) clamp(6px, 1.6dvh, 10px);
 }
 
 .home-nav__inner .home-nav__item,
@@ -116,18 +188,48 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: clamp(2px, 0.6dvh, 4px);
+  justify-content: flex-end;
+  gap: var(--home-nav-label-gap);
   min-width: 0;
-  padding: 2px 2px 0;
+  min-height: calc(var(--home-nav-icon-slot) + var(--home-nav-label-gap) + 1.2em);
+  padding: 0 2px;
   text-decoration: none;
   color: #8e8e8e;
-  font-size: clamp(7px, min(calc(9.5 * 100cqw / 375), calc(2.35dvh + 5px)), 11px);
+  font-size: clamp(8px, min(calc(9.5 * 100vw / 375), calc(2.35dvh + 5px)), 11px);
   font-weight: 500;
+  position: relative;
+  overflow: visible;
+  border-radius: 12px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 220ms var(--home-nav-color-ease),
+    transform 180ms var(--home-nav-press-ease);
+}
+
+/* Flutter splashColor — orange ripple on tap */
+.home-nav__item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, var(--home-nav-splash) 0%, transparent 72%);
+  opacity: 0;
+  transform: scale(0.45);
+  pointer-events: none;
+}
+
+.home-nav__item:active {
+  transform: scale(0.94);
+}
+
+.home-nav__item:active::after {
+  animation: home-nav-splash 360ms var(--home-nav-color-ease) forwards;
 }
 
 .home-nav__item--active {
   color: var(--color-brand-orange);
+  font-weight: 600;
 }
 
 .home-nav__item--active .home-nav__ic {
@@ -138,13 +240,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: var(--home-nav-icon-slot);
+  height: var(--home-nav-icon-slot);
+  flex-shrink: 0;
   color: #8e8e8e;
+  position: relative;
+  z-index: 1;
+  transition: transform 260ms var(--home-nav-press-ease), color 220ms var(--home-nav-color-ease);
+}
+
+.home-nav__item--active .home-nav__ic {
+  animation: home-nav-tab-pop 340ms var(--home-nav-press-ease);
 }
 
 .home-nav__icon-img {
   display: block;
   object-fit: contain;
   flex-shrink: 0;
+  transition: filter 220ms var(--home-nav-color-ease);
+}
+
+.home-nav__label {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.2em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition: color 220ms var(--home-nav-color-ease);
 }
 
 .home-nav__item--active .home-nav__icon-img:not(.home-nav__icon-img--medical):not(
@@ -166,18 +295,6 @@
   filter: brightness(0) saturate(100%) invert(1);
 }
 
-/* Flutter `DashboardMainScreen`: medical tab icon 33×33, tighter label gap */
-.home-nav__item:has(.home-nav__ic--medical) {
-  gap: 0;
-}
-
-.home-nav__label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
 .home-nav__fab-wrap {
   flex: 1;
   display: flex;
@@ -185,6 +302,7 @@
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
+  min-height: calc(var(--home-nav-icon-slot) + var(--home-nav-label-gap) + 1.2em);
   padding-bottom: 0;
 }
 
@@ -207,22 +325,60 @@
   text-decoration: none;
   position: relative;
   z-index: 3;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 200ms var(--home-nav-press-ease),
+    box-shadow 220ms var(--home-nav-color-ease);
+}
+
+.home-nav__fab::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.28) 0%, transparent 70%);
+  opacity: 0;
+  transform: scale(0.5);
+  pointer-events: none;
+}
+
+.home-nav__fab:active {
+  transform: scale(0.92);
+}
+
+.home-nav__fab:active::after {
+  animation: home-nav-splash 360ms var(--home-nav-color-ease) forwards;
 }
 
 .home-nav__fab--active {
+  transform: scale(1.04);
   box-shadow:
     0 6px 18px rgba(var(--color-brand-orange-rgb), 0.48),
     0 2px 8px rgba(0, 0, 0, 0.07);
 }
 
+.home-nav__fab--active:active {
+  transform: scale(0.94);
+}
+
 .home-nav__fab-icon {
   display: flex;
+  position: relative;
+  z-index: 1;
   transform: scale(1.05);
+  transition: transform 260ms var(--home-nav-press-ease);
+}
+
+.home-nav__fab--active .home-nav__fab-icon {
+  animation: home-nav-fab-pop 340ms var(--home-nav-press-ease);
 }
 
 .home-nav__fab-label-spacer {
   display: block;
-  min-height: calc(clamp(7px, min(calc(9.5 * 100cqw / 375), calc(2.35dvh + 5px)), 11px) + 4px);
+  flex-shrink: 0;
+  height: 1.2em;
   width: 100%;
   max-width: var(--home-nav-fab-size);
 }
@@ -241,16 +397,80 @@
   pointer-events: none;
 }
 
+@keyframes home-nav-splash {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.45);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes home-nav-tab-pop {
+  0% {
+    transform: scale(0.88);
+  }
+
+  55% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes home-nav-fab-pop {
+  0% {
+    transform: scale(0.92);
+  }
+
+  55% {
+    transform: scale(1.14);
+  }
+
+  100% {
+    transform: scale(1.05);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .home-nav__item,
+  .home-nav__ic,
+  .home-nav__icon-img,
+  .home-nav__label,
   .home-nav__fab,
-  .home-nav__fab--active {
+  .home-nav__fab-icon {
     transition: none;
+  }
+
+  .home-nav__item::after,
+  .home-nav__fab::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .home-nav__item:active,
+  .home-nav__fab:active,
+  .home-nav__fab--active,
+  .home-nav__fab--active:active {
+    transform: none;
+  }
+
+  .home-nav__item--active .home-nav__ic,
+  .home-nav__fab--active .home-nav__fab-icon {
+    animation: none;
   }
 
   .home-nav-shell--hidden .home-nav-spacer,
   .home-nav-shell:not(.home-nav-shell--hidden) .home-nav-spacer,
   .home-nav-shell--hidden .home-nav__plate,
-  .home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate {
+  .home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate,
+  .home-nav-shell--stacked.home-nav-shell--hidden,
+  .home-nav-shell--stacked:not(.home-nav-shell--hidden) {
     transition: none;
   }
 }

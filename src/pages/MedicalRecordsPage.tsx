@@ -74,7 +74,8 @@ function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRec
   const [sheetOpen, setSheetOpen] = useState(false);
   const [symptomRow, setSymptomRow] = useState<Record<string, unknown> | null>(null);
   const [members, setMembers] = useState<readonly MemberDisplay[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const membersLoadedRef = useRef(false);
   const [userFilterId, setUserFilterId] = useState(readStoredUserFilter);
   const pullStartY = useRef(0);
   const mainRef = useRef<HTMLElement>(null);
@@ -116,23 +117,30 @@ function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRec
     }
   }, [userFilterId]);
 
+  /** Load family members only when the filter sheet is opened (not on page mount). */
   useEffect(() => {
+    if (!sheetOpen || membersLoadedRef.current) return;
+
     let cancelled = false;
-    (async () => {
-      setMembersLoading(true);
+    setMembersLoading(true);
+
+    void (async () => {
       try {
         const m = await fetchAllPatientMembers();
-        if (!cancelled) setMembers(m);
+        if (cancelled) return;
+        setMembers(m);
+        membersLoadedRef.current = true;
       } catch {
         if (!cancelled) setMembers([]);
       } finally {
-        if (!cancelled) setMembersLoading(false);
+        setMembersLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sheetOpen]);
 
   useEffect(() => {
     void load(category);

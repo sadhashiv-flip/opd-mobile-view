@@ -78,7 +78,7 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 24px;
-  background: var(--color-surface-elevated, #f4f6f8);
+  /* background: var(--color-surface-elevated, #f4f6f8); */
   margin: 0 -16px;
   padding-left: 16px;
   padding-right: 16px;

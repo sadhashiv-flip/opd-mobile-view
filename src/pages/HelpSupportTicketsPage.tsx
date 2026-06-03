@@ -388,7 +388,7 @@ export function HelpSupportTicketsPage() {
         }}
       />
 
-      {showBottomNav ? <HomeBottomNav /> : null}
+      {showBottomNav && !raiseOpen ? <HomeBottomNav /> : null}
     </div>
   );
 }

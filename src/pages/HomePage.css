@@ -244,15 +244,12 @@
   border-radius: 16px;
 }
 
-/* ── Pinned ongoing (patient-app `DashboardMainScreen` overlay) ───────────────── */
+/* ── Pinned ongoing (patient-app `DashboardMainScreen` — stacked above {@link HomeBottomNav}) ── */
 .home-ongoing-float {
-  position: fixed;
-  z-index: 35;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(var(--home-bottom-nav-spacer-height) + 8px);
-  width: min(calc(100% - 32px), calc(var(--mobile-frame-max-width, 480px) - 32px));
-  max-width: min(calc(100vw - 32px), calc(var(--mobile-frame-max-width, 480px) - 32px));
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: none;
   box-sizing: border-box;
   padding: 14px 16px 12px;
   background: #ffffff;
@@ -374,8 +371,8 @@
 }
 
 .home-page__main--ongoing-float-gap {
-  /* Clear the fixed card + dots + safe gap while scrolling */
-  padding-bottom: min(240px, 42vh);
+  /* `.home-nav-dock-spacer` reserves nav + ongoing; small extra for scroll comfort */
+  padding-bottom: 16px;
 }
 
 .home-ongoing-section__header {

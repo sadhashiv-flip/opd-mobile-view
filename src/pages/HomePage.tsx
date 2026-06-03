@@ -1249,13 +1249,15 @@ export function HomePage() {
         </dialog>
       ) : null}
 
-      {showOngoingDashboardChrome ? (
-        <div
-          id="tour-home-ongoing"
-          className="home-ongoing-float"
-          role="region"
-          aria-labelledby="ongoing-orders-float-heading"
-        >
+      <HomeBottomNav
+        aboveBar={
+          showOngoingDashboardChrome ? (
+            <div
+              id="tour-home-ongoing"
+              className="home-ongoing-float"
+              role="region"
+              aria-labelledby="ongoing-orders-float-heading"
+            >
           <div className="home-ongoing-float__header">
             <h2 id="ongoing-orders-float-heading" className="home-ongoing-section__title">
               Ongoing Orders
@@ -1420,10 +1422,10 @@ export function HomePage() {
               ) : null}
             </>
           )}
-        </div>
-      ) : null}
-
-      <HomeBottomNav />
+            </div>
+          ) : undefined
+        }
+      />
     </div>
   );
 }

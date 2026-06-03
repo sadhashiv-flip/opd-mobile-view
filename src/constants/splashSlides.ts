@@ -1,7 +1,8 @@
-import splashDiagnostics from "@/assets/images/splash/splash.png";
-import splashChronic from "@/assets/images/splash/splash1.png";
-import splashAnnual from "@/assets/images/splash/splash2.png";
+import splashImage1 from "@/assets/images/splash/splash_image_1.svg";
+import splashImage2 from "@/assets/images/splash/splash_image_2.svg";
+import splashImage3 from "@/assets/images/splash/splash_image_3.svg";
 
+/** Matches patient-app `OnboardingController` / `AppString.kOnboardingScreen*`. */
 export type SplashSlide = Readonly<{
   image: string;
   title: string;
@@ -10,18 +11,18 @@ export type SplashSlide = Readonly<{
 
 export const SPLASH_SLIDES: readonly SplashSlide[] = [
   {
-    image: splashDiagnostics,
+    image: splashImage1,
     title: "Book Diagnostics",
     subtitle: "Book lab tests/health check ups",
   },
   {
-    image: splashChronic,
+    image: splashImage2,
     title: "Chronic Medication",
     subtitle: "Dedicated chronic medication",
   },
   {
-    image: splashAnnual,
+    image: splashImage3,
     title: "Annual Health Checkup",
-    subtitle: "Book annual health checkup and stay updated",
+    subtitle: "Book annual health checkup and stay\nupdated",
   },
 ];

@@ -7,7 +7,12 @@ import {
 } from "@/assets/icons/react";
 import { ROUTES } from "@/constants";
 import { DEFAULT_MEDICAL_RECORD_SLUG } from "@/constants/medicalRecordsCategories";
-import { useId } from "react";
+import {
+  isHelpBottomNavRoute,
+  isMedicalRecordsBottomNavRoute,
+  isServicesBottomNavRoute,
+} from "@/lib/bottomNavActive";
+import { useId, type ReactNode } from "react";
 import { generatePath, NavLink, useLocation } from "react-router-dom";
 import "./HomeBottomNav.css";
 
@@ -21,21 +26,8 @@ const HOME_NAV_BAR_FILL_D =
 
 const NOTCH_MASK = { cx: 215, cy: 14, r: 36 } as const;
 
-function useHubBottomNavActive(): Readonly<{
-  services: boolean;
-  help: boolean;
-  medicalRecords: boolean;
-}> {
-  const { pathname, search } = useLocation();
-  const onHub = pathname === ROUTES.services;
-  const tab = onHub ? new URLSearchParams(search).get("tab") : null;
-  const help = tab === "help";
-  const medicalRecords =
-    pathname === ROUTES.medicalRecords || pathname.startsWith(`${ROUTES.medicalRecords}/`);
-  const onServicesSubpath = pathname.startsWith(`${ROUTES.services}/`);
-  const services =
-    (onHub && (tab === null || tab === "services")) || onServicesSubpath;
-  return { services, help, medicalRecords };
+function navItemClass(isActive: boolean): string {
+  return `home-nav__item${isActive ? " home-nav__item--active" : ""}`;
 }
 
 type HomeBottomNavProps = Readonly<{
@@ -44,22 +36,32 @@ type HomeBottomNavProps = Readonly<{
    * Other screens omit this prop so the bar stays visible.
    */
   visible?: boolean;
+  /** Optional slot pinned above the bar (home ongoing orders — Flutter `DashboardMainScreen` column). */
+  aboveBar?: ReactNode;
 }>;
 
 /**
  * Bottom tab bar: My Orders, Services, Home FAB, Need Help?, Medical Records.
  * Curved bar with notched “cradle” around Home (transparent gap); solid white bar.
  */
-export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
-  const { services: servicesTabActive, help: helpTabActive, medicalRecords: medicalTabActive } =
-    useHubBottomNavActive();
+export function HomeBottomNav({ visible = true, aboveBar }: HomeBottomNavProps) {
   const uid = useId().replace(/:/g, "");
   const notchMaskId = `home-nav-notch-${uid}`;
+  const { pathname, search } = useLocation();
+  const servicesActive = isServicesBottomNavRoute(pathname, search);
+  const helpActive = isHelpBottomNavRoute(pathname, search);
+  const recordsActive = isMedicalRecordsBottomNavRoute(pathname, search);
+  const stacked = aboveBar != null;
 
   return (
-    <div className={`home-nav-shell${visible ? "" : " home-nav-shell--hidden"}`}>
-      <div className="home-nav-spacer" aria-hidden="true" />
-      <nav className="home-nav" aria-label="Primary">
+    <>
+      {stacked ? <div className="home-nav-dock-spacer" aria-hidden="true" /> : null}
+      <div
+        className={`home-nav-shell${visible ? "" : " home-nav-shell--hidden"}${stacked ? " home-nav-shell--stacked" : ""}`}
+      >
+        {stacked ? <div className="home-nav-shell__above">{aboveBar}</div> : null}
+        {!stacked ? <div className="home-nav-spacer" aria-hidden="true" /> : null}
+        <nav className="home-nav" aria-label="Primary">
         <div className="home-nav__plate">
           <svg
             className="home-nav__shape"
@@ -95,9 +97,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
             <NavLink
               to={ROUTES.orders}
               id="tour-home-nav-orders"
-              className={({ isActive }) =>
-                `home-nav__item${isActive ? " home-nav__item--active" : ""}`
-              }
+              className={({ isActive }) => navItemClass(isActive)}
             >
               <span className="home-nav__ic home-nav__ic--orders" aria-hidden="true">
                 <NavIconOrders />
@@ -108,9 +108,8 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
             <NavLink
               to={ROUTES.services}
               id="tour-home-nav-services"
-              className={() =>
-                `home-nav__item${servicesTabActive ? " home-nav__item--active" : ""}`
-              }
+              end
+              className={() => navItemClass(servicesActive)}
             >
               <span className="home-nav__ic" aria-hidden="true">
                 <NavIconServices />
@@ -140,9 +139,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
                 categorySlug: DEFAULT_MEDICAL_RECORD_SLUG,
               })}
               id="tour-home-nav-records"
-              className={() =>
-                `home-nav__item${medicalTabActive ? " home-nav__item--active" : ""}`
-              }
+              className={() => navItemClass(recordsActive)}
               aria-label="My Records"
               title="My Records"
             >
@@ -156,9 +153,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
               to={ROUTES.servicesHelpSupport}
               state={{ fromBottomNav: true }}
               id="tour-home-nav-help"
-              className={() =>
-                `home-nav__item${helpTabActive ? " home-nav__item--active" : ""}`
-              }
+              className={() => navItemClass(helpActive)}
             >
               <span className="home-nav__ic" aria-hidden="true">
                 <NavIconHelp />
@@ -169,5 +164,6 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
         </div>
       </nav>
     </div>
+    </>
   );
 }

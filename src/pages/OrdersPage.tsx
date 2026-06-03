@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   fetchInvoicesPage,
   INVOICE_FILTER_TYPES,
@@ -123,7 +123,8 @@ export function OrdersPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [members, setMembers] = useState<readonly MemberDisplay[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const membersLoadedRef = useRef(false);
   const [userFilterId, setUserFilterId] = useState(readStoredUserFilter);
 
   const rawTabParam = searchParams.get("tab");
@@ -190,28 +191,30 @@ export function OrdersPage() {
     [setSearchParams],
   );
 
-  /** Full My Orders only — ongoing-from-dashboard uses in-memory rows + category filters; no list or member APIs. */
+  /** Load family members only when the filter sheet is opened (not on page mount). */
   useEffect(() => {
-    if (navigatedWithDashboardOngoing) {
-      setMembersLoading(false);
-      return;
-    }
+    if (!sheetOpen || navigatedWithDashboardOngoing || membersLoadedRef.current) return;
+
     let cancelled = false;
-    (async () => {
-      setMembersLoading(true);
+    setMembersLoading(true);
+
+    void (async () => {
       try {
         const m = await fetchAllPatientMembers();
-        if (!cancelled) setMembers(m);
+        if (cancelled) return;
+        setMembers(m);
+        membersLoadedRef.current = true;
       } catch {
         if (!cancelled) setMembers([]);
       } finally {
-        if (!cancelled) setMembersLoading(false);
+        setMembersLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [navigatedWithDashboardOngoing]);
+  }, [sheetOpen, navigatedWithDashboardOngoing]);
 
   const loadFirst = useCallback(
     async (fid: InvoiceFilterId) => {
