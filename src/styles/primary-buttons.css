@@ -40,11 +40,6 @@
   background-color: var(--color-btn-primary-bg) !important;
   color: var(--color-btn-primary-fg) !important;
 }
-.home-nav__fab,
-.home-nav__fab--active{
-  background-color: var(--color-brand-orange) !important;
-  color: var(--color-btn-primary-fg) !important;
-}
 
 .orders-filter-pill--active {
   border-color: var(--color-btn-primary-bg) !important;

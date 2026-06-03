@@ -12,19 +12,12 @@ import {
   isMedicalRecordsBottomNavRoute,
   isServicesBottomNavRoute,
 } from "@/lib/bottomNavActive";
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { generatePath, NavLink, useLocation } from "react-router-dom";
 import "./HomeBottomNav.css";
 
-/**
- * Rounded bar outline only (viewBox `0 0 430 76`). The FAB notch is cut with an SVG `<mask>`
- * (black circle = transparent). Avoid `feDropShadow` on even-odd “hole” paths — it often fills
- * the notch with white in WebKit/Blink.
- */
-const HOME_NAV_BAR_FILL_D =
-  "M0,76 L0,34 Q0,14 22,14 L408,14 Q430,14 430,34 L430,76 Z";
-
-const NOTCH_MASK = { cx: 215, cy: 14, r: 36 } as const;
+/** Flat bar fill — patient-app `AnimatedBottomNavigationBar` (60px, no center FAB). */
+const HOME_NAV_BAR_FILL_D = "M0,60 L0,0 L430,0 L430,60 Z";
 
 function navItemClass(isActive: boolean): string {
   return `home-nav__item${isActive ? " home-nav__item--active" : ""}`;
@@ -41,12 +34,10 @@ type HomeBottomNavProps = Readonly<{
 }>;
 
 /**
- * Bottom tab bar: My Orders, Services, Home FAB, Need Help?, Medical Records.
- * Curved bar with notched “cradle” around Home (transparent gap); solid white bar.
+ * Bottom tab bar: My Orders, Services, Home, My Records, Need Help?
+ * Matches patient-app `DashboardMainScreen` — five equal tabs on a flat white bar.
  */
 export function HomeBottomNav({ visible = true, aboveBar }: HomeBottomNavProps) {
-  const uid = useId().replace(/:/g, "");
-  const notchMaskId = `home-nav-notch-${uid}`;
   const { pathname, search } = useLocation();
   const servicesActive = isServicesBottomNavRoute(pathname, search);
   const helpActive = isHelpBottomNavRoute(pathname, search);
@@ -65,33 +56,11 @@ export function HomeBottomNav({ visible = true, aboveBar }: HomeBottomNavProps) 
         <div className="home-nav__plate">
           <svg
             className="home-nav__shape"
-            viewBox="0 0 430 76"
+            viewBox="0 0 430 60"
             preserveAspectRatio="xMidYMax meet"
             aria-hidden="true"
           >
-            <defs>
-              <mask
-                id={notchMaskId}
-                maskUnits="userSpaceOnUse"
-                x="0"
-                y="0"
-                width="430"
-                height="76"
-              >
-                <rect width="430" height="76" fill="white" />
-                <circle
-                  cx={NOTCH_MASK.cx}
-                  cy={NOTCH_MASK.cy}
-                  r={NOTCH_MASK.r}
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            <path
-              fill="var(--home-nav-bar-fill)"
-              mask={`url(#${notchMaskId})`}
-              d={HOME_NAV_BAR_FILL_D}
-            />
+            <path fill="var(--home-nav-bar-fill)" d={HOME_NAV_BAR_FILL_D} />
           </svg>
           <div className="home-nav__inner">
             <NavLink
@@ -117,22 +86,17 @@ export function HomeBottomNav({ visible = true, aboveBar }: HomeBottomNavProps) 
               <span className="home-nav__label">Services</span>
             </NavLink>
 
-            <div className="home-nav__fab-wrap">
-              <NavLink
-                to={ROUTES.dashboard}
-                id="tour-home-nav-home"
-                end
-                className={({ isActive }) =>
-                  `home-nav__fab${isActive ? " home-nav__fab--active" : ""}`
-                }
-                aria-label="Home"
-              >
-                <span className="home-nav__fab-icon" aria-hidden="true">
-                  <NavIconHome />
-                </span>
-              </NavLink>
-              <span className="home-nav__fab-label-spacer" aria-hidden="true" />
-            </div>
+            <NavLink
+              to={ROUTES.dashboard}
+              id="tour-home-nav-home"
+              end
+              className={({ isActive }) => navItemClass(isActive)}
+            >
+              <span className="home-nav__ic" aria-hidden="true">
+                <NavIconHome />
+              </span>
+              <span className="home-nav__label">Home</span>
+            </NavLink>
 
             <NavLink
               to={generatePath(ROUTES.medicalRecordsCategory, {

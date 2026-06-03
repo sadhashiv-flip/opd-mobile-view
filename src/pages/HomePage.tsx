@@ -1,4 +1,4 @@
-import { HomeNotificationIcon, HomeProfileIcon, HomeVoiceRecordIcon, HomeSearchIcon, HomeWalletIcon } from "@/assets/icons/react";
+import { HomeNotificationIcon, HomeVoiceRecordIcon, HomeSearchIcon, HomeWalletIcon } from "@/assets/icons/react";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { useHasSelectedDeliveryAddress } from "@/hooks/useSelectedAddressLine";
@@ -10,6 +10,7 @@ import TextType from "@/components/textType/TextType";
 import blogPromoImg from "@/assets/images/blog.png";
 import digitalDiaryPromoImg from "@/assets/images/digitaldiary.png";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { ProfileAvatarThumb } from "@/components/profile/ProfileAvatarThumb";
 import { OrderCategoryIcon } from "@/components/orders/OrderCategoryIcon";
 import { DashboardHalfTileFeatures } from "@/components/dashboard/DashboardHalfTileFeatures";
 import { ConsultationEntryBottomSheet } from "@/components/services/ConsultationEntryBottomSheet";
@@ -765,14 +766,11 @@ export function HomePage() {
                 </span>
               ) : null}
             </button>
-            <button
-              type="button"
-              className="home-icon-btn home-icon-btn--round"
-              aria-label="Profile"
-              onClick={() => navigate(ROUTES.profile)}
-            >
-              <HomeProfileIcon />
-            </button>
+            <ProfileAvatarThumb
+              className="home-icon-btn"
+              size={40}
+              onPress={() => navigate(ROUTES.profile)}
+            />
           </div>
         </header>
 

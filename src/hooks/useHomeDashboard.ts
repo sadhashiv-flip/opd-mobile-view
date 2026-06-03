@@ -1,3 +1,4 @@
+import { fetchPatientProfileRaw } from "@/api/patientProfile";
 import {
   fetchPatientBanners,
   normalizePatientBannersPayload,
@@ -38,6 +39,7 @@ export function useHomeDashboard(): UseHomeDashboardResult {
 
   useEffect(() => {
     let cancelled = false;
+    void fetchPatientProfileRaw().catch(() => {});
     Promise.allSettled([fetchPatientDashboard(), fetchPatientBanners()]).then(
       (results) => {
         if (cancelled) return;
