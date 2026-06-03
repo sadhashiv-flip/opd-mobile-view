@@ -638,7 +638,6 @@ export function HomePage() {
         showProgress
         scrollToFirstStep
         disableOverlayClose={false}
-         showSkipButton={true} 
         locale={{
           back: "Back",
           close: "Close",
@@ -655,7 +654,8 @@ export function HomePage() {
           spotlightRadius: 14,
           spotlightPadding: 6,
           zIndex: 1300,
-          showSkipButton: true,
+          skipBeacon: true,
+          buttons: ["back", "skip", "primary"],
         }}
         styles={{
           tooltip: {
@@ -674,6 +674,9 @@ export function HomePage() {
             borderRadius: 999,
             fontWeight: 700,
             padding: "8px 14px",
+            border: "none",
+            outline: "none",
+            boxShadow: "none",
           },
           buttonBack: {
             color: "#687083",

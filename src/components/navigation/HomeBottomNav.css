@@ -27,6 +27,12 @@
 }
 
 :root {
+  /* Recolor single-fill nav SVGs when tab is active (#ff5224) */
+  --home-nav-icon-active-filter: brightness(0) saturate(100%) invert(40%) sepia(95%)
+    saturate(2800%) hue-rotate(353deg) brightness(102%) contrast(101%);
+  /* medical_records.svg is black — match Flutter inactive #8E8E8E */
+  --home-nav-icon-medical-inactive-filter: brightness(0) saturate(100%) invert(62%)
+    sepia(0%) saturate(0%) hue-rotate(0deg) brightness(94%) contrast(86%);
   --home-nav-fab-size: 56px;
   /* ~55% of FAB above the bar (reference) */
   --home-nav-fab-overlap: 31px;
@@ -115,7 +121,7 @@
   min-width: 0;
   padding: 2px 2px 0;
   text-decoration: none;
-  color: #808080;
+  color: #8e8e8e;
   font-size: clamp(7px, min(calc(9.5 * 100cqw / 375), calc(2.35dvh + 5px)), 11px);
   font-weight: 500;
 }
@@ -130,7 +136,39 @@
 
 .home-nav__ic {
   display: flex;
-  color: #808080;
+  align-items: center;
+  justify-content: center;
+  color: #8e8e8e;
+}
+
+.home-nav__icon-img {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.home-nav__item--active .home-nav__icon-img:not(.home-nav__icon-img--medical):not(
+    .home-nav__icon-img--fab
+  ) {
+  filter: var(--home-nav-icon-active-filter);
+}
+
+.home-nav__icon-img--medical {
+  filter: var(--home-nav-icon-medical-inactive-filter);
+}
+
+.home-nav__item--active .home-nav__icon-img--medical {
+  filter: var(--home-nav-icon-active-filter);
+}
+
+/* Home FAB: white house on orange circle */
+.home-nav__icon-img--fab {
+  filter: brightness(0) saturate(100%) invert(1);
+}
+
+/* Flutter `DashboardMainScreen`: medical tab icon 33×33, tighter label gap */
+.home-nav__item:has(.home-nav__ic--medical) {
+  gap: 0;
 }
 
 .home-nav__label {

@@ -146,7 +146,7 @@ export function HomeBottomNav({ visible = true }: HomeBottomNavProps) {
               aria-label="My Records"
               title="My Records"
             >
-              <span className="home-nav__ic" aria-hidden="true">
+              <span className="home-nav__ic home-nav__ic--medical" aria-hidden="true">
                 <NavIconMedicalRecords />
               </span>
               <span className="home-nav__label home-nav__label--medical">My Records</span>

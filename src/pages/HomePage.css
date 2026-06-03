@@ -1816,6 +1816,19 @@
   opacity: 1 !important;
 }
 
+.react-joyride__tooltip button[data-action="primary"] {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.react-joyride__tooltip button[data-action="primary"]:focus-visible {
+  outline: 2px solid var(--color-brand-orange);
+  outline-offset: 2px;
+}
+
 /* Ensure button container shows all buttons */
 .react-joyride__tooltip__footer {
   display: flex !important;
