@@ -1,25 +1,46 @@
 import { MobileFilterSheet } from "@/components/mobileFilter/MobileFilterSheet";
-import { medicalRecordSlugIconSrc } from "@/components/mobileFilter/medicalRecordFilterIcons";
+import { MedicalRecordSlugIcon } from "@/components/medicalRecords/MedicalRecordsIcons";
 import type { MemberDisplay } from "@/api/patientMember";
 import {
   activeMedicalRecordFilterLabel,
   HEALTH_LOG_GROUP_LABEL,
   MEDICAL_RECORD_HEALTH_LOG_CATEGORIES,
   MEDICAL_RECORD_PRIMARY_CATEGORIES,
+  medicalRecordCategoryFromSlug,
   type MedicalRecordCategoryDef,
   isHealthLogMedicalRecordSlug,
 } from "@/constants/medicalRecordsCategories";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { MdOutlineFavoriteBorder } from "react-icons/md";
 import "./MedicalRecordsCards.css";
+
+function scrollStripSelectionToCenter(
+  container: HTMLElement | null,
+  selectedSelector: string,
+  behavior: ScrollBehavior = "smooth",
+) {
+  if (!container) return;
+  const active = container.querySelector(selectedSelector);
+  if (active instanceof HTMLElement) {
+    active.scrollIntoView({ inline: "center", block: "nearest", behavior });
+  }
+}
+
+export type MedicalRecordsFilterApply = Readonly<{
+  categorySlug: string;
+  userFilterId: string;
+}>;
 
 export type MedicalRecordsFilterSheetProps = Readonly<{
   open: boolean;
   onClose: () => void;
+  /** Applied category (from route). */
   category: MedicalRecordCategoryDef;
+  /** Applied family filter. */
   userFilterId: string;
   members: readonly MemberDisplay[];
   membersLoading: boolean;
-  onSelectCategory: (slug: string) => void;
-  onSelectUser: (userId: string) => void;
+  onApply: (draft: MedicalRecordsFilterApply) => void;
 }>;
 
 export function MedicalRecordsFilterSheet({
@@ -29,17 +50,71 @@ export function MedicalRecordsFilterSheet({
   userFilterId,
   members,
   membersLoading,
-  onSelectCategory,
-  onSelectUser,
+  onApply,
 }: MedicalRecordsFilterSheetProps) {
-  const healthLogActive = isHealthLogMedicalRecordSlug(category.slug);
+  const [draftSlug, setDraftSlug] = useState(category.slug);
+  const [draftUserId, setDraftUserId] = useState(userFilterId);
+
+  const draftCategory = useMemo(
+    () => medicalRecordCategoryFromSlug(draftSlug) ?? category,
+    [draftSlug, category],
+  );
+
+  const healthLogActive = isHealthLogMedicalRecordSlug(draftSlug);
+  const healthLogPillsRef = useRef<HTMLDivElement>(null);
+  const memberStripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setDraftSlug(category.slug);
+    setDraftUserId(userFilterId);
+  }, [open, category.slug, userFilterId]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    scrollStripSelectionToCenter(
+      healthLogPillsRef.current,
+      ".mr-health-log-pill--selected",
+      "auto",
+    );
+  }, [open, draftSlug]);
+
+  useLayoutEffect(() => {
+    if (!open || membersLoading) return;
+    scrollStripSelectionToCenter(
+      memberStripRef.current,
+      ".mr-member-chip--selected",
+      "auto",
+    );
+  }, [open, draftUserId, membersLoading, members.length]);
+
+  const selectDraftCategory = (slug: string) => {
+    setDraftSlug(slug);
+    requestAnimationFrame(() => {
+      scrollStripSelectionToCenter(
+        healthLogPillsRef.current,
+        ".mr-health-log-pill--selected",
+      );
+    });
+  };
+
+  const selectDraftUser = (id: string) => {
+    setDraftUserId(id);
+    requestAnimationFrame(() => {
+      scrollStripSelectionToCenter(memberStripRef.current, ".mr-member-chip--selected");
+    });
+  };
+
+  const handleDone = () => {
+    onApply({ categorySlug: draftSlug, userFilterId: draftUserId });
+  };
 
   return (
     <MobileFilterSheet
       open={open}
       onClose={onClose}
       title="Filter records"
-      subtitle={activeMedicalRecordFilterLabel(category)}
+      subtitle={activeMedicalRecordFilterLabel(draftCategory)}
     >
       <div className="mobile-filter-sheet__divider" />
       <div className="mobile-filter-sheet__section-label">Services &amp; visits</div>
@@ -49,11 +124,11 @@ export function MedicalRecordsFilterSheet({
             <button
               key={c.slug}
               type="button"
-              className={`mr-filter-grid-tile${category.slug === c.slug ? " mr-filter-grid-tile--selected" : ""}`}
-              onClick={() => onSelectCategory(c.slug)}
+              className={`mr-filter-grid-tile${draftSlug === c.slug ? " mr-filter-grid-tile--selected" : ""}`}
+              onClick={() => selectDraftCategory(c.slug)}
             >
               <span className="mr-filter-grid-tile__icon">
-                <img src={medicalRecordSlugIconSrc(c.slug)} alt="" width={18} height={18} />
+                <MedicalRecordSlugIcon slug={c.slug} size={18} />
               </span>
               <span className="mr-filter-grid-tile__label">{c.label}</span>
             </button>
@@ -66,22 +141,16 @@ export function MedicalRecordsFilterSheet({
       <div className="mobile-filter-sheet__section">
         <div className={`mr-health-log-strip${healthLogActive ? " mr-health-log-strip--active" : ""}`}>
           <div className="mr-health-log-strip__head">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                stroke="currentColor"
-                strokeWidth="1.75"
-              />
-            </svg>
+            <MdOutlineFavoriteBorder size={16} aria-hidden />
             {HEALTH_LOG_GROUP_LABEL}
           </div>
-          <div className="mr-health-log-pills">
+          <div ref={healthLogPillsRef} className="mr-health-log-pills hide-scrollbar">
             {MEDICAL_RECORD_HEALTH_LOG_CATEGORIES.map((c) => (
               <button
                 key={c.slug}
                 type="button"
-                className={`mr-health-log-pill${category.slug === c.slug ? " mr-health-log-pill--selected" : ""}`}
-                onClick={() => onSelectCategory(c.slug)}
+                className={`mr-health-log-pill${draftSlug === c.slug ? " mr-health-log-pill--selected" : ""}`}
+                onClick={() => selectDraftCategory(c.slug)}
               >
                 {c.label}
               </button>
@@ -96,11 +165,11 @@ export function MedicalRecordsFilterSheet({
         {membersLoading ? (
           <p className="mr-status">Loading…</p>
         ) : (
-          <div className="mr-member-strip">
+          <div ref={memberStripRef} className="mr-member-strip hide-scrollbar">
             <button
               type="button"
-              className={`mr-member-chip${userFilterId.trim().length === 0 ? " mr-member-chip--selected" : ""}`}
-              onClick={() => onSelectUser("")}
+              className={`mr-member-chip${draftUserId.trim().length === 0 ? " mr-member-chip--selected" : ""}`}
+              onClick={() => selectDraftUser("")}
             >
               <span className="mr-member-chip__avatar" aria-hidden>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -117,14 +186,13 @@ export function MedicalRecordsFilterSheet({
             {members.map((m) => {
               const name = m.name.trim().length > 0 ? m.name.trim() : "Member";
               const initial = name.charAt(0).toUpperCase() || "?";
-              const selected = userFilterId === m.id;
+              const selected = draftUserId === m.id;
               return (
                 <button
                   key={m.id}
                   type="button"
                   className={`mr-member-chip${selected ? " mr-member-chip--selected" : ""}`}
-                  disabled={!m.isSubscribed}
-                  onClick={() => onSelectUser(m.id)}
+                  onClick={() => selectDraftUser(m.id)}
                 >
                   <span className="mr-member-chip__avatar" aria-hidden>
                     {initial}
@@ -137,7 +205,7 @@ export function MedicalRecordsFilterSheet({
         )}
       </div>
 
-      <button type="button" className="mr-filter-done" onClick={onClose}>
+      <button type="button" className="mr-filter-done" onClick={handleDone}>
         Done
       </button>
     </MobileFilterSheet>

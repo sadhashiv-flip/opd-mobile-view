@@ -90,7 +90,7 @@ export function VaccinationChooseTypePage() {
       <header className="hco-top">
         <FlowScreenBack
           fallbackTo={ROUTES.vaccinationSelectPeople}
-          className="hco-back"
+          className="app-back-btn hco-back"
           onBeforeBack={clearVaccinationAfterChooseType}
         />
         <h1 className="hco-title">Choose Vaccine Type</h1>

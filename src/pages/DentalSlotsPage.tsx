@@ -121,7 +121,7 @@ export function DentalSlotsPage() {
       <header className="hco-top">
         <FlowScreenBack
           fallbackTo={ROUTES.dentalNetworkList}
-          className="hco-back"
+          className="app-back-btn hco-back"
           onBeforeBack={clearDentalSlotStep}
         />
         <h1 className="hco-title">Select Your Dental Slots</h1>

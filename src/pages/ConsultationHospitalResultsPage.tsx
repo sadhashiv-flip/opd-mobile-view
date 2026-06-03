@@ -348,7 +348,7 @@ export function ConsultationHospitalResultsPage() {
       <header className="chr-top">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.consultationSpecialties, { type: "at_hospital" })}
-          className="chr-back"
+          className="app-back-btn chr-back"
           onBeforeBack={clearHospitalConsultationResultsStep}
         />
         <h1 className="chr-title">At Hospital Consultation</h1>

@@ -96,7 +96,7 @@ export function CartOverviewPage() {
       <header className="co-top co-top--v2">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.diagnosticsPlan, { type: "lab-tests" })}
-          className="co-back"
+          className="app-back-btn co-back"
           onBeforeBack={clearLabVendorAndDownstream}
         />
         <h1 className="co-title co-title--v2">{HeaderTexts.cartOverview.title}</h1>

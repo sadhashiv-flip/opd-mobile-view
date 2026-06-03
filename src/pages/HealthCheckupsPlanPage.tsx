@@ -27,6 +27,7 @@ import {
   writeHealthUsersPackages,
 } from "@/constants/diagnosticsHealthFlowStorage";
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { MdClose } from "react-icons/md";
 import { clearDiagnosticsDownstreamFromPlan } from "@/lib/bookingFlowStackCleanup";
 import {
   clearHealthSlotSessionBeforeSlots,
@@ -403,7 +404,7 @@ export function HealthCheckupsPlanPage() {
       <header className="hcp-top">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.diagnosticsSelectPeople, { type })}
-          className="hcp-back"
+          className="app-back-btn hcp-back"
           ariaLabel={`Back to ${type === "lab-tests" ? "diagnostics" : "Health Checkups"}`}
           onBeforeBack={() => clearDiagnosticsDownstreamFromPlan(type)}
         />
@@ -736,7 +737,7 @@ export function HealthCheckupsPlanPage() {
                   setInclusionsGroups([]);
                 }}
               >
-                ×
+                <MdClose size={22} aria-hidden />
               </button>
             </header>
             <div className="hcp-incl-body">

@@ -225,7 +225,7 @@ export function PharmacySelectPrescriptionPage() {
             <FlowScreenBack
               fallbackTo={backPath}
               fallbackNavigate={{ state: passState }}
-              className="ph-back"
+              className="app-back-btn ph-back"
               onBeforeBack={clearPharmacyDownstreamFromPrescriptionSelect}
             />
             <h1 className="ph-title">Select Prescription</h1>
@@ -251,7 +251,7 @@ export function PharmacySelectPrescriptionPage() {
           <FlowScreenBack
             fallbackTo={backPath}
             fallbackNavigate={{ state: passState }}
-            className="ph-back"
+            className="app-back-btn ph-back"
             onBeforeBack={clearPharmacyDownstreamFromPrescriptionSelect}
           />
           <h1 className="ph-title">Select Prescription</h1>

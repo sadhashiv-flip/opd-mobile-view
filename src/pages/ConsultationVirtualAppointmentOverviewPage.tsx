@@ -382,7 +382,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
     return (
       <div className="cao-page">
         <header className="cao-top">
-          <FlowScreenBack fallbackTo={backToSlots} className="cao-back" />
+          <FlowScreenBack fallbackTo={backToSlots} className="app-back-btn cao-back" />
           <h1 className="cao-title">Confirm Booking</h1>
         </header>
         <main className="cao-main">
@@ -398,7 +398,7 @@ export function ConsultationVirtualAppointmentOverviewPage() {
   return (
     <div className="cao-page">
       <header className="cao-top">
-        <FlowScreenBack fallbackTo={backToSlots} className="cao-back" />
+        <FlowScreenBack fallbackTo={backToSlots} className="app-back-btn cao-back" />
         <h1 className="cao-title">Confirm Booking</h1>
       </header>
 

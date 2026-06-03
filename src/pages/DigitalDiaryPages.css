@@ -69,6 +69,12 @@
   margin-top: 2px;
 }
 
+.dd-intro__icon-svg,
+.dd-tile__icon-svg {
+  display: block;
+  flex-shrink: 0;
+}
+
 .dd-intro__text {
   margin: 0;
   font-size: 13px;

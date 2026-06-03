@@ -4,6 +4,7 @@ import App from "@/app/App";
 import logoSmUrl from "@/assets/images/logos/logo-sm.png";
 import "./index.css";
 import "./styles/primary-buttons.css";
+import "./styles/app-back-button.css";
 
 const firebaseEnvReady = Boolean(
   import.meta.env.VITE_FIREBASE_API_KEY?.trim() &&

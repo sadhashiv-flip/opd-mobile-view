@@ -31,19 +31,7 @@
 }
 
 .wallet-screen-header__back {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 44px;
-  height: 44px;
-  border: none;
-  background: none;
-  color: #000000;
-  cursor: pointer;
-}
-
-.wallet-screen-header__back:active {
-  opacity: 0.65;
+  /* layout only — shell from `.app-back-btn` */
 }
 
 .wallet-screen-header__title {

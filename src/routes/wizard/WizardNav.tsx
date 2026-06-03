@@ -29,7 +29,7 @@ export function WizardScreenShell({
     <div className="wizard-screen">
       <header className="wizard-screen__top">
         <FlowScreenBack
-          className="wizard-screen__back"
+          className="app-back-btn wizard-screen__back"
           fallbackTo={backFallback}
           onBeforeBack={onBeforeBack}
         />

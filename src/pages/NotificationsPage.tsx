@@ -147,7 +147,7 @@ export function NotificationsPage() {
       <header className="notif-page__top">
         <button
           type="button"
-          className="notif-page__back"
+          className="app-back-btn notif-page__back"
           aria-label="Back to home"
           onClick={() => navigate(ROUTES.dashboard)}
         >

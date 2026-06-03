@@ -1,4 +1,7 @@
-﻿import { ServiceHubCard } from "@/components/services/ServiceHubCard";
+﻿import { AppBackChevron } from "@/components/navigation/AppBackChevron";
+import { ConsultationEntryBottomSheet } from "@/components/services/ConsultationEntryBottomSheet";
+import { DiagnosticsEntryBottomSheet } from "@/components/services/DiagnosticsEntryBottomSheet";
+import { ServiceHubCard } from "@/components/services/ServiceHubCard";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   getHubHeading,
@@ -14,16 +17,13 @@ import {
   diagnosticsSingleVisibleSlug,
 } from "@/lib/subscriptionDashboardModules";
 import { consultationSingleVisibleType } from "@/lib/moduleGatesFromProfile";
-import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
-import healthCheckupSvg from "@/assets/icons/Dashboard/HealthCheckup.svg";
-import labTestsSvg from "@/assets/icons/Dashboard/LabTests.svg";
-import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import { ROUTES, VISION_ROUTE_TYPE, WELLNESS_SESSION_KIND } from "@/constants";
 import { DeleteAccountModal } from "@/components/profile";
 import { requestProfileDeletion } from "@/api/patientProfileDelete";
 import { useToast } from "@/hooks/useToast";
+import { isServicesHubFromViewMore } from "@/lib/servicesHubEntry";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, generatePath, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, generatePath, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import "@/pages/HomePage.css";
 import "./ServicesHubPage.css";
 
@@ -56,6 +56,10 @@ function getAccountRoute(id: string): string | null {
 }
 
 export function ServicesHubPage() {
+  const location = useLocation();
+  const fromViewMore = isServicesHubFromViewMore(location.state);
+  const showBottomNav = !fromViewMore;
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tabId = useMemo(
     () => parseTab(searchParams.get("tab")),
@@ -141,22 +145,18 @@ export function ServicesHubPage() {
 
   return (
     <div className="services-hub">
-      <header className="services-hub__top">
-        <Link
-          to={ROUTES.dashboard}
-          className="services-hub__back"
-          aria-label="Back to home"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+      <header
+        className={`services-hub__top${fromViewMore ? "" : " services-hub__top--tab-entry"}`}
+      >
+        {fromViewMore ? (
+          <Link
+            to={ROUTES.dashboard}
+            className="app-back-btn services-hub__back"
+            aria-label="Back to home"
+          >
+            <AppBackChevron />
+          </Link>
+        ) : null}
         <nav className="services-hub__tabs" aria-label="Service categories">
           {visibleHubTabs.map(({ id, label, Icon, iconSrc }) => {
             const active = tabId === id;
@@ -361,163 +361,37 @@ export function ServicesHubPage() {
         ) : null}
       </main>
 
-      {diagnosticsSheetOpen ? (
-        <dialog
-          className="home-sheet-dialog"
-          open
-          aria-label="Diagnostics"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setDiagnosticsSheetOpen(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setDiagnosticsSheetOpen(false);
-          }}
-        >
-          <section className="home-sheet">
-            <header className="home-sheet__header">
-              <h3 className="home-sheet__title">Diagnostics</h3>
-              <button
-                type="button"
-                className="home-sheet__close"
-                aria-label="Close"
-                onClick={() => setDiagnosticsSheetOpen(false)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M18 6L6 18M6 6l12 12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </header>
+      <DiagnosticsEntryBottomSheet
+        open={diagnosticsSheetOpen}
+        onClose={() => setDiagnosticsSheetOpen(false)}
+        showHealthCheckups={
+          !mod.loaded || !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_HEALTH_CHECKUPS)
+        }
+        showLabTests={!mod.loaded || !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS)}
+        onHealthCheckups={() => {
+          setDiagnosticsSheetOpen(false);
+          void navigate(generatePath(ROUTES.diagnosticsType, { type: "health-checkups" }));
+        }}
+        onLabTests={() => {
+          setDiagnosticsSheetOpen(false);
+          void navigate(generatePath(ROUTES.diagnosticsType, { type: "lab-tests" }));
+        }}
+      />
 
-            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
-              {!mod.loaded ||
-              !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_HEALTH_CHECKUPS) ? (
-              <ServiceHubCard
-                icon={
-                  <img
-                    src={healthCheckupSvg}
-                    alt=""
-                    width={22}
-                    height={22}
-                    draggable={false}
-                    className="service-hub-card__img-icon"
-                  />
-                }
-                title="Health Checkups"
-                description="Avail Free Health Checkups"
-                onClick={() => {
-                  setDiagnosticsSheetOpen(false);
-                  void navigate(generatePath(ROUTES.diagnosticsType, { type: "health-checkups" }));
-                }}
-              />
-              ) : null}
-              {!mod.loaded ||
-              !mod.diagnosticsHiddenSubSlugs.has(DIAG_SUB_LAB_TESTS) ? (
-              <ServiceHubCard
-                icon={
-                  <img
-                    src={labTestsSvg}
-                    alt=""
-                    width={22}
-                    height={22}
-                    draggable={false}
-                    className="service-hub-card__img-icon"
-                  />
-                }
-                title="Lab Tests"
-                description="Fully Sponsored"
-                onClick={() => {
-                  setDiagnosticsSheetOpen(false);
-                  void navigate(generatePath(ROUTES.diagnosticsType, { type: "lab-tests" }));
-                }}
-              />
-              ) : null}
-            </div>
-          </section>
-        </dialog>
-      ) : null}
-
-      {consultationSheetOpen ? (
-        <dialog
-          className="home-sheet-dialog"
-          open
-          aria-label="Consultation"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setConsultationSheetOpen(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setConsultationSheetOpen(false);
-          }}
-        >
-          <section className="home-sheet">
-            <header className="home-sheet__header">
-              <h3 className="home-sheet__title">Consultation</h3>
-              <button
-                type="button"
-                className="home-sheet__close"
-                aria-label="Close"
-                onClick={() => setConsultationSheetOpen(false)}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M18 6L6 18M6 6l12 12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </header>
-
-            <div className="service-hub-grid global-bottom-sheet-grid--cols-2">
-              {!mod.loaded || mod.consultation.sheetHospital ? (
-              <ServiceHubCard
-                icon={
-                  <img
-                    src={atHospitalSvg}
-                    alt=""
-                    width={22}
-                    height={22}
-                    draggable={false}
-                    className="service-hub-card__img-icon"
-                  />
-                }
-                title="At Hospital"
-                description={"Visit a doctor\nat the hospital"}
-                onClick={() => {
-                  setConsultationSheetOpen(false);
-                  void navigate(generatePath(ROUTES.consultation, { type: "at_hospital" }));
-                }}
-              />
-              ) : null}
-              {!mod.loaded || mod.consultation.sheetVirtual ? (
-              <ServiceHubCard
-                icon={
-                  <img
-                    src={virtualSvg}
-                    alt=""
-                    width={22}
-                    height={22}
-                    draggable={false}
-                    className="service-hub-card__img-icon"
-                  />
-                }
-                title="Virtual"
-                description={"Consult a doctor\nonline from home"}
-                onClick={() => {
-                  setConsultationSheetOpen(false);
-                  void navigate(generatePath(ROUTES.consultation, { type: "virtual" }));
-                }}
-              />
-              ) : null}
-            </div>
-          </section>
-        </dialog>
-      ) : null}
+      <ConsultationEntryBottomSheet
+        open={consultationSheetOpen}
+        onClose={() => setConsultationSheetOpen(false)}
+        showAtHospital={!mod.loaded || mod.consultation.sheetHospital}
+        showVirtual={!mod.loaded || mod.consultation.sheetVirtual}
+        onAtHospital={() => {
+          setConsultationSheetOpen(false);
+          void navigate(generatePath(ROUTES.consultation, { type: "at_hospital" }));
+        }}
+        onVirtual={() => {
+          setConsultationSheetOpen(false);
+          void navigate(generatePath(ROUTES.consultation, { type: "virtual" }));
+        }}
+      />
 
       {visionSheetOpen ? (
         <dialog
@@ -608,7 +482,7 @@ export function ServicesHubPage() {
         </dialog>
       ) : null}
 
-      <HomeBottomNav />
+      {showBottomNav ? <HomeBottomNav /> : null}
 
       <DeleteAccountModal
         open={deleteAccountOpen}

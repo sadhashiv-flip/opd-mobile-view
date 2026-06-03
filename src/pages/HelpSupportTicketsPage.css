@@ -22,19 +22,25 @@
   z-index: 2;
 }
 
+.help-support-tickets__top--tab-entry {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.help-support-tickets__top--tab-entry .help-support-tickets__spacer {
+  display: none;
+}
+
+.help-support-tickets--with-nav .help-support-tickets__main {
+  padding-bottom: 120px;
+}
+
+.help-support-tickets--with-nav .help-support-tickets__fab {
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
 .help-support-tickets__back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: 0;
-  padding: 0;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: #0f172a;
-  cursor: pointer;
+  /* layout only — shell from `.app-back-btn` */
 }
 
 .help-support-tickets__title {

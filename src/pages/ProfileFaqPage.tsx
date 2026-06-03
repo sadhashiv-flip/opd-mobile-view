@@ -263,7 +263,7 @@ export function ProfileFaqPage() {
         <button
           type="button"
           onClick={handleBack}
-          className="profile-manage-page__back"
+          className="app-back-btn profile-manage-page__back"
           aria-label="Back"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>

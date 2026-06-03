@@ -106,7 +106,8 @@ optgroup {
 
   width: 100%;
   max-width: min(var(--mobile-frame-max-width, 480px), 100%);
-  min-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   min-height: 100dvh;
   min-width: 0;
   box-sizing: border-box;
@@ -116,6 +117,7 @@ optgroup {
    * is pinned to this column and scrolls away with document scroll on mobile browsers. */
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
   overflow-x: clip;
+  overflow-y: hidden;
 
   /* Space below browser / status UI + notch safe area (all screens) */
   padding-top: calc(env(safe-area-inset-top, 0px) + clamp(12px, 3.6cqw, 18px));
@@ -132,6 +134,8 @@ optgroup {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -212,6 +216,22 @@ button.home-loc:focus-visible {
 }
 
 .hide-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/**
+ * Patient app: hide scrollbar gutters everywhere; touch / wheel / trackpad scroll still works.
+ * Applies to routed UI, portaled sheets, and nested overflow regions (orders, home, etc.).
+ */
+body,
+body * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body *::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;

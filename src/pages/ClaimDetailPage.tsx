@@ -721,6 +721,11 @@ export function ClaimDetailPage() {
     return raw && !GENERIC_SERVICE_TYPE.test(raw) ? raw : null;
   }, [display, serviceTypesCatalog]);
 
+  const statusNoteText = useMemo(() => {
+    const note = detail?.statusLabel?.trim() ?? display?.statusLabel?.trim() ?? "";
+    return note || null;
+  }, [detail?.statusLabel, display?.statusLabel]);
+
   const billServiceLines = useMemo(() => {
     const m = new Map<string, string | null>();
     if (!display) return m;
@@ -856,12 +861,23 @@ export function ClaimDetailPage() {
               </div>
             </div>
 
-            {displayServiceLine ? (
-              <p className="claim-detail-hero__services">Service Type: {displayServiceLine}</p>
-            ) : null}
-
-            {detail?.statusLabel?.trim() ? (
-              <p className="claim-detail-hero__reason">Note: {detail.statusLabel.trim()}</p>
+            {displayServiceLine || statusNoteText ? (
+              <div className="claim-detail-hero__status-block">
+                {displayServiceLine ? (
+                  <p className="claim-detail-hero__services">
+                    <span className="claim-detail-hero__services-label">Service Type:</span>{" "}
+                    {displayServiceLine}
+                  </p>
+                ) : null}
+                {statusNoteText ? (
+                  <section className="claim-detail-hero__status-card" aria-labelledby="claim-status-note-title">
+                    <h2 id="claim-status-note-title" className="claim-detail-hero__status-card-title">
+                      Status note
+                    </h2>
+                    <p className="claim-detail-hero__status-card-body">{statusNoteText}</p>
+                  </section>
+                ) : null}
+              </div>
             ) : null}
 
             {showDisputeCta ? (
@@ -917,7 +933,7 @@ export function ClaimDetailPage() {
       ) : null}
 
       {display ? (
-        <>
+        <div className="claim-detail-body">
           <nav className="claim-detail-tabs" aria-label="Claim sections">
             {(
               [
@@ -1046,10 +1062,6 @@ export function ClaimDetailPage() {
 
             {tab === "documents" ? (
               <div className="claim-detail-panel claim-detail-panel--docs">
-                <p className="claim-detail-docs-intro">
-                  Bills and checklist files for this claim. Use <strong>Open</strong> to preview; upload missing items when
-                  required.
-                </p>
                 <DocSection title="Bills" count={display.bills.length} empty={display.bills.length === 0}>
                   {display.bills.length === 0 ? (
                     <p className="claim-detail-docs-placeholder">No bills linked yet.</p>
@@ -1189,7 +1201,7 @@ export function ClaimDetailPage() {
               </div>
             ) : null}
           </main>
-        </>
+        </div>
       ) : null}
 
       <HomeBottomNav />

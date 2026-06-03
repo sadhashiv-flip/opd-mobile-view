@@ -1,18 +1,8 @@
+import { AppBackChevron } from "@/components/navigation/AppBackChevron";
 import { useNavigateBack } from "@/hooks/useNavigateBack";
+import { backButtonClass } from "@/lib/backButtonClass";
 import type { ReactNode } from "react";
 import type { NavigateOptions } from "react-router-dom";
-
-const DEFAULT_BACK_ICON = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M15 18l-6-6 6-6"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 export type FlowScreenBackProps = Readonly<{
   /** Used only when there is no history to pop (deep link, refresh). */
@@ -36,7 +26,7 @@ export function FlowScreenBack({
   fallbackTo,
   className,
   ariaLabel = "Back",
-  children = DEFAULT_BACK_ICON,
+  children = <AppBackChevron />,
   fallbackNavigate,
   onBeforeBack,
 }: FlowScreenBackProps) {
@@ -45,7 +35,7 @@ export function FlowScreenBack({
   return (
     <button
       type="button"
-      className={className}
+      className={backButtonClass(className)}
       aria-label={ariaLabel}
       onClick={() => {
         onBeforeBack?.();

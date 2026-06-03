@@ -1,3 +1,9 @@
+import {
+  MrIconCalendarToday,
+  MrIconChevronRight,
+  MrIconLocalHospital,
+  MrIconVideocam,
+} from "@/components/medicalRecords/MedicalRecordsIcons";
 import { useToast } from "@/hooks/useToast";
 import {
   consultationDoctorName,
@@ -88,14 +94,7 @@ export function ConsultationRecordsList({ rows }: ConsultationRecordsListProps) 
                 {spec ? <span className="mr-consult-card__spec">{spec}</span> : null}
                 <span className="mr-consult-card__when-row">
                   <span className="mr-consult-card__when">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M8 2v3M16 2v3M4 9h16M6 5h12a2 2 0 012 2v13a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <MrIconCalendarToday size={13} />
                     {when}
                   </span>
                   <span
@@ -105,41 +104,13 @@ export function ConsultationRecordsList({ rows }: ConsultationRecordsListProps) 
                         : "mr-consult-card__comm mr-consult-card__comm--inperson"
                     }
                   >
-                    {isOnline ? (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path
-                          d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          stroke="currentColor"
-                          strokeWidth="1.75"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    ) : (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <path
-                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"
-                          stroke="currentColor"
-                          strokeWidth="1.75"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
+                    {isOnline ? <MrIconVideocam size={11} /> : <MrIconLocalHospital size={11} />}
                     {commLabel}
                   </span>
                 </span>
               </span>
               <span className="mr-consult-card__chevron" aria-hidden>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M9 6l6 6-6 6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <MrIconChevronRight />
               </span>
             </button>
           </li>

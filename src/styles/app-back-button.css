@@ -1,0 +1,48 @@
+/**
+ * Standard raised back control (rounded square, border, light fill, subtle shadow).
+ * Add class `app-back-btn` to header back buttons and links app-wide.
+ */
+button.app-back-btn,
+a.app-back-btn,
+.app-back-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #c8c8c8;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fafafa 0%, #f2f2f2 100%);
+  box-shadow: 1px 2px 0 rgba(0, 0, 0, 0.14);
+  color: #111111;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  font: inherit;
+  line-height: 0;
+}
+
+button.app-back-btn:active,
+a.app-back-btn:active,
+.app-back-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+}
+
+button.app-back-btn:focus-visible,
+a.app-back-btn:focus-visible,
+.app-back-btn:focus-visible {
+  outline: 2px solid #0088ff;
+  outline-offset: 2px;
+}
+
+button.app-back-btn svg,
+a.app-back-btn svg,
+.app-back-btn svg {
+  display: block;
+  flex-shrink: 0;
+}

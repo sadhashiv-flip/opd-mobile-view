@@ -277,7 +277,7 @@ export function FitnessListPage() {
       <header className="dd-screen-header fitness-list-page__header">
         <button
           type="button"
-          className="dd-screen-header__back"
+          className="app-back-btn dd-screen-header__back"
           aria-label="Back"
           onClick={() =>
             view === "favorites" ? setView("browse") : navigate(ROUTES.services)

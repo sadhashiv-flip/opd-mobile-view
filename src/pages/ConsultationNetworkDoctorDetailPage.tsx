@@ -234,7 +234,7 @@ export function ConsultationNetworkDoctorDetailPage() {
   return (
     <div className="ndp-page">
       <header className="ndp-top">
-        <FlowScreenBack className="ndp-back" fallbackTo={fallbackTo} />
+        <FlowScreenBack className="app-back-btn ndp-back" fallbackTo={fallbackTo} />
         <h1 className="ndp-title">Doctor profile</h1>
       </header>
 

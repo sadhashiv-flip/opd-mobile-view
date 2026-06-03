@@ -52,7 +52,7 @@ export function ChronicConditionEnrollPage() {
   return (
     <div className="chronic-page">
       <header className="chronic-page__header">
-        <Link to={returnPath} className="chronic-page__back" aria-label="Back">
+        <Link to={returnPath} className="app-back-btn chronic-page__back" aria-label="Back">
           <span aria-hidden>←</span>
         </Link>
         <h1 className="chronic-page__title">{meta.title}</h1>

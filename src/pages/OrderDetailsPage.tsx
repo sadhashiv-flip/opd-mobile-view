@@ -1617,7 +1617,7 @@ export function OrderDetailsPage() {
   return (
     <div className="od-detail-page">
       <header className="od-top">
-        <button type="button" onClick={goBack} className="od-back" aria-label="Back">
+        <button type="button" onClick={goBack} className="app-back-btn od-back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

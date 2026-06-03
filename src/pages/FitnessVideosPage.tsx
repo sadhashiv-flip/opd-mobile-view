@@ -645,7 +645,7 @@ export function FitnessVideosPage() {
       <header className="dd-screen-header fitness-videos-page__header">
         <button
           type="button"
-          className="dd-screen-header__back"
+          className="app-back-btn dd-screen-header__back"
           aria-label="Back"
           onClick={() => {
             if (activeVideo) {

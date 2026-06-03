@@ -348,7 +348,7 @@ export function ProfileBankFormPage() {
     return (
       <div className="profile-manage-page pbf-page pbf-page--form">
         <header className="profile-manage-page__top">
-          <Link to={navigateAfterBankSave} className="profile-manage-page__back" aria-label="Back">
+          <Link to={navigateAfterBankSave} className="app-back-btn profile-manage-page__back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -374,7 +374,7 @@ export function ProfileBankFormPage() {
       <header className="profile-manage-page__top">
         <Link
           to={navigateAfterBankSave}
-          className="profile-manage-page__back"
+          className="app-back-btn profile-manage-page__back"
           aria-label={resolvedReturnPath ? "Back to previous page" : "Back to bank list"}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>

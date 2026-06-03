@@ -123,7 +123,7 @@ export function UserDetailsBmiPage() {
       <header className="ud-flow-header">
         <button
           type="button"
-          className="ud-flow-back"
+          className="app-back-btn ud-flow-back"
           onClick={() => navigate(ROUTES.userDetailsPersonal, { replace: true, state })}
           aria-label="Back"
         >

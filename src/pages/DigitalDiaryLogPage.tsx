@@ -4,6 +4,7 @@ import {
 } from "@/api/patientParameters";
 import { DigitalDiaryAddSheet } from "@/components/digitalDiary/DigitalDiaryAddSheet";
 import { DigitalDiaryWorkoutSection } from "@/components/digitalDiary/DigitalDiaryWorkoutSection";
+import { MrIconCalendarToday } from "@/components/medicalRecords/MedicalRecordsIcons";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
 import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
@@ -150,7 +151,7 @@ export function DigitalDiaryLogPage() {
         <div className="dd-log-header__top">
           <button
             type="button"
-            className="dd-screen-header__back"
+            className="app-back-btn dd-screen-header__back"
             aria-label="Back"
             onClick={() => navigate(ROUTES.digitalDiary)}
           >
@@ -185,30 +186,7 @@ export function DigitalDiaryLogPage() {
               onClick={openNativeDatePicker}
               aria-label={`Choose diary date. Selected ${dateLabel}`}
             >
-              <svg
-                className="dd-log__date-btn-ic"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden
-              >
-                <rect
-                  x="3"
-                  y="5"
-                  width="18"
-                  height="16"
-                  rx="2"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                />
-                <path
-                  d="M3 10h18M8 3v4M16 3v4"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <MrIconCalendarToday size={18} className="dd-log__date-btn-ic" />
               <span className="dd-log__date-btn-label">{dateLabel}</span>
             </button>
           </div>

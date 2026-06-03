@@ -260,7 +260,7 @@ export function MedicalRecordsPrescriptionDetailPage() {
     return (
       <div className="mr-rx-detail-page">
         <header className="mr-rx-detail-header">
-          <FlowScreenBack fallbackTo={returnPath} className="mr-rx-detail-back" />
+          <FlowScreenBack fallbackTo={returnPath} className="app-back-btn mr-rx-detail-back" />
           <h1 className="mr-rx-detail-header__title">Prescription Detail</h1>
           <span className="mr-rx-detail-header__spacer" aria-hidden />
         </header>
@@ -273,7 +273,7 @@ export function MedicalRecordsPrescriptionDetailPage() {
     return (
       <div className="mr-rx-detail-page">
         <header className="mr-rx-detail-header">
-          <FlowScreenBack fallbackTo={returnPath} className="mr-rx-detail-back" />
+          <FlowScreenBack fallbackTo={returnPath} className="app-back-btn mr-rx-detail-back" />
           <h1 className="mr-rx-detail-header__title">Prescription Detail</h1>
           <span className="mr-rx-detail-header__spacer" aria-hidden />
         </header>
@@ -295,7 +295,7 @@ export function MedicalRecordsPrescriptionDetailPage() {
   return (
     <div className="mr-rx-detail-page">
       <header className="mr-rx-detail-header">
-        <FlowScreenBack fallbackTo={returnPath} className="mr-rx-detail-back" />
+        <FlowScreenBack fallbackTo={returnPath} className="app-back-btn mr-rx-detail-back" />
         <h1 className="mr-rx-detail-header__title">Prescription Detail</h1>
         {reportApptId ? (
           <button type="button" className="mr-rx-detail-report-btn" onClick={() => void openReport()}>

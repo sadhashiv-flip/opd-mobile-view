@@ -1234,7 +1234,7 @@ export function VideoCallPage() {
         <header className="video-call-page__header">
           <button
             type="button"
-            className="video-call-page__back"
+            className="app-back-btn video-call-page__back"
             aria-label="Go back"
             onClick={() => navigate(-1)}
           >
@@ -1254,7 +1254,7 @@ export function VideoCallPage() {
       <header className="video-call-page__header">
         <button
           type="button"
-          className="video-call-page__back"
+          className="app-back-btn video-call-page__back"
           aria-label="Go back"
           onClick={() => navigate(-1)}
         >

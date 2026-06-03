@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import type { MedicalRecordCategoryDef } from "@/constants/medicalRecordsCategories";
 import {
+  HealthLogConditionIcon,
+  HealthLogMeasurementIcon,
+} from "@/components/medicalRecords/MedicalRecordsIcons";
+import {
   MrClockMeta,
   MrDoseTag,
   MrGradientIcon,
@@ -90,7 +94,7 @@ function SymptomCard({
     : "linear-gradient(135deg, #ec407a 0%, #f48fb1 100%)";
 
   return (
-    <MrHealthCardShell onClick={onOpen}>
+    <MrHealthCardShell onClick={onOpen} className="mr-symptom-card">
       <MrGradientIcon gradient={gradient}>
         <MrSymptomIcon />
       </MrGradientIcon>
@@ -141,9 +145,7 @@ function MeasurementCard({ row }: Readonly<{ row: Record<string, unknown> }>) {
   return (
     <MrHealthCardShell>
       <MrGradientIcon gradient="linear-gradient(135deg, #5c6bc0 0%, #9fa8da 100%)">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M4 20h16M6 16l4-8 4 8 4-12" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" />
-        </svg>
+        <HealthLogMeasurementIcon />
       </MrGradientIcon>
       <span className="mr-health-card__body">
         <span className="mr-health-card__title-row">
@@ -183,9 +185,7 @@ function ConditionCard({ row }: Readonly<{ row: Record<string, unknown> }>) {
   return (
     <MrHealthCardShell>
       <MrGradientIcon gradient={gradient}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M12 4v16M6 12h12" stroke="#fff" strokeWidth="1.75" strokeLinecap="round" />
-        </svg>
+        <HealthLogConditionIcon />
       </MrGradientIcon>
       <span className="mr-health-card__body">
         <span className="mr-health-card__title-row">

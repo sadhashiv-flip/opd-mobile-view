@@ -104,7 +104,7 @@ export function NetworkClinicListView({
       <header className="dnl-top">
         <FlowScreenBack
           fallbackTo={backTo}
-          className="dnl-back"
+          className="app-back-btn dnl-back"
           onBeforeBack={onBeforeBack}
         />
         <h1 className="dnl-title">{title}</h1>

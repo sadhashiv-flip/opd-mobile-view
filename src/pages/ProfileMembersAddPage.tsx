@@ -335,7 +335,7 @@ export function ProfileMembersAddPage() {
         <Link
           to={backPath}
           {...(backState === undefined ? {} : { state: backState })}
-          className="afm-back"
+          className="app-back-btn afm-back"
           aria-label={hasFlowReturn ? "Back" : "Back to members"}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>

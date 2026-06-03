@@ -210,7 +210,7 @@ export function ConsultationAppointmentSlotsPage() {
       <header className="cas-top">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.consultationHospitalResults, { specialtyId })}
-          className="cas-back"
+          className="app-back-btn cas-back"
           onBeforeBack={onBeforeBack}
         />
         <h1 className="cas-title">Appointment - {doctorName}</h1>

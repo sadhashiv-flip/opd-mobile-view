@@ -256,7 +256,7 @@ export function ProfilePage() {
   return (
     <div className="profile-page">
       <header className="profile-page__top">
-        <Link to={ROUTES.dashboard} className="profile-page__back" aria-label="Back to home">
+        <Link to={ROUTES.dashboard} className="app-back-btn profile-page__back" aria-label="Back to home">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

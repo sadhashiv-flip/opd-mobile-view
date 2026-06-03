@@ -129,7 +129,7 @@ export function VisionSlotsPage() {
       <header className="hco-top">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.visionNetworkList, { visionType })}
-          className="hco-back"
+          className="app-back-btn hco-back"
           onBeforeBack={clearVisionSlotAndDownstream}
         />
         <h1 className="hco-title">Select Your Vision Slots</h1>

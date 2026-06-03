@@ -1,18 +1,22 @@
 .orders-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  width: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   background: linear-gradient(180deg, #faf8f6 0%, #f5f3f0 38%, #ffffff 100%);
   color: #111111;
 }
 
 .orders-page__main {
-  flex: 1;
+  flex: 0 0 auto;
   padding: 12px var(--page-pad-x, 16px) 16px;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .orders-page__title-row {

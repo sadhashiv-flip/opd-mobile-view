@@ -120,7 +120,7 @@ export function UserDetailsPersonalInfoPage() {
         <header className="ud-flow-header">
           <button
             type="button"
-            className="ud-flow-back"
+            className="app-back-btn ud-flow-back"
             onClick={() => navigate(ROUTES.login, { replace: true })}
             aria-label="Back"
           >
@@ -144,7 +144,7 @@ export function UserDetailsPersonalInfoPage() {
       <header className="ud-flow-header">
         <button
           type="button"
-          className="ud-flow-back"
+          className="app-back-btn ud-flow-back"
           onClick={() => navigate(ROUTES.login, { replace: true })}
           aria-label="Back"
         >

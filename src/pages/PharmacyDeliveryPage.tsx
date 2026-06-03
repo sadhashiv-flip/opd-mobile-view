@@ -291,7 +291,7 @@ export function PharmacyDeliveryPage() {
     <div className="ph-page ph-page--dart-main">
       <header className="ph-top-wrap ph-top-wrap--dart-main">
         <div className="ph-top ph-top--dart-main">
-          <FlowScreenBack fallbackTo={hubReturn} className="ph-back" />
+          <FlowScreenBack fallbackTo={hubReturn} className="app-back-btn ph-back" />
           <div className="ph-top-loc">
             <VaccinationAddressBar />
           </div>

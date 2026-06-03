@@ -84,7 +84,7 @@ export function ProfileBankViewPage() {
     return (
       <div className="profile-manage-page pbv-page pbv-page--detail">
         <header className="profile-manage-page__top">
-          <Link to={ROUTES.profileBank} className="profile-manage-page__back" aria-label="Back">
+          <Link to={ROUTES.profileBank} className="app-back-btn profile-manage-page__back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -113,7 +113,7 @@ export function ProfileBankViewPage() {
   return (
     <div className="profile-manage-page pbv-page pbv-page--detail">
       <header className="profile-manage-page__top">
-        <Link to={ROUTES.profileBank} className="profile-manage-page__back" aria-label="Back to list">
+        <Link to={ROUTES.profileBank} className="app-back-btn profile-manage-page__back" aria-label="Back to list">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

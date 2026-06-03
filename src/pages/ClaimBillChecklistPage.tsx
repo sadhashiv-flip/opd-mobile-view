@@ -649,7 +649,7 @@ export function ClaimBillChecklistPage() {
     return (
       <div className="claim-bc-page">
         <header className="claims-screen-header">
-          <button type="button" className="claims-screen-header__back" aria-label="Back" onClick={() => navigate(ROUTES.claimsNew)}>
+          <button type="button" className="app-back-btn claims-screen-header__back" aria-label="Back" onClick={() => navigate(ROUTES.claimsNew)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -688,7 +688,7 @@ export function ClaimBillChecklistPage() {
   return (
     <div className="claim-bc-page">
       <header className="claims-screen-header">
-        <button type="button" className="claims-screen-header__back" aria-label="Back" onClick={onBack}>
+        <button type="button" className="app-back-btn claims-screen-header__back" aria-label="Back" onClick={onBack}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

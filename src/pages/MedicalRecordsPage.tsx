@@ -1,10 +1,13 @@
 import { fetchMedicalHistoryByType } from "@/api/patientMedicalHistory";
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
-import { MedicalRecordsFilterSheet } from "@/components/medicalRecords/MedicalRecordsFilterSheet";
+import {
+  MedicalRecordsFilterSheet,
+  type MedicalRecordsFilterApply,
+} from "@/components/medicalRecords/MedicalRecordsFilterSheet";
 import { MedicalRecordsList } from "@/components/medicalRecords/MedicalRecordsList";
 import { SymptomDetailSheet } from "@/components/medicalRecords/SymptomDetailSheet";
-import { medicalRecordSlugIconSrc } from "@/components/mobileFilter/medicalRecordFilterIcons";
+import { MedicalRecordSlugIcon } from "@/components/medicalRecords/MedicalRecordsIcons";
 import { ROUTES, WELLNESS_SESSION_KIND } from "@/constants";
 import {
   activeMedicalRecordFilterLabel,
@@ -145,19 +148,19 @@ function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRec
     }
   };
 
-  useEffect(() => {
-    const uid = userFilterId.trim();
-    if (!uid) return;
-    const m = members.find((x) => x.id === uid);
-    if (m && !m.isSubscribed) {
-      persistUserFilter("");
-    }
-  }, [members, userFilterId]);
-
-  const selectCategory = (slug: string) => {
-    setSheetOpen(false);
-    void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug: slug }));
-  };
+  const applyFilters = useCallback(
+    ({ categorySlug, userFilterId: uid }: MedicalRecordsFilterApply) => {
+      setSheetOpen(false);
+      const nextUserId = uid.trim();
+      if (nextUserId !== userFilterId.trim()) {
+        persistUserFilter(nextUserId);
+      }
+      if (categorySlug !== category.slug) {
+        void navigate(generatePath(ROUTES.medicalRecordsCategory, { categorySlug }));
+      }
+    },
+    [category.slug, navigate, userFilterId],
+  );
 
   const handlePullRefresh = () => {
     void load(category);
@@ -197,13 +200,7 @@ function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRec
         onClick={() => setSheetOpen(true)}
         aria-label="Change record category"
       >
-        <img
-          className="mr-active-category__icon"
-          src={medicalRecordSlugIconSrc(category.slug)}
-          alt=""
-          width={18}
-          height={18}
-        />
+        <MedicalRecordSlugIcon slug={category.slug} size={18} className="mr-active-category__icon" />
         <span className="mr-active-category__text">
           <span className="mr-active-category__label">Showing</span>
           <span className="mr-active-category__value">{activeMedicalRecordFilterLabel(category)}</span>
@@ -223,8 +220,7 @@ function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRec
         userFilterId={userFilterId}
         members={members}
         membersLoading={membersLoading}
-        onSelectCategory={selectCategory}
-        onSelectUser={persistUserFilter}
+        onApply={applyFilters}
       />
 
       <SymptomDetailSheet

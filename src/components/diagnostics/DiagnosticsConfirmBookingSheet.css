@@ -1,0 +1,110 @@
+/* Flutter: `Get.bottomSheet` + 12px margin, 16px radius, white card (lab/health overview). */
+
+.diag-pay-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.diag-pay-sheet {
+  width: 100%;
+  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
+  min-width: 0;
+  max-height: min(88vh, 680px);
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+.diag-pay-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.diag-pay-sheet__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #111111;
+}
+
+.diag-pay-sheet__close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -4px -8px -4px 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #5c6570;
+  cursor: pointer;
+}
+
+.diag-pay-sheet__close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.diag-pay-sheet__body {
+  min-width: 0;
+}
+
+.diag-pay-sheet__wallet {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 12px;
+  padding: 0;
+  min-height: 48px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111111;
+  cursor: pointer;
+}
+
+.diag-pay-sheet__wallet-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.diag-pay-sheet__switch {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary, #ff5224);
+  cursor: pointer;
+}
+
+.diag-pay-sheet__cta {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--color-primary-dark, var(--color-primary, #ff5224));
+  cursor: pointer;
+}
+
+.diag-pay-sheet__cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

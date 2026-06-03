@@ -187,7 +187,7 @@ export function ConsultationVirtualSlotsPage() {
     return (
       <div className="cvsl-page">
         <header className="cvsl-top">
-          <FlowScreenBack fallbackTo={backToSpecialties} className="cvsl-back" />
+          <FlowScreenBack fallbackTo={backToSpecialties} className="app-back-btn cvsl-back" />
           <h1 className="cvsl-title">Select slot</h1>
         </header>
         <main className="cvsl-main">
@@ -205,7 +205,7 @@ export function ConsultationVirtualSlotsPage() {
       <header className="cvsl-top">
         <FlowScreenBack
           fallbackTo={backToSpecialties}
-          className="cvsl-back"
+          className="app-back-btn cvsl-back"
           onBeforeBack={onBeforeBack}
         />
         <h1 className="cvsl-title">{pageTitle}</h1>

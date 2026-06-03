@@ -42,7 +42,19 @@ import {
   normalizeRazorpayCheckoutPayload,
   openRazorpayCheckoutWithEvent,
 } from "@/lib/razorpayCheckout";
+import { DiagnosticsConfirmBookingSheet } from "@/components/diagnostics/DiagnosticsConfirmBookingSheet";
+import {
+  DIAG_OVERVIEW_IC_EVENT,
+  DIAG_OVERVIEW_IC_FLASK,
+  DIAG_OVERVIEW_IC_LOCATION,
+  DIAG_OVERVIEW_IC_PAY,
+  DIAG_OVERVIEW_IC_PERSON,
+  DIAG_OVERVIEW_IC_PEOPLE,
+  DIAG_OVERVIEW_IC_PHONE,
+  DIAG_OVERVIEW_IC_SCHEDULE,
+} from "@/components/diagnostics/diagnosticsOverviewIcons";
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
+import { MdCheckCircle } from "react-icons/md";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import {
   useCallback,
@@ -254,7 +266,7 @@ function LtPricingSummary(props: Readonly<{ overview: NormalizedBookingOverview 
       ) : null}
       {overview.amountToPay <= 0 ? (
         <div className="lt-pr__zero">
-          <span aria-hidden>✓</span>
+          <MdCheckCircle size={14} aria-hidden />
           <span>Covered by wallet — no payment needed</span>
         </div>
       ) : (
@@ -266,76 +278,6 @@ function LtPricingSummary(props: Readonly<{ overview: NormalizedBookingOverview 
     </div>
   );
 }
-
-const LT_IC_PERSON = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-const LT_IC_PIN = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M12 21s7-4.35 7-11a7 7 0 10-14 0c0 6.65 7 11 7 11z"
-      stroke="currentColor"
-      strokeWidth="2"
-    />
-    <circle cx="12" cy="10" r="2.5" fill="currentColor" />
-  </svg>
-);
-const LT_IC_PHONE = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-const LT_IC_CLOCK = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-    <path d="M12 7v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const LT_IC_PEOPLE = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-const LT_IC_EVENT = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-    <path d="M16 3v4M8 3v4M3 11h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-const LT_IC_FLASK = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path
-      d="M10 2v5.2c0 .28-.06.56-.17.82L6.5 14.5a4 4 0 003.35 6h4.3a4 4 0 003.35-6l-3.33-6.48a1 1 0 01-.17-.82V2M8 2h8"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-const LT_IC_PAY = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-    <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2" />
-    <path d="M2 10h20" stroke="currentColor" strokeWidth="2" />
-  </svg>
-);
 
 function parseStoredHealthSlot(raw: string | null): DiagnosticSlotPick | null {
   if (!raw?.trim()) return null;
@@ -804,7 +746,7 @@ export function HealthCheckupsOverviewPage() {
       <header className="hco-top">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.diagnosticsSlots, { type })}
-          className="hco-back"
+          className="app-back-btn hco-back"
         />
         <h1 className="hco-title">{isLabTests ? "Review Booking" : "Booking Overview"}</h1>
         <span className="hco-top__balance" aria-hidden="true" />
@@ -834,7 +776,7 @@ export function HealthCheckupsOverviewPage() {
             ) : null}
             {!labOverviewLoading && labOverview ? (
               <div className="lt-overview">
-                <LtCard icon={LT_IC_PERSON} title="Contact & users">
+                <LtCard icon={DIAG_OVERVIEW_IC_PERSON} title="Contact & users">
                   {labDistinctUsers.length > 1 ? (
                     <>
                       <p className="lt-muted">Users included in this booking:</p>
@@ -876,7 +818,7 @@ export function HealthCheckupsOverviewPage() {
                 </LtCard>
 
                 {labOverview.addressLine.trim() ? (
-                  <LtCard icon={LT_IC_PIN} title="Collection Address">
+                  <LtCard icon={DIAG_OVERVIEW_IC_LOCATION} title="Collection Address">
                     <div className="lt-addr-head">
                       {labOverview.addressTag ? (
                         <span className="lt-addr-tag">{labOverview.addressTag}</span>
@@ -895,7 +837,7 @@ export function HealthCheckupsOverviewPage() {
                   </LtCard>
                 ) : null}
 
-                <LtCard icon={LT_IC_PHONE} title="Alternative Phone (Optional)">
+                <LtCard icon={DIAG_OVERVIEW_IC_PHONE} title="Alternative Phone (Optional)">
                   <div className="hco-alt lt-alt">
                     <span className="hco-alt__cc">+91</span>
                     <input
@@ -910,7 +852,7 @@ export function HealthCheckupsOverviewPage() {
                   </div>
                 </LtCard>
 
-                <LtCard icon={LT_IC_CLOCK} title="Appointment">
+                <LtCard icon={DIAG_OVERVIEW_IC_SCHEDULE} title="Appointment">
                   <div className="lt-appt">
                     <div className="lt-appt__primary">
                       {labOverview.formattedSlotDate ?? formattedScheduleDate}
@@ -922,7 +864,7 @@ export function HealthCheckupsOverviewPage() {
                 </LtCard>
 
                 <LtCard
-                  icon={LT_IC_FLASK}
+                  icon={DIAG_OVERVIEW_IC_FLASK}
                   title={`Tests & amounts (${labOverview.items.length})`}
                   subtitle="Grouped by user. Each block lists that user's tests and a subtotal; the Payment card shows the full order total."
                 >
@@ -989,7 +931,7 @@ export function HealthCheckupsOverviewPage() {
                   </div>
                 </LtCard>
 
-                <LtCard icon={LT_IC_PAY} title="Payment">
+                <LtCard icon={DIAG_OVERVIEW_IC_PAY} title="Payment">
                   <LtPricingSummary overview={labOverview} />
                 </LtCard>
               </div>
@@ -1031,7 +973,7 @@ export function HealthCheckupsOverviewPage() {
 
             {!labOverviewLoading && labOverview ? (
               <div className="lt-overview">
-                <LtCard icon={LT_IC_PIN} title="Address" accentIcon>
+                <LtCard icon={DIAG_OVERVIEW_IC_LOCATION} title="Address" accentIcon>
                   <div className="lt-addr-plain">
                     <div className="lt-addr-plain__head">
                       <div className="lt-addr-plain__tag">
@@ -1053,7 +995,7 @@ export function HealthCheckupsOverviewPage() {
                   </div>
                 </LtCard>
 
-                <LtCard icon={LT_IC_PEOPLE} title="Members & Packages" accentIcon>
+                <LtCard icon={DIAG_OVERVIEW_IC_PEOPLE} title="Members & Packages" accentIcon>
                   <div className="lt-health-members">
                     {labOverview.items.length > 0 ? (
                       labOverview.items.map((it, idx) => (
@@ -1065,13 +1007,13 @@ export function HealthCheckupsOverviewPage() {
                   </div>
                 </LtCard>
 
-                <LtCard icon={LT_IC_CLOCK} title="Scheduled Slots" accentIcon>
+                <LtCard icon={DIAG_OVERVIEW_IC_SCHEDULE} title="Scheduled Slots" accentIcon>
                   <div className="lt-health-slots">
                     {healthScheduleRows.length > 0 ? (
                       healthScheduleRows.map((row, idx) => (
                         <div key={`${String(idx)}-${row.date}-${row.time}`} className="lt-slot-row">
                           <span className="lt-slot-row__ic" aria-hidden>
-                            {LT_IC_EVENT}
+                            {DIAG_OVERVIEW_IC_EVENT}
                           </span>
                           <div className="lt-slot-row__body">
                             {row.cat ? <div className="lt-slot-row__cat">{row.cat}</div> : null}
@@ -1087,7 +1029,7 @@ export function HealthCheckupsOverviewPage() {
                 </LtCard>
 
                 <LtCard
-                  icon={LT_IC_PHONE}
+                  icon={DIAG_OVERVIEW_IC_PHONE}
                   title="Alternative phone (optional)"
                   accentIcon
                   compact
@@ -1107,7 +1049,7 @@ export function HealthCheckupsOverviewPage() {
                 </LtCard>
 
                 {!healthOmitPayment ? (
-                  <LtCard icon={LT_IC_PAY} title="Payment" accentIcon>
+                  <LtCard icon={DIAG_OVERVIEW_IC_PAY} title="Payment" accentIcon>
                     <LtPricingSummary overview={labOverview} />
                   </LtCard>
                 ) : null}
@@ -1130,113 +1072,39 @@ export function HealthCheckupsOverviewPage() {
         )}
       </main>
 
-      {isLabTests && labPaySheetOpen && labOverview ? (
-        <div
-          className="lt-sheet-backdrop"
-          role="presentation"
-          onClick={() => !labSubmitting && setLabPaySheetOpen(false)}
-        >
-          <div
-            className="lt-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="lt-sheet-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="lt-sheet__head">
-              <h2 id="lt-sheet-title" className="lt-sheet__title">
-                Confirm booking
-              </h2>
-              <button
-                type="button"
-                className="lt-sheet__close"
-                aria-label="Close"
-                disabled={labSubmitting}
-                onClick={() => setLabPaySheetOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            <LtPricingSummary overview={labOverview} />
-            {labOverview.amountToPay > 0 ? (
-              <label className="lt-sheet__wallet">
-                <span>Use Flip wallet (OPD)</span>
-                <input
-                  type="checkbox"
-                  className="lt-sheet__switch"
-                  checked={useLabWallet}
-                  onChange={(e) => setUseLabWallet(e.target.checked)}
-                />
-              </label>
-            ) : null}
-            <button
-              type="button"
-              className="lt-sheet__cta"
-              disabled={labSubmitting}
-              onClick={() => {
-                setLabPaySheetOpen(false);
-                void runLabPlaceOrder(useLabWallet);
-              }}
-            >
-              {labSubmitting ? "Confirming…" : labConfirmPrimaryLabel(labOverview)}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <DiagnosticsConfirmBookingSheet
+        open={isLabTests && labPaySheetOpen && labOverview != null}
+        titleId="lt-sheet-title-lab"
+        submitting={labSubmitting}
+        useWallet={useLabWallet}
+        showWalletToggle={labOverview != null && labOverview.amountToPay > 0}
+        confirmLabel={labOverview ? labConfirmPrimaryLabel(labOverview) : "Confirm booking"}
+        onClose={() => setLabPaySheetOpen(false)}
+        onWalletChange={setUseLabWallet}
+        onConfirm={() => {
+          setLabPaySheetOpen(false);
+          void runLabPlaceOrder(useLabWallet);
+        }}
+      >
+        {labOverview ? <LtPricingSummary overview={labOverview} /> : null}
+      </DiagnosticsConfirmBookingSheet>
 
-      {!isLabTests && healthPaySheetOpen && labOverview ? (
-        <div
-          className="lt-sheet-backdrop"
-          role="presentation"
-          onClick={() => !labSubmitting && setHealthPaySheetOpen(false)}
-        >
-          <div
-            className="lt-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="lt-sheet-title-health"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="lt-sheet__head">
-              <h2 id="lt-sheet-title-health" className="lt-sheet__title">
-                Confirm booking
-              </h2>
-              <button
-                type="button"
-                className="lt-sheet__close"
-                aria-label="Close"
-                disabled={labSubmitting}
-                onClick={() => setHealthPaySheetOpen(false)}
-              >
-                ×
-              </button>
-            </div>
-            <LtPricingSummary overview={labOverview} />
-            {labOverview.amountToPay > 0 ? (
-              <label className="lt-sheet__wallet">
-                <span>Use Flip wallet (OPD)</span>
-                <input
-                  type="checkbox"
-                  className="lt-sheet__switch"
-                  checked={useHealthWallet}
-                  onChange={(e) => setUseHealthWallet(e.target.checked)}
-                />
-              </label>
-            ) : null}
-            <button
-              type="button"
-              className="lt-sheet__cta"
-              disabled={labSubmitting}
-              onClick={() => {
-                setHealthPaySheetOpen(false);
-                void onHealthConfirm(useHealthWallet);
-              }}
-            >
-              {labSubmitting ? "Confirming…" : labConfirmPrimaryLabel(labOverview)}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <DiagnosticsConfirmBookingSheet
+        open={!isLabTests && healthPaySheetOpen && labOverview != null}
+        titleId="lt-sheet-title-health"
+        submitting={labSubmitting}
+        useWallet={useHealthWallet}
+        showWalletToggle={labOverview != null && labOverview.amountToPay > 0}
+        confirmLabel={labOverview ? labConfirmPrimaryLabel(labOverview) : "Confirm booking"}
+        onClose={() => setHealthPaySheetOpen(false)}
+        onWalletChange={setUseHealthWallet}
+        onConfirm={() => {
+          setHealthPaySheetOpen(false);
+          void onHealthConfirm(useHealthWallet);
+        }}
+      >
+        {labOverview ? <LtPricingSummary overview={labOverview} /> : null}
+      </DiagnosticsConfirmBookingSheet>
 
       {!isLabTests && healthBookingConfirmOpen ? (
         <div

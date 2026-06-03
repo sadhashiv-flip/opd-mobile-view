@@ -204,7 +204,7 @@ export function MedicalRecordsConsultationChatPage() {
     return (
       <div className="support-chat">
         <p className="support-chat__centered">Missing appointment.</p>
-        <Link to={backTo} className="support-chat__link-back">
+        <Link to={backTo} className="app-back-btn support-chat__link-back">
           Back to consultations
         </Link>
       </div>
@@ -214,7 +214,7 @@ export function MedicalRecordsConsultationChatPage() {
   return (
     <div className="support-chat">
       <header className="support-chat__header">
-        <Link to={backTo} className="support-chat__back" aria-label="Back to consultations">
+        <Link to={backTo} className="app-back-btn support-chat__back" aria-label="Back to consultations">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

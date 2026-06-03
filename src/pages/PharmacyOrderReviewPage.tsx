@@ -303,7 +303,7 @@ export function PharmacyOrderReviewPage() {
         <FlowScreenBack
           fallbackTo={reviewBackPath}
           fallbackNavigate={{ state: passState }}
-          className="ph-back"
+          className="app-back-btn ph-back"
           onBeforeBack={clearPharmacyReviewStep}
         />
         <h1 className="ph-review-title">{COPY.title}</h1>

@@ -273,7 +273,7 @@ export function GymMembershipOverviewFlowV2() {
   return (
     <div className="gmov2-page">
       <header className="gmov2-header">
-        <Link to={ROUTES.gymMembershipContact} className="gmov2-back" aria-label="Back">
+        <Link to={ROUTES.gymMembershipContact} className="app-back-btn gmov2-back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

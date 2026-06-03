@@ -446,7 +446,7 @@ export function VisionOverviewPage() {
       ) : null}
 
       <header className="dental-overview-page__top">
-        <FlowScreenBack fallbackTo={backTo} className="dental-overview-page__back" />
+        <FlowScreenBack fallbackTo={backTo} className="app-back-btn dental-overview-page__back" />
         <h1 className="dental-overview-page__title">{VISION_OVERVIEW_TITLE}</h1>
         <span className="dental-overview-page__top-spacer" aria-hidden />
       </header>

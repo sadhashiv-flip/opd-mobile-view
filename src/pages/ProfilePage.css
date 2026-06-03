@@ -20,23 +20,7 @@
 }
 
 .profile-page__back {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 44px;
-  height: 44px;
-  border: none;
-  background: none;
-  color: #111111;
-  cursor: pointer;
-  text-decoration: none;
-  border-radius: 12px;
-  transition: background 0.18s ease, transform 0.12s ease;
-}
-
-.profile-page__back:active {
-  transform: scale(0.96);
-  background: rgba(0, 0, 0, 0.05);
+  /* layout only — shell from `.app-back-btn` */
 }
 
 .profile-page__title {

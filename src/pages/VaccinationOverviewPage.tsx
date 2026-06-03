@@ -335,7 +335,7 @@ export function VaccinationOverviewPage() {
       <header className="vac-overview-page__top">
         <FlowScreenBack
           fallbackTo={ROUTES.vaccinationSlots}
-          className="vac-overview-page__back"
+          className="app-back-btn vac-overview-page__back"
         />
         <h1 className="vac-overview-page__title">Vaccine Overview</h1>
         <span className="vac-overview-page__top-spacer" aria-hidden />

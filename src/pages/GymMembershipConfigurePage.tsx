@@ -1101,7 +1101,7 @@ export function GymMembershipConfigurePage() {
           <Link
             to={ROUTES.gymMembershipSelectPeople}
             state={planId ? { planId } : undefined}
-            className="hco-back"
+            className="app-back-btn hco-back"
             aria-label="Back to member selection"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -1136,7 +1136,7 @@ export function GymMembershipConfigurePage() {
         <Link
           to={ROUTES.gymMembershipSelectPeople}
           state={backState}
-          className="hco-back"
+          className="app-back-btn hco-back"
           aria-label="Back to member selection"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>

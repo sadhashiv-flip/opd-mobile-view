@@ -86,7 +86,7 @@ export function HealthClubDetailPage() {
       <header className="dd-screen-header hc-detail-page__header">
         <button
           type="button"
-          className="dd-screen-header__back"
+          className="app-back-btn dd-screen-header__back"
           aria-label="Back"
           onClick={() => navigate(ROUTES.healthClub)}
         >

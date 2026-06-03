@@ -499,7 +499,7 @@ export function DiagnosticsScreenPage() {
         <header className="ds-top">
           <FlowScreenBack
             fallbackTo={generatePath(ROUTES.diagnosticsPlan, { type })}
-            className="ds-back"
+            className="app-back-btn ds-back"
             ariaLabel="Back"
             onBeforeBack={onHealthVendorBack}
           />

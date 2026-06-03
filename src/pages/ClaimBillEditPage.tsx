@@ -223,7 +223,7 @@ export function ClaimBillEditPage() {
     return (
       <div className="claim-new-page pbf-page">
         <header className="claims-screen-header">
-          <button type="button" className="claims-screen-header__back" aria-label="Back" onClick={onBack}>
+          <button type="button" className="app-back-btn claims-screen-header__back" aria-label="Back" onClick={onBack}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -250,7 +250,7 @@ export function ClaimBillEditPage() {
   return (
     <div className="claim-new-page pbf-page">
       <header className="claims-screen-header">
-        <button type="button" className="claims-screen-header__back" aria-label="Back" onClick={onBack}>
+        <button type="button" className="app-back-btn claims-screen-header__back" aria-label="Back" onClick={onBack}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

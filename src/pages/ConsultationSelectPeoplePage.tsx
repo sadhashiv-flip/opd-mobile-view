@@ -1,4 +1,4 @@
-ï»¿import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
+import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { VISION_FLOW_OPTION_KEY, type VisionSheetOption } from "@/constants/visionBookingStorage";
 import {
   buildConsultMemberSnapshotFromRow,
@@ -143,7 +143,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>(() => loadStoredPersonIds());
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [virtualLangSheetOpen, setVirtualLangSheetOpen] = useState(false);
-  /** Ephemeral â€” cleared whenever the language sheet opens, closes, or after Continue. */
+  /** Ephemeral — cleared whenever the language sheet opens, closes, or after Continue. */
   const [virtualLangChoice, setVirtualLangChoice] = useState("");
 
   const openVirtualLanguageSheet = () => {
@@ -169,7 +169,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   }, [rows, isHealthCheckupsDiagnostics, filterAhcDashboardEntry]);
 
   /**
-   * Prime `localStorage` sponsored flag for the plan step (`GET diagnostics/packages?â€¦&sponsored=`).
+   * Prime `localStorage` sponsored flag for the plan step (`GET diagnostics/packages?…&sponsored=`).
    * Dashboard / deep link uses `?sponsored=1` / `?ahc=1`; general diagnostics clears stale `true` until Continue
    * sets it again from `AHCAvailable` (patient_app `applyEntryArguments` / `continueWithMemberSelection`).
    */
@@ -480,7 +480,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       <header className="hco-top">
         <FlowScreenBack
           fallbackTo={entryReturnPath ?? ROUTES.dashboard}
-          className="hco-back"
+          className="app-back-btn hco-back"
           onBeforeBack={() => {
             if (flow === "diagnostics") {
               clearDiagnosticsDownstreamFromSelectPeople(type);
@@ -552,7 +552,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
         {loading ? (
           <p className="hc-member-loading" aria-busy="true">
-            Loading membersâ€¦
+            Loading members…
           </p>
         ) : null}
 

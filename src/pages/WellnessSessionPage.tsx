@@ -271,7 +271,7 @@ export function WellnessSessionPage() {
   return (
     <div className="wellness-session-page wellness-flow-page">
       <header className="wellness-flow-page__header">
-        <Link to={ROUTES.services} className="wellness-flow-page__back" aria-label="Back to services">
+        <Link to={ROUTES.services} className="app-back-btn wellness-flow-page__back" aria-label="Back to services">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

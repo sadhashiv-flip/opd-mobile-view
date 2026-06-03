@@ -112,8 +112,8 @@ button.mr-health-card:active {
 }
 
 .mr-status-pill--info {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
+  color: #4ba4ff;
+  background: rgba(75, 164, 255, 0.1);
 }
 
 .mr-status-pill--success {
@@ -325,15 +325,14 @@ button.mr-health-card:active {
 
 .mr-health-log-pills {
   display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 0 12px;
+  scroll-padding-inline: 12px;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.mr-health-log-pills::-webkit-scrollbar {
-  display: none;
+  overscroll-behavior-x: contain;
 }
 
 .mr-health-log-pill {
@@ -357,10 +356,14 @@ button.mr-health-card:active {
 
 .mr-member-strip {
   display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 4px;
+  scroll-padding-inline: 12px;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .mr-member-chip {
@@ -471,22 +474,44 @@ button.mr-health-card:active {
   color: var(--color-text-secondary, #5c6570);
 }
 
-.mr-symptom-detail__badge {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 700;
+/* Flutter `symptom_record_card.dart` — title & description max 2 lines + ellipsis */
+.mr-symptom-card .mr-health-card__title-row {
+  margin-bottom: 6px;
+  flex-wrap: nowrap;
+  align-items: flex-start;
 }
 
-.mr-symptom-detail__badge--chronic {
-  background: rgba(217, 119, 6, 0.15);
-  color: #d97706;
+.mr-symptom-card .mr-health-card__title {
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
-.mr-symptom-detail__badge--acute {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+.mr-symptom-card .mr-health-card__body {
+  gap: 0;
+}
+
+.mr-symptom-card .mr-record-meta {
+  margin-top: 0;
+  font-size: 11px;
+  color: #626262;
+}
+
+.mr-symptom-card .mr-health-card__desc {
+  margin-top: 4px;
+  font-size: 11px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .mr-symptom-detail__card {
@@ -501,15 +526,16 @@ button.mr-health-card:active {
 .mr-symptom-detail__card-label {
   display: block;
   margin: 0 0 6px;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary, #5c6570);
 }
 
 .mr-symptom-detail__card-value {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.4;
+  color: var(--color-text-primary, #1a1d21);
   white-space: pre-wrap;
 }

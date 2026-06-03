@@ -444,7 +444,7 @@ export function DiagnosticsSlotsPage() {
               ? generatePath(ROUTES.diagnosticsVendors, { type })
               : generatePath(ROUTES.diagnosticsPlan, { type })
           }
-          className="cas-back"
+          className="app-back-btn cas-back"
           ariaLabel="Back"
           onBeforeBack={isLabTests ? clearLabSlotStep : undefined}
         />

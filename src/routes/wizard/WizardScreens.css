@@ -15,17 +15,7 @@
 }
 
 .wizard-screen__back {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: #1a1a1a;
-  cursor: pointer;
+  /* layout only — shell from `.app-back-btn` */
 }
 
 .wizard-screen__title {

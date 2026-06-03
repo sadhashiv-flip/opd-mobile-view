@@ -442,7 +442,7 @@ export function ConsultationSpecialtiesPage() {
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.consultationSelectPeople, { type })}
           fallbackNavigate={{ state: location.state }}
-          className="csp-back"
+          className="app-back-btn csp-back"
         />
         <h1 className="csp-title">
           {isHospital ? "At Hospital Consultation" : "Virtual Consultation"}

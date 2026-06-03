@@ -138,7 +138,7 @@ export function PharmacyPrescriptionDetailPage() {
             <FlowScreenBack
               fallbackTo={backPath}
               fallbackNavigate={{ state: passState }}
-              className="ph-back"
+              className="app-back-btn ph-back"
             />
             <h1 className="ph-title">Prescription Detail</h1>
             <span className="ph-top__spacer" aria-hidden />
@@ -163,7 +163,7 @@ export function PharmacyPrescriptionDetailPage() {
           <FlowScreenBack
             fallbackTo={backPath}
             fallbackNavigate={{ state: passState }}
-            className="ph-back"
+            className="app-back-btn ph-back"
           />
           <h1 className="ph-title">Prescription Detail</h1>
           <span className="ph-top__spacer" aria-hidden />

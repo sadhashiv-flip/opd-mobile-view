@@ -93,7 +93,7 @@ export function claimHeroGradientCss(statusCode: number | null): string {
     muted: "#607D8B",
   };
   const top = colors[b.variant] ?? colors.muted;
-  return `linear-gradient(180deg, ${top} 0%, ${top}dd 55%, ${top}cc 100%)`;
+  return `linear-gradient(105deg, ${top} 0%, ${top}ee 42%, ${top}dd 100%)`;
 }
 
 /** Show approved amount in header (Dart: status 1, 5, 8). */

@@ -332,7 +332,7 @@ export function DentalOverviewPage() {
       ) : null}
 
       <header className="dental-overview-page__top">
-        <FlowScreenBack fallbackTo={ROUTES.dentalSlots} className="dental-overview-page__back" />
+        <FlowScreenBack fallbackTo={ROUTES.dentalSlots} className="app-back-btn dental-overview-page__back" />
         <h1 className="dental-overview-page__title">Dental Overview</h1>
         <span className="dental-overview-page__top-spacer" aria-hidden />
       </header>

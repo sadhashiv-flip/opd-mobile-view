@@ -15,19 +15,7 @@
 }
 
 .od-back {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 44px;
-  height: 44px;
-  border: none;
-  background: none;
-  color: #111111;
-  cursor: pointer;
-}
-
-.od-back:active {
-  opacity: 0.65;
+  /* layout only — shell from `.app-back-btn` */
 }
 
 .od-title {

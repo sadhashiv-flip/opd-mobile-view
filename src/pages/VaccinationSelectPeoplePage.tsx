@@ -171,7 +171,7 @@ export function VaccinationSelectPeoplePage() {
       <header className="hco-top">
         <FlowScreenBack
           fallbackTo={ROUTES.services}
-          className="hco-back"
+          className="app-back-btn hco-back"
           onBeforeBack={() => {
             clearVaccinationFlowState();
             clearSelectPeoplePickerForScope(pickerScope, "vaccination");

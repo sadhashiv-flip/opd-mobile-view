@@ -155,7 +155,7 @@ export function GymSelectClinicPage() {
         <Link
           to={ROUTES.gymMembershipConfigure}
           state={configureBack}
-          className="hco-back"
+          className="app-back-btn hco-back"
           aria-label="Back to gym membership"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>

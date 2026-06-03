@@ -320,7 +320,7 @@ function ProfileAddressFormInner({
     <div className="paf-page">
       <header className="paf-top">
         <h1 className="paf-title">{isEdit ? "Edit address" : "Add address"}</h1>
-        <Link to={returnTo ?? ROUTES.profileAddress} replace className="paf-back">
+        <Link to={returnTo ?? ROUTES.profileAddress} replace className="app-back-btn paf-back">
           Back
         </Link>
       </header>

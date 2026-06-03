@@ -277,7 +277,7 @@ export function VisionAddPrescriptionPage() {
       <header className="vap-page__top">
         <FlowScreenBack
           fallbackTo={generatePath(ROUTES.visionSlots, { visionType })}
-          className="vap-page__back"
+          className="app-back-btn vap-page__back"
         />
         <h1 className="vap-page__title">{VISION_PRESCRIPTION_PAGE_TITLE}</h1>
         <span className="vap-page__top-spacer" aria-hidden />

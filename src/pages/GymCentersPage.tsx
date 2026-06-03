@@ -84,7 +84,7 @@ export function GymCentersPage() {
   return (
     <div className="gcent-page">
       <header className="gcent-header">
-        <Link to={ROUTES.gymMembershipContact} className="gcent-back" aria-label="Back">
+        <Link to={ROUTES.gymMembershipContact} className="app-back-btn gcent-back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

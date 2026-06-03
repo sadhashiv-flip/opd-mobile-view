@@ -273,7 +273,7 @@ export function GymMembershipContactPage() {
     return (
       <div className="gym-contact-page">
         <header className="hco-top">
-          <Link to={ROUTES.gymMembership} className="hco-back" aria-label="Back">
+          <Link to={ROUTES.gymMembership} className="app-back-btn hco-back" aria-label="Back">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M15 18l-6-6 6-6"
@@ -301,7 +301,7 @@ export function GymMembershipContactPage() {
   return (
     <div className="gym-contact-page">
       <header className="hco-top">
-        <Link to={ROUTES.gymMembership} className="hco-back" aria-label="Back to packages">
+        <Link to={ROUTES.gymMembership} className="app-back-btn hco-back" aria-label="Back to packages">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

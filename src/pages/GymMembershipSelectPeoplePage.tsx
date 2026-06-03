@@ -217,7 +217,7 @@ export function GymMembershipSelectPeoplePage() {
   return (
     <div className="hc-page">
       <header className="hco-top">
-        <Link to={ROUTES.gymMembership} className="hco-back" aria-label="Back to gym plans">
+        <Link to={ROUTES.gymMembership} className="app-back-btn hco-back" aria-label="Back to gym plans">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

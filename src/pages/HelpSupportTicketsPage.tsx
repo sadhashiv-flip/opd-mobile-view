@@ -12,8 +12,11 @@ import { postSupportFeedback } from "@/api/patientFeedback";
 import { SupportTicketListCard } from "@/components/support/SupportTicketListCard";
 import { SupportTicketFeedbackDialog, FEEDBACK_RATINGS } from "@/components/support/SupportTicketFeedbackDialog";
 import { SupportTicketFeedbackViewDialog } from "@/components/support/SupportTicketFeedbackViewDialog";
+import { AppBackChevron } from "@/components/navigation/AppBackChevron";
+import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
+import { isHelpSupportFromBottomNav, type HelpSupportLocationState } from "@/lib/helpSupportEntry";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { generatePath, useLocation, useNavigate } from "react-router-dom";
 import "./HelpSupportTicketsPage.css";
@@ -30,18 +33,16 @@ const SUPPORT_LANGUAGES = [
   "Gujarati",
 ] as const;
 
-type HelpSupportTicketsLocationState = Readonly<{
-  returnPath?: string;
-}>;
-
 export function HelpSupportTicketsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
 
-  const returnPath =
-    (location.state as HelpSupportTicketsLocationState | null)?.returnPath?.trim() ||
-    ROUTES.servicesHelpTab;
+  const navState = location.state as HelpSupportLocationState | null;
+  const fromBottomNav = isHelpSupportFromBottomNav(navState);
+  const showBottomNav = fromBottomNav;
+
+  const returnPath = navState?.returnPath?.trim() || ROUTES.servicesHelpTab;
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,24 +175,22 @@ export function HelpSupportTicketsPage() {
   }, [feedbackDescription, feedbackRating, feedbackTicketId, loadTickets, toast]);
 
   return (
-    <div className="help-support-tickets">
-      <header className="help-support-tickets__top">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="help-support-tickets__back"
-          aria-label="Back"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M15 18l-6-6 6-6"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+    <div
+      className={`help-support-tickets${showBottomNav ? " help-support-tickets--with-nav" : ""}`}
+    >
+      <header
+        className={`help-support-tickets__top${fromBottomNav ? " help-support-tickets__top--tab-entry" : ""}`}
+      >
+        {fromBottomNav ? null : (
+          <button
+            type="button"
+            onClick={handleBack}
+            className="app-back-btn help-support-tickets__back"
+            aria-label="Back"
+          >
+            <AppBackChevron />
+          </button>
+        )}
         <h1 className="help-support-tickets__title">Help &amp; Support</h1>
         <span className="help-support-tickets__spacer" aria-hidden />
       </header>
@@ -251,7 +250,13 @@ export function HelpSupportTicketsPage() {
                     onOpen={() =>
                       void navigate(
                         generatePath(ROUTES.servicesSupportTicketChat, { ticketId: ticket.id }),
-                        { state: { ticketFeedback: ticket.feedback, returnPath: ROUTES.servicesHelpSupport } },
+                        {
+                          state: {
+                            ticketFeedback: ticket.feedback,
+                            returnPath: ROUTES.servicesHelpSupport,
+                            fromBottomNav,
+                          },
+                        },
                       )
                     }
                     showFeedbackAction={feedbackPending}
@@ -345,7 +350,7 @@ export function HelpSupportTicketsPage() {
                 type="button"
                 className="help-support-tickets__sheet-submit"
                 onClick={() => void handleRaiseTicket()}
-                disabled={raiseBusy}
+                disabled={raiseBusy || !raiseMessage.trim()}
               >
                 {raiseBusy ? "Submitting…" : "Submit"}
               </button>
@@ -382,6 +387,8 @@ export function HelpSupportTicketsPage() {
           setViewFeedbackData(null);
         }}
       />
+
+      {showBottomNav ? <HomeBottomNav /> : null}
     </div>
   );
 }

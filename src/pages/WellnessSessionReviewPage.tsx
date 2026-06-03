@@ -81,7 +81,7 @@ export function WellnessSessionReviewPage() {
   return (
     <div className="wellness-flow-page">
       <header className="wellness-flow-page__header">
-        <Link to={formPath} state={{ restoreForm: form }} className="wellness-flow-page__back" aria-label="Back">
+        <Link to={formPath} state={{ restoreForm: form }} className="app-back-btn wellness-flow-page__back" aria-label="Back">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path
               d="M15 18l-6-6 6-6"

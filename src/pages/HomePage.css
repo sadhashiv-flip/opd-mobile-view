@@ -1,15 +1,29 @@
 .home-page {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  width: 100%;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   background: #ffffff;
   color: #111111;
   --service-hub-card-width: min(124px, 33cqw);
   --service-hub-card-height: min(115px, 31cqw);
 }
 
-/* Header + search scroll with the page; browser scrollbar stays on the outer gray frame. */
+.home-page::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Header, search, and main scroll together inside `.home-page` (frame is overflow-hidden). */
 .home-page__chrome {
   flex-shrink: 0;
   padding: 0 var(--page-pad-x);
@@ -20,7 +34,7 @@
 }
 
 .home-page__main {
-  flex: 1 0 auto;
+  flex: 0 0 auto;
   padding: 10px var(--page-pad-x) clamp(14px, 4.2cqw, 18px);
 }
 

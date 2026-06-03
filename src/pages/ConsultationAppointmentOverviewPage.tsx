@@ -404,7 +404,7 @@ export function ConsultationAppointmentOverviewPage() {
             networkId,
             doctorId,
           })}
-          className="cao-back"
+          className="app-back-btn cao-back"
           onBeforeBack={clearHospitalConsultationOverviewStep}
         />
         <h1 className="cao-title">Confirm Booking</h1>
