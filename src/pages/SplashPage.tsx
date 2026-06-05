@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants";
 import { SPLASH_SLIDES } from "@/constants/splashSlides";
-import { isOnboardingDone, setOnboardingDone } from "@/lib/onboardingStorage";
 import "./SplashPage.css";
 
 const SWIPE_THRESHOLD_PX = 48;
@@ -16,14 +15,7 @@ export function SplashPage() {
   const isLastSlide = index === slideCount - 1;
 
   const finishOnboarding = useCallback(() => {
-    setOnboardingDone(true);
     void navigate(ROUTES.login, { replace: true });
-  }, [navigate]);
-
-  useEffect(() => {
-    if (isOnboardingDone()) {
-      void navigate(ROUTES.login, { replace: true });
-    }
   }, [navigate]);
 
   const goNext = useCallback(() => {
