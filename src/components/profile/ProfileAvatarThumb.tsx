@@ -1,7 +1,6 @@
-import { HomeProfileIcon } from "@/assets/icons/react";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
 import { useCachedProfileAvatar } from "@/hooks/useCachedProfileAvatar";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./ProfileAvatarThumb.css";
 
 type ProfileAvatarThumbProps = Readonly<{
@@ -20,9 +19,13 @@ function profilePhotoUrl(imagePath: string | null): string | null {
   return resolveProfileImageUrl(value);
 }
 
+function isImageAlreadyLoaded(img: HTMLImageElement): boolean {
+  return img.complete && img.naturalWidth > 0;
+}
+
 /**
  * Dashboard header avatar — mirrors patient-app `ProfileAvatarThumb`:
- * local/blob → photo; server path → photo (initials while loading, icon on error); else profile icon.
+ * photo when available; initials only while the photo loads; profile icon when no photo / on error.
  */
 export function ProfileAvatarThumb({
   size = 40,
@@ -41,10 +44,20 @@ export function ProfileAvatarThumb({
     setFailed(false);
   }, [photoUrl]);
 
+  const assignPhotoRef = useCallback(
+    (img: HTMLImageElement | null) => {
+      if (!img || !photoUrl) return;
+      if (isImageAlreadyLoaded(img)) {
+        setLoaded(true);
+        setFailed(false);
+      }
+    },
+    [photoUrl],
+  );
+
   const showPhoto = photoUrl != null && !failed;
   const showInitialsPlaceholder = showPhoto && !loaded;
-  const iconSize = Math.round(size * 0.5);
-
+  const buttonClass = className ? `profile-avatar-thumb ${className}` : "profile-avatar-thumb";
   const photoClass = loaded
     ? "profile-avatar-thumb__photo profile-avatar-thumb__photo--ready"
     : "profile-avatar-thumb__photo";
@@ -52,7 +65,7 @@ export function ProfileAvatarThumb({
   return (
     <button
       type="button"
-      className={className ? `profile-avatar-thumb ${className}` : "profile-avatar-thumb"}
+      className={buttonClass}
       style={{ width: size, height: size }}
       aria-label={ariaLabel}
       disabled={disabled}
@@ -73,6 +86,7 @@ export function ProfileAvatarThumb({
             </span>
           ) : null}
           <img
+            ref={assignPhotoRef}
             className={photoClass}
             src={photoUrl}
             alt=""
@@ -82,11 +96,18 @@ export function ProfileAvatarThumb({
           />
         </span>
       ) : (
-        <HomeProfileIcon
-          className="profile-avatar-thumb__icon"
-          width={iconSize}
-          height={iconSize}
-        />
+        <span
+          className="profile-avatar-thumb__ring profile-avatar-thumb__ring--initials"
+          style={{ width: size, height: size }}
+          aria-hidden
+        >
+          <span
+            className="profile-avatar-thumb__initials profile-avatar-thumb__initials--static"
+            style={{ fontSize: size * 0.34 }}
+          >
+            {initials}
+          </span>
+        </span>
       )}
     </button>
   );

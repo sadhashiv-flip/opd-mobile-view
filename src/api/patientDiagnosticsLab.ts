@@ -545,6 +545,8 @@ export type NormalizedBookingOverview = Readonly<{
   /** `data.slot` / pathology / radiology slot — formatted like Flutter `BookingSlotInfo`. */
   formattedSlotDate: string | null;
   formattedSlotTimeRange: string | null;
+  /** Pathology then radiology (or single generic `slot`) — mirrors `BookingOverviewResponse.bookingSlots`. */
+  bookingSlots: readonly DiagnosticsOverviewSlotLabels[];
   /** `data.info.id`, else `data.id` — canonical order reference for success UI (not `invoice_id`). */
   infoOrderId: string | null;
   /** Patient/member the booking is for — prefers `info` name fields, else primary user display name. */
@@ -597,15 +599,14 @@ function pickLinePrice(pricing: Record<string, unknown> | null): number {
   return b2c ?? 0;
 }
 
-function parseBookingOverviewSlot(d: Record<string, unknown>): {
-  slot_date: string;
-  start_time: string;
-  end_time: string;
-} | null {
-  const pathology = asRecord(d.pathology_slot);
-  const radiology = asRecord(d.radiology_slot);
-  const slot = asRecord(d.slot);
-  const src = pathology ?? radiology ?? slot;
+export type DiagnosticsOverviewSlotLabels = Readonly<{
+  formattedSlotDate: string | null;
+  formattedSlotTimeRange: string | null;
+}>;
+
+function parseBookingOverviewSlotRaw(
+  src: Record<string, unknown> | null,
+): { slot_date: string; start_time: string; end_time: string } | null {
   if (!src) return null;
   const slot_date = str(src.slot_date).trim();
   const start_time = str(src.start_time).trim();
@@ -614,21 +615,47 @@ function parseBookingOverviewSlot(d: Record<string, unknown>): {
   return { slot_date, start_time, end_time };
 }
 
-/** Match Flutter `BookingSlotInfo` display helpers on the overview response. */
+/** Mirrors Flutter `BookingOverviewResponse._parseBookingSlots`. */
+function parseAllBookingOverviewSlots(d: Record<string, unknown>): {
+  slot_date: string;
+  start_time: string;
+  end_time: string;
+}[] {
+  const out: { slot_date: string; start_time: string; end_time: string }[] = [];
+  const seen = new Set<string>();
+
+  const add = (src: Record<string, unknown> | null) => {
+    const parsed = parseBookingOverviewSlotRaw(src);
+    if (!parsed) return;
+    const slotId = str(src?.slot_id).trim();
+    if (slotId && seen.has(slotId)) return;
+    if (slotId) seen.add(slotId);
+    out.push(parsed);
+  };
+
+  add(asRecord(d.pathology_slot));
+  add(asRecord(d.radiology_slot));
+  if (out.length === 0) {
+    add(asRecord(d.slot));
+  }
+  return out;
+}
+
+/** Match Flutter `BookingSlotInfo` / `AhcSlot` display helpers. */
 function formatOverviewSlotLabels(slot: {
   slot_date: string;
   start_time: string;
   end_time: string;
-}): { formattedSlotDate: string | null; formattedSlotTimeRange: string | null } {
+}): DiagnosticsOverviewSlotLabels {
   const rawDate = slot.slot_date.trim();
   let formattedSlotDate: string | null = null;
   if (rawDate) {
     const d = new Date(rawDate.includes("T") ? rawDate : `${rawDate}T12:00:00`);
     if (!Number.isNaN(d.getTime())) {
-      formattedSlotDate = d.toLocaleDateString(undefined, {
-        weekday: "short",
+      formattedSlotDate = d.toLocaleDateString("en-GB", {
+        weekday: "long",
         day: "numeric",
-        month: "short",
+        month: "long",
         year: "numeric",
       });
     } else {
@@ -647,12 +674,40 @@ function formatOverviewSlotLabels(slot: {
       const ampm = h >= 12 ? "PM" : "AM";
       if (h > 12) h -= 12;
       if (h === 0) h = 12;
-      return `${String(h).padStart(2, "0")}:${min} ${ampm}`;
+      return `${String(h)}:${min} ${ampm}`;
     };
-    if (st && et) formattedSlotTimeRange = `${to12(st)} - ${to12(et)}`;
+    if (st && et) formattedSlotTimeRange = `${to12(st)} – ${to12(et)}`;
     else formattedSlotTimeRange = to12(st || et);
   }
   return { formattedSlotDate, formattedSlotTimeRange };
+}
+
+/**
+ * Success-screen schedule — mirrors Flutter `DiagnosticsBookingSuccessScreen._scheduleText`.
+ */
+export function formatDiagnosticsSuccessScheduleDisplay(
+  slots: readonly DiagnosticsOverviewSlotLabels[],
+): string {
+  const lines: string[] = [];
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i]!;
+    const date = slot.formattedSlotDate?.trim() ?? "";
+    const time = slot.formattedSlotTimeRange?.trim() ?? "";
+    const hasDate = date.length > 0 && date !== "—";
+    const hasTime = time.length > 0;
+    if (!hasDate && !hasTime) continue;
+
+    const when =
+      hasDate && hasTime ? `${date} · ${time}` : hasDate ? date : time;
+
+    if (slots.length > 1) {
+      const lab = i === 0 ? "Pathology" : "Radiology";
+      lines.push(`${lab}: ${when}`);
+    } else {
+      lines.push(when);
+    }
+  }
+  return lines.length > 0 ? lines.join("\n") : "—";
 }
 
 /** Display labels for a stored slot payload — mirrors Flutter `AhcSlot` / `BookingSlotInfo` formatting. */
@@ -837,10 +892,12 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
       : null;
   const bookedForName = bookedFromInfo ?? (userName.trim() || "—");
 
-  const slotParsed = parseBookingOverviewSlot(d);
-  const slotLabels = slotParsed
-    ? formatOverviewSlotLabels(slotParsed)
-    : { formattedSlotDate: null as string | null, formattedSlotTimeRange: null as string | null };
+  const slotRaws = parseAllBookingOverviewSlots(d);
+  const bookingSlots = slotRaws.map((s) => formatOverviewSlotLabels(s));
+  const slotLabels = bookingSlots[0] ?? {
+    formattedSlotDate: null as string | null,
+    formattedSlotTimeRange: null as string | null,
+  };
 
   return {
     items,
@@ -861,6 +918,7 @@ export function normalizeBookingOverviewPayload(raw: unknown): NormalizedBooking
     vendorName,
     formattedSlotDate: slotLabels.formattedSlotDate,
     formattedSlotTimeRange: slotLabels.formattedSlotTimeRange,
+    bookingSlots,
     infoOrderId,
     bookedForName,
   };

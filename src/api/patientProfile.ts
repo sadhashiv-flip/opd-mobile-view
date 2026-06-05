@@ -164,8 +164,8 @@ export function normalizeProfileResponse(body: unknown): ProfileDisplay {
     asRecord(root.data) ??
     (asRecord(root.patient) ?? root);
 
-  const first = str(pickUser.first_name);
-  const last = str(pickUser.last_name);
+  const first = str(pickUser.first_name) ?? str(pickUser.firstName);
+  const last = str(pickUser.last_name) ?? str(pickUser.lastName);
   const combinedName = [first, last].filter(Boolean).join(" ").trim();
   const name = str(pickUser.name) ?? (combinedName || "Member");
 
@@ -185,7 +185,14 @@ export function normalizeProfileResponse(body: unknown): ProfileDisplay {
     phone: str(pickUser.phone),
     dob: str(pickUser.dob),
     gender: str(pickUser.gender),
-    image: str(pickUser.image) ?? str(pickUser.avatar) ?? str(pickUser.photo),
+    image:
+      str(pickUser.profileImage) ??
+      str(pickUser.profile_image) ??
+      str(pickUser.image) ??
+      str(pickUser.avatar) ??
+      str(pickUser.photo) ??
+      str(root.profileImage) ??
+      str(root.profile_image),
     age: strAge(pickUser.age),
     bmi,
     bmiCategory,

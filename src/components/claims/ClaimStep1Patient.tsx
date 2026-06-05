@@ -160,13 +160,13 @@ export function ClaimStep1Patient({
 
       <ClaimStep1Section
         icon={<IconPatient />}
-        title="Patient"
+        title="User"
         hint="Select the family member this claim is for."
       >
         <button
           type="button"
           className="claim-step1-picker"
-          aria-label="Choose patient"
+          aria-label="Choose user"
           onClick={onOpenMemberSheet}
         >
           <span className="claim-step1-picker__icon" aria-hidden>
@@ -175,7 +175,7 @@ export function ClaimStep1Patient({
           <span className="claim-step1-picker__main">
             <span className="claim-step1-picker__label">Who is this claim for?</span>
             <span className="claim-step1-picker__value">
-              {selectedMember ? selectedMember.name : "Tap to choose a patient"}
+              {selectedMember ? selectedMember.name : "Tap to choose a user"}
             </span>
             {selectedMember ? (
               <span className="claim-step1-picker__meta">{memberTag}</span>

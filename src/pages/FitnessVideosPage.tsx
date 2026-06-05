@@ -5,7 +5,6 @@ import {
 } from "@/api/patientFitness";
 import { submitPatientParameter } from "@/api/patientParameters";
 import { resolveProfileImageUrl } from "@/api/patientProfile";
-import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import { ROUTES } from "@/constants";
 import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import { readFitnessTagSnapshot } from "@/constants/fitnessSessionStorage";
@@ -30,8 +29,8 @@ type SessionFinishedSummary = Readonly<{
   kcal?: number | string;
   /** Exercise / video id for POST `/patient/parameters` (`source_id`) */
   sourceId?: number | string | null;
-  /** API `value`: `video.cal` + rounds completed (stringified). */
-  calorieValue: string;
+  /** Total work seconds for `category: watching` (all completed rounds). */
+  secondsWatched: number;
 }>;
 
 export function FitnessVideosPage() {
@@ -170,16 +169,13 @@ export function FitnessVideosPage() {
     (video: FitnessVideo, cap: number) => {
       clearTick();
       pauseMedia();
-      /** POST `value`: workout `cal` + completed rounds (same numeric total sent as string). */
-      const baseCal = Number(video.cal);
-      const calNum = Number.isFinite(baseCal) ? baseCal : 0;
-      const calorieValue = String(Math.round(calNum + cap));
+      const roundSec = workoutRoundSeconds(video);
       setSessionFinished({
         videoName: video.name,
         rounds: cap,
         kcal: video.cal,
         sourceId: video.id ?? null,
-        calorieValue,
+        secondsWatched: roundSec * cap,
       });
     },
     [clearTick, pauseMedia],
@@ -197,10 +193,9 @@ export function FitnessVideosPage() {
       setCompleteSubmitting(true);
       try {
         await submitPatientParameter(
-          activitySubmitPayloads.workoutExerciseLog({
+          activitySubmitPayloads.fitnessVideoWatch({
             sourceId: sid,
-            value: summary.calorieValue,
-            unit: "calories",
+            secondsWatched: summary.secondsWatched,
           }),
         );
         toast.success(DIGITAL_DIARY_COPY.submitSuccess);
@@ -670,7 +665,6 @@ export function FitnessVideosPage() {
         </h1>
       </header>
       <main className="fitness-videos-page__main">{body}</main>
-      <HomeBottomNav />
     </div>
   );
 }

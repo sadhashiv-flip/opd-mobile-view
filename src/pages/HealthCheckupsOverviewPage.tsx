@@ -13,6 +13,7 @@ import { useDiagnosticsRazorpayConfirm } from "@/hooks/useDiagnosticsRazorpayCon
 import { confirmDiagnosticsOrder } from "@/api/patientDiagnosticsOrderConfirm";
 import {
   formatDiagnosticSlotPickLabels,
+  formatDiagnosticsSuccessScheduleDisplay,
   normalizeBookingOverviewPayload,
   overviewHideItemLinePrices,
   overviewOmitPaymentSection,
@@ -583,22 +584,78 @@ export function HealthCheckupsOverviewPage() {
     return "";
   }, [labOverview, locAddrLine, fallbackAddrTag]);
 
+  const healthScheduleRows = useMemo((): { cat: string | null; date: string; time: string }[] => {
+    if (isLabTests || !labOverview) return [];
+    const path = parseStoredHealthSlot(readHealthPathologySlotJson());
+    const rad = parseStoredHealthSlot(readHealthRadiologySlotJson());
+    const fmt = (p: DiagnosticSlotPick) => {
+      const x = formatDiagnosticSlotPickLabels(p);
+      return {
+        date: x.formattedSlotDate ?? "—",
+        time: x.formattedSlotTimeRange ?? "—",
+      };
+    };
+    if (path && rad) {
+      const a = fmt(path);
+      const b = fmt(rad);
+      return [
+        { cat: "Pathology", date: a.date, time: a.time },
+        { cat: "Radiology", date: b.date, time: b.time },
+      ];
+    }
+    if (path) {
+      const a = fmt(path);
+      return [{ cat: null, date: a.date, time: a.time }];
+    }
+    if (rad) {
+      const a = fmt(rad);
+      return [{ cat: null, date: a.date, time: a.time }];
+    }
+    if (labOverview.bookingSlots.length > 0) {
+      return labOverview.bookingSlots.map((slot, idx) => ({
+        cat:
+          labOverview.bookingSlots.length > 1
+            ? idx === 0
+              ? "Pathology"
+              : "Radiology"
+            : null,
+        date: slot.formattedSlotDate ?? "—",
+        time: slot.formattedSlotTimeRange ?? "—",
+      }));
+    }
+    if (labOverview.formattedSlotDate || labOverview.formattedSlotTimeRange) {
+      return [
+        {
+          cat: null,
+          date: labOverview.formattedSlotDate ?? "—",
+          time: labOverview.formattedSlotTimeRange ?? "—",
+        },
+      ];
+    }
+    return [];
+  }, [isLabTests, labOverview]);
+
   const successScheduleDisplay = useMemo(() => {
     if (isLabTests && labOverview) {
       const d = labOverview.formattedSlotDate;
       const t = labOverview.formattedSlotTimeRange;
-      if (d && t) return `${d} • ${t}`;
-      if (d) return t ? `${d} • ${t}` : d;
+      if (d && t) return `${d} · ${t}`;
+      if (d) return t ? `${d} · ${t}` : d;
+      return dateTimeDisplay || "—";
     }
-    if (!isLabTests && labOverview) {
-      const d = labOverview.formattedSlotDate?.trim() ?? "";
-      const t = labOverview.formattedSlotTimeRange?.trim() ?? "";
-      if (d && t) return `${d} • ${t}`;
-      if (d) return d;
-      if (t) return t;
+    if (labOverview?.bookingSlots.length) {
+      return formatDiagnosticsSuccessScheduleDisplay(labOverview.bookingSlots);
     }
-    return dateTimeDisplay;
-  }, [isLabTests, labOverview, dateTimeDisplay]);
+    if (healthScheduleRows.length > 0) {
+      return formatDiagnosticsSuccessScheduleDisplay(
+        healthScheduleRows.map((row) => ({
+          formattedSlotDate: row.date,
+          formattedSlotTimeRange: row.time,
+        })),
+      );
+    }
+    return dateTimeDisplay || "—";
+  }, [isLabTests, labOverview, healthScheduleRows, dateTimeDisplay]);
 
   const labItemGroups = useMemo(
     () => (labOverview?.items.length ? groupLabOverviewItems(labOverview.items) : []),
@@ -632,45 +689,6 @@ export function HealthCheckupsOverviewPage() {
 
   const healthOmitPayment =
     !isLabTests && labOverview != null && overviewOmitPaymentSection(labOverview);
-
-  const healthScheduleRows = useMemo((): { cat: string | null; date: string; time: string }[] => {
-    if (isLabTests || !labOverview) return [];
-    const path = parseStoredHealthSlot(readHealthPathologySlotJson());
-    const rad = parseStoredHealthSlot(readHealthRadiologySlotJson());
-    const fmt = (p: DiagnosticSlotPick) => {
-      const x = formatDiagnosticSlotPickLabels(p);
-      return {
-        date: x.formattedSlotDate ?? "—",
-        time: x.formattedSlotTimeRange ?? "—",
-      };
-    };
-    if (path && rad) {
-      const a = fmt(path);
-      const b = fmt(rad);
-      return [
-        { cat: "Pathology", date: a.date, time: a.time },
-        { cat: "Radiology", date: b.date, time: b.time },
-      ];
-    }
-    if (path) {
-      const a = fmt(path);
-      return [{ cat: null, date: a.date, time: a.time }];
-    }
-    if (rad) {
-      const a = fmt(rad);
-      return [{ cat: null, date: a.date, time: a.time }];
-    }
-    if (labOverview.formattedSlotDate || labOverview.formattedSlotTimeRange) {
-      return [
-        {
-          cat: null,
-          date: labOverview.formattedSlotDate ?? "—",
-          time: labOverview.formattedSlotTimeRange ?? "—",
-        },
-      ];
-    }
-    return [];
-  }, [isLabTests, labOverview]);
 
   const handleHealthContinueTap = () => {
     if (!labOverview || labSubmitting) return;

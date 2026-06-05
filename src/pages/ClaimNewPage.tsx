@@ -888,12 +888,12 @@ export function ClaimNewPage() {
   const submitClaim = useCallback(async () => {
     const m = selectedMember;
     if (!m || !bankId) {
-      toast.error("Select patient and bank");
+      toast.error("Select user and bank");
       return;
     }
     const uid = memberNumericId(m);
     if (uid == null) {
-      toast.error("Patient id missing for selected member");
+      toast.error("User id missing for selected member");
       return;
     }
     const bid = Number(bankId);
@@ -945,7 +945,7 @@ export function ClaimNewPage() {
     setOpdTermsSheet((prev) => {
       if (!prev.open) return prev;
       if (prev.variant === "step1") {
-        setStep1ImportantNoteOpen(true);
+        setTermsChecked(true);
       }
       return { open: false };
     });
@@ -958,11 +958,10 @@ export function ClaimNewPage() {
       phone.trim().length >= 10 &&
       email.trim().length > 3;
     if (!ready) {
-      toast.error("Please complete patient, bank, and contact details before continuing");
+      toast.error("Please complete user, bank, and contact details before continuing");
       setStep1ImportantNoteOpen(false);
       return;
     }
-    setTermsChecked(true);
     setStep1ImportantNoteOpen(false);
     setStep(2);
   }, [memberId, bankId, phone, email, toast]);
@@ -1088,7 +1087,7 @@ export function ClaimNewPage() {
               {done ? "✓" : n}
             </div>
             <span className={`claim-stepper__label${active ? " claim-stepper__label--active" : ""}`}>
-              {n === 1 ? "Patient" : n === 2 ? "Bills" : "Review"}
+              {n === 1 ? "User" : n === 2 ? "Bills" : "Review"}
             </span>
           </div>
         );
@@ -1285,12 +1284,12 @@ export function ClaimNewPage() {
                   </svg>
                 </span>
                 <h2 id="claim-ro-patient-title" className="claim-ro-card__title">
-                  Patient details
+                  User details
                 </h2>
               </div>
               <dl className="claim-ro-dl">
                 <div className="claim-ro-dl__row">
-                  <dt>Patient name</dt>
+                  <dt>User name</dt>
                   <dd>{selectedMember?.name ?? "—"}</dd>
                 </div>
                 <div className="claim-ro-dl__row">
@@ -1638,7 +1637,7 @@ export function ClaimNewPage() {
         </div>
       ) : null}
 
-      {/* Step 1: after T&amp;C Continue — Important Note, then Continue → Bills (step 2) */}
+      {/* Step 1: after main Continue — Important Note, then Continue → Bills (step 2) */}
       {step1ImportantNoteOpen && step === 1 ? (
         <div
           className="claim-overlay claim-overlay--step1-important-note"
@@ -1690,7 +1689,7 @@ export function ClaimNewPage() {
           <section className="addr-sheet">
             <header className="addr-sheet__header">
               <h2 id="claim-member-sheet-title" className="addr-sheet__title">
-                Select patient
+                Select user
               </h2>
               <button
                 type="button"
@@ -1714,9 +1713,9 @@ export function ClaimNewPage() {
                 : "Choose who this claim is for."}
             </p>
             {members.length === 0 ? (
-              <p className="addr-sheet__empty">No saved patients yet.</p>
+              <p className="addr-sheet__empty">No saved users yet.</p>
             ) : (
-              <ul className="addr-sheet__list" role="radiogroup" aria-label="Patients">
+              <ul className="addr-sheet__list" role="radiogroup" aria-label="Users">
                 {members.map((m) => {
                   const inputId = `claim-member-${m.id}`;
                   const inactive = !m.isSubscribed;

@@ -1,5 +1,6 @@
 import type { BookingSuccessLocationState } from "@/constants/bookingSuccessNavigation";
 import type { NormalizedBookingOverview } from "@/api/patientDiagnosticsLab";
+import { formatDiagnosticsSuccessScheduleDisplay } from "@/api/patientDiagnosticsLab";
 import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
 
 const DEFAULT_SUB =
@@ -35,6 +36,11 @@ export function buildDiagnosticsBookingSuccessState(args: {
   const tag = (args.locationTag ?? "Home").trim() || "Home";
   const addr = args.addressLine.trim();
   const locationValue = addr ? `${tag}\n${addr}` : tag;
+  const scheduleFromOverview =
+    args.overview?.bookingSlots.length
+      ? formatDiagnosticsSuccessScheduleDisplay(args.overview.bookingSlots)
+      : "";
+  const scheduleDisplay = args.scheduleDisplay.trim() || scheduleFromOverview || "—";
 
   return {
     layout: "summary",
@@ -46,7 +52,7 @@ export function buildDiagnosticsBookingSuccessState(args: {
       { label: "Booked for", value: bookedFor },
       { label: "Service", value: serviceNames },
       { label: "Location", value: locationValue },
-      { label: "Schedule", value: args.scheduleDisplay.trim() || "—" },
+      { label: "Schedule", value: scheduleDisplay },
     ],
     orderDetailCategoryKey: "lab",
     /** `GET /invoice/:invoiceId` — document invoice id for `/order/lab/:invoiceId`, not partner `info.id`. */

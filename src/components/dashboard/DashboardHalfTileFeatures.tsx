@@ -1,7 +1,14 @@
 import atHospitalSvg from "@/assets/icons/Dashboard/AtHospital.svg";
 import virtualSvg from "@/assets/icons/Dashboard/Virtual.svg";
 import type { DashboardHalfTileFeature } from "@/lib/dashboardServiceGrid";
+import {
+  MdOutlineLocalMall,
+  MdOutlineMedication,
+  MdOutlineVaccines,
+} from "react-icons/md";
 import "./DashboardHalfTileFeatures.css";
+
+const FEATURE_MD_ICON_SIZE = 10;
 
 function FeatureIcon({ icon }: Readonly<{ icon: DashboardHalfTileFeature["icon"] }>) {
   if (icon === "virtual") {
@@ -9,8 +16,8 @@ function FeatureIcon({ icon }: Readonly<{ icon: DashboardHalfTileFeature["icon"]
       <img
         src={virtualSvg}
         alt=""
-        width={10}
-        height={10}
+        width={FEATURE_MD_ICON_SIZE}
+        height={FEATURE_MD_ICON_SIZE}
         draggable={false}
         className="home-card__feature-ic home-card__feature-ic--img"
       />
@@ -21,10 +28,37 @@ function FeatureIcon({ icon }: Readonly<{ icon: DashboardHalfTileFeature["icon"]
       <img
         src={atHospitalSvg}
         alt=""
-        width={10}
-        height={10}
+        width={FEATURE_MD_ICON_SIZE}
+        height={FEATURE_MD_ICON_SIZE}
         draggable={false}
         className="home-card__feature-ic home-card__feature-ic--img"
+      />
+    );
+  }
+  if (icon === "medication") {
+    return (
+      <MdOutlineMedication
+        aria-hidden
+        size={FEATURE_MD_ICON_SIZE}
+        className="home-card__feature-ic home-card__feature-ic--md"
+      />
+    );
+  }
+  if (icon === "local-mall") {
+    return (
+      <MdOutlineLocalMall
+        aria-hidden
+        size={FEATURE_MD_ICON_SIZE}
+        className="home-card__feature-ic home-card__feature-ic--md"
+      />
+    );
+  }
+  if (icon === "vaccines") {
+    return (
+      <MdOutlineVaccines
+        aria-hidden
+        size={FEATURE_MD_ICON_SIZE}
+        className="home-card__feature-ic home-card__feature-ic--md"
       />
     );
   }

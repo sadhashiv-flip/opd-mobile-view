@@ -188,6 +188,19 @@ export const activitySubmitPayloads = {
     };
   },
 
+  /**
+   * Fitness video watch time — legacy `fitness_streaming_view.dart` reward / watching goal.
+   * Submitted on workout Complete (not per round). POST `/patient/parameters`.
+   */
+  fitnessVideoWatch(args: Readonly<{ sourceId: number | string; secondsWatched: number }>): Record<string, unknown> {
+    return {
+      category: "watching",
+      source: "fitness_video",
+      source_id: String(args.sourceId),
+      value: String(Math.max(0, Math.round(args.secondsWatched))),
+    };
+  },
+
   bmi(heightFeetDotInches: string, weightKg: string): Record<string, unknown> {
     return {
       ref: "general",

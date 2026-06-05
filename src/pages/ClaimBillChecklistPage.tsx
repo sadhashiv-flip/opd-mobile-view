@@ -206,7 +206,7 @@ function Stepper() {
     <div className="claim-bc-stepper" aria-label="Claim steps">
       <div className="claim-bc-step claim-bc-step--done">
         <div className="claim-bc-step__circle">✓</div>
-        <span className="claim-bc-step__label">Patient</span>
+        <span className="claim-bc-step__label">User</span>
       </div>
       <div className="claim-bc-step__bar claim-bc-step__bar--active" aria-hidden />
       <div className="claim-bc-step claim-bc-step--active">

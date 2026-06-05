@@ -33,8 +33,8 @@ export function profileInitialsFromRaw(body: unknown): string {
     asRecord(root.data) ??
     (asRecord(root.patient) ?? root);
 
-  const first = str(pickUser.first_name) ?? "";
-  const last = str(pickUser.last_name) ?? "";
+  const first = str(pickUser.first_name) ?? str(pickUser.firstName) ?? "";
+  const last = str(pickUser.last_name) ?? str(pickUser.lastName) ?? "";
   const f = first.length > 0 ? first.charAt(0).toUpperCase() : "";
   const l = last.length > 0 ? last.charAt(0).toUpperCase() : "";
   const fromParts = `${f}${l}`;

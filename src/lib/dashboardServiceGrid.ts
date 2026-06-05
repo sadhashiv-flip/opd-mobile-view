@@ -36,8 +36,8 @@ export const DASHBOARD_HALF_TILE_ORDER: readonly DashboardHalfTileKind[] = [
 /** Feature chip on a half-tile — `ServiceFeature` / `service_grid.dart`. */
 export type DashboardHalfTileFeature = Readonly<{
   label: string;
-  icon?: "virtual" | "at-hospital";
-  tone?: "green" | "brand" | "muted";
+  icon?: "virtual" | "at-hospital" | "medication" | "local-mall" | "vaccines";
+  tone?: "green" | "brand" | "muted" | "primary";
 }>;
 
 /** Half-tile labels — aligned with patient_app `service_grid.dart` + `string_define.dart`. */
@@ -69,13 +69,13 @@ export const DASHBOARD_HALF_TILE_COPY: Record<DashboardHalfTileKind, DashboardHa
   pharmacy: {
     title: "Pharmacy",
     features: [
-      { label: "Prescribed", tone: "muted" },
-      { label: "OTC Products", tone: "muted" },
+      { label: "Prescribed", icon: "medication", tone: "primary" },
+      { label: "OTC Products", icon: "local-mall", tone: "primary" },
     ],
   },
   vaccination: {
     title: "Vaccination",
-    features: [{ label: "Vaccination Center", tone: "muted" }],
+    features: [{ label: "Vaccination Center", icon: "vaccines", tone: "primary" }],
   },
   vision: {
     title: "Vision",

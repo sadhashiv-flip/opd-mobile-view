@@ -58,3 +58,9 @@
   display: block;
   object-fit: contain;
 }
+
+.profile-avatar-thumb__initials--static {
+  position: static;
+  width: 100%;
+  height: 100%;
+}
