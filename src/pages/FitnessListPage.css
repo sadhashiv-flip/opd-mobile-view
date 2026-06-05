@@ -1,7 +1,10 @@
 .fitness-list-page {
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
   background: #f6f7f9;
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
@@ -16,6 +19,11 @@
 
 .fitness-list-page__main {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding: 12px 14px 24px;
   max-width: 560px;
   margin: 0 auto;
@@ -33,6 +41,18 @@
   background: transparent;
   color: #ff6000;
   border-radius: 10px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+@media (hover: hover) {
+  .fitness-list__header-action:hover {
+    background: rgba(255, 96, 0, 0.1);
+    transform: scale(1.05);
+  }
+}
+
+.fitness-list__header-action:active {
+  transform: scale(0.96);
 }
 
 .fitness-list__loading {
@@ -153,11 +173,15 @@
 
 .fitness-section__scroll {
   display: flex;
+  flex-wrap: nowrap;
   gap: 12px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 6px;
   scrollbar-width: none;
+  -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .fitness-section__scroll::-webkit-scrollbar {
@@ -182,6 +206,26 @@
   overflow: hidden;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  transition:
+    box-shadow 0.22s ease,
+    transform 0.22s ease,
+    border-color 0.22s ease;
+}
+
+@media (hover: hover) {
+  .fitness-card--horizontal:hover .fitness-card__surface {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+    border-color: rgba(255, 96, 0, 0.55);
+  }
+
+  .fitness-card--horizontal:hover .fitness-card__img {
+    transform: scale(1.05);
+  }
+}
+
+.fitness-card--horizontal .fitness-card__surface:active {
+  transform: translateY(-1px) scale(0.98);
 }
 
 .fitness-card__surface {
@@ -200,6 +244,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.28s ease;
 }
 
 .fitness-card__placeholder {
@@ -224,6 +269,22 @@
   border: none;
   padding: 0;
   z-index: 1;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .fitness-card--horizontal .fitness-card__fav-hit:hover {
+    background: #fff;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(255, 96, 0, 0.25);
+  }
+}
+
+.fitness-card--horizontal .fitness-card__fav-hit:active {
+  transform: scale(0.94);
 }
 
 .fitness-card__body {
@@ -286,6 +347,26 @@
   cursor: pointer;
   padding: 0;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  transition:
+    box-shadow 0.22s ease,
+    transform 0.22s ease,
+    border-color 0.22s ease;
+}
+
+@media (hover: hover) {
+  .fitness-list__fav-grid .fitness-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+    border-color: rgba(255, 96, 0, 0.45);
+  }
+
+  .fitness-list__fav-grid .fitness-card:hover .fitness-card__img {
+    transform: scale(1.04);
+  }
+}
+
+.fitness-list__fav-grid .fitness-card:active {
+  transform: scale(0.99);
 }
 
 .fitness-list__fav-grid .fitness-card__media {

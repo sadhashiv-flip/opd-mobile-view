@@ -6,6 +6,7 @@ type ProfileHeaderProps = Readonly<{
   profileImage: string | null;
   initials: string;
   empId: string | null;
+  onViewProfilePhoto?: () => void;
   onChangeProfilePhoto?: () => void;
   profileImageBusy?: boolean;
 }>;
@@ -29,6 +30,7 @@ export function ProfileHeader({
   profileImage,
   initials,
   empId,
+  onViewProfilePhoto,
   onChangeProfilePhoto,
   profileImageBusy = false,
 }: ProfileHeaderProps) {
@@ -48,9 +50,9 @@ export function ProfileHeader({
           <button
             type="button"
             className="profile-page__avatar-btn"
-            aria-label="Update profile photo"
-            disabled={profileImageBusy || !onChangeProfilePhoto}
-            onClick={() => onChangeProfilePhoto?.()}
+            aria-label="View profile photo"
+            disabled={profileImageBusy || !onViewProfilePhoto}
+            onClick={() => onViewProfilePhoto?.()}
           >
             <div className="profile-page__avatar-wrap">
               {showAvatarImage ? (
@@ -72,9 +74,14 @@ export function ProfileHeader({
             ) : null}
           </button>
           {onChangeProfilePhoto && !profileImageBusy ? (
-            <span className="profile-page__avatar-edit-badge" aria-hidden>
+            <button
+              type="button"
+              className="profile-page__avatar-edit-badge"
+              aria-label="Update profile photo"
+              onClick={() => onChangeProfilePhoto()}
+            >
               <IconCamera />
-            </span>
+            </button>
           ) : null}
         </div>
         <div className="profile-page__hero-copy">

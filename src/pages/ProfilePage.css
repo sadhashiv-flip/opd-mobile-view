@@ -218,12 +218,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   border-radius: 50%;
   background: #ffffff;
   color: var(--color-brand-orange);
   border: 2px solid #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  pointer-events: none;
+  cursor: pointer;
+  transition: transform 0.14s ease;
+}
+
+.profile-page__avatar-edit-badge:active {
+  transform: scale(0.92);
 }
 
 .profile-page__avatar {

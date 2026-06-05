@@ -68,6 +68,8 @@ optgroup {
 
 /* Outer wrapper: centers the phone column on wide viewports. All routed UI lives under this tree. */
 .mobile-app-root {
+  position: relative;
+  isolation: isolate;
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
@@ -75,6 +77,7 @@ optgroup {
   display: flex;
   justify-content: center;
   background: #e8e8e8;
+  overflow: hidden;
 }
 
 /**
@@ -113,6 +116,7 @@ optgroup {
   box-sizing: border-box;
   background: #ffffff;
   position: relative;
+  z-index: 1;
   /* No transform here: transform creates a containing block so position:fixed (bottom nav, etc.)
    * is pinned to this column and scrolls away with document scroll on mobile browsers. */
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);

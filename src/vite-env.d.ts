@@ -75,6 +75,8 @@ interface ImportMetaEnv {
   readonly VITE_SSO_USE_MOCK?: string;
   /** Relative path on API host root for IAM token exchange (`access_token`), then client loads `GET /patient/profile`. Default `iam/auth/sso/token-exchange`. */
   readonly VITE_SSO_EXCHANGE_PATH?: string;
+  /** `"true"` — orange fluid cursor in desktop side gutters outside `.mobile-frame`. Anything else — off. */
+  readonly VITE_ENABLE_SPLASH_CURSOR?: string;
 }
 
 interface ImportMeta {

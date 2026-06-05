@@ -8,6 +8,7 @@ import { InfoGrid, type InfoGridItem } from "@/components/profile/page/InfoGrid"
 import { ProfileCard } from "@/components/profile/page/ProfileCard";
 import { ProfileHeader } from "@/components/profile/page/ProfileHeader";
 import { ProfileNavList, type ProfileNavItem } from "@/components/profile/page/ProfileNavList";
+import { ProfilePhotoFullscreenViewer } from "@/components/profile/page/ProfilePhotoFullscreenViewer";
 import { ProfilePhotoSourceSheet } from "@/components/profile/page/ProfilePhotoSourceSheet";
 import {
   formatProfileDob,
@@ -160,6 +161,7 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [photoSheetOpen, setPhotoSheetOpen] = useState(false);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [profileImageBusy, setProfileImageBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -302,6 +304,7 @@ export function ProfilePage() {
               profileImage={profile.image}
               initials={initialsFromName(profile.name)}
               empId={profile.empId}
+              onViewProfilePhoto={() => setPhotoViewerOpen(true)}
               onChangeProfilePhoto={() => setPhotoSheetOpen(true)}
               profileImageBusy={profileImageBusy}
             />
@@ -333,6 +336,21 @@ export function ProfilePage() {
           </>
         ) : null}
       </main>
+
+      {profile ? (
+        <ProfilePhotoFullscreenViewer
+          open={photoViewerOpen}
+          onClose={() => setPhotoViewerOpen(false)}
+          profileImage={profile.image}
+          initials={initialsFromName(profile.name)}
+          name={profile.name}
+          busy={profileImageBusy}
+          onEdit={() => {
+            setPhotoViewerOpen(false);
+            setPhotoSheetOpen(true);
+          }}
+        />
+      ) : null}
 
       <ProfilePhotoSourceSheet
         open={photoSheetOpen}
