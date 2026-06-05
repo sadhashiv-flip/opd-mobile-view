@@ -212,7 +212,6 @@ export function mergeGenericBookingSuccessState(
     viewOrderDetailPath: s?.viewOrderDetailPath,
     doneNavigateTo: s?.doneNavigateTo,
     appointmentReferenceId: s?.appointmentReferenceId,
-    successUiVariant: s?.successUiVariant,
   };
 }
 
