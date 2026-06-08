@@ -242,7 +242,7 @@ function bankAccountTail(b: PatientBankRecord): string {
   return n.length >= 4 ? n.slice(-4) : n;
 }
 
-/** Shared copy for first-time gate and in-flow terms sheets (OPD reimbursement). */
+/** Shared copy for in-flow terms sheet (OPD reimbursement). */
 function ClaimOpdGeneralTermsBody() {
   return (
     <div className="claim-terms-box claim-terms-box--scroll">
@@ -287,7 +287,7 @@ function ClaimOpdGeneralTermsBody() {
   );
 }
 
-/** Important note shown after T&amp;C (first-run gate and step-1 agree flow). */
+/** Important note shown after step-1 Continue. */
 function ClaimImportantNoteBody() {
   return (
     <div className="claim-terms-box claim-terms-box--scroll">
@@ -321,12 +321,6 @@ export function ClaimNewPage() {
 
   const maxBillDate = localYyyyMmDd(new Date());
 
-  const [gate, setGate] = useState<"terms" | "note" | "done">(() =>
-    typeof globalThis.sessionStorage !== "undefined" &&
-      globalThis.sessionStorage.getItem(CLAIMS_DISCLOSURES_GATE_SESSION_KEY) === "1"
-      ? "done"
-      : "terms",
-  );
   const [step, setStep] = useState<StepId>(1);
   const [members, setMembers] = useState<MemberDisplay[]>([]);
   const [profilePhone, setProfilePhone] = useState("");
@@ -377,7 +371,6 @@ export function ClaimNewPage() {
   const [opdTermsSheet, setOpdTermsSheet] = useState<OpdTermsSheetState>({ open: false });
   const [step1ImportantNoteOpen, setStep1ImportantNoteOpen] = useState(false);
 
-  const gateTermsScroll = useTermsScrollGate(gate === "terms");
   const opdTermsScroll = useTermsScrollGate(opdTermsSheet.open);
 
   useEffect(() => {
@@ -945,6 +938,7 @@ export function ClaimNewPage() {
     setOpdTermsSheet((prev) => {
       if (!prev.open) return prev;
       if (prev.variant === "step1") {
+        sessionStorage.setItem(CLAIMS_DISCLOSURES_GATE_SESSION_KEY, "1");
         setTermsChecked(true);
       }
       return { open: false };
@@ -1574,68 +1568,6 @@ export function ClaimNewPage() {
           ) : null}
         </div>
       </div>
-
-      {/* Gate: General T&C */}
-      {gate === "terms" ? (
-        <div className="claim-overlay" role="dialog" aria-modal>
-          <div className="claim-sheet claim-sheet--opd-terms">
-            <div className="claim-sheet__head">
-              <h2 className="claim-sheet__title">General Terms &amp; Conditions for OPD Claims</h2>
-              <button type="button" className="claim-sheet__close" aria-label="Close" onClick={() => navigate(returnPath)}>
-                ×
-              </button>
-            </div>
-            <div
-              ref={gateTermsScroll.scrollRef}
-              className="claim-sheet__body claim-sheet__body--terms"
-              onScroll={gateTermsScroll.onScroll}
-            >
-              <ClaimOpdGeneralTermsBody />
-            </div>
-            <div className="claim-sheet__footer">
-              <button
-                type="button"
-                className="claim-sheet__btn-black"
-                style={{ flex: 1 }}
-                disabled={!gateTermsScroll.scrolledToEnd}
-                onClick={() => setGate("note")}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Gate: Important note */}
-      {gate === "note" ? (
-        <div className="claim-overlay" role="dialog" aria-modal>
-          <div className="claim-sheet">
-            <div className="claim-sheet__head">
-              <h2 className="claim-sheet__title">Important Note:</h2>
-              <button type="button" className="claim-sheet__close" aria-label="Close" onClick={() => navigate(returnPath)}>
-                ×
-              </button>
-            </div>
-            <div className="claim-sheet__body claim-sheet__body--terms">
-              <ClaimImportantNoteBody />
-            </div>
-            <div className="claim-sheet__footer">
-              <button
-                type="button"
-                className="claim-sheet__btn-black"
-                style={{ flex: 1 }}
-                onClick={() => {
-                  sessionStorage.setItem(CLAIMS_DISCLOSURES_GATE_SESSION_KEY, "1");
-                  setGate("done");
-                }}
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Step 1: after main Continue — Important Note, then Continue → Bills (step 2) */}
       {step1ImportantNoteOpen && step === 1 ? (
