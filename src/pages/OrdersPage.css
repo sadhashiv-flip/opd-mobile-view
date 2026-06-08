@@ -5,18 +5,19 @@
   min-height: 0;
   max-height: 100%;
   width: 100%;
-  overflow-x: clip;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overflow: hidden;
   background: linear-gradient(180deg, #faf8f6 0%, #f5f3f0 38%, #ffffff 100%);
   color: #111111;
 }
 
 .orders-page__main {
-  flex: 0 0 auto;
-  padding: 12px var(--page-pad-x, 16px) 16px;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 12px var(--page-pad-x, 16px) 16px;
 }
 
 .orders-page__title-row {

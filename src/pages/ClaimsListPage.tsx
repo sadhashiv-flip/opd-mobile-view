@@ -155,10 +155,10 @@ export function ClaimsListPage() {
   const openClaim = useCallback(
     (row: ReimbursementClaimSummary) => {
       navigate(generatePath(ROUTES.claimsDetail, { claimId: row.id }), {
-        state: { returnPath, summary: row },
+        state: { returnPath: ROUTES.claims, summary: row },
       });
     },
-    [navigate, returnPath],
+    [navigate],
   );
 
   return (

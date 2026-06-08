@@ -46,12 +46,15 @@ export function HomeBottomNav({ visible = true, aboveBar }: HomeBottomNavProps) 
 
   return (
     <>
-      {stacked ? <div className="home-nav-dock-spacer" aria-hidden="true" /> : null}
+      {stacked ? (
+        <div className="home-nav-dock-spacer" aria-hidden="true" />
+      ) : (
+        <div className="home-nav-spacer" aria-hidden="true" />
+      )}
       <div
-        className={`home-nav-shell${visible ? "" : " home-nav-shell--hidden"}${stacked ? " home-nav-shell--stacked" : ""}`}
+        className={`home-nav-shell home-nav-shell--dock${visible ? "" : " home-nav-shell--hidden"}${stacked ? " home-nav-shell--stacked" : ""}`}
       >
         {stacked ? <div className="home-nav-shell__above">{aboveBar}</div> : null}
-        {!stacked ? <div className="home-nav-spacer" aria-hidden="true" /> : null}
         <nav className="home-nav" aria-label="Primary">
         <div className="home-nav__plate">
           <svg

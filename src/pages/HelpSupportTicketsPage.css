@@ -1,7 +1,11 @@
 .help-support-tickets {
-  min-height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: #f4f6f8;
   container-type: inline-size;
   /* Align fixed FAB with `.mobile-frame` column (see ProfileBankPage `--bank-list-frame-*`) */
@@ -32,7 +36,7 @@
 }
 
 .help-support-tickets--with-nav .help-support-tickets__main {
-  padding-bottom: 120px;
+  padding-bottom: 16px;
 }
 
 .help-support-tickets--with-nav .help-support-tickets__fab {
@@ -61,6 +65,9 @@
 
 .help-support-tickets__main {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px 16px 96px;
 }
 

@@ -12,9 +12,8 @@ import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember"
 import { MEMBER_NOT_ACTIVATED_LABEL, memberSubtitleFromDisplay } from "@/lib/gymMemberDisplay";
 import { getAuthSession } from "@/lib/authStorage";
 import { fetchMentalWellnessTypes, type WellnessTypeOption } from "@/api/wellnessSession";
+import { WELLNESS_IMAGE_URLS } from "@/assets/images/wellness";
 import { useToast } from "@/hooks/useToast";
-import mentalWellnessSvg from "@/assets/icons/patient-app/hub/services/mentalWellness.svg";
-import nutritionServicesSvg from "@/assets/icons/patient-app/hub/services/nutritionServices.svg";
 import { SearchablePickerField } from "@/components/wellness/SearchablePickerField";
 import { WellnessSectionCard } from "@/components/wellness/WellnessSectionCard";
 import type { WellnessReviewLocationState } from "@/pages/WellnessSessionReviewPage";
@@ -79,7 +78,8 @@ export function WellnessSessionPage() {
   const [language, setLanguage] = useState(restore?.language ?? "English");
 
   const pageTitle = isMental ? WELLNESS_PAGE_TITLE.mental : WELLNESS_PAGE_TITLE.nutrition;
-  const heroIcon = isMental ? mentalWellnessSvg : nutritionServicesSvg;
+  /** patient-app `MentalWellnessScreen._buildHeroImage` — same PNG for both flows. */
+  const heroImage = WELLNESS_IMAGE_URLS.mentalWellnessCard;
   const description = isMental ? WELLNESS_DESCRIPTION.mental : WELLNESS_DESCRIPTION.nutrition;
   const service = isMental ? "Mental Wellness" : "Diet & Nutrition";
 
@@ -289,7 +289,7 @@ export function WellnessSessionPage() {
       <main className="wellness-session-page__scroll">
         <div className="wellness-session-page__hero-wrap">
           <div className="wellness-session-page__hero-banner">
-            <img src={heroIcon} alt="" className="wellness-session-page__hero-img" draggable={false} />
+            <img src={heroImage} alt="" className="wellness-session-page__hero-img" draggable={false} />
           </div>
           <p className="wellness-session-page__description">{description}</p>
         </div>

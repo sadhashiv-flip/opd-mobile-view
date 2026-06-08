@@ -7,28 +7,19 @@
   flex-shrink: 0;
 }
 
-.home-nav-shell--hidden .home-nav-spacer {
+.home-nav-spacer:has(+ .home-nav-shell--hidden) {
   height: 0 !important;
   transition: height 220ms cubic-bezier(0.4, 0, 1, 1);
 }
 
-.home-nav-shell:not(.home-nav-shell--hidden) .home-nav-spacer {
+.home-nav-dock-spacer:has(+ .home-nav-shell--hidden) {
+  height: 0 !important;
+  transition: height 220ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.home-nav-spacer:has(+ .home-nav-shell:not(.home-nav-shell--hidden)),
+.home-nav-dock-spacer:has(+ .home-nav-shell:not(.home-nav-shell--hidden)) {
   transition: height 220ms cubic-bezier(0, 0, 0.2, 1);
-}
-
-.home-nav-shell--hidden .home-nav__plate {
-  transform: translateY(calc(100% + 24px));
-  transition: transform 220ms cubic-bezier(0.4, 0, 1, 1);
-  pointer-events: none;
-}
-
-.home-nav-shell--stacked.home-nav-shell--hidden .home-nav__plate {
-  transform: none;
-  pointer-events: none;
-}
-
-.home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate {
-  transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
 }
 
 :root {
@@ -40,8 +31,10 @@
     sepia(0%) saturate(0%) hue-rotate(0deg) brightness(94%) contrast(86%);
   /* Flutter `_navBarHeight` */
   --home-nav-plate-h: 60px;
+  /* Extra breathing room above tab icons inside the white bar */
+  --home-nav-plate-pad-top: 10px;
   --home-bottom-nav-height: calc(
-    var(--home-nav-plate-h) + env(safe-area-inset-bottom, 0px)
+    var(--home-nav-plate-h) + var(--home-nav-plate-pad-top) + env(safe-area-inset-bottom, 0px)
   );
   --home-bottom-nav-spacer-height: var(--home-bottom-nav-height);
   /* Flutter `EdgeInsets.fromLTRB(16, 0, 16, 8)` — gap between ongoing slot and nav */
@@ -76,8 +69,8 @@
   pointer-events: none;
 }
 
-/* Home: ongoing orders slot + bottom nav in one fixed column (patient-app `DashboardMainScreen`). */
-.home-nav-shell--stacked {
+/* Fixed dock — tab screens + home ongoing slot (spacer stays in page flow for clearance). */
+.home-nav-shell--dock {
   position: fixed;
   left: 50%;
   bottom: 0;
@@ -95,32 +88,21 @@
   overflow: visible;
 }
 
-.home-nav-shell--stacked.home-nav-shell--hidden {
+.home-nav-shell--dock.home-nav-shell--hidden {
   transform: translateX(-50%) translateY(calc(100% + 24px));
   transition: transform 220ms cubic-bezier(0.4, 0, 1, 1);
   pointer-events: none;
 }
 
-.home-nav-shell--stacked:not(.home-nav-shell--hidden) {
+.home-nav-shell--dock:not(.home-nav-shell--hidden) {
   transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
 }
 
-.home-nav-shell--stacked > * {
+.home-nav-shell--dock > * {
   pointer-events: auto;
 }
 
-.home-nav-shell__above {
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-  min-width: 0;
-  /* Flutter `_buildOngoingOrdersSlot`: EdgeInsets.fromLTRB(16, 0, 16, 8) */
-  padding: 0 16px var(--home-nav-dock-gap);
-  box-sizing: border-box;
-  overflow: visible;
-}
-
-.home-nav-shell--stacked .home-nav {
+.home-nav-shell--dock .home-nav {
   position: relative;
   left: auto;
   bottom: auto;
@@ -133,31 +115,33 @@
   overflow: visible;
 }
 
-.home-nav-shell--stacked .home-nav__plate {
+.home-nav-shell--dock .home-nav__plate {
   transform: none;
-  min-height: var(--home-nav-plate-h);
-  height: var(--home-nav-plate-h);
+  min-height: calc(var(--home-nav-plate-h) + var(--home-nav-plate-pad-top));
+  height: calc(var(--home-nav-plate-h) + var(--home-nav-plate-pad-top));
   aspect-ratio: auto;
   overflow: visible;
 }
 
-.home-nav-shell--stacked .home-nav__inner {
+.home-nav-shell--dock .home-nav__inner {
   padding-bottom: clamp(6px, 1.6dvh, 10px);
 }
 
-.home-nav-shell--stacked.home-nav-shell--hidden .home-nav__plate {
-  transform: none;
+/* Home: ongoing orders slot above the bar. */
+.home-nav-shell__above {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  min-width: 0;
+  /* Flutter `_buildOngoingOrdersSlot`: EdgeInsets.fromLTRB(16, 0, 16, 8) */
+  padding: 0 16px var(--home-nav-dock-gap);
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 .home-nav {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  z-index: 40;
-  transform: translateX(-50%);
   box-sizing: border-box;
   width: 100%;
-  max-width: min(var(--mobile-frame-max-width, 480px), 100%);
   padding: 0 env(safe-area-inset-right, 0px) 0 env(safe-area-inset-left, 0px);
   background: transparent;
   pointer-events: none;
@@ -166,14 +150,9 @@
 .home-nav__plate {
   position: relative;
   width: 100%;
-  min-height: var(--home-nav-plate-h);
-  height: var(--home-nav-plate-h);
+  min-height: calc(var(--home-nav-plate-h) + var(--home-nav-plate-pad-top));
+  height: calc(var(--home-nav-plate-h) + var(--home-nav-plate-pad-top));
   flex-shrink: 0;
-  transform: translateY(0);
-}
-
-.home-nav-shell:not(.home-nav-shell--stacked) .home-nav__plate {
-  min-height: var(--home-bottom-nav-height);
 }
 
 .home-nav__shape {
@@ -198,7 +177,7 @@
   gap: 0;
   pointer-events: none;
   padding:
-    clamp(6px, 1.8dvh, 10px) clamp(12px, 4cqw, 16px)
+    calc(var(--home-nav-plate-pad-top) + clamp(6px, 1.8dvh, 10px)) clamp(12px, 4cqw, 16px)
     calc(clamp(6px, 1.6dvh, 10px) + env(safe-area-inset-bottom, 0px));
 }
 
@@ -372,12 +351,10 @@
     animation: none;
   }
 
-  .home-nav-shell--hidden .home-nav-spacer,
-  .home-nav-shell:not(.home-nav-shell--hidden) .home-nav-spacer,
-  .home-nav-shell--hidden .home-nav__plate,
-  .home-nav-shell:not(.home-nav-shell--hidden) .home-nav__plate,
-  .home-nav-shell--stacked.home-nav-shell--hidden,
-  .home-nav-shell--stacked:not(.home-nav-shell--hidden) {
+  .home-nav-spacer:has(+ .home-nav-shell--hidden),
+  .home-nav-spacer:has(+ .home-nav-shell:not(.home-nav-shell--hidden)),
+  .home-nav-shell--dock.home-nav-shell--hidden,
+  .home-nav-shell--dock:not(.home-nav-shell--hidden) {
     transition: none;
   }
 }

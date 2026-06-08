@@ -1,7 +1,11 @@
 .services-hub {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  width: 100%;
+  overflow: hidden;
   background: #ffffff;
   color: #111111;
   /* Same tile size for every tab: Services, OPD Claims, Account, Help, Medical Records */
