@@ -489,6 +489,19 @@
   contain-intrinsic-size: 80px;
 }
 
+.wallet-tx-item--button {
+  width: 100%;
+  margin: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wallet-tx-item__date--muted {
+  margin-top: 2px;
+  font-size: clamp(0.625rem, 2.5vw, 0.6875rem);
+}
+
 .wallet-tx-item__icon-wrap {
   flex-shrink: 0;
   width: 42px;

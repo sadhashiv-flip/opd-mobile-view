@@ -13,6 +13,7 @@ import {
 import { WalletBalanceCard } from "@/components/wallet/WalletBalanceCard";
 import { WalletModuleBreakupGrid } from "@/components/wallet/WalletModuleBreakupGrid";
 import { WalletScreenHeader } from "@/components/wallet/WalletScreenHeader";
+import { WalletTransactionDetailSheet } from "@/components/wallet/WalletTransactionDetailSheet";
 import { WalletTransactionItem } from "@/components/wallet/WalletTransactionItem";
 import { ROUTES } from "@/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -53,6 +54,7 @@ export function WalletPage() {
   const [wallet, setWallet] = useState<WalletDisplay | null>(null);
   const [profileBody, setProfileBody] = useState<unknown>(null);
   const [recent, setRecent] = useState<readonly WalletTransactionRow[]>([]);
+  const [selectedTx, setSelectedTx] = useState<WalletTransactionRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,7 +160,7 @@ export function WalletPage() {
                 <ul className="wallet-tx-list">
                   {recent.map((row) => (
                     <li key={row.id}>
-                      <WalletTransactionItem row={row} />
+                      <WalletTransactionItem row={row} onSelect={setSelectedTx} />
                     </li>
                   ))}
                 </ul>
@@ -167,6 +169,13 @@ export function WalletPage() {
           </>
         ) : null}
       </main>
+
+      <WalletTransactionDetailSheet
+        open={selectedTx != null}
+        row={selectedTx}
+        onClose={() => setSelectedTx(null)}
+        onViewOrder={(path) => void navigate(path)}
+      />
     </div>
   );
 }

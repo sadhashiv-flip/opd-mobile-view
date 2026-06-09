@@ -49,7 +49,7 @@ export function OrderDetailWellnessSections({ detail }: OrderDetailWellnessSecti
         <div className="od-wellness-status__body">
           <p className="od-wellness-status__title">Status: {label}</p>
           {showCancelReason ? (
-            <OrderDetailCancellationReason reason={cancelReason} />
+            <OrderDetailCancellationReason reason={cancelReason} variant="inline" />
           ) : null}
         </div>
       </section>

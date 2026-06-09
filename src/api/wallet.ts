@@ -1,22 +1,13 @@
 import { applyListPaginationToPath, type ListPaginationOpts } from "@/api/listPagination";
 import { patientJson } from "@/api/patientHttp";
+import {
+  formatWalletRefTypeTitle,
+  WALLET_REF_TYPE_API_VALUES,
+  type WalletRefTypeApi,
+} from "@/constants/walletRefTypes";
+import { walletTransactionOrderDetailPath } from "@/lib/walletTransactionDisplay";
 
-/** `ref_type` values accepted by transaction search (backend). */
-export const WALLET_REF_TYPE_API_VALUES = [
-  "Consultation",
-  "Labtest",
-  "Pharmacy",
-  "Dental",
-  "Vision",
-  "Vaccine",
-  "Nutrition",
-  "Fitness",
-  "Yoga",
-  "Chronic_Optin",
-  "MentalWellnesss",
-] as const;
-
-export type WalletRefTypeApi = (typeof WALLET_REF_TYPE_API_VALUES)[number];
+export { WALLET_REF_TYPE_API_VALUES, type WalletRefTypeApi };
 
 export type WalletStatusFilter = "Success" | "Refunded";
 
@@ -47,6 +38,13 @@ export type WalletTransactionRow = Readonly<{
   statusLabel: string;
   statusTone: "success" | "refunded";
   iconVariant: "debit" | "refund";
+  patientName: string | null;
+  invoiceId: string | null;
+  refId: string | null;
+  note: string | null;
+  paymentMode: string | null;
+  paymentSource: string | null;
+  orderDetailPath: string | null;
 }>;
 
 export type WalletTransactionsPageResult = Readonly<{
@@ -347,10 +345,16 @@ function formatTxTimestamp(raw: string | null): string {
 
 function normalizeStatus(statusRaw: string | null): { label: string; tone: "success" | "refunded" } {
   const s = (statusRaw ?? "").trim().toLowerCase();
-  if (s === "refunded" || s === "refund") {
+  if (s === "refunded" || s === "refund" || s.includes("refund")) {
     return { label: "Refunded", tone: "refunded" };
   }
   return { label: statusRaw?.trim() || "Success", tone: "success" };
+}
+
+/** patient_app `OpdWalletTransaction` — `CREDIT` / `DEBIT` entry type (not `ref_type`). */
+function transactionEntryType(raw: Record<string, unknown>): "CREDIT" | "DEBIT" {
+  const typeRaw = (str(raw.type) ?? "DEBIT").trim().toUpperCase();
+  return typeRaw === "CREDIT" ? "CREDIT" : "DEBIT";
 }
 
 function parseTransactionRow(v: unknown, index: number): WalletTransactionRow | null {
@@ -362,14 +366,25 @@ function parseTransactionRow(v: unknown, index: number): WalletTransactionRow | 
     str(o.uuid) ??
     `tx-${index}`;
 
-  const refType =
+  const refTypeRaw =
     str(o.ref_type) ??
     str(o.refType) ??
-    str(o.type) ??
+    str(o.module) ??
+    str(o.purpose) ??
     str(o.title) ??
     "Transaction";
 
+  const patientRec = asRecord(o.patient);
+  const patientName = patientRec ? str(patientRec.name) : null;
+  const invoiceId = str(o.invoice_id) ?? str(o.invoiceId);
+  const refId = str(o.ref_id) ?? str(o.refId) ?? str(o.reference_id) ?? str(o.referenceId);
+  const note = str(o.note);
+  const paymentMode = str(o.payment_mode) ?? str(o.paymentMode);
+  const paymentSource = str(o.payment_src) ?? str(o.paymentSrc) ?? str(o.payment_source);
+
   const created =
+    str(o.payment_date) ??
+    str(o.paymentDate) ??
     str(o.created_at) ??
     str(o.createdAt) ??
     str(o.timestamp) ??
@@ -380,40 +395,46 @@ function parseTransactionRow(v: unknown, index: number): WalletTransactionRow | 
     num(o.value) ??
     num(o.transaction_amount);
 
-  const isRefund =
-    o.is_refund === true ||
-    o.isRefund === true ||
-    (typeof o.transaction_type === "string" && o.transaction_type.toLowerCase().includes("refund")) ||
-    (typeof o.type === "string" && o.type.toLowerCase().includes("refund"));
-
   const statusRaw = str(o.status);
   const { label: statusLabel, tone: statusTone } = normalizeStatus(statusRaw);
 
-  let amountIsCredit = isRefund;
+  const txnTypeRaw = (str(o.transaction_type) ?? "").toLowerCase();
+  const isRefund =
+    statusTone === "refunded" ||
+    o.is_refund === true ||
+    o.isRefund === true ||
+    txnTypeRaw.includes("refund");
+
+  const entryType = transactionEntryType(o);
+  const amountIsCredit = isRefund || entryType === "CREDIT";
+
   let amountFormatted = "—";
   if (amountNum != null) {
-    const signFromApi = num(o.signed_amount);
-    if (signFromApi == null) {
-      amountIsCredit = isRefund || amountNum < 0;
-      amountFormatted = formatInrSigned(Math.abs(amountNum), amountIsCredit);
-    } else {
-      amountIsCredit = signFromApi > 0 || isRefund;
-      amountFormatted = formatInrSigned(Math.abs(signFromApi), amountIsCredit);
-    }
+    amountFormatted = formatInrSigned(Math.abs(amountNum), amountIsCredit);
   }
 
-  const iconVariant: "debit" | "refund" =
-    statusTone === "refunded" || isRefund ? "refund" : "debit";
+  const iconVariant: "debit" | "refund" = isRefund ? "refund" : "debit";
+  const orderDetailPath = walletTransactionOrderDetailPath({
+    refType: refTypeRaw,
+    invoiceId,
+  });
 
   return {
     id,
-    title: refType.toUpperCase(),
+    title: formatWalletRefTypeTitle(refTypeRaw),
     dateLabel: formatTxTimestamp(created),
     amountFormatted,
     amountIsCredit,
     statusLabel,
     statusTone,
     iconVariant,
+    patientName,
+    invoiceId,
+    refId,
+    note,
+    paymentMode,
+    paymentSource,
+    orderDetailPath,
   };
 }
 

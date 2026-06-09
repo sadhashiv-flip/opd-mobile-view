@@ -201,7 +201,7 @@ export function ProfilePage() {
       },
       {
         key: "members",
-        title: "Members",
+        title: "Family Accounts",
         to: ROUTES.profileMembers,
         iconSrc: accountFamilyAccountsSvg,
       },

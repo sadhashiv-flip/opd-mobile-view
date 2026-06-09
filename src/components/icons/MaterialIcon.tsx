@@ -10,16 +10,26 @@ export type MaterialIconProps = Readonly<{
   codePoint?: number;
   size?: number;
   className?: string;
+  /** Use Material Icons Round — matches Flutter `Icons.*_rounded`. */
+  rounded?: boolean;
 }>;
 
-export function MaterialIcon({ name, codePoint, size = 24, className }: MaterialIconProps) {
+export function MaterialIcon({
+  name,
+  codePoint,
+  size = 24,
+  className,
+  rounded = false,
+}: MaterialIconProps) {
   const glyph =
     codePoint != null ? String.fromCodePoint(codePoint) : (name?.trim() ?? "");
   if (!glyph) return null;
 
+  const roundClass = rounded ? " material-icons--round" : "";
+
   return (
     <span
-      className={`material-icons${className ? ` ${className}` : ""}`}
+      className={`material-icons${roundClass}${className ? ` ${className}` : ""}`}
       style={{ fontSize: size, width: size, height: size }}
       aria-hidden
     >

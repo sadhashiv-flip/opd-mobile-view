@@ -11,6 +11,7 @@ import {
 } from "@/lib/walletSubscriptionModules";
 import { WalletFilterBottomSheet } from "@/components/wallet/WalletFilterBottomSheet";
 import { WalletScreenHeader } from "@/components/wallet/WalletScreenHeader";
+import { WalletTransactionDetailSheet } from "@/components/wallet/WalletTransactionDetailSheet";
 import { WalletTransactionItem } from "@/components/wallet/WalletTransactionItem";
 import { ROUTES } from "@/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -48,6 +49,7 @@ export function WalletAllTransactionsPage() {
   const [statusFilter, setStatusFilter] = useState<WalletStatusFilter | null>(null);
   const [refTypeFilter, setRefTypeFilter] = useState<WalletRefTypeApi | null>(null);
   const [profileBody, setProfileBody] = useState<unknown>(null);
+  const [selectedTx, setSelectedTx] = useState<WalletTransactionRow | null>(null);
 
   const hiddenRefTypes = useMemo(() => {
     const cat = computeHiddenWalletCategoryKeys(profileBody, subId);
@@ -183,7 +185,7 @@ export function WalletAllTransactionsPage() {
           <ul className="wallet-tx-list">
             {items.map((row) => (
               <li key={row.id}>
-                <WalletTransactionItem row={row} />
+                <WalletTransactionItem row={row} onSelect={setSelectedTx} />
               </li>
             ))}
           </ul>
@@ -210,6 +212,13 @@ export function WalletAllTransactionsPage() {
         initialStatus={statusFilter}
         initialRefType={refTypeFilter}
         hiddenRefTypes={hiddenRefTypes}
+      />
+
+      <WalletTransactionDetailSheet
+        open={selectedTx != null}
+        row={selectedTx}
+        onClose={() => setSelectedTx(null)}
+        onViewOrder={(path) => void navigate(path)}
       />
     </div>
   );

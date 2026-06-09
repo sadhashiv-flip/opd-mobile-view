@@ -31,6 +31,12 @@ export type MemberDisplay = Readonly<{
    * When omitted, treated as subscribed so older API shapes keep working.
    */
   isSubscribed: boolean;
+  /** Members API `canActivate` / `can_activate` — plan has a slot this dependent can use. */
+  canActivate: boolean;
+  /** Corporate employee id when provided (`empId` / `emp_id`). */
+  empId: string | null;
+  /** Profile photo path or URL from members API (`image`). */
+  image: string | null;
 }>;
 
 function str(v: unknown): string | null {
@@ -178,6 +184,11 @@ function deriveIsSubscribed(o: Record<string, unknown>): boolean {
   return true;
 }
 
+function deriveCanActivate(o: Record<string, unknown>): boolean {
+  const raw = o.canActivate ?? o.can_activate;
+  return raw === true || raw === 1 || raw === "1";
+}
+
 function deriveStatusLabel(o: Record<string, unknown>): string | null {
   const statusFlag = coerceFiniteNumber(o.status);
   if (statusFlag === 1) return "Active";
@@ -253,6 +264,9 @@ function normalizeMember(
     email: str(o.email) ?? str(o.email_id),
     ahcAvailable: o.AHCAvailable === true || o.ahcAvailable === true,
     isSubscribed: deriveIsSubscribed(o),
+    canActivate: deriveCanActivate(o),
+    empId: str(o.empId) ?? str(o.emp_id),
+    image: str(o.image) ?? str(o.photo) ?? str(o.profile_image) ?? str(o.profileImage),
   };
 }
 

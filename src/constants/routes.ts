@@ -34,6 +34,8 @@ export const ROUTES = {
   profileMembers: "/profile/members",
   /** Single add-member flow; legacy `/Diagnostics/.../add-family-member` URLs redirect here. */
   profileMembersAdd: "/profile/members/add",
+  profileMembersAddSuccess: "/profile/members/add/success",
+  profileMembersDetail: "/profile/members/:memberId",
   profileMembersEdit: "/profile/members/edit/:memberId",
   profileSubscriptions: "/profile/subscriptions",
   profileFaq: "/profile/faq",

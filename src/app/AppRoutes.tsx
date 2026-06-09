@@ -41,6 +41,8 @@ import { ProfileBankPage } from "@/pages/ProfileBankPage";
 import { ProfileBankFormPage } from "@/pages/ProfileBankFormPage";
 import { ProfileBankViewPage } from "@/pages/ProfileBankViewPage";
 import { ProfileMembersPage } from "@/pages/ProfileMembersPage";
+import { ProfileMemberDetailPage } from "@/pages/ProfileMemberDetailPage";
+import { ProfileMembersAddSuccessPage } from "@/pages/ProfileMembersAddSuccessPage";
 import { ProfileSubscriptionsPage } from "@/pages/ProfileSubscriptionsPage";
 import { ProfileFaqPage } from "@/pages/ProfileFaqPage";
 import { ProfilePrivacyPolicyPage, ProfileTermsPage } from "@/pages/ProfileLegalHtmlPage";
@@ -161,7 +163,9 @@ export function AppRoutes() {
       <Route path={ROUTES.profileAddressEdit} element={<ProfileAddressFormPage />} />
       <Route path={ROUTES.profileMembers} element={<ProfileMembersPage />} />
       <Route path={ROUTES.profileMembersAdd} element={<ProfileMembersAddPage />} />
+      <Route path={ROUTES.profileMembersAddSuccess} element={<ProfileMembersAddSuccessPage />} />
       <Route path={ROUTES.profileMembersEdit} element={<ProfileMembersAddPage />} />
+      <Route path={ROUTES.profileMembersDetail} element={<ProfileMemberDetailPage />} />
       <Route path={ROUTES.profileSubscriptions} element={<ProfileSubscriptionsPage />} />
       <Route path={ROUTES.profileFaq} element={<ProfileFaqPage />} />
       <Route path={ROUTES.profilePrivacyPolicy} element={<ProfilePrivacyPolicyPage />} />

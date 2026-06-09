@@ -8,6 +8,7 @@ import {
   VIRTUAL_CONSULT_BOOKING_SUCCESS_SUB,
   VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
 } from "@/constants/bookingSuccessNavigation";
+import type { ServiceRequestOrderCategoryKey } from "@/lib/orderDetailConsultationRules";
 import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
 
 const GYM_SUCCESS_NEXT_STEPS =
@@ -61,6 +62,66 @@ function labScheduleLine(detail: InvoiceDetailModel): string {
   const req = detail.labBookingRequestedDisplay?.trim();
   if (req) return req;
   return detail.orderDateTimeDisplay?.trim() || "—";
+}
+
+function serviceRequestLocationLine(detail: InvoiceDetailModel): string {
+  const center = detail.pharmacyConfirmCenter?.centerName?.trim();
+  if (center) {
+    const addr = detail.pharmacyConfirmCenter?.centerAddress?.trim();
+    return addr ? `${center}\n${addr}` : center;
+  }
+  const summaryAddr = detail.serviceRequestSummaryAddress?.trim();
+  if (summaryAddr && summaryAddr !== "—") return summaryAddr;
+  return detail.vendorName?.trim() || "—";
+}
+
+function serviceRequestScheduleLine(detail: InvoiceDetailModel): string {
+  const preferred = detail.pharmacyPreferredSlotDisplay?.trim();
+  if (preferred && preferred !== "—") return preferred;
+  const bullets = detail.serviceRequestRequestBullets;
+  if (bullets.length > 0) return bullets.join("\n");
+  return detail.orderDateTimeDisplay?.trim() || "—";
+}
+
+function serviceRequestKindFromDetail(
+  categoryKey: string,
+): ServiceRequestOrderCategoryKey | null {
+  if (categoryKey === "vision" || categoryKey === "dental" || categoryKey === "vaccine") {
+    return categoryKey;
+  }
+  return null;
+}
+
+/**
+ * Vision / dental / vaccine after payment on order detail — patient_app
+ * `ServiceRequestPaymentSuccessScreen` summary built from the loaded invoice model
+ * (not the sparse post-payment `GET /invoice/:id` body).
+ */
+export function buildServiceRequestPaymentSuccessFromInvoice(
+  detail: InvoiceDetailModel,
+): BookingSuccessLocationState {
+  const kind = serviceRequestKindFromDetail(detail.categoryKey);
+  const inv = detail.id.trim();
+
+  const rows: BookingSuccessSummaryRow[] = [
+    { label: "Service", value: detail.serviceTypeLabel?.trim() || "Service request" },
+    { label: "Order ID", value: orderReferenceDisplayFromDetail(detail) },
+    { label: "Visit type", value: detail.serviceVisitTypeLabel?.trim() || "—" },
+    { label: "Location", value: serviceRequestLocationLine(detail) },
+    { label: "Preferred slot", value: serviceRequestScheduleLine(detail) },
+  ];
+
+  return {
+    layout: "summary",
+    title: "Payment successful",
+    description:
+      "Your payment is confirmed. You can review the full request and next steps from your order details.",
+    summaryCardTitle: "Request summary",
+    summaryRows: rows,
+    orderDetailCategoryKey: kind ?? detail.categoryKey,
+    orderDetailInvoiceId: inv || undefined,
+    viewOrderDetailPath: inv && kind ? pathToOrderDetail(kind, inv) : undefined,
+  };
 }
 
 /** Lab / diagnostics invoice after payment on order detail or partner pay. */

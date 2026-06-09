@@ -101,12 +101,17 @@ import { OrderDetailWellnessSections } from "@/components/orders/OrderDetailWell
 import "@/components/orders/OrderDetailWellnessSections.css";
 import { patchConsultationOfflineRescheduleConfirm } from "@/api/patientConsultationOrder";
 import { serviceRequestScreenTitle } from "@/lib/serviceRequestOrderDetail";
+import {
+  readOrderDetailCarryForward,
+  writeOrderDetailCarryForward,
+} from "@/constants/orderDetailCarryForwardStorage";
 import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { DEFAULT_CONSULT_SUCCESS_TITLE } from "@/constants/bookingSuccessNavigation";
 import {
   buildConsultationBookingSuccessFromInvoice,
   buildGymBookingSuccessFromInvoice,
   buildLabBookingSuccessFromInvoice,
+  buildServiceRequestPaymentSuccessFromInvoice,
 } from "@/lib/bookingSuccessFromInvoice";
 import { canDownloadInvoicePdf, downloadInvoicePdf } from "@/lib/invoicePdfHelper";
 import {
@@ -133,6 +138,7 @@ import {
   showConsultationRescheduleButton,
   showConsultationScanQrButton,
 } from "@/lib/consultationOrderDetail";
+import { isSparseServiceRequestInvoicePayload } from "@/lib/orderDetailCarryForward";
 import { showServiceRequestCompletePaymentBar } from "@/lib/serviceRequestOrderDetail";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -175,11 +181,23 @@ function navigatePartnerOrderPaymentSuccess(
       });
       return;
     case "dental":
-      navigate(ROUTES.dentalBookingSuccess, { replace: true });
+      navigate(ROUTES.dentalBookingSuccess, {
+        replace: true,
+        state: buildServiceRequestPaymentSuccessFromInvoice(detail),
+      });
+      return;
+    case "vaccine":
+      navigate(ROUTES.bookingSuccess, {
+        replace: true,
+        state: buildServiceRequestPaymentSuccessFromInvoice(detail),
+      });
       return;
     case "vision": {
       const visionType = inferVisionBookingSuccessType(detail);
-      navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), { replace: true });
+      navigate(generatePath(ROUTES.visionBookingSuccess, { visionType }), {
+        replace: true,
+        state: buildServiceRequestPaymentSuccessFromInvoice(detail),
+      });
       return;
     }
     case "gym":
@@ -539,6 +557,21 @@ export function OrderDetailsPage() {
   const partnerPaymentVerifyRef = useRef<(body: PharmacyOrderPaymentVerifyBody) => Promise<void>>(
     verifyPharmacyOrderPayment,
   );
+  const invoiceRawPayloadRef = useRef<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    invoiceRawPayloadRef.current = invoiceRawPayload;
+  }, [invoiceRawPayload]);
+
+  function stashServiceRequestCarryForward(
+    categoryKey: string | null | undefined,
+    payload: Record<string, unknown> | null,
+  ): void {
+    const id = invoiceId?.trim();
+    if (!id || !payload || !isServiceRequestOrderCategory(categoryKey)) return;
+    if (isSparseServiceRequestInvoicePayload(payload)) return;
+    writeOrderDetailCarryForward(id, payload);
+  }
 
   useEffect(() => {
     if (detail?.categoryKey !== "lab") {
@@ -576,10 +609,22 @@ export function OrderDetailsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { detail: d, consultationCompleted: cc, rawPayload } = await fetchInvoiceOrderPageData(invoiceId);
+      const carryForwardFrom =
+        invoiceRawPayloadRef.current ?? readOrderDetailCarryForward(invoiceId);
+      const { detail: d, consultationCompleted: cc, rawPayload } = await fetchInvoiceOrderPageData(
+        invoiceId,
+        { carryForwardFrom },
+      );
       setDetail(d);
       setConsultationCompleted(cc);
       setInvoiceRawPayload(rawPayload);
+      invoiceRawPayloadRef.current = rawPayload;
+      if (
+        isServiceRequestOrderCategory(d.categoryKey) &&
+        !isSparseServiceRequestInvoicePayload(rawPayload)
+      ) {
+        writeOrderDetailCarryForward(invoiceId, rawPayload);
+      }
       setLinesExpanded(d.lineItems.length <= ORDER_DETAIL_LINE_ITEMS_PREVIEW);
       setPrescriptionOpen(cc != null && cc.prescriptions.length <= 1);
     } catch (e) {
@@ -922,6 +967,7 @@ export function OrderDetailsPage() {
   const onPayConfirmBooking = useCallback(() => {
     const id = invoiceId?.trim();
     if (!id) return;
+    stashServiceRequestCarryForward(detail?.categoryKey, invoiceRawPayloadRef.current);
     setBookingSheetOpen(true);
     setOfflinePaymentPreview(null);
     pharmacyVerifyOrderIdRef.current = null;
@@ -971,6 +1017,7 @@ export function OrderDetailsPage() {
       setBookingProceedBusy(false);
       pharmacyVerifyOrderIdRef.current = null;
       labDiagnosticsPostInvoiceIdRef.current = null;
+      stashServiceRequestCarryForward(detail?.categoryKey, invoiceRawPayloadRef.current);
       if (detail != null && detail.isConsultationOrder) {
         navigate(ROUTES.bookingSuccess, {
           replace: true,
@@ -1159,6 +1206,7 @@ export function OrderDetailsPage() {
           setBookingProceedBusy(false);
           pharmacyVerifyOrderIdRef.current = null;
           labDiagnosticsPostInvoiceIdRef.current = null;
+          stashServiceRequestCarryForward(detail.categoryKey, invoiceRawPayloadRef.current);
           navigatePartnerOrderPaymentSuccess(navigate, detail, pharmacyPayReturnPath);
           return;
         }
@@ -1933,10 +1981,10 @@ export function OrderDetailsPage() {
                             );
                           })()}
                           {row.cancellationReason ? (
-                            <div className="od-lab-sub-card__cancel-reason">
-                              <span className="od-lab-sub-card__cancel-reason-label">Cancellation reason</span>
-                              <p className="od-lab-sub-card__cancel-reason-text">{row.cancellationReason}</p>
-                            </div>
+                            <OrderDetailCancellationReason
+                              reason={row.cancellationReason}
+                              variant="lab"
+                            />
                           ) : null}
                           {row.dateSlotLine ? <p className="od-lab-sub-card__slot">{row.dateSlotLine}</p> : null}
                           {row.reschedulePolicyNote ? (

@@ -1,0 +1,50 @@
+.afm-info-tooltip {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.afm-info-tooltip__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 48px;
+  margin-top: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #757575;
+  cursor: pointer;
+}
+
+.afm-info-tooltip__btn:active {
+  opacity: 0.88;
+}
+
+.afm-info-tooltip__bubble {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: min(240px, 72vw);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #424242;
+  color: #ffffff;
+  font-family: var(--font-family-app);
+  font-size: clamp(11px, calc(12 * 100cqw / 375), calc(12 * 1.12px));
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.afm-info-tooltip__bubble::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: 14px;
+  width: 10px;
+  height: 10px;
+  background: #424242;
+  transform: rotate(45deg);
+}

@@ -22,6 +22,7 @@ import {
   type ServiceRequestPatientRow,
   type ServiceRequestRiderUi,
 } from "@/lib/serviceRequestOrderDetail";
+import { carryForwardServiceRequestInvoicePayload } from "@/lib/orderDetailCarryForward";
 import {
   wellnessInfoStatusToListTone,
   wellnessOrderStatusLabel,
@@ -3983,11 +3984,23 @@ export type InvoiceOrderPageData = Readonly<{
   rawPayload: Record<string, unknown>;
 }>;
 
+export type FetchInvoiceOrderPageDataOptions = Readonly<{
+  /** Prior `GET /invoice/:id` body — merged when the new response is sparse after payment. */
+  carryForwardFrom?: Record<string, unknown> | null;
+}>;
+
 /**
  * Invoice detail plus optional completed-online-consultation blocks for the order screen.
  */
-export async function fetchInvoiceOrderPageData(invoiceId: string): Promise<InvoiceOrderPageData> {
-  const payload = await fetchInvoicePayload(invoiceId);
+export async function fetchInvoiceOrderPageData(
+  invoiceId: string,
+  options?: FetchInvoiceOrderPageDataOptions,
+): Promise<InvoiceOrderPageData> {
+  const incoming = await fetchInvoicePayload(invoiceId);
+  const payload = carryForwardServiceRequestInvoicePayload(
+    options?.carryForwardFrom ?? null,
+    incoming,
+  );
   const consultationCompleted = parseInvoiceConsultationCompletedView(payload);
   return {
     detail: normalizeInvoiceDetail(payload),
