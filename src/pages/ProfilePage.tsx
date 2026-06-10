@@ -195,7 +195,7 @@ export function ProfilePage() {
       },
       {
         key: "subscriptions",
-        title: "Subscriptions",
+        title: "My subscriptions",
         to: ROUTES.profileSubscriptions,
         iconSrc: accountSubscriptionsSvg,
       },

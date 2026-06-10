@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
+import { FamilyMemberAvatar } from "@/components/family/FamilyMemberAvatar";
+import { MaterialIcon } from "@/components/icons/MaterialIcon";
 import {
   activateMemberOnPlan,
   fetchActiveSubscriptions,
@@ -11,17 +13,13 @@ import {
 import { fetchAllPatientMembers, type MemberDisplay } from "@/api/patientMember";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
+import {
+  canActivateOnSubscription,
+  readPrimaryUserIdFromCache,
+  totalMemberSlots,
+} from "@/lib/subscriptionPageUtils";
 import "./ProfileManagePage.css";
 import "./ProfileSubscriptionsPage.css";
-
-function formatInr(amount: number | null): string | null {
-  if (amount == null || Number.isNaN(amount)) return null;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
 
 function friendlySlotType(rawKey: string): string {
   const k = rawKey.trim().toLowerCase();
@@ -36,7 +34,7 @@ function friendlySlotType(rawKey: string): string {
       return "Parent";
     default:
       if (!rawKey.length) return "Member";
-      return rawKey[0].toUpperCase() + rawKey.slice(1).toLowerCase();
+      return rawKey.charAt(0).toUpperCase() + rawKey.slice(1).toLowerCase();
   }
 }
 
@@ -45,28 +43,6 @@ function countPatientsForType(
   typeKey: string,
 ): number {
   return patients.filter((p) => p.dependentType?.toString() === typeKey).length;
-}
-
-function totalMemberSlots(mt: Record<string, number> | null): number {
-  if (!mt) return 0;
-  let t = 0;
-  for (const v of Object.values(mt)) {
-    t += v;
-  }
-  return t;
-}
-
-/** Activation on this page is enabled only when the subscription response reports `canActivate`. */
-function resolveEmptySlotActivation(
-  item: ActiveSubscriptionItem,
-): { canTap: boolean; disabledHint: string } {
-  if (!item.canActivate) {
-    return {
-      canTap: false,
-      disabledHint: "Member activation isn’t available for this subscription.",
-    };
-  }
-  return { canTap: true, disabledHint: "" };
 }
 
 type PickerState = Readonly<{
@@ -83,10 +59,16 @@ type ConfirmState = Readonly<{
   slotLabel: string;
 }>;
 
+type ActivationGuideState = Readonly<{
+  showActivationGuide?: boolean;
+  memberName?: string;
+}>;
+
 export function ProfileSubscriptionsPage() {
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const primaryUserId = useMemo(() => readPrimaryUserIdFromCache(), [location.key]);
 
   const handleBack = useCallback(() => {
     if (location.state?.returnPath) {
@@ -97,8 +79,6 @@ export function ProfileSubscriptionsPage() {
   }, [location.state, navigate]);
 
   const [items, setItems] = useState<readonly ActiveSubscriptionItem[]>([]);
-  const [apiMessage, setApiMessage] = useState<string | null>(null);
-  const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +87,7 @@ export function ProfileSubscriptionsPage() {
   const [pickerLoading, setPickerLoading] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [activating, setActivating] = useState(false);
+  const [activationGuide, setActivationGuide] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,12 +95,8 @@ export function ProfileSubscriptionsPage() {
     try {
       const res = await fetchActiveSubscriptions();
       setItems(res.items);
-      setApiMessage(res.message);
-      setIsSubscribed(res.isSubscribed);
     } catch (e) {
       setItems([]);
-      setApiMessage(null);
-      setIsSubscribed(false);
       setError(e instanceof Error ? e.message : "Could not load subscriptions");
     } finally {
       setLoading(false);
@@ -129,6 +106,17 @@ export function ProfileSubscriptionsPage() {
   useEffect(() => {
     void load();
   }, [load, location.key]);
+
+  useEffect(() => {
+    const state = location.state as ActivationGuideState | null | undefined;
+    if (!state?.showActivationGuide) return;
+    const name = state.memberName?.trim() ?? "";
+    setActivationGuide(
+      name.length
+        ? `${name} was added successfully. To activate, open any subscription card, tap an empty slot, and choose this member.`
+        : "Member was added successfully. To activate, open any subscription card, tap an empty slot, and choose the member.",
+    );
+  }, [location.key, location.state]);
 
   const openPicker = useCallback(
     async (state: PickerState) => {
@@ -196,7 +184,7 @@ export function ProfileSubscriptionsPage() {
   }, [confirm, closePicker, load, toast]);
 
   return (
-    <div className="profile-manage-page">
+    <div className="profile-manage-page profile-sub-page">
       <header className="profile-manage-page__top">
         <button
           type="button"
@@ -214,31 +202,15 @@ export function ProfileSubscriptionsPage() {
             />
           </svg>
         </button>
-        <h1 className="profile-manage-page__title">Subscriptions</h1>
-        <button
-          type="button"
-          className="profile-sub-page__refresh"
-          onClick={() => void load()}
-          disabled={loading}
-          aria-label={loading ? "Refreshing" : "Refresh subscriptions"}
-          title="Refresh"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        <h1 className="profile-manage-page__title">My subscriptions</h1>
+        <span className="profile-manage-page__spacer" aria-hidden />
       </header>
 
-      <main className="profile-manage-page__main">
+      <main className="profile-manage-page__main profile-sub-page__main">
         {loading ? (
-          <div className="profile-sub-skeleton" aria-busy="true">
-            <div className="profile-sub-skeleton__card profile-sub-skeleton__card--tall" />
+          <div className="profile-sub-loading" aria-busy="true">
+            <div className="profile-sub-loading__spinner" aria-hidden />
+            <p className="profile-sub-loading__text">Loading your subscription…</p>
           </div>
         ) : null}
 
@@ -251,22 +223,20 @@ export function ProfileSubscriptionsPage() {
           </div>
         ) : null}
 
-        {!loading && !error && apiMessage ? (
-          <p className="profile-sub-v2-message">{apiMessage}</p>
-        ) : null}
-
         {!loading && !error && items.length === 0 ? (
           <div className="profile-sub-empty-wrap">
-           
+            <MaterialIcon
+              name="card_membership"
+              rounded
+              size={72}
+              className="profile-sub-empty-icon"
+            />
             <p className="profile-sub-empty__title">No active subscription</p>
             <p className="profile-sub-empty__text">
-              {isSubscribed
-                ? "No subscription details were returned."
-                : "You don't have any active subscription right now."}
+              You do not have an active subscription yet. Purchase a plan to assign family members
+              to slots.
             </p>
-            <p className="profile-sub-empty__hint">
-              Purchase or activate a subscription to see plan details and member slots here.
-            </p>
+            <p className="profile-sub-empty__hint">Pull down to refresh</p>
           </div>
         ) : null}
 
@@ -276,6 +246,7 @@ export function ProfileSubscriptionsPage() {
               <SubscriptionPlanCard
                 key={sub.id}
                 sub={sub}
+                primaryUserId={primaryUserId}
                 onOpenSlotPicker={(dependentTypeKey, typeLabel) => {
                   void openPicker({
                     subscriptionId: sub.id,
@@ -299,23 +270,29 @@ export function ProfileSubscriptionsPage() {
             aria-label="Close"
             onClick={closePicker}
           />
-          <div className="profile-sub-sheet" role="dialog" aria-modal="true" aria-labelledby="profile-sub-sheet-title">
+          <div
+            className="profile-sub-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profile-sub-sheet-title"
+          >
             <div className="profile-sub-sheet__grab" aria-hidden />
             <h2 id="profile-sub-sheet-title" className="profile-sub-sheet__title">
-              Choose a family member
+              Who should use this slot?
             </h2>
             <p className="profile-sub-sheet__slot">
               <span className="profile-sub-sheet__slot-badge">{picker.typeLabel}</span>
+              <span className="profile-sub-sheet__slot-key">{picker.dependentTypeKey}</span>
             </p>
             <p className="profile-sub-sheet__subtitle">
-              Only people not already on this plan are listed.
+              We will link them to this plan for benefits.
             </p>
             <div className="profile-sub-sheet__list">
               {pickerLoading ? (
                 <p className="profile-sub-sheet__loading">Loading family members…</p>
               ) : pickerMembers.length === 0 ? (
                 <p className="profile-sub-sheet__empty">
-                  Add a family member in your profile first, then return here to assign them.
+                  Add a family member in your profile first, then assign them here.
                 </p>
               ) : (
                 pickerMembers.map((m) => (
@@ -325,25 +302,23 @@ export function ProfileSubscriptionsPage() {
                     className="profile-sub-sheet__member"
                     onClick={() => onPickMember(m)}
                   >
-                    <span className="profile-sub-sheet__member-avatar" aria-hidden>
-                      {m.name.trim().charAt(0).toUpperCase() || "?"}
-                    </span>
+                    <FamilyMemberAvatar name={m.name} image={m.image} variant="list" />
                     <span className="profile-sub-sheet__member-text">
                       <span className="profile-sub-sheet__member-name">{m.name}</span>
                       {m.relationship ? (
                         <span className="profile-sub-sheet__member-rel">{m.relationship}</span>
                       ) : null}
                     </span>
-                    <span className="profile-sub-sheet__member-chevron" aria-hidden>
-                      ›
-                    </span>
+                    <MaterialIcon
+                      name="chevron_right"
+                      rounded
+                      size={22}
+                      className="profile-sub-sheet__member-chevron"
+                    />
                   </button>
                 ))
               )}
             </div>
-            <button type="button" className="profile-sub-sheet__cancel" onClick={closePicker}>
-              Cancel
-            </button>
           </div>
         </div>
       ) : null}
@@ -352,10 +327,12 @@ export function ProfileSubscriptionsPage() {
         <div className="profile-sub-confirm-overlay" role="presentation">
           <div className="profile-sub-confirm" role="alertdialog" aria-labelledby="profile-sub-confirm-title">
             <h2 id="profile-sub-confirm-title" className="profile-sub-confirm__title">
-              Activate on plan?
+              Activate on this plan?
             </h2>
             <p className="profile-sub-confirm__body">
-              Assign <strong>{confirm.memberName}</strong> to the <strong>{confirm.slotLabel}</strong> slot?
+              You chose <strong>{confirm.memberName}</strong> for the{" "}
+              <strong>{confirm.slotLabel}</strong> slot. They will be linked to this subscription
+              for plan benefits. Do you want to continue?
             </p>
             <div className="profile-sub-confirm__actions">
               <button
@@ -378,24 +355,47 @@ export function ProfileSubscriptionsPage() {
           </div>
         </div>
       ) : null}
+
+      {activationGuide ? (
+        <div className="profile-sub-confirm-overlay" role="presentation">
+          <div className="profile-sub-confirm" role="dialog" aria-labelledby="profile-sub-guide-title">
+            <h2 id="profile-sub-guide-title" className="profile-sub-confirm__title">
+              Next step: Activate member
+            </h2>
+            <p className="profile-sub-confirm__body">{activationGuide}</p>
+            <div className="profile-sub-confirm__actions profile-sub-confirm__actions--single">
+              <button
+                type="button"
+                className="profile-sub-confirm__btn profile-sub-confirm__btn--primary"
+                onClick={() => setActivationGuide(null)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function SubscriptionPlanCard({
   sub,
+  primaryUserId,
   onOpenSlotPicker,
 }: Readonly<{
   sub: ActiveSubscriptionItem;
+  primaryUserId: number | null;
   onOpenSlotPicker: (dependentTypeKey: string, typeLabel: string) => void;
 }>) {
   const totalSlots = totalMemberSlots(sub.memberTypeCounts);
   const filledSlots = sub.patients.length;
-  const { canTap: slotAllowed, disabledHint: emptySlotDisabledHint } = resolveEmptySlotActivation(sub);
-  const hasStats =
-    totalSlots > 0 ||
-    typeof sub.daysLeft === "number" ||
-    typeof sub.planAmount === "number";
+  const progressLabel =
+    totalSlots > 0 ? `${filledSlots} / ${totalSlots} slots` : "";
+  const { canTap: slotAllowed, disabledHint: emptySlotDisabledHint } = canActivateOnSubscription(
+    sub,
+    primaryUserId,
+  );
 
   return (
     <li className="profile-sub-plan-card">
@@ -403,51 +403,54 @@ function SubscriptionPlanCard({
         <div className="profile-sub-plan-card__hero-row">
           <h2 className="profile-sub-plan-card__title">{sub.planName}</h2>
           {sub.subscriptionStatusActive ? (
-            <span className="profile-sub-plan-card__badge profile-sub-plan-card__badge--active">Active</span>
+            <span className="profile-sub-plan-card__badge profile-sub-plan-card__badge--active">
+              Active
+            </span>
           ) : null}
         </div>
         {sub.validUntilDisplay ? (
           <p className="profile-sub-plan-card__valid">
-            <span className="profile-sub-plan-card__valid-label">Until</span>{" "}
+            <MaterialIcon name="event" rounded size={15} className="profile-sub-plan-card__valid-icon" />
+            <span className="profile-sub-plan-card__valid-label">Valid until</span>
             <span className="profile-sub-plan-card__valid-date">{sub.validUntilDisplay}</span>
           </p>
         ) : null}
       </div>
 
       <div className="profile-sub-plan-card__body">
-        {hasStats ? (
-          <div className="profile-sub-plan-card__stats" aria-label="Plan summary">
-            {totalSlots > 0 ? (
-              <span className="profile-sub-plan-card__stat">
-                <span className="profile-sub-plan-card__stat-value">
-                  {filledSlots}/{totalSlots}
-                </span>
-                <span className="profile-sub-plan-card__stat-label">slots</span>
-              </span>
-            ) : null}
-            {typeof sub.daysLeft === "number" ? (
-              <span className="profile-sub-plan-card__stat">
-                <span className="profile-sub-plan-card__stat-value">{sub.daysLeft}</span>
-                <span className="profile-sub-plan-card__stat-label">days left</span>
-              </span>
-            ) : null}
-            {typeof sub.planAmount === "number" ? (
-              <span className="profile-sub-plan-card__stat profile-sub-plan-card__stat--price">
-                {formatInr(sub.planAmount)}
-              </span>
-            ) : null}
+        {progressLabel ? (
+          <p className="profile-sub-plan-card__progress">
+            <MaterialIcon
+              name="people_outline"
+              rounded
+              size={16}
+              className="profile-sub-plan-card__progress-icon"
+            />
+            <span>{progressLabel}</span>
+          </p>
+        ) : null}
+
+        {!sub.planAllowsDependentAdd ? (
+          <div className="profile-sub-plan-card__warn" role="note">
+            <MaterialIcon
+              name="lock_outline"
+              rounded
+              size={18}
+              className="profile-sub-plan-card__warn-icon"
+            />
+            <span>
+              Your current plan does not allow adding family members. You can review options under
+              Subscriptions.
+            </span>
           </div>
         ) : null}
 
-
         <div className="profile-sub-plan-card__divider" />
 
-        <div className="profile-sub-plan-card__section-head">
-          <h3 className="profile-sub-plan-card__section-title">Members</h3>
-          {slotAllowed ? (
-            <span className="profile-sub-plan-card__section-tag">You can fill open slots</span>
-          ) : null}
-        </div>
+        <h3 className="profile-sub-plan-card__section-title">Who is covered</h3>
+        <p className="profile-sub-plan-card__section-subtitle">
+          Filled slots show who is already on this plan. Tap an empty slot to assign someone.
+        </p>
 
         <SlotList
           sub={sub}
@@ -541,7 +544,7 @@ function FilledSlotTile({
   return (
     <div className="profile-sub-filled-slot">
       <div className="profile-sub-filled-slot__check" aria-hidden>
-        ✓
+        <MaterialIcon name="check" rounded size={20} />
       </div>
       <div className="profile-sub-filled-slot__text">
         <p className="profile-sub-filled-slot__name">{patient.name}</p>
@@ -569,13 +572,18 @@ function EmptySlotTile({
       disabled={!canTap}
       onClick={canTap ? onActivate : undefined}
     >
-      <span className="profile-sub-empty-slot__icon" aria-hidden>
-        +
-      </span>
+      <MaterialIcon
+        name="person_add_alt_1"
+        rounded
+        size={20}
+        className="profile-sub-empty-slot__icon"
+      />
       <span className="profile-sub-empty-slot__main">
-        <span className="profile-sub-empty-slot__title">Add · {typeLabel}</span>
+        <span className="profile-sub-empty-slot__title">
+          Assign family member · {typeLabel}
+        </span>
         <span className="profile-sub-empty-slot__hint">
-          {canTap ? "Tap to choose someone from your family list." : disabledHint}
+          {canTap ? "Tap to choose from your saved family members" : disabledHint}
         </span>
       </span>
     </button>
