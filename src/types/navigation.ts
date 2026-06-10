@@ -21,12 +21,23 @@ export type UserDetailsPersonalLocationState = Readonly<{
   age?: number | null;
 }>;
 
+/** Router `location.state` for BMI step — onboarding or digital diary (`startFromBmi`). */
+export type UserDetailsBmiLocationState = UserDetailsPersonalLocationState &
+  Readonly<{
+    /** Digital diary height/weight tiles — POST `/patient/parameters` instead of PATCH healthscore. */
+    startFromBmi?: boolean;
+    returnPath?: string;
+    heightCm?: number;
+    weightKg?: number;
+  }>;
+
 export type UserDetailsBmiResultLocationState = Readonly<{
   bmi: number;
   heightCm: number;
   weightKg: number;
   nutritionSuggestion: boolean;
   message?: string;
+  returnPath?: string;
 }>;
 
 /** Router `location.state` for required lab tests gate (from {@link ROUTES.requiredLabTests}). */

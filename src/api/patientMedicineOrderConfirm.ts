@@ -9,3 +9,23 @@ export async function patchMedicineOrderConfirm(medicineOrderId: string): Promis
     skipGlobalLoading: true,
   });
 }
+
+/**
+ * `PATCH medicine/order/cancel/:medicine_order_id` — patient_app `PharmacyRepository.cancelMedicineOrder`.
+ * `medicine_order_id` is invoice `info.id` (`PM…`), not the document invoice id.
+ */
+export async function patchMedicineOrderCancel(
+  medicineOrderId: string,
+  cancellationReason: string,
+): Promise<unknown> {
+  const id = medicineOrderId.trim();
+  if (!id) {
+    throw new Error("Missing medicine order id");
+  }
+  const note = cancellationReason.trim();
+  return patientJson<unknown>(`medicine/order/cancel/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ cancellation_reason: note }),
+    skipGlobalLoading: true,
+  });
+}

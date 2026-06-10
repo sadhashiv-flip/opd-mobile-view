@@ -1,7 +1,7 @@
 import type { BookingSuccessLocationState } from "@/constants/bookingSuccessNavigation";
 import type { NormalizedBookingOverview } from "@/api/patientDiagnosticsLab";
 import { formatDiagnosticsSuccessScheduleDisplay } from "@/api/patientDiagnosticsLab";
-import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
+import { pathToOrderDetail, resolveLabOrderDetailRouteId } from "@/lib/orderDetailRoutes";
 
 const DEFAULT_SUB =
   "your request is successfully submitted,\nour executive will contact you shortly.";
@@ -20,11 +20,12 @@ export function buildDiagnosticsBookingSuccessState(args: {
 }): BookingSuccessLocationState {
   const invoiceDocId = args.invoiceId.trim();
   const infoId = args.overview?.infoOrderId?.trim() ?? "";
-  /** Show order id when present; if not, show invoice id (avoid "—" when either exists). */
-  const displayId = infoId || invoiceDocId;
-  const orderDisplay = displayId
-    ? `#${displayId.replace(/^#/, "")}`
-    : "—";
+  const routeId = resolveLabOrderDetailRouteId({
+    documentInvoiceId: invoiceDocId,
+    infoOrderId: infoId,
+  });
+  /** Dart `DiagnosticsBookingSuccessScreen` — `#${overview.invoiceId}` when present. */
+  const orderDisplay = routeId ? `#${routeId.replace(/^#/, "")}` : "—";
   const serviceNames =
     args.overview != null && args.overview.items.length > 0
       ? args.overview.items
@@ -55,8 +56,8 @@ export function buildDiagnosticsBookingSuccessState(args: {
       { label: "Schedule", value: scheduleDisplay },
     ],
     orderDetailCategoryKey: "lab",
-    /** `GET /invoice/:invoiceId` — document invoice id for `/order/lab/:invoiceId`, not partner `info.id`. */
-    orderDetailInvoiceId: invoiceDocId || undefined,
-    viewOrderDetailPath: invoiceDocId ? pathToOrderDetail("lab", invoiceDocId) : undefined,
+    /** Document invoice id for `/order/lab/:id` — patient_app `overview.invoiceId`. */
+    orderDetailInvoiceId: routeId || undefined,
+    viewOrderDetailPath: routeId ? pathToOrderDetail("lab", routeId) : undefined,
   };
 }

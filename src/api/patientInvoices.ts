@@ -23,6 +23,7 @@ import {
   type ServiceRequestRiderUi,
 } from "@/lib/serviceRequestOrderDetail";
 import { carryForwardServiceRequestInvoicePayload } from "@/lib/orderDetailCarryForward";
+import { parsePharmacyRider, showPharmacyRiderCard } from "@/lib/pharmacyOrderDetail";
 import {
   wellnessInfoStatusToListTone,
   wellnessOrderStatusLabel,
@@ -905,7 +906,7 @@ export type InvoiceDetailModel = Readonly<{
   consultationInfoStatus: number | null;
   /**
    * `info.id` when present — consultation appointment id, pharmacy medicine order id (`PM…`), etc.
-   * Used with `PATCH …/appointment/cancel/:id` from the order detail screen when cancellation is allowed.
+   * Pharmacy cancel: `PATCH medicine/order/cancel/:id`; consultation: `PATCH appointment/cancel/:id`.
    */
   consultationInfoId: string | null;
   /** `#` + {@link consultationInfoId} for display as the canonical order reference on order detail. */
@@ -1061,6 +1062,9 @@ export type InvoiceDetailModel = Readonly<{
   /** `HOME_SERVICE` + `visitor_info` when status not in 0–4. */
   serviceRequestRider: ServiceRequestRiderUi | null;
   showServiceRequestRiderCard: boolean;
+  /** Pharmacy `HOME_DELIVERY` + `info.additional_info.visitor_info` when status not in 0–4. */
+  pharmacyRider: ServiceRequestRiderUi | null;
+  showPharmacyRiderCard: boolean;
   /** patient_app `showInvoiceSection` — `info.status !== 0` and line items present. */
   showServiceRequestInvoiceSection: boolean;
   lineItems: readonly InvoiceDetailLineItem[];
@@ -3580,6 +3584,12 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey) && infoForStatus != null
       ? showServiceRequestRiderCard(serviceInfoStatus, infoForStatus)
       : false;
+  const pharmacyRiderParsed =
+    categoryKey === "pharmacy" && infoForStatus != null ? parsePharmacyRider(infoForStatus) : null;
+  const showPharmacyRiderCardFlag =
+    categoryKey === "pharmacy" && infoForStatus != null
+      ? showPharmacyRiderCard(serviceInfoStatus, infoForStatus)
+      : false;
   const showServiceRequestInvoiceSectionFlag =
     SERVICE_REQUEST_PARTNER_DETAIL_CATEGORIES.has(categoryKey)
       ? showServiceRequestInvoiceSection(serviceInfoStatus, lineItems.length)
@@ -3724,6 +3734,8 @@ function normalizeInvoiceDetail(o: Record<string, unknown>): InvoiceDetailModel 
     showServiceRequestSelfVisitCenter: showServiceRequestSelfVisitCenterFlag,
     serviceRequestRider: serviceRequestRiderParsed,
     showServiceRequestRiderCard: showServiceRequestRiderCardFlag,
+    pharmacyRider: pharmacyRiderParsed,
+    showPharmacyRiderCard: showPharmacyRiderCardFlag,
     showServiceRequestInvoiceSection: showServiceRequestInvoiceSectionFlag,
     lineItems,
     subTotalFormatted: formatInr(itemsGrossTotal),

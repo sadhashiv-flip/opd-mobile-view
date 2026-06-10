@@ -15,6 +15,10 @@ export function useSupportTicketInactiveFeedback(
   detail: SupportTicketDetail | null,
   load: () => Promise<void>,
   toast: { error: (m: string) => void; success: (m: string) => void },
+  options?: Readonly<{
+    /** Called after POST succeeds so the page can merge feedback before GET catches up. */
+    onFeedbackSubmitted?: (feedback: Readonly<Record<string, unknown>>) => void;
+  }>,
 ): Readonly<{
   isInactive: boolean;
   needsSupportFeedback: boolean;
@@ -28,6 +32,7 @@ export function useSupportTicketInactiveFeedback(
   submitFeedback: () => Promise<void>;
 }> {
   const feedbackAutoOpenedForId = useRef<string | null>(null);
+  const feedbackSubmittedForId = useRef<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState<Rating>(0);
   const [feedbackDescription, setFeedbackDescription] = useState("");
@@ -50,10 +55,18 @@ export function useSupportTicketInactiveFeedback(
 
   useEffect(() => {
     feedbackAutoOpenedForId.current = null;
+    feedbackSubmittedForId.current = null;
   }, [ticketId]);
 
   useEffect(() => {
+    if (!needsSupportFeedback) {
+      setFeedbackOpen(false);
+    }
+  }, [needsSupportFeedback]);
+
+  useEffect(() => {
     if (!needsSupportFeedback || !ticketId) return;
+    if (feedbackSubmittedForId.current === ticketId) return;
     if (feedbackAutoOpenedForId.current === ticketId) return;
     feedbackAutoOpenedForId.current = ticketId;
     setFeedbackOpen(true);
@@ -70,11 +83,17 @@ export function useSupportTicketInactiveFeedback(
     }
     setFeedbackBusy(true);
     try {
+      const description = feedbackDescription.trim();
       await postSupportFeedback({
         src: "support",
         src_id: ticketId,
         rating: String(feedbackRating) as "1" | "2" | "3" | "4" | "5",
-        description: feedbackDescription.trim(),
+        description,
+      });
+      feedbackSubmittedForId.current = ticketId;
+      options?.onFeedbackSubmitted?.({
+        rating: feedbackRating,
+        description,
       });
       setFeedbackOpen(false);
       setFeedbackRating(0);
@@ -86,7 +105,7 @@ export function useSupportTicketInactiveFeedback(
     } finally {
       setFeedbackBusy(false);
     }
-  }, [feedbackDescription, feedbackRating, load, ticketId, toast]);
+  }, [feedbackDescription, feedbackRating, load, options, ticketId, toast]);
 
   return {
     isInactive,

@@ -76,6 +76,10 @@ export function SupportTicketChatPage() {
   const [detail, setDetail] = useState<SupportTicketDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [submittedFeedbackLocal, setSubmittedFeedbackLocal] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState<SupportChatDraftAttachment[]>([]);
   const [sending, setSending] = useState(false);
@@ -112,6 +116,10 @@ export function SupportTicketChatPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    setSubmittedFeedbackLocal(null);
+  }, [ticketId]);
+
   const reloadThread = useCallback(async () => {
     if (!ticketId) return;
     try {
@@ -125,6 +133,15 @@ export function SupportTicketChatPage() {
   const mergedDetail = useMemo(() => {
     if (!detail) return null;
     if (supportTicketHasFeedback(detail.ticket.feedback)) return detail;
+    if (submittedFeedbackLocal && supportTicketHasFeedback(submittedFeedbackLocal)) {
+      return {
+        ...detail,
+        ticket: {
+          ...detail.ticket,
+          feedback: submittedFeedbackLocal,
+        },
+      };
+    }
     if (locationFeedback && supportTicketHasFeedback(locationFeedback)) {
       return {
         ...detail,
@@ -135,7 +152,7 @@ export function SupportTicketChatPage() {
       };
     }
     return detail;
-  }, [detail, locationFeedback]);
+  }, [detail, locationFeedback, submittedFeedbackLocal]);
 
   const {
     isInactive,
@@ -148,7 +165,9 @@ export function SupportTicketChatPage() {
     setFeedbackDescription,
     feedbackBusy,
     submitFeedback,
-  } = useSupportTicketInactiveFeedback(ticketId, mergedDetail, load, toast);
+  } = useSupportTicketInactiveFeedback(ticketId, mergedDetail, reloadThread, toast, {
+    onFeedbackSubmitted: setSubmittedFeedbackLocal,
+  });
 
   const displayMessages = useMemo(() => buildDisplayMessages(detail), [detail]);
 
@@ -162,11 +181,6 @@ export function SupportTicketChatPage() {
   const canViewSubmittedFeedback = Boolean(
     mergedDetail && isInactive && supportTicketHasFeedback(mergedDetail.ticket.feedback) && !needsSupportFeedback,
   );
-
-  // If feedback exists, show it in the dialog instead of separate view
-  const existingFeedback = canViewSubmittedFeedback
-    ? parseSupportTicketFeedbackDisplay(mergedDetail!.ticket.feedback)
-    : null;
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -334,7 +348,7 @@ export function SupportTicketChatPage() {
       />
 
       <SupportTicketFeedbackDialog
-        open={Boolean(feedbackOpen && mergedDetail)}
+        open={Boolean(feedbackOpen && mergedDetail && needsSupportFeedback)}
         ticketIdHint={ticketId}
         feedbackRating={feedbackRating}
         feedbackDescription={feedbackDescription}
@@ -345,7 +359,6 @@ export function SupportTicketChatPage() {
         onSubmit={() => {
           submitFeedback().catch(() => {});
         }}
-        existingFeedback={existingFeedback}
       />
     </div>
   );

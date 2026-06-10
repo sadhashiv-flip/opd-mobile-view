@@ -56,6 +56,7 @@ export type GymMemberListRow = Readonly<{
   email?: string;
   dob?: string;
   gender?: string;
+  language?: string;
   bloodGroup?: string;
   /** Member age when known (API or derived from DOB). */
   age: number;
@@ -123,6 +124,7 @@ export function patientMembersToGymRows(
     email: m.email ?? undefined,
     dob: m.dob ?? undefined,
     gender: m.gender ?? undefined,
+    language: m.language ?? undefined,
     bloodGroup: m.bloodGroup ?? undefined,
     age: m.age,
     isChildBlocked: isDiagnosticsChildBlocked(m.age),

@@ -76,8 +76,9 @@ export function AddressBottomSheet({ open, onClose, onSelectionChange }: Address
       const displayLine = formatAddressLines(a);
       writeSelectedAddress({ id: a.id, displayLine, tag: a.tag.trim() || undefined });
       onSelectionChange?.(a);
+      onClose();
     },
-    [onSelectionChange],
+    [onSelectionChange, onClose],
   );
 
   if (!open) return null;

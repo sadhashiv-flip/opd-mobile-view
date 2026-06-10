@@ -5,6 +5,7 @@ import {
   activityLogTitleForApiType,
   activitySubmitPayloads,
   DIARY_MOOD_LABELS,
+  digitalDiaryMoodEmoji,
   type DigitalDiaryActivityType,
 } from "@/lib/digitalDiary";
 import "./DigitalDiaryAddSheet.css";
@@ -259,8 +260,13 @@ export function DigitalDiaryAddSheet({
                 type="button"
                 className={`dd-sheet__mood-chip${moodIndex === idx ? " dd-sheet__mood-chip--on" : ""}`}
                 onClick={() => setMoodIndex(idx)}
+                title={DIARY_MOOD_LABELS[idx]}
+                aria-label={DIARY_MOOD_LABELS[idx]}
+                aria-pressed={moodIndex === idx}
               >
-                {DIARY_MOOD_LABELS[idx]}
+                <span className="dd-sheet__mood-emoji" aria-hidden>
+                  {digitalDiaryMoodEmoji(idx)}
+                </span>
               </button>
             ))}
           </div>

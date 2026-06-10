@@ -161,7 +161,7 @@
 .dd-sheet__mood-chip {
   border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 999px;
-  padding: 8px 10px;
+  padding: 4px 8px;
   font-size: 12px;
   font-weight: 600;
   background: #fff;
@@ -169,6 +169,13 @@
   cursor: pointer;
   max-width: 100%;
   box-sizing: border-box;
+  line-height: 1;
+}
+
+.dd-sheet__mood-emoji {
+  display: block;
+  font-size: 26px;
+  line-height: 1;
 }
 
 .dd-sheet__mood-chip--on {

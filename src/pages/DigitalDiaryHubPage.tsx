@@ -59,14 +59,23 @@ export function DigitalDiaryHubPage() {
                   key={item.apiArg}
                   type="button"
                   className="dd-tile"
-                  onClick={() =>
+                  onClick={() => {
+                    if (item.apiArg === "height" || item.apiArg === "weight") {
+                      navigate(ROUTES.userDetailsBmi, {
+                        state: {
+                          startFromBmi: true,
+                          returnPath: ROUTES.digitalDiary,
+                        },
+                      });
+                      return;
+                    }
                     navigate(
                       generatePath(ROUTES.digitalDiaryLog, {
                         activityType: item.apiArg,
                       }),
                       { state: { returnPath: ROUTES.digitalDiary } },
-                    )
-                  }
+                    );
+                  }}
                 >
                   <span className="dd-tile__icon-wrap" aria-hidden>
                     <DigitalDiaryTileIcon activity={item.apiArg} />

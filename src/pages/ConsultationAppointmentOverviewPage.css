@@ -1,7 +1,9 @@
 .cao-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: #ffffff;
   color: #111111;
 }
@@ -11,8 +13,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px 8px;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 20;
   background: #ffffff;
   border-bottom: 1px solid #ececec;
@@ -43,7 +44,10 @@
 
 .cao-main {
   flex: 1;
-  padding: 8px 14px 96px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 14px 14px;
 }
 
 .cao-summary {

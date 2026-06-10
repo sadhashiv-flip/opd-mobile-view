@@ -324,6 +324,11 @@
   color: #0f172a;
 }
 
+.dd-row__summary--mood {
+  font-size: 22px;
+  line-height: 1;
+}
+
 .dd-row__time {
   flex-shrink: 0;
   font-size: 12px;

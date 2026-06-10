@@ -54,6 +54,19 @@ export function pathToOrderDetail(categoryKey: string, invoiceId: string): strin
   });
 }
 
+/**
+ * Route id for lab order detail — patient_app `overview.invoiceId` / `LabOrderNavigation.goToLabOrderDetail`.
+ * Prefer document invoice id (`GET /invoice/:id` from list row); fall back to partner `info.id`.
+ */
+export function resolveLabOrderDetailRouteId(args: {
+  documentInvoiceId?: string | null;
+  infoOrderId?: string | null;
+}): string {
+  const doc = args.documentInvoiceId?.trim();
+  if (doc) return doc;
+  return args.infoOrderId?.trim() ?? "";
+}
+
 /** Order success “View order details” — back on detail should land on orders, not success. */
 export function navigateToOrderDetailFromBookingSuccess(
   navigate: NavigateFunction,

@@ -15,11 +15,20 @@ export function UserDetailsBmiResultPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as UserDetailsBmiResultLocationState | null) ?? null;
+  const returnPath = state?.returnPath;
 
   if (!state || !Number.isFinite(state.bmi)) {
     navigate(ROUTES.userDetailsBmi, { replace: true });
     return null;
   }
+
+  const handleContinue = () => {
+    if (returnPath) {
+      navigate(returnPath, { replace: true });
+      return;
+    }
+    void navigateDashboardWithLabGate(navigate);
+  };
 
   const bmi = state.bmi;
   const category = bmiCategory(bmi);
@@ -115,7 +124,7 @@ export function UserDetailsBmiResultPage() {
           <button
             type="button"
             className="ud-secondary ud-result-page__skip"
-            onClick={() => void navigateDashboardWithLabGate(navigate)}
+            onClick={handleContinue}
           >
             Skip
           </button>
@@ -124,7 +133,7 @@ export function UserDetailsBmiResultPage() {
         <button
           type="button"
           className="ud-primary ud-result-page__continue"
-          onClick={() => void navigateDashboardWithLabGate(navigate)}
+          onClick={handleContinue}
         >
           Continue
         </button>

@@ -1,6 +1,6 @@
 import { CONSULT_QR_COPY } from "@/constants/consultationQrCopy";
 import { getSuggestedSecureDevUrl } from "@/lib/getUserMediaCompat";
-import { requestCameraAccess } from "@/lib/requestCameraAccess";
+import { ensureCameraAccess } from "@/lib/requestCameraAccess";
 import { Html5Qrcode } from "html5-qrcode";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import "@/components/address/AddressBottomSheet.css";
@@ -86,7 +86,7 @@ export function ConsultationQrScannerSheet({
   const requestPermission = useCallback(async (): Promise<boolean> => {
     setCameraGate("requesting");
     setCameraErr(null);
-    const result = await requestCameraAccess();
+    const result = await ensureCameraAccess();
     if (result.ok) {
       setCameraGate("granted");
       return true;

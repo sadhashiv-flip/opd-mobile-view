@@ -1,11 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { calculatePatientBmi } from "@/api/patientHealthScore";
+import { submitPatientParameter } from "@/api/patientParameters";
 import { ROUTES } from "@/constants";
+import { DIGITAL_DIARY_COPY } from "@/constants/digitalDiaryCopy";
 import { useToast } from "@/hooks/useToast";
+import {
+  buildDigitalDiaryBmiSubmitPayload,
+  computeBmiFromMetrics,
+} from "@/lib/digitalDiary";
+import { getAuthSession } from "@/lib/authStorage";
+import { loadCachedProfileRaw } from "@/lib/profileCacheStorage";
 import type {
+  UserDetailsBmiLocationState,
   UserDetailsBmiResultLocationState,
-  UserDetailsPersonalLocationState,
 } from "@/types/navigation";
 import "./UserDetailsFlow.css";
 
@@ -39,26 +47,198 @@ function lbsToKg(lbs: number): number {
   return lbs / 2.2046226218;
 }
 
+function IconMale({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle cx="10" cy="14" r="5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M16 4h4v4M20 4l-5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconFemale({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle cx="12" cy="9" r="5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M12 14v7M9 18h6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconLock({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M8 11V8a4 4 0 118 0v3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function asRecord(v: unknown): Record<string, unknown> | null {
+  return v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : null;
+}
+
+function coerceNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v.trim());
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function normalizeGender(v: unknown): "male" | "female" | "other" | null {
+  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+  if (s === "male" || s === "female" || s === "other") return s;
+  return null;
+}
+
+function normalizeYesNo(v: unknown): "yes" | "no" | null {
+  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+  if (s === "yes" || s === "y" || s === "1" || s === "true") return "yes";
+  if (s === "no" || s === "n" || s === "0" || s === "false") return "no";
+  return null;
+}
+
+function profilePrefillFromRaw(body: unknown): UserDetailsBmiLocationState {
+  const root = asRecord(body) ?? {};
+  const pickUser =
+    asRecord(root.user) ??
+    asRecord(root.profile) ??
+    asRecord(root.data) ??
+    root;
+  const health =
+    asRecord(pickUser.health_score) ?? asRecord(pickUser.healthScore);
+  const details = health ? asRecord(health.details) : null;
+
+  const first = typeof pickUser.first_name === "string" ? pickUser.first_name : "";
+  const last = typeof pickUser.last_name === "string" ? pickUser.last_name : "";
+  const combined = `${first} ${last}`.trim();
+  const fullName =
+    (typeof pickUser.name === "string" && pickUser.name.trim()) || combined || undefined;
+
+  const heightCm = details ? coerceNumber(details.height) : null;
+  const weightKg = details ? coerceNumber(details.weight) : null;
+
+  return {
+    fullName,
+    dob: typeof pickUser.dob === "string" ? pickUser.dob : undefined,
+    language: typeof pickUser.language === "string" ? pickUser.language : undefined,
+    gender: normalizeGender(pickUser.gender) ?? undefined,
+    isDiabetic: normalizeYesNo(pickUser.isDiabetic) ?? undefined,
+    isBloodPressure: normalizeYesNo(pickUser.isBloodPressure) ?? undefined,
+    heightCm: heightCm != null && heightCm > 0 ? heightCm : undefined,
+    weightKg: weightKg != null && weightKg > 0 ? weightKg : undefined,
+  };
+}
+
 export function UserDetailsBmiPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  const state = (location.state as UserDetailsPersonalLocationState | null) ?? null;
+  const state = (location.state as UserDetailsBmiLocationState | null) ?? null;
+  const startFromBmi = state?.startFromBmi === true;
+  const returnPath = state?.returnPath ?? ROUTES.digitalDiary;
 
-  const [gender, setGender] = useState<"male" | "female" | "other">(state?.gender ?? "male");
-  const age = useMemo(() => ageFromDob(state?.dob), [state?.dob]);
-  const [heightCm, setHeightCm] = useState(130);
-  const [weightKg, setWeightKg] = useState(129);
+  const [gender, setGender] = useState<"male" | "female" | "other">(
+    state?.gender ?? "male",
+  );
+  const [genderLocked, setGenderLocked] = useState(false);
+  const [dob, setDob] = useState(state?.dob ?? "");
+  const age = useMemo(() => ageFromDob(dob), [dob]);
+  const [heightCm, setHeightCm] = useState(state?.heightCm ?? 170);
+  const [weightKg, setWeightKg] = useState(state?.weightKg ?? 70);
   const [heightUnit, setHeightUnit] = useState<"cm" | "feet">("cm");
   const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
   const [submitting, setSubmitting] = useState(false);
+  const [prefillReady, setPrefillReady] = useState(!startFromBmi);
 
   const isDiabetic = state?.isDiabetic ?? "no";
   const isBloodPressure = state?.isBloodPressure ?? "no";
 
+  useEffect(() => {
+    if (!startFromBmi) return;
+    let cancelled = false;
+
+    (async () => {
+      const session = await getAuthSession();
+      const cached = loadCachedProfileRaw();
+      const fromProfile = profilePrefillFromRaw(cached);
+      const u = session?.user;
+
+      const nextGender =
+        fromProfile.gender ??
+        (u?.gender === "male" || u?.gender === "female" || u?.gender === "other"
+          ? u.gender
+          : "male");
+      const nextDob = fromProfile.dob ?? u?.dob ?? "";
+      const nextHeight =
+        fromProfile.heightCm != null && fromProfile.heightCm > 0
+          ? fromProfile.heightCm
+          : 170;
+      const nextWeight =
+        fromProfile.weightKg != null && fromProfile.weightKg > 0
+          ? fromProfile.weightKg
+          : 70;
+      const locked = normalizeGender(fromProfile.gender ?? u?.gender) != null;
+
+      if (cancelled) return;
+      setGender(nextGender);
+      setGenderLocked(locked);
+      setDob(nextDob);
+      setHeightCm(nextHeight);
+      setWeightKg(nextWeight);
+      setPrefillReady(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [startFromBmi]);
+
   const canCalculate = useMemo(() => {
-    return heightCm > 0 && weightKg > 0 && !submitting;
-  }, [heightCm, submitting, weightKg]);
+    return prefillReady && heightCm > 0 && weightKg > 0 && !submitting;
+  }, [heightCm, prefillReady, submitting, weightKg]);
 
   const displayedHeight = useMemo(() => {
     if (heightUnit === "cm") return Math.round(heightCm);
@@ -84,10 +264,35 @@ export function UserDetailsBmiPage() {
     return { min: 0, max: 660, step: 0.1 };
   }, [weightUnit]);
 
+  const handleBack = () => {
+    if (startFromBmi) {
+      navigate(returnPath);
+      return;
+    }
+    navigate(ROUTES.userDetailsPersonal, { replace: true, state });
+  };
+
   const handleCalculate = async () => {
     if (!canCalculate) return;
     setSubmitting(true);
     try {
+      if (startFromBmi) {
+        await submitPatientParameter(
+          buildDigitalDiaryBmiSubmitPayload(heightCm, weightKg),
+        );
+        const bmi = computeBmiFromMetrics(heightCm, weightKg);
+        const payload: UserDetailsBmiResultLocationState = {
+          bmi,
+          heightCm,
+          weightKg,
+          nutritionSuggestion: bmi >= 25,
+          returnPath,
+        };
+        toast.success(DIGITAL_DIARY_COPY.submitSuccess);
+        navigate(ROUTES.userDetailsBmiResult, { replace: true, state: payload });
+        return;
+      }
+
       const res = await calculatePatientBmi({
         name: state?.fullName ?? "",
         gender,
@@ -112,11 +317,19 @@ export function UserDetailsBmiPage() {
       };
       navigate(ROUTES.userDetailsBmiResult, { replace: true, state: payload });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not calculate BMI");
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : startFromBmi
+            ? DIGITAL_DIARY_COPY.submitError
+            : "Could not calculate BMI",
+      );
     } finally {
       setSubmitting(false);
     }
   };
+
+  const pageTitle = startFromBmi ? DIGITAL_DIARY_COPY.appBarTitle : "User Details";
 
   return (
     <main className="ud-flow-page">
@@ -124,41 +337,75 @@ export function UserDetailsBmiPage() {
         <button
           type="button"
           className="app-back-btn ud-flow-back"
-          onClick={() => navigate(ROUTES.userDetailsPersonal, { replace: true, state })}
+          onClick={handleBack}
           aria-label="Back"
         >
           ←
         </button>
-        <h1 className="ud-flow-title">User Details</h1>
+        <h1 className="ud-flow-title">{pageTitle}</h1>
       </header>
 
-      <div className="ud-stepper">
-        <div className="ud-step">
-          <span className="ud-step__index ud-step__index--done">✓</span>
-          <span className="ud-step__label">Personal Info</span>
+      {!startFromBmi ? (
+        <div className="ud-stepper">
+          <div className="ud-step">
+            <span className="ud-step__index ud-step__index--done">✓</span>
+            <span className="ud-step__label">Personal Info</span>
+          </div>
+          <div className="ud-step ud-step--active">
+            <span className="ud-step__index">2</span>
+            <span className="ud-step__label">BMI Score</span>
+          </div>
         </div>
-        <div className="ud-step ud-step--active">
-          <span className="ud-step__index">2</span>
-          <span className="ud-step__label">BMI Score</span>
+      ) : (
+        <div className="ud-stepper">
+          <div className="ud-step ud-step--active">
+            <span className="ud-step__index">1</span>
+            <span className="ud-step__label">Height &amp; Weight</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <section className="ud-card">
-        <div className="ud-gender-row">
-          <button
-            type="button"
-            className={`ud-gender${gender === "male" ? " ud-gender--active" : ""}`}
-            onClick={() => setGender("male")}
+        <div className="ud-field ud-field--gender">
+          <div className="ud-field__label-row">
+            <span className="ud-field__label">Gender</span>
+            {genderLocked ? (
+              <span className="ud-gender-lock-hint">
+                <IconLock className="ud-gender-lock-hint__ic" />
+                From profile
+              </span>
+            ) : (
+              <span className="ud-gender-hint">Select one</span>
+            )}
+          </div>
+          <div
+            className={`ud-gender-segment${genderLocked ? " ud-gender-segment--locked" : ""}`}
+            role="radiogroup"
+            aria-label="Gender"
           >
-            ♂ Male
-          </button>
-          <button
-            type="button"
-            className={`ud-gender${gender === "female" ? " ud-gender--active" : ""}`}
-            onClick={() => setGender("female")}
-          >
-            ♀ Female
-          </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={gender === "male"}
+              className={`ud-gender-tab${gender === "male" ? " ud-gender-tab--active" : ""}`}
+              onClick={() => !genderLocked && setGender("male")}
+              disabled={genderLocked}
+            >
+              <IconMale className="ud-gender-tab__icon" />
+              <span className="ud-gender-tab__label">Male</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={gender === "female"}
+              className={`ud-gender-tab${gender === "female" ? " ud-gender-tab--active" : ""}`}
+              onClick={() => !genderLocked && setGender("female")}
+              disabled={genderLocked}
+            >
+              <IconFemale className="ud-gender-tab__icon" />
+              <span className="ud-gender-tab__label">Female</span>
+            </button>
+          </div>
         </div>
 
         <div className="ud-field ud-field--age">
@@ -265,4 +512,3 @@ export function UserDetailsBmiPage() {
     </main>
   );
 }
-

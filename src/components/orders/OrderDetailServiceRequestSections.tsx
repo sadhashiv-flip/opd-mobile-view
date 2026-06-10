@@ -5,6 +5,7 @@ import {
   type InvoiceDetailModel,
 } from "@/api/patientInvoices";
 import { OrderDetailCancellationReason } from "@/components/orders/OrderDetailCancellationReason";
+import { OrderDetailRiderSection } from "@/components/orders/OrderDetailRiderSection";
 import { serviceRequestStatusBannerTone } from "@/lib/serviceRequestOrderDetail";
 import "./OrderDetailServiceRequestSections.css";
 
@@ -297,10 +298,10 @@ export function OrderDetailServiceRequestSections({
       ) : null}
 
       {detail.showServiceRequestRiderCard && detail.serviceRequestRider != null ? (
-        <SrSection title="Rider details" ariaLabel="Rider details">
-          <SrLine label="Name" value={detail.serviceRequestRider.name} />
-          <SrLine label="Contact" value={detail.serviceRequestRider.contact} />
-        </SrSection>
+        <OrderDetailRiderSection
+          name={detail.serviceRequestRider.name}
+          contact={detail.serviceRequestRider.contact}
+        />
       ) : null}
     </div>
   );

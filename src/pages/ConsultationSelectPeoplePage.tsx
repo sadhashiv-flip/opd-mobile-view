@@ -2,7 +2,9 @@ import { ROUTES, VISION_ROUTE_TYPE } from "@/constants";
 import { VISION_FLOW_OPTION_KEY, type VisionSheetOption } from "@/constants/visionBookingStorage";
 import {
   buildConsultMemberSnapshotFromRow,
+  persistConsultSelectedMember,
   readConsultSelectedPersonIds,
+  resolveConsultBookingPersonId,
   writeConsultSelectedMembersSnapshots,
   writeConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
@@ -16,6 +18,7 @@ import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
 import { writeHealthSponsoredFlag } from "@/constants/diagnosticsHealthFlowStorage";
 import { ensureDefaultSelectedAddressIfNeeded } from "@/api/patientAddress";
 import { VirtualLanguageBottomSheet } from "@/components/consultation/VirtualLanguageBottomSheet";
+import { resolveDefaultConsultationLanguage } from "@/constants/consultationLanguages";
 import { VIRTUAL_CONSULT_LANGUAGE_KEY } from "@/constants/virtualConsultationSessionStorage";
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
@@ -143,11 +146,24 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>(() => loadStoredPersonIds());
   const [addrSheetOpen, setAddrSheetOpen] = useState(false);
   const [virtualLangSheetOpen, setVirtualLangSheetOpen] = useState(false);
-  /** Ephemeral ó cleared whenever the language sheet opens, closes, or after Continue. */
+  /** Ephemeral ù cleared whenever the language sheet opens, closes, or after Continue. */
   const [virtualLangChoice, setVirtualLangChoice] = useState("");
 
   const openVirtualLanguageSheet = () => {
-    setVirtualLangChoice("");
+    const selectedId = selectedIds[0];
+    const member = selectedId ? rows.find((r) => r.id === selectedId) : undefined;
+    let sessionLang = "";
+    try {
+      sessionLang = sessionStorage.getItem(VIRTUAL_CONSULT_LANGUAGE_KEY)?.trim() ?? "";
+    } catch {
+      sessionLang = "";
+    }
+    setVirtualLangChoice(
+      resolveDefaultConsultationLanguage({
+        memberLanguage: member?.language,
+        sessionLanguage: sessionLang,
+      }),
+    );
     setVirtualLangSheetOpen(true);
   };
 
@@ -169,7 +185,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
   }, [rows, isHealthCheckupsDiagnostics, filterAhcDashboardEntry]);
 
   /**
-   * Prime `localStorage` sponsored flag for the plan step (`GET diagnostics/packages?Ö&sponsored=`).
+   * Prime `localStorage` sponsored flag for the plan step (`GET diagnostics/packages?ù&sponsored=`).
    * Dashboard / deep link uses `?sponsored=1` / `?ahc=1`; general diagnostics clears stale `true` until Continue
    * sets it again from `AHCAvailable` (patient_app `applyEntryArguments` / `continueWithMemberSelection`).
    */
@@ -262,12 +278,20 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
     (ids: readonly string[]) => {
       writeSelectPeoplePickerIds(pickerScope, ids);
       if (flow === "consultation") {
-        writeConsultSelectedPersonIds([...ids]);
+        if (ids.length === 0) return;
+        const primaryId = ids[0];
+        const row = rows.find((r) => r.id === primaryId);
+        writeConsultSelectedPersonIds([...ids], {
+          bookingPersonId: row ? resolveConsultBookingPersonId(row) : primaryId,
+        });
+        if (row) {
+          writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
+        }
       } else if (flow === "diagnostics" || flow === "dental" || flow === "vision") {
         writeDiagnosticsSelectedPersonIds([...ids]);
       }
     },
-    [flow, pickerScope],
+    [flow, pickerScope, rows],
   );
 
   /** patient_app `HealthCheckupsScreen`: `allowMultiSelect: false` (one member per booking). */
@@ -398,8 +422,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
       if (!selected) return;
       const row = rows.find((r) => r.id === selected) ?? null;
       if (!row) return;
-      writeConsultSelectedPersonIds([selected]);
-      writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
+      persistConsultSelectedMember(row);
       if (type === "virtual") {
         openVirtualLanguageSheet();
         return;
@@ -552,7 +575,7 @@ export function SelectPeopleFlowPage({ flow }: SelectPeopleFlowPageProps) {
 
         {loading ? (
           <p className="hc-member-loading" aria-busy="true">
-            Loading membersÖ
+            Loading membersù
           </p>
         ) : null}
 

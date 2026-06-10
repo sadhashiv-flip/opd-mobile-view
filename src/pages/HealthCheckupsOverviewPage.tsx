@@ -55,7 +55,7 @@ import {
   DIAG_OVERVIEW_IC_SCHEDULE,
 } from "@/components/diagnostics/diagnosticsOverviewIcons";
 import { FlowScreenBack } from "@/components/navigation/FlowScreenBack";
-import { MdCheckCircle } from "react-icons/md";
+import { MdCheckCircle, MdOutlinePersonPin } from "react-icons/md";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import {
   useCallback,
@@ -814,7 +814,9 @@ export function HealthCheckupsOverviewPage() {
                     <div className="lt-contact-name-row">
                       <span className="lt-contact-name">{labDistinctUsers[0]?.name}</span>
                       {labDistinctUsers[0]?.gender ? (
-                        <span className="lt-pill">{capitalizeWord(labDistinctUsers[0]?.gender)}</span>
+                        <span className="lt-pill lt-pill--gender">
+                          {capitalizeWord(labDistinctUsers[0]?.gender)}
+                        </span>
                       ) : null}
                     </div>
                   ) : null}
@@ -895,12 +897,21 @@ export function HealthCheckupsOverviewPage() {
                             <>
                               {group.userKey >= 0 && group.userName?.trim() ? (
                                 <div className="lt-user-bucket__user">
-                                  <span className="lt-user-bucket__k">User</span>
-                                  <div className="lt-user-bucket__name-row">
-                                    <span className="lt-user-bucket__name">{group.userName.trim()}</span>
-                                    {group.userGender?.trim() ? (
-                                      <span className="lt-pill">{capitalizeWord(group.userGender)}</span>
-                                    ) : null}
+                                  <MdOutlinePersonPin
+                                    className="lt-user-bucket__pin"
+                                    size={18}
+                                    aria-hidden
+                                  />
+                                  <div className="lt-user-bucket__user-col">
+                                    <span className="lt-user-bucket__k">User</span>
+                                    <div className="lt-user-bucket__name-row">
+                                      <span className="lt-user-bucket__name">{group.userName.trim()}</span>
+                                      {group.userGender?.trim() ? (
+                                        <span className="lt-pill lt-pill--gender">
+                                          {capitalizeWord(group.userGender)}
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </div>
                               ) : (

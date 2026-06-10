@@ -680,6 +680,35 @@ button.hco-back {
   background: #f6f6f6;
 }
 
+/* patient_app `LabTestOverviewScreen._buildCard` — orange icon chip, full-width body */
+.hco-page--lab-review .lt-card {
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.hco-page--lab-review .lt-card__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 82, 36, 0.12);
+  color: #ff5224;
+}
+
+.hco-page--lab-review .lt-card__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b6b6b;
+}
+
+.hco-page--lab-review .lt-card__body {
+  margin-left: 0;
+  padding-left: 2px;
+}
+
+.hco-page--lab-review .lt-card__rule {
+  margin: 10px 0;
+}
+
 .lt-overview {
   flex: 1;
   overflow: auto;
@@ -1078,6 +1107,13 @@ button.hco-back {
   color: #4a4a4a;
 }
 
+.lt-pill--gender {
+  flex-shrink: 0;
+  border-color: #ff5224;
+  background: #ffffff;
+  color: #6b6b6b;
+}
+
 .lt-phone-block {
   margin-top: 4px;
 }
@@ -1159,10 +1195,27 @@ button.hco-back {
   background: #f4f4f4;
 }
 
+.lt-user-bucket__user {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.lt-user-bucket__pin {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #ff5224;
+}
+
+.lt-user-bucket__user-col {
+  flex: 1;
+  min-width: 0;
+}
+
 .lt-user-bucket__k {
   display: block;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   color: #8a8a8a;
   margin-bottom: 2px;
 }
@@ -1274,7 +1327,7 @@ button.hco-back {
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid #e6e6e6;
+  border: 1px solid #ff5224;
   background: #ffffff;
   display: flex;
   align-items: center;
@@ -1284,14 +1337,14 @@ button.hco-back {
 
 .lt-subtotal__k {
   font-size: 11px;
-  font-weight: 700;
-  color: #4a4a4a;
+  font-weight: 600;
+  color: #6b6b6b;
 }
 
 .lt-subtotal__v {
   font-size: 15px;
-  font-weight: 900;
-  color: #0b0b0b;
+  font-weight: 800;
+  color: #ff5224;
 }
 
 .lt-pr__row {
@@ -1322,6 +1375,10 @@ button.hco-back {
   font-size: 14px;
   font-weight: 800;
   color: #0b0b0b;
+}
+
+.hco-page--lab-review .lt-pr__row--pay span:last-child {
+  color: #ff5224;
 }
 
 .lt-pr__rule {

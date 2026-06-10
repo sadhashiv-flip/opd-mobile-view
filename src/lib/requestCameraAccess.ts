@@ -1,6 +1,7 @@
 import { CONSULT_QR_COPY } from "@/constants/consultationQrCopy";
 import {
   GET_USER_MEDIA_ERRORS,
+  getCameraAccessBlockReason,
   getSuggestedSecureDevUrl,
   getUserMediaCompat,
 } from "@/lib/getUserMediaCompat";
@@ -33,6 +34,49 @@ function insecureCameraMessage(): string {
     return `${CONSULT_QR_COPY.cameraRequiresHttps} ${secureUrl}`;
   }
   return CONSULT_QR_COPY.cameraRequiresHttps;
+}
+
+export type CameraPermissionState = "granted" | "denied" | "prompt" | "unknown";
+
+/** Best-effort preflight; falls back to `unknown` when Permissions API is unavailable. */
+export async function queryCameraPermissionState(): Promise<CameraPermissionState> {
+  try {
+    if (!navigator.permissions?.query) return "unknown";
+    const status = await navigator.permissions.query({
+      name: "camera" as PermissionName,
+    });
+    if (status.state === "granted" || status.state === "denied" || status.state === "prompt") {
+      return status.state;
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * Requests camera access when needed (patient_app `PermissionService.requestCameraPermission`).
+ * Skips `getUserMedia` when permission is already granted; surfaces denied without a silent fail.
+ */
+export async function ensureCameraAccess(): Promise<CameraAccessResult> {
+  const preflight = getCameraAccessBlockReason();
+  if (preflight) {
+    return mapPreflightError(preflight);
+  }
+
+  const state = await queryCameraPermissionState();
+  if (state === "granted") {
+    return { ok: true };
+  }
+  if (state === "denied") {
+    return {
+      ok: false,
+      reason: "denied",
+      message: CONSULT_QR_COPY.cameraPermissionDenied,
+    };
+  }
+
+  return requestCameraAccess();
 }
 
 function mapPreflightError(code: string): CameraAccessResult {

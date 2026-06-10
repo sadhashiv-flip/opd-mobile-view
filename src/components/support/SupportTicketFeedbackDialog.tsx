@@ -39,6 +39,12 @@ export function SupportTicketFeedbackDialog({
   const displayRating = existingFeedback?.rating ?? feedbackRating;
   const displayDescription = existingFeedback?.description ?? feedbackDescription;
 
+  const canSubmit =
+    !isReadOnly &&
+    feedbackRating >= 1 &&
+    feedbackDescription.trim().length > 0 &&
+    !feedbackBusy;
+
   const summaryLabel =
     displayRating > 0 && displayRating <= 5 ? FEEDBACK_RATING_LABELS[displayRating] : "";
 
@@ -119,7 +125,12 @@ export function SupportTicketFeedbackDialog({
         </label>
         <div className="support-chat__feedback-actions support-chat__feedback-actions--stack">
           {!isReadOnly && (
-            <button type="button" className="support-chat__feedback-submit" onClick={onSubmit} disabled={feedbackBusy}>
+            <button
+              type="button"
+              className="support-chat__feedback-submit"
+              onClick={onSubmit}
+              disabled={!canSubmit}
+            >
               {feedbackBusy ? "Submitting…" : "Submit feedback"}
             </button>
           )}

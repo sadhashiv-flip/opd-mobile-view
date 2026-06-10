@@ -282,7 +282,11 @@ export function DigitalDiaryLogPage() {
                   return (
                     <li key={`${rawTime}-${i}`}>
                       <div className="dd-row">
-                        <span className="dd-row__summary">{summary}</span>
+                        <span
+                          className={`dd-row__summary${apiType === "mood" ? " dd-row__summary--mood" : ""}`}
+                        >
+                          {summary}
+                        </span>
                         <span className="dd-row__time">{timeLabel}</span>
                       </div>
                     </li>

@@ -2,6 +2,11 @@ import {
   clearHospitalVendorBookingContext,
   HOSPITAL_SELECTED_SPECIALTY_ID_KEY,
 } from "@/constants/consultationBookingStorage";
+import {
+  CONSULT_SELECTED_MEMBER_SNAPSHOT_KEY,
+  CONSULT_SELECTED_PERSON_IDS_KEY,
+  CONSULT_SELECTED_PERSON_KEY,
+} from "@/constants/consultationSelectedMemberStorage";
 import { writeNetworkDoctorDetailEntry } from "@/constants/networkDoctorDetailStorage";
 
 const CONSULTATION_LOCAL_PREFIX = "opd-mobile-view.consultation.";
@@ -50,9 +55,17 @@ export function clearHospitalConsultationSlotPicks(): void {
 export function clearHospitalConsultationBookingState(): void {
   clearHospitalVendorBookingContext();
   writeNetworkDoctorDetailEntry(null);
-  const keepSession = new Set<string>([HOSPITAL_SELECTED_SPECIALTY_ID_KEY]);
+  /** Member picked on select-people must survive backing out of doctor/slots steps. */
+  const keepLocal = new Set<string>([
+    CONSULT_SELECTED_PERSON_KEY,
+    CONSULT_SELECTED_PERSON_IDS_KEY,
+  ]);
+  const keepSession = new Set<string>([
+    HOSPITAL_SELECTED_SPECIALTY_ID_KEY,
+    CONSULT_SELECTED_MEMBER_SNAPSHOT_KEY,
+  ]);
   try {
-    removeStorageKeysWithPrefix(localStorage, CONSULTATION_LOCAL_PREFIX);
+    removeStorageKeysWithPrefix(localStorage, CONSULTATION_LOCAL_PREFIX, keepLocal);
     removeStorageKeysWithPrefix(sessionStorage, CONSULTATION_SESSION_PREFIX, keepSession);
   } catch {
     // ignore

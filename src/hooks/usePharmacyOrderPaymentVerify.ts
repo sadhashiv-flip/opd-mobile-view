@@ -20,6 +20,8 @@ type Refs = Readonly<{
   onSuccessRef: MutableRefObject<() => void>;
   onErrorRef: MutableRefObject<(message: string) => void>;
   setBusyRef: MutableRefObject<(busy: boolean) => void>;
+  /** Set to Razorpay `payment_id` before `onSuccessRef` (pharmacy payment success summary). */
+  verifiedPaymentIdRef?: MutableRefObject<string | null>;
   /**
    * When set, used instead of `verifyPharmacyOrderPayment` (e.g. `service/request/paymentverify`
    * for vision / dental / vaccine).
@@ -69,6 +71,9 @@ export function usePharmacyOrderPaymentVerify(refs: Refs): void {
           ...(inv ? { invoice_id: inv } : {}),
         };
         await verify(body);
+        if (refsStable.current.verifiedPaymentIdRef) {
+          refsStable.current.verifiedPaymentIdRef.current = detail.razorpay_payment_id;
+        }
         onSuccessRef.current();
       } catch (err) {
         verifiedPaymentIds.delete(pid);

@@ -1,6 +1,6 @@
 import { patientFetchChecked, patientJson } from "@/api/patientHttp";
 import { uploadProfileImageFileRaw } from "@/api/patientUpload";
-import { saveCachedProfileRaw } from "@/lib/profileCacheStorage";
+import { loadCachedProfileRaw, saveCachedProfileRaw } from "@/lib/profileCacheStorage";
 
 /** WHO-style bands for BMI coloring on the profile screen. */
 export type BmiCategory =
@@ -337,6 +337,13 @@ export async function updatePatientProfileImage(file: File): Promise<ProfileDisp
   const raw = await patientJson<unknown>("profile", { method: "GET" });
   saveCachedProfileRaw(raw);
   return normalizeProfileResponse(raw);
+}
+
+/** Preferred language from cached `GET /patient/profile` (patient_app `AppSecureStorage.getSavedUser().language`). */
+export function readCachedProfileLanguage(): string | null {
+  const raw = loadCachedProfileRaw();
+  if (!raw) return null;
+  return normalizeProfileResponse(raw).language;
 }
 
 /** GET /patient/profile (Bearer token via interceptor). */

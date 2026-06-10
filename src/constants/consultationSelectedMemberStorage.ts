@@ -7,6 +7,9 @@ export const CONSULT_SELECTED_MEMBER_SNAPSHOT_KEY = "opd-mobile-view.consultatio
 
 export type ConsultationSelectedMemberSnapshot = Readonly<{
   id: string;
+  /** Numeric patient id for booking APIs when distinct from {@link id}. */
+  userId?: number | null;
+  language?: string;
   name: string;
   phone: string;
   email: string;
@@ -19,6 +22,8 @@ export type ConsultationSelectedMemberSnapshot = Readonly<{
 export function buildConsultMemberSnapshotFromRow(row: GymMemberListRow): ConsultationSelectedMemberSnapshot {
   return {
     id: row.id,
+    userId: row.userId,
+    language: row.language?.trim() || undefined,
     name: row.name.trim(),
     phone: row.phone?.trim() ?? "",
     email: row.email?.trim() ?? "",
@@ -27,6 +32,14 @@ export function buildConsultMemberSnapshotFromRow(row: GymMemberListRow): Consul
     relation: row.subtitle?.trim() || undefined,
     sourceSection: row.section,
   };
+}
+
+/** `patient_id` / `user_id` for network + book APIs (patient_app `MemberController.selectedUserId`). */
+export function resolveConsultBookingPersonId(row: GymMemberListRow): string {
+  if (row.userId != null && Number.isFinite(row.userId)) {
+    return String(row.userId);
+  }
+  return row.id;
 }
 
 /** Ordered ids from localStorage; migrates legacy single {@link CONSULT_SELECTED_PERSON_KEY}. */
@@ -47,7 +60,10 @@ export function readConsultSelectedPersonIds(): string[] {
   return [];
 }
 
-export function writeConsultSelectedPersonIds(ids: string[]): void {
+export function writeConsultSelectedPersonIds(
+  ids: string[],
+  options?: Readonly<{ bookingPersonId?: string }>,
+): void {
   try {
     if (ids.length === 0) {
       localStorage.removeItem(CONSULT_SELECTED_PERSON_IDS_KEY);
@@ -55,10 +71,22 @@ export function writeConsultSelectedPersonIds(ids: string[]): void {
       return;
     }
     localStorage.setItem(CONSULT_SELECTED_PERSON_IDS_KEY, JSON.stringify(ids));
-    localStorage.setItem(CONSULT_SELECTED_PERSON_KEY, ids[0] ?? "");
+    const legacy =
+      options?.bookingPersonId?.trim() || ids[0]?.trim() || "";
+    if (legacy) {
+      localStorage.setItem(CONSULT_SELECTED_PERSON_KEY, legacy);
+    }
   } catch {
     // ignore
   }
+}
+
+/** Persist list-row id (UI) + booking id (API) + session snapshot. */
+export function persistConsultSelectedMember(row: GymMemberListRow): void {
+  writeConsultSelectedPersonIds([row.id], {
+    bookingPersonId: resolveConsultBookingPersonId(row),
+  });
+  writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
 }
 
 export function writeConsultSelectedMembersSnapshots(members: ConsultationSelectedMemberSnapshot[]): void {
@@ -69,8 +97,18 @@ export function writeConsultSelectedMembersSnapshots(members: ConsultationSelect
   }
 }
 
-/** Primary selected member id string — `user_id` on network list/slots (patient_app `MemberController.selectedUserId`). */
+/** Primary booking id — `user_id` on network list/slots (numeric when API provides it). */
 export function readConsultSelectedPersonId(): string | null {
+  try {
+    const legacy = localStorage.getItem(CONSULT_SELECTED_PERSON_KEY)?.trim();
+    if (legacy) return legacy;
+  } catch {
+    // ignore
+  }
+  const snap = readPrimaryConsultSelectedMemberSnapshot();
+  if (snap?.userId != null && Number.isFinite(snap.userId)) {
+    return String(snap.userId);
+  }
   const ids = readConsultSelectedPersonIds();
   const id = ids[0]?.trim();
   return id || null;
@@ -78,14 +116,14 @@ export function readConsultSelectedPersonId(): string | null {
 
 /** Primary selected member id for booking APIs (`patient_id`). */
 export function readConsultSelectedPersonIdNumber(): number | null {
-  try {
-    const raw = localStorage.getItem(CONSULT_SELECTED_PERSON_KEY);
-    if (!raw?.trim()) return null;
-    const n = Number(raw.trim());
-    return Number.isFinite(n) ? n : null;
-  } catch {
-    return null;
+  const fromStr = readConsultSelectedPersonId();
+  if (fromStr) {
+    const n = Number(fromStr);
+    if (Number.isFinite(n)) return n;
   }
+  const snap = readPrimaryConsultSelectedMemberSnapshot();
+  if (snap?.userId != null && Number.isFinite(snap.userId)) return snap.userId;
+  return null;
 }
 
 /** First selected member from the select-people flow (session). */

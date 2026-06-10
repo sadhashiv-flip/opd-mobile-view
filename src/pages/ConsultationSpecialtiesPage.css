@@ -1,7 +1,9 @@
 .csp-page {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: #ffffff;
   color: #111111;
   gap: 10px;
@@ -12,8 +14,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px 8px;
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 20;
   background: #ffffff;
   border-bottom: 1px solid #ececec;
@@ -53,6 +54,7 @@ button.csp-back {
   border: 1px solid #ececec;
   border-radius: 10px;
   background: #ffffff;
+  flex-shrink: 0;
 }
 
 .csp-loc__pin {
@@ -103,6 +105,7 @@ button.csp-back {
   justify-content: center;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 /* Virtual online: dark strip + overlapping doctor art (patient-app SelectSpecialityScreen) */
@@ -180,6 +183,9 @@ button.csp-back {
 
 .csp-main {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 0 14px 14px;
 }
 

@@ -211,6 +211,34 @@ export const activitySubmitPayloads = {
   },
 };
 
+/**
+ * Convert height (cm) to API `feet.inches` — mirrors Flutter `HealthScoreController._submitBmiFromDigitalDiary`.
+ */
+export function heightCmToFeetDotInches(heightCm: number): string {
+  const totalInches = heightCm / 2.54;
+  const feet = Math.floor(totalInches / 12);
+  const inches = Math.min(11, Math.max(0, Math.round(totalInches % 12)));
+  const inchPart = inches <= 9 ? `0${inches}` : String(inches);
+  return `${feet}.${inchPart}`;
+}
+
+export function computeBmiFromMetrics(heightCm: number, weightKg: number): number {
+  const heightM = heightCm / 100;
+  if (heightM <= 0 || !Number.isFinite(weightKg)) return 0;
+  return weightKg / (heightM * heightM);
+}
+
+/** POST `/patient/parameters` body for digital diary height/weight (Flutter `startFromBmi` flow). */
+export function buildDigitalDiaryBmiSubmitPayload(
+  heightCm: number,
+  weightKg: number,
+): Record<string, unknown> {
+  return activitySubmitPayloads.bmi(
+    heightCmToFeetDotInches(heightCm),
+    String(Math.round(weightKg)),
+  );
+}
+
 export type DigitalDiaryHubTile = Readonly<{
   title: string;
   hint: string;
@@ -258,8 +286,42 @@ export const DIGITAL_DIARY_SECTIONS: readonly DigitalDiaryHubSection[] = [
   },
 ];
 
-/** Mood scale 1–5 — same labels as {@link DigitalDiaryAddSheet} */
+/** Mood scale 1–5 — tooltip / screen-reader labels (Flutter `activity_add_sheet` tooltips). */
 export const DIARY_MOOD_LABELS = ["", "Awful", "Bad", "Okay", "Good", "Great"];
+
+/** Emoji for mood scale 1–5 — mirrors Flutter `digitalDiaryMoodEmoji`. */
+export function digitalDiaryMoodEmoji(valueOneToFive: number): string {
+  switch (valueOneToFive) {
+    case 1:
+      return "😢";
+    case 2:
+      return "😔";
+    case 3:
+      return "😐";
+    case 4:
+      return "😊";
+    case 5:
+      return "😄";
+    default:
+      return "❓";
+  }
+}
+
+function parseMoodValueOneToFive(
+  value: unknown,
+  details: unknown,
+): number | null {
+  let moodRaw = value;
+  if (moodRaw == null && details !== null && typeof details === "object" && !Array.isArray(details)) {
+    moodRaw = (details as Record<string, unknown>).value;
+  }
+  const n =
+    typeof moodRaw === "number"
+      ? moodRaw
+      : Number.parseInt(String(moodRaw ?? "").trim(), 10);
+  if (!Number.isFinite(n) || n < 1 || n > 5) return null;
+  return n;
+}
 
 function coalesceApiUnit(e: Record<string, unknown>): string {
   const raw = e.units ?? e.unit;
@@ -326,6 +388,13 @@ export function formatDiaryEntrySummary(
 
   const cat = String(e.category ?? "").trim().toLowerCase();
 
+  if (effectiveType === "mood" || cat === "mood") {
+    const n = parseMoodValueOneToFive(value, e.details);
+    if (n != null) {
+      return digitalDiaryMoodEmoji(n);
+    }
+  }
+
   /** BMI-style rows */
   const heightRaw = e.height;
   const weightRaw = e.weight;
@@ -345,14 +414,6 @@ export function formatDiaryEntrySummary(
 
   if (value != null) {
     const valStr = String(value);
-
-    if (effectiveType === "mood" || cat === "mood") {
-      const n = typeof value === "number" ? value : Number.parseInt(valStr, 10);
-      if (Number.isFinite(n) && n >= 1 && n <= 5) {
-        const label = DIARY_MOOD_LABELS[n] ?? valStr;
-        return `${label} (${n}/5)`;
-      }
-    }
 
     const fallback = apiUnit.length === 0 ? fallbackUnitForDiaryRow(e, screen) : "";
     const unitPart = apiUnit.length > 0 ? apiUnit : fallback;

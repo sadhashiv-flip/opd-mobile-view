@@ -4,10 +4,8 @@ import { fetchAllPatientMembers } from "@/api/patientMember";
 import { fetchAnySubscriptionCanActivate } from "@/api/patientSubscriptions";
 import { ROUTES } from "@/constants";
 import {
-  buildConsultMemberSnapshotFromRow,
-  CONSULT_SELECTED_PERSON_KEY,
-  writeConsultSelectedMembersSnapshots,
-  writeConsultSelectedPersonIds,
+  persistConsultSelectedMember,
+  readConsultSelectedPersonIds,
 } from "@/constants/consultationSelectedMemberStorage";
 import { SelectPeopleMemberList } from "@/components/select-people/SelectPeopleMemberList";
 import { patientMembersToGymRows, type GymMemberListRow } from "@/lib/gymMemberDisplay";
@@ -26,13 +24,9 @@ export type SelectPeopleBottomSheetProps = Readonly<{
   onApplied?: () => void;
 }>;
 
-function readStoredPersonId(): string | null {
-  try {
-    const raw = localStorage.getItem(CONSULT_SELECTED_PERSON_KEY);
-    return raw?.trim() ? raw.trim() : null;
-  } catch {
-    return null;
-  }
+function readStoredListPersonId(): string | null {
+  const ids = readConsultSelectedPersonIds();
+  return ids[0]?.trim() || null;
 }
 
 export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeopleBottomSheetProps) {
@@ -105,7 +99,7 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
         return Boolean(r?.isSubscribed);
       });
       if (next.length === 0) {
-        const stored = readStoredPersonId();
+        const stored = readStoredListPersonId();
         if (stored) {
           const storedRow = rows.find((r) => r.id === stored);
           if (storedRow?.isSubscribed) next = [stored];
@@ -142,8 +136,7 @@ export function SelectPeopleBottomSheet({ open, onClose, onApplied }: SelectPeop
     if (!selected) return;
     const row = rows.find((r) => r.id === selected) ?? null;
     if (!row) return;
-    writeConsultSelectedPersonIds([selected]);
-    writeConsultSelectedMembersSnapshots([buildConsultMemberSnapshotFromRow(row)]);
+    persistConsultSelectedMember(row);
     onApplied?.();
     onClose();
   }, [rows, selectedIds, onApplied, onClose]);

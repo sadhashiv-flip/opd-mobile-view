@@ -953,11 +953,23 @@ export async function postDiagnosticsBooking(
 
 export function parseBookingInvoiceId(raw: unknown): string | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const data = (raw as Record<string, unknown>).data;
-  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
-  const id = (data as Record<string, unknown>).invoice_id;
-  if (typeof id === "string" && id.trim()) return id.trim();
-  return null;
+  const root = raw as Record<string, unknown>;
+
+  const fromRecord = (rec: Record<string, unknown> | null): string | null => {
+    if (!rec) return null;
+    const id = nonEmptyStr(rec.invoice_id) ?? nonEmptyStr(rec.invoiceId);
+    return id;
+  };
+
+  const direct = fromRecord(root);
+  if (direct) return direct;
+
+  const data = asRecord(root.data);
+  const fromData = fromRecord(data);
+  if (fromData) return fromData;
+
+  const nested = data != null ? asRecord(data.data) : null;
+  return fromRecord(nested);
 }
 
 /** `POST …/diagnostics/order/booking?overview=no` — aligns with patient_app `DiagnosticsBookingApiResult`. */

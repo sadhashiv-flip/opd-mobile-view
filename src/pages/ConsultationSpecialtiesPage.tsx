@@ -10,7 +10,10 @@ import { VirtualSpecialtyIssuesGrid } from "@/components/consultation/VirtualSpe
 import { AddressBottomSheet } from "@/components/address/AddressBottomSheet";
 import { AddressStripLabels } from "@/components/address/AddressStripLabels";
 import { ROUTES } from "@/constants";
-import { isConsultationLanguageValue } from "@/constants/consultationLanguages";
+import {
+  isConsultationLanguageValue,
+  resolveDefaultConsultationLanguage,
+} from "@/constants/consultationLanguages";
 import {
   clearVirtualConsultPurposeOnly,
   clearVirtualFollowUpAppointmentId,
@@ -84,6 +87,7 @@ export function ConsultationSpecialtiesPage() {
   const [doctorsLoad, setDoctorsLoad] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const doctorsRequestRef = useRef(0);
   const virtualDoctorsRestoredRef = useRef(false);
+  const mainScrollRef = useRef<HTMLElement>(null);
 
   /** patient_app: client-side filter (`searchOfflineSpecialities` / `searchIssues`). */
   const filteredHospitalSpecs = useMemo(() => {
@@ -322,26 +326,25 @@ export function ConsultationSpecialtiesPage() {
     if (isHospital) return;
     if (issuesLoad !== "ok" || virtualIssues.length === 0) return;
     if (!hasMoreVirtualRef.current || loadingMoreVirtualRef.current) return;
-    const doc = document.documentElement;
-    if (doc.scrollHeight <= window.innerHeight + 2) void loadMoreVirtual();
+    const el = mainScrollRef.current;
+    if (!el) return;
+    if (el.scrollHeight <= el.clientHeight + 2) void loadMoreVirtual();
   }, [isHospital, issuesLoad, virtualIssues.length, loadMoreVirtual]);
 
   useEffect(() => {
     if (isHospital) return;
     if (issuesLoad !== "ok") return;
+    const el = mainScrollRef.current;
+    if (!el) return;
     const thresholdPx = 120;
     const onScroll = () => {
       if (!hasMoreVirtualRef.current || loadingMoreVirtualRef.current) return;
-      const doc = document.documentElement;
-      if (
-        doc.scrollHeight - window.scrollY - window.innerHeight <
-        thresholdPx
-      ) {
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < thresholdPx) {
         void loadMoreVirtual();
       }
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, [isHospital, issuesLoad, loadMoreVirtual]);
 
   const topArea =
@@ -527,7 +530,8 @@ export function ConsultationSpecialtiesPage() {
       )}
 
       <main
-        className={`csp-main${showVirtualContinueFooter || showHospitalContinueFooter ? " csp-main--virtual" : ""}`}
+        ref={mainScrollRef}
+        className={`csp-main hide-scrollbar${showVirtualContinueFooter || showHospitalContinueFooter ? " csp-main--virtual" : ""}`}
       >
         {topArea}
 
@@ -600,7 +604,9 @@ export function ConsultationSpecialtiesPage() {
                 langRaw = "";
               }
               const resolvedLang =
-                langRaw && isConsultationLanguageValue(langRaw) ? langRaw : "English";
+                langRaw && isConsultationLanguageValue(langRaw)
+                  ? langRaw
+                  : resolveDefaultConsultationLanguage();
               const slotState: VirtualSpecialtySlotsState = {
                 parent: issue.parent,
                 issueTitle: issue.title,

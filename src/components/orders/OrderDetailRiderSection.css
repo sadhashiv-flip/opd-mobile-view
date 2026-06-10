@@ -1,0 +1,96 @@
+/* patient_app _RiderCard — aligned rows + primary orange call button */
+
+.od-rider-card {
+  width: 100%;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.od-rider-card__title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111;
+}
+
+.od-rider-card__divider {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-rider-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.od-rider-line:last-child {
+  margin-bottom: 0;
+}
+
+.od-rider-line--contact {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.od-rider-line__label {
+  flex: 0 0 80px;
+  font-size: 0.75rem;
+  color: #757575;
+}
+
+.od-rider-line__value {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #111;
+  word-break: break-word;
+}
+
+.od-rider-line--contact .od-rider-line__value {
+  flex: 1 1 auto;
+}
+
+.od-rider-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #ff5224;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.od-rider-call:active {
+  background: #e8461c;
+}
+
+.od-rider-call__icon {
+  width: 18px;
+  height: 18px;
+}
+
+.od-rider-embedded {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebe7e2;
+}
+
+.od-rider-embedded__title {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8a827a;
+}

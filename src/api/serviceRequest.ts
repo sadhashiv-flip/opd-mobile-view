@@ -37,8 +37,8 @@ export async function patchServiceRequestOrderCancel(
 }
 
 /**
- * PATCH `appointment/cancel/:serviceId` — `serviceId` is typically invoice `info.id`
- * (consultation appointment, pharmacy medicine order, …).
+ * PATCH `appointment/cancel/:serviceId` — consultation / legacy service ids (`info.id`).
+ * Pharmacy uses {@link patchMedicineOrderCancel} (`medicine/order/cancel/:id`).
  */
 export async function patchCancelServiceRequest(
   serviceId: string,

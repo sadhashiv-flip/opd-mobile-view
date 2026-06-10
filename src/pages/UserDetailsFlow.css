@@ -185,26 +185,107 @@
   background: var(--color-btn-primary-bg, #111111);
 }
 
-.ud-gender-row {
+.ud-field--gender {
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.ud-field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ud-field__label-row .ud-field__label {
+  margin-bottom: 0;
+}
+
+.ud-gender-hint {
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.ud-gender-lock-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(10px, calc(11 * 100cqw / 375), calc(11 * 1.12px));
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ud-gender-lock-hint__ic {
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+.ud-gender-segment {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 10px 0 14px;
-}
-
-.ud-gender {
-  border: 1px solid #ededed;
-  background: #fff;
+  padding: 4px;
+  border: 1.5px solid #e5e7eb;
   border-radius: 999px;
-  padding: 12px 14px;
-  font-weight: 800;
-  color: #999;
+  background: #fff;
+  gap: 0;
 }
 
-.ud-gender--active {
-  background: #111;
-  color: #fff;
-  border-color: #111;
+.ud-gender-segment--locked {
+  opacity: 0.72;
+}
+
+.ud-gender-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font-size: clamp(12px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ud-gender-tab:disabled {
+  cursor: not-allowed;
+}
+
+.ud-gender-tab__icon {
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.ud-gender-tab__label {
+  line-height: 1;
+}
+
+.ud-gender-tab--active {
+  background: #111111;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.18);
+}
+
+.ud-gender-tab--active .ud-gender-tab__icon {
+  color: #ffffff;
+}
+
+.ud-gender-tab:not(.ud-gender-tab--active):not(:disabled):active {
+  background: rgba(17, 17, 17, 0.06);
+}
+
+.ud-gender-tab:focus-visible {
+  outline: 2px solid #ff5224;
+  outline-offset: 2px;
 }
 
 .ud-field--age {

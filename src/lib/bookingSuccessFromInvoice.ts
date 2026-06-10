@@ -9,7 +9,7 @@ import {
   VIRTUAL_CONSULT_BOOKING_SUCCESS_TITLE,
 } from "@/constants/bookingSuccessNavigation";
 import type { ServiceRequestOrderCategoryKey } from "@/lib/orderDetailConsultationRules";
-import { pathToOrderDetail } from "@/lib/orderDetailRoutes";
+import { pathToOrderDetail, resolveLabOrderDetailRouteId } from "@/lib/orderDetailRoutes";
 
 const GYM_SUCCESS_NEXT_STEPS =
   "Activation is typically within 72 hours. Track status in My Orders.";
@@ -125,9 +125,14 @@ export function buildServiceRequestPaymentSuccessFromInvoice(
 }
 
 /** Lab / diagnostics invoice after payment on order detail or partner pay. */
-export function buildLabBookingSuccessFromInvoice(detail: InvoiceDetailModel): BookingSuccessLocationState {
-  const inv = detail.id.trim();
-  const routeId = detail.consultationInfoId?.trim() || inv;
+export function buildLabBookingSuccessFromInvoice(
+  detail: InvoiceDetailModel,
+  routeInvoiceId?: string,
+): BookingSuccessLocationState {
+  const routeId = resolveLabOrderDetailRouteId({
+    documentInvoiceId: routeInvoiceId ?? detail.id,
+    infoOrderId: detail.consultationInfoId,
+  });
 
   return {
     layout: "summary",

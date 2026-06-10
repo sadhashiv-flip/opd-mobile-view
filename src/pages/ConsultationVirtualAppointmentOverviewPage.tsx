@@ -14,6 +14,7 @@ import {
 import {
   CONSULTATION_LANGUAGES,
   isConsultationLanguageValue,
+  resolveDefaultConsultationLanguage,
 } from "@/constants/consultationLanguages";
 import {
   readConsultSelectedPersonIdNumber,
@@ -231,7 +232,10 @@ export function ConsultationVirtualAppointmentOverviewPage() {
         if (lang && isConsultationLanguageValue(lang)) {
           setLanguage(lang);
         } else {
-          setLanguage("");
+          const snap = readPrimaryConsultSelectedMemberSnapshot();
+          setLanguage(
+            resolveDefaultConsultationLanguage({ memberLanguage: snap?.language }),
+          );
         }
       } catch {
         setLanguage("");
