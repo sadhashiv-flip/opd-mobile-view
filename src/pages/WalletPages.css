@@ -134,11 +134,16 @@
 .wallet-balance-card {
   margin-top: 4px;
   margin-bottom: 22px;
-  padding: 20px;
+  padding: 0;
+  overflow: hidden;
   border-radius: 20px;
   background: linear-gradient(135deg, #16222e 0%, rgba(22, 34, 46, 0.85) 100%);
   box-shadow: 0 6px 16px rgba(22, 34, 46, 0.25);
   color: #ffffff;
+}
+
+.wallet-balance-card__body {
+  padding: 20px;
 }
 
 .wallet-balance-card--animated {
@@ -216,11 +221,7 @@
 }
 
 .wallet-balance-card__bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
   margin-top: 0;
-  gap: 12px;
 }
 
 .wallet-balance-card__stat {
@@ -242,10 +243,19 @@
   color: #ffffff;
 }
 
+.wallet-balance-card__partner-bar {
+  display: flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 2px 12px 2px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  justify-content: center;
+}
+
 .wallet-balance-card__partner-logo {
-  flex-shrink: 0;
-  max-width: 140px;
-  max-height: 25px;
+  display: block;
+  /* max-width: 140px; */
+  max-height: 30px;
   width: auto;
   height: auto;
   object-fit: contain;

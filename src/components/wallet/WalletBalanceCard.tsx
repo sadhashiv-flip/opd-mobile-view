@@ -41,47 +41,52 @@ export function WalletBalanceCard({
 
   return (
     <section className="wallet-balance-card wallet-balance-card--animated" aria-labelledby="wallet-balance-heading">
-      <div className="wallet-balance-card__top">
-        <div className="wallet-balance-card__icon-wrap" aria-hidden>
-          <img
-            src={walletMiniSvg}
-            alt=""
-            className="wallet-balance-card__icon-img"
-            width={22}
-            height={22}
-            draggable={false}
+      <div className="wallet-balance-card__body">
+        <div className="wallet-balance-card__top">
+          <div className="wallet-balance-card__icon-wrap" aria-hidden>
+            <img
+              src={walletMiniSvg}
+              alt=""
+              className="wallet-balance-card__icon-img"
+              width={22}
+              height={22}
+              draggable={false}
+            />
+          </div>
+          <div className="wallet-balance-card__avail">
+            <span id="wallet-balance-heading" className="wallet-balance-card__avail-label">
+              Available Balance
+            </span>
+            <p className="wallet-balance-card__avail-value">₹ {formatWalletInr(availableBalance)}</p>
+          </div>
+        </div>
+
+        <div
+          className="wallet-balance-card__bar"
+          role="progressbar"
+          aria-valuenow={Math.round(pct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Available balance usage"
+        >
+          <div
+            className="wallet-balance-card__bar-fill wallet-balance-card__bar-fill--animate"
+            style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="wallet-balance-card__avail">
-          <span id="wallet-balance-heading" className="wallet-balance-card__avail-label">
-            Available Balance
-          </span>
-          <p className="wallet-balance-card__avail-value">₹ {formatWalletInr(availableBalance)}</p>
+
+        <div className="wallet-balance-card__divider" aria-hidden />
+
+        <div className="wallet-balance-card__bottom">
+          <div className="wallet-balance-card__stat">
+            <span className="wallet-balance-card__meta-label">Total Balance</span>
+            <p className="wallet-balance-card__meta-value">₹ {formatWalletInr(totalBalance)}</p>
+          </div>
         </div>
       </div>
 
-      <div
-        className="wallet-balance-card__bar"
-        role="progressbar"
-        aria-valuenow={Math.round(pct)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Available balance usage"
-      >
-        <div
-          className="wallet-balance-card__bar-fill wallet-balance-card__bar-fill--animate"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-
-      <div className="wallet-balance-card__divider" aria-hidden />
-
-      <div className="wallet-balance-card__bottom">
-        <div className="wallet-balance-card__stat">
-          <span className="wallet-balance-card__meta-label">Total Balance</span>
-          <p className="wallet-balance-card__meta-value">₹ {formatWalletInr(totalBalance)}</p>
-        </div>
-        {partnerLogoUrl ? (
+      {partnerLogoUrl ? (
+        <div className="wallet-balance-card__partner-bar">
           <img
             src={partnerLogoUrl}
             alt={partnerLogoAlt ?? "Partner company logo"}
@@ -90,8 +95,8 @@ export function WalletBalanceCard({
             height={25}
             draggable={false}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }

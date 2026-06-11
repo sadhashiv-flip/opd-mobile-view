@@ -1,6 +1,7 @@
 import { patientFetchChecked, patientJson } from "@/api/patientHttp";
 import { uploadProfileImageFileRaw } from "@/api/patientUpload";
 import { loadCachedProfileRaw, saveCachedProfileRaw } from "@/lib/profileCacheStorage";
+import { extractProfileRecord } from "@/lib/subscriptionDashboardModules";
 
 /** WHO-style bands for BMI coloring on the profile screen. */
 export type BmiCategory =
@@ -220,6 +221,30 @@ function trimEnvUrl(raw: string | undefined): string {
  * Profile `image` from API: absolute URLs unchanged; relative paths use
  * `VITE_IMAGE_URL` when set, else API origin from `VITE_API_BASE_URL`.
  */
+export type CompanyLogoDisplay = Readonly<{
+  url: string | null;
+  name: string | null;
+}>;
+
+/** patient-app `WalletScreen._buildPartnerLogo` — `user.company.image` from profile. */
+export function resolveCompanyLogoFromProfile(body: unknown): CompanyLogoDisplay {
+  const root = asRecord(body);
+  if (!root) return { url: null, name: null };
+
+  const profile = extractProfileRecord(body);
+  const company =
+    asRecord(profile?.company) ??
+    asRecord(root.company) ??
+    asRecord(asRecord(root.user)?.company);
+
+  if (!company) return { url: null, name: null };
+
+  return {
+    url: resolveProfileImageUrl(str(company.image)),
+    name: str(company.name),
+  };
+}
+
 export function resolveProfileImageUrl(image: string | null): string | null {
   if (!image?.trim()) return null;
   const t = image.trim();
