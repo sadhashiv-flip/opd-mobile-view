@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { HomeBottomNav } from "@/components/navigation/HomeBottomNav";
 import {
   createPatientAddress,
   fetchAllPatientAddresses,
@@ -311,7 +310,6 @@ function ProfileAddressFormInner({
         <div className="paf-main" style={{ paddingTop: 48 }}>
           <p className="profile-manage-page__intro">Loading address…</p>
         </div>
-        <HomeBottomNav />
       </div>
     );
   }
@@ -531,8 +529,6 @@ function ProfileAddressFormInner({
           {submitButtonText}
         </button>
       </main>
-
-      <HomeBottomNav />
     </div>
   );
 }
