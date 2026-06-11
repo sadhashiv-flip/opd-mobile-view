@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, generatePath, useLocation, useNavigate } from "react-router-dom";
+import { AppBackChevron } from "@/components/navigation/AppBackChevron";
 import { ROUTES } from "@/constants";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -138,7 +139,7 @@ export function ChronicManagementPage() {
       <div className="chronic-page">
         <header className="chronic-page__header">
           <Link to={returnPath} className="app-back-btn chronic-page__back" aria-label="Back">
-            <span aria-hidden>←</span>
+            <AppBackChevron size={22} />
           </Link>
           <h1 className="chronic-page__title">Chronic Management</h1>
           <span className="chronic-page__spacer" aria-hidden />
@@ -158,10 +159,10 @@ export function ChronicManagementPage() {
     <div className="chronic-page">
       <header className="chronic-page__header">
         <Link to={returnPath} className="app-back-btn chronic-page__back" aria-label="Back">
-          <span aria-hidden>←</span>
+          <AppBackChevron size={22} />
         </Link>
         <h1 className="chronic-page__title">Chronic Management</h1>
-        
+        <span className="chronic-page__spacer" aria-hidden />
       </header>
 
       <main className="chronic-page__main">

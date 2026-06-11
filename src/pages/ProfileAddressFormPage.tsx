@@ -7,7 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { AppBackChevron } from "@/components/navigation/AppBackChevron";
 import {
   createPatientAddress,
   fetchAllPatientAddresses,
@@ -27,10 +28,13 @@ import {
   type NominatimSuggestion,
 } from "@/lib/nominatimGeocode";
 import { useToast } from "@/hooks/useToast";
+import { getBrowserCurrentPosition } from "@/lib/browserGeolocation";
 import { safeReturnPath } from "@/lib/safeReturnPath";
+import "./ProfileManagePage.css";
 import "./ProfileAddressFormPage.css";
 
 const TAG_OPTIONS = ["HOME", "WORK", "OTHER"] as const;
+const DEFAULT_LOCATION = "17.375705128961926,78.5000828281045";
 
 function parseLocation(loc: string): { lat: number; lng: number } {
   const parts = loc.split(",").map((s) => s.trim());
@@ -39,7 +43,7 @@ function parseLocation(loc: string): { lat: number; lng: number } {
     const lng = Number.parseFloat(parts[1] ?? "");
     if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
   }
-  return { lat: 17.385, lng: 78.4867 };
+  return parseLocation(DEFAULT_LOCATION);
 }
 
 function recordToForm(a: PatientAddressRecord) {
@@ -52,7 +56,7 @@ function recordToForm(a: PatientAddressRecord) {
     city: a.city,
     state: a.state,
     pincode: a.pincode,
-    location: a.location.trim() || "17.375705128961926,78.5000828281045",
+    location: a.location.trim() || DEFAULT_LOCATION,
     tag: tagNorm,
     name: a.name.trim() || a.tag.trim() || tagNorm,
     setPrimary: a.isPrimary,
@@ -83,6 +87,10 @@ function ProfileAddressFormInner({
     [routerLocation.state],
   );
 
+  const handleBack = useCallback(() => {
+    navigate(returnTo ?? ROUTES.profileAddress, { replace: true });
+  }, [navigate, returnTo]);
+
   const [loadingInit, setLoadingInit] = useState(isEdit);
   const [searchQ, setSearchQ] = useState("");
   const [suggestions, setSuggestions] = useState<NominatimSuggestion[]>([]);
@@ -94,6 +102,7 @@ function ProfileAddressFormInner({
   const reverseTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(
     null,
   );
+  const addLocationInitRef = useRef(false);
 
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
@@ -101,7 +110,7 @@ function ProfileAddressFormInner({
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [pincode, setPincode] = useState("");
-  const [location, setLocation] = useState("17.375705128961926,78.5000828281045");
+  const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [tag, setTag] = useState<string>("HOME");
   const [name, setName] = useState("HOME");
   const [setPrimary, setSetPrimary] = useState(false);
@@ -112,6 +121,22 @@ function ProfileAddressFormInner({
     import.meta.env.VITE_NOMINATIM_COUNTRY_CODES?.trim() || "in";
   const geocodeWithGoogle =
     useGoogleMaps && mapsJsLoaded && !mapsAuthFailed;
+
+  const applyReverseGeocode = useCallback(
+    (nLat: number, nLng: number) => {
+      const reverse = geocodeWithGoogle
+        ? googleMapsReverseGeocode(nLat, nLng)
+        : nominatimReverse(nLat, nLng);
+      return reverse.then((s) => {
+        if (!s) return;
+        if (s.line1.trim()) setLine1(s.line1.trim());
+        if (s.city.trim()) setCity(s.city.trim());
+        if (s.state.trim()) setState(s.state.trim());
+        if (s.postcode.trim()) setPincode(s.postcode.trim());
+      });
+    },
+    [geocodeWithGoogle],
+  );
 
   useEffect(() => {
     if (!addressId) return;
@@ -211,27 +236,37 @@ function ProfileAddressFormInner({
     };
   }, []);
 
-  const handlePinFromMap = useCallback((nLat: number, nLng: number) => {
-    setLocation(`${nLat},${nLng}`);
-    if (reverseTimerRef.current != null) {
-      globalThis.clearTimeout(reverseTimerRef.current);
-    }
-    reverseTimerRef.current = globalThis.setTimeout(() => {
-      reverseTimerRef.current = null;
-      const reverse = geocodeWithGoogle
-        ? googleMapsReverseGeocode(nLat, nLng)
-        : nominatimReverse(nLat, nLng);
-      reverse
-        .then((s) => {
-          if (!s) return;
-          if (s.line1.trim()) setLine1(s.line1.trim());
-          if (s.city.trim()) setCity(s.city.trim());
-          if (s.state.trim()) setState(s.state.trim());
-          if (s.postcode.trim()) setPincode(s.postcode.trim());
-        })
-        .catch(() => {});
-    }, 450);
-  }, [geocodeWithGoogle]);
+  const handlePinFromMap = useCallback(
+    (nLat: number, nLng: number) => {
+      setLocation(`${nLat},${nLng}`);
+      if (reverseTimerRef.current != null) {
+        globalThis.clearTimeout(reverseTimerRef.current);
+      }
+      reverseTimerRef.current = globalThis.setTimeout(() => {
+        reverseTimerRef.current = null;
+        applyReverseGeocode(nLat, nLng).catch(() => {});
+      }, 450);
+    },
+    [applyReverseGeocode],
+  );
+
+  /** patient-app `AddAddressController.onInit` → `_getCurrentLocation` on add only. */
+  useEffect(() => {
+    if (isEdit || addLocationInitRef.current) return;
+    addLocationInitRef.current = true;
+
+    let cancelled = false;
+    void (async () => {
+      const current = await getBrowserCurrentPosition();
+      if (cancelled) return;
+      const pos = current ?? parseLocation(DEFAULT_LOCATION);
+      handlePinFromMap(pos.lat, pos.lng);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [handlePinFromMap, isEdit]);
 
   const selectSuggestion = useCallback((s: NominatimSuggestion) => {
     setLocation(`${s.lat},${s.lon}`);
@@ -306,7 +341,19 @@ function ProfileAddressFormInner({
 
   if (loadingInit) {
     return (
-      <div className="paf-page">
+      <div className="profile-manage-page">
+        <header className="profile-manage-page__top">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="app-back-btn profile-manage-page__back"
+            aria-label="Back"
+          >
+            <AppBackChevron size={22} />
+          </button>
+          <h1 className="profile-manage-page__title">{isEdit ? "Edit address" : "Add address"}</h1>
+          <span className="profile-manage-page__spacer" aria-hidden />
+        </header>
         <div className="paf-main" style={{ paddingTop: 48 }}>
           <p className="profile-manage-page__intro">Loading address…</p>
         </div>
@@ -315,12 +362,18 @@ function ProfileAddressFormInner({
   }
 
   return (
-    <div className="paf-page">
-      <header className="paf-top">
-        <h1 className="paf-title">{isEdit ? "Edit address" : "Add address"}</h1>
-        <Link to={returnTo ?? ROUTES.profileAddress} replace className="app-back-btn paf-back">
-          Back
-        </Link>
+    <div className="profile-manage-page">
+      <header className="profile-manage-page__top">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="app-back-btn profile-manage-page__back"
+          aria-label="Back"
+        >
+          <AppBackChevron size={22} />
+        </button>
+        <h1 className="profile-manage-page__title">{isEdit ? "Edit address" : "Add address"}</h1>
+        <span className="profile-manage-page__spacer" aria-hidden />
       </header>
 
       <main className="paf-main">

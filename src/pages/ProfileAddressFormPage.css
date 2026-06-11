@@ -1,46 +1,4 @@
 /* Add / edit address — form + map (mobile-first) */
-.paf-page {
-  display: flex;
-  flex-direction: column;
-  min-height: 100dvh;
-  background: linear-gradient(180deg, #faf8f6 0%, #ffffff 42%);
-  color: #111111;
-}
-
-.paf-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 16px 12px;
-  flex-shrink: 0;
-}
-
-.paf-title {
-  margin: 0;
-  font-family: var(--font-family-app);
-  font-size: clamp(11px, calc(18 * 100cqw / 375), calc(18 * 1.12px));
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.paf-back {
-  flex-shrink: 0;
-  padding: 10px 18px;
-  border: none;
-  border-radius: 10px;
-  font-family: var(--font-family-app);
-  font-size: clamp(11px, calc(14 * 100cqw / 375), calc(14 * 1.12px));
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--color-brand-orange);
-  color: #ffffff;
-  text-decoration: none;
-}
-
-.paf-back:active {
-  opacity: 0.92;
-}
 
 .paf-main {
   flex: 1;

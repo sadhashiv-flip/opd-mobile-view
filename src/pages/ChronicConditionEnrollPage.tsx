@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, Navigate, generatePath, useLocation, useNavigate, useParams } from "react-router-dom";
+import { AppBackChevron } from "@/components/navigation/AppBackChevron";
 import { ROUTES } from "@/constants";
 import {
   CHRONIC_ASSETS,
@@ -53,7 +54,7 @@ export function ChronicConditionEnrollPage() {
     <div className="chronic-page">
       <header className="chronic-page__header">
         <Link to={returnPath} className="app-back-btn chronic-page__back" aria-label="Back">
-          <span aria-hidden>←</span>
+          <AppBackChevron size={22} />
         </Link>
         <h1 className="chronic-page__title">{meta.title}</h1>
         <span className="chronic-page__spacer" aria-hidden />

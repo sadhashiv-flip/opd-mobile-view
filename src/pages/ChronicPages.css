@@ -25,17 +25,7 @@
 }
 
 .chronic-page__back {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  color: #0f172a;
-  text-decoration: none;
-  border: none;
-  background: transparent;
+  /* layout only — shell from `.app-back-btn` */
 }
 
 .chronic-page__title {
