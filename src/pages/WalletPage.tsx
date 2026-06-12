@@ -6,6 +6,7 @@ import {
   type WalletTransactionRow,
 } from "@/api/wallet";
 import { fetchPatientProfileRaw, resolveCompanyLogoFromProfile } from "@/api/patientProfile";
+import { parseShowOpdWallet } from "@/lib/moduleGatesFromProfile";
 import { loadCachedProfileRaw } from "@/lib/profileCacheStorage";
 import {
   computeHiddenWalletCategoryKeys,
@@ -62,6 +63,10 @@ export function WalletPage() {
         fetchWalletTransactionsPage(subId, { page: 1, limit: RECENT_LIMIT }),
         fetchPatientProfileRaw().catch(() => loadCachedProfileRaw()),
       ]);
+      if (!parseShowOpdWallet(prof)) {
+        navigate(ROUTES.dashboard, { replace: true });
+        return;
+      }
       setWallet(w);
       setProfileBody(prof);
       setRecent(tx.items);
@@ -73,9 +78,13 @@ export function WalletPage() {
     } finally {
       setLoading(false);
     }
-  }, [subId]);
+  }, [navigate, subId]);
 
   useEffect(() => {
+    if (!parseShowOpdWallet(loadCachedProfileRaw())) {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
     if (!subId) {
       navigate(ROUTES.wallet, { replace: true });
       return;

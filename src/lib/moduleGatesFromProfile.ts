@@ -210,6 +210,18 @@ export function parseServiceHubTileGates(profileBody: unknown): ServiceHubTileGa
 }
 
 /**
+ * OPD wallet entry points — `plan.modules.Opd.active` (Flutter {@code hasOPDModule},
+ * patient-webapp `userAccess('Opd')`).
+ * Hidden when not subscribed or when no subscription row has Opd active.
+ */
+export function parseShowOpdWallet(profileBody: unknown): boolean {
+  const profile = extractProfileRecord(profileBody);
+  if (!profile) return false;
+  if (!subscriptionGateOk(profile)) return false;
+  return hasModuleActive(profile, "Opd");
+}
+
+/**
  * Services hub top tab “OPD Claims” — `plan.modules.Claim.active` (patient-webapp parity).
  * Retail / no subscription: show tab. Corporate: show only when Claim exists, is active, and not
  * `hideModulesInApp` for the whole module.
@@ -273,6 +285,7 @@ export type ProfileModuleGates = SubscriptionDashboardModules &
     consultation: ConsultationGate;
     vision: VisionGate;
     serviceHub: ServiceHubTileGates;
+    showOpdWallet: boolean;
     showOpdClaimsHubTab: boolean;
     planDependents: PlanDependentGate;
   }>;
@@ -284,6 +297,7 @@ export function parseProfileModuleGates(profileBody: unknown): ProfileModuleGate
     consultation: parseConsultationGate(profileBody),
     vision: parseVisionGate(profileBody),
     serviceHub: parseServiceHubTileGates(profileBody),
+    showOpdWallet: parseShowOpdWallet(profileBody),
     showOpdClaimsHubTab: parseShowOpdClaimsHubTab(profileBody),
     planDependents: parsePlanDependentFlags(profileBody),
   };

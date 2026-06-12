@@ -1,8 +1,22 @@
 /* Add / edit address — form + map (mobile-first) */
 
+.paf-page {
+  background: #faf8f6;
+}
+
 .paf-main {
   flex: 1;
-  padding: 0 var(--page-pad-x) 32px;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--page-pad-x) 16px;
+}
+
+.paf-page__footer {
+  flex-shrink: 0;
+  padding: 12px var(--page-pad-x) calc(16px + env(safe-area-inset-bottom, 0));
+  background: #ffffff;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .paf-search {
@@ -266,26 +280,30 @@
 }
 
 .paf-submit {
-  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 14px 20px;
+  min-height: 52px;
+  padding: 16px;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   font-family: var(--font-family-app);
-  font-size: clamp(11px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
+  font-size: clamp(13px, calc(15 * 100cqw / 375), calc(15 * 1.12px));
   font-weight: 600;
   cursor: pointer;
-  background: #e0e0e0;
+  background: var(--color-text-quaternary, #e0e0e0);
   color: #757575;
+  transition: opacity 0.2s ease;
 }
 
-.paf-submit:not(:disabled) {
-  background: var(--color-brand-orange);
-  color: #ffffff;
+.paf-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .paf-submit:not(:disabled):active {
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
 .paf-hint {

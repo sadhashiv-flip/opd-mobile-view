@@ -12,10 +12,10 @@
 }
 
 .api-loading-overlay__spinner {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: block;
-  animation: api-loading-spin 0.85s linear infinite;
+  animation: api-loading-spin 0.65s linear infinite;
 }
 
 @keyframes api-loading-spin {

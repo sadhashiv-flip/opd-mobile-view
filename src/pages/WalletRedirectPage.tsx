@@ -1,6 +1,8 @@
 import { fetchActiveSubscriptions } from "@/api/patientSubscriptions";
 import { fetchWallet } from "@/api/wallet";
 import { ROUTES } from "@/constants";
+import { parseShowOpdWallet } from "@/lib/moduleGatesFromProfile";
+import { loadCachedProfileRaw } from "@/lib/profileCacheStorage";
 import { useEffect, useState } from "react";
 import { generatePath, useNavigate } from "react-router-dom";
 import "./WalletPages.css";
@@ -11,6 +13,11 @@ export function WalletRedirectPage() {
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    if (!parseShowOpdWallet(loadCachedProfileRaw())) {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       setError(null);

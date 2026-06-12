@@ -341,7 +341,7 @@ function ProfileAddressFormInner({
 
   if (loadingInit) {
     return (
-      <div className="profile-manage-page">
+      <div className="profile-manage-page paf-page">
         <header className="profile-manage-page__top">
           <button
             type="button"
@@ -354,15 +354,15 @@ function ProfileAddressFormInner({
           <h1 className="profile-manage-page__title">{isEdit ? "Edit address" : "Add address"}</h1>
           <span className="profile-manage-page__spacer" aria-hidden />
         </header>
-        <div className="paf-main" style={{ paddingTop: 48 }}>
+        <main className="paf-main">
           <p className="profile-manage-page__intro">Loading address…</p>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="profile-manage-page">
+    <div className="profile-manage-page paf-page">
       <header className="profile-manage-page__top">
         <button
           type="button"
@@ -572,7 +572,9 @@ function ProfileAddressFormInner({
         {/* <p className="paf-hint">
           Location string sent to API: {location.trim() || `${lat},${lng}`}
         </p> */}
+      </main>
 
+      <footer className="paf-page__footer">
         <button
           type="button"
           className="paf-submit"
@@ -581,7 +583,7 @@ function ProfileAddressFormInner({
         >
           {submitButtonText}
         </button>
-      </main>
+      </footer>
     </div>
   );
 }

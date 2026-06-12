@@ -199,14 +199,17 @@ export function HomePage() {
     [mod.diagnosticsHiddenSubSlugs],
   );
 
+  const showOpdWallet = mod.loaded && mod.showOpdWallet;
+
   const homeSearchActionsFiltered = useMemo(() => {
     const h = mod.diagnosticsHiddenSubSlugs;
     return HOME_SEARCH_ACTIONS.filter((a) => {
       if (a.id === "health-checkups" && h.has(DIAG_SUB_HEALTH_CHECKUPS)) return false;
       if (a.id === "lab-tests" && h.has(DIAG_SUB_LAB_TESTS)) return false;
+      if (a.id === "wallet" && mod.loaded && !mod.showOpdWallet) return false;
       return true;
     });
-  }, [mod.diagnosticsHiddenSubSlugs]);
+  }, [mod.diagnosticsHiddenSubSlugs, mod.loaded, mod.showOpdWallet]);
 
   const hasDeliveryAddress = useHasSelectedDeliveryAddress();
 
@@ -467,12 +470,16 @@ export function HomePage() {
         content: "Tap here to update your delivery location before booking services.",
         placement: "bottom-start",
       },
-      {
-        target: "#tour-home-wallet",
-        title: "OPD wallet",
-        content: "Check your wallet balance and transactions anytime.",
-        placement: "bottom",
-      },
+      ...(showOpdWallet
+        ? [
+            {
+              target: "#tour-home-wallet",
+              title: "OPD wallet",
+              content: "Check your wallet balance and transactions anytime.",
+              placement: "bottom" as const,
+            },
+          ]
+        : []),
       {
         target: "#tour-home-notifications",
         title: "Notifications",
@@ -536,7 +543,7 @@ export function HomePage() {
     );
 
     return steps;
-  }, [showOngoingDashboardChrome]);
+  }, [showOngoingDashboardChrome, showOpdWallet]);
 
   const handleDashboardTourEvent = useCallback((data: EventData) => {
     if (data.type === EVENTS.TOUR_END || data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
@@ -739,15 +746,17 @@ export function HomePage() {
             </span>
           </button>
           <div className="home-top__actions">
-            <button
-              type="button"
-              id="tour-home-wallet"
-              className="home-icon-btn"
-              aria-label="Wallet"
-              onClick={() => navigate(ROUTES.wallet)}
-            >
-              <HomeWalletIcon />
-            </button>
+            {showOpdWallet ? (
+              <button
+                type="button"
+                id="tour-home-wallet"
+                className="home-icon-btn"
+                aria-label="Wallet"
+                onClick={() => navigate(ROUTES.wallet)}
+              >
+                <HomeWalletIcon />
+              </button>
+            ) : null}
             <button
               type="button"
               id="tour-home-notifications"

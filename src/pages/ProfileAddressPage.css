@@ -28,8 +28,7 @@
 
 .addr-book-page .profile-manage-page__title {
   flex: 1;
-  margin: 0 0 0 4px;
-  text-align: left;
+  text-align: center;
 }
 
 .addr-book-page__main {
@@ -45,6 +44,7 @@
   padding: 12px var(--page-pad-x) calc(16px + env(safe-area-inset-bottom, 0));
   background: #ffffff;
   box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 10px;
 }
 
 .addr-book-page__add-new {
@@ -258,8 +258,9 @@
 }
 
 .addr-book-empty__cta-icon {
-  font-size: 20px;
-  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
 }
 

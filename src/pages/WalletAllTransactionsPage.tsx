@@ -14,6 +14,8 @@ import { WalletScreenHeader } from "@/components/wallet/WalletScreenHeader";
 import { WalletTransactionDetailSheet } from "@/components/wallet/WalletTransactionDetailSheet";
 import { WalletTransactionItem } from "@/components/wallet/WalletTransactionItem";
 import { ROUTES } from "@/constants";
+import { parseShowOpdWallet } from "@/lib/moduleGatesFromProfile";
+import { loadCachedProfileRaw } from "@/lib/profileCacheStorage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { generatePath, useNavigate, useParams } from "react-router-dom";
 import "./WalletPages.css";
@@ -84,6 +86,10 @@ export function WalletAllTransactionsPage() {
   }, [subId, statusFilter, refTypeFilter]);
 
   useEffect(() => {
+    if (!parseShowOpdWallet(loadCachedProfileRaw())) {
+      navigate(ROUTES.dashboard, { replace: true });
+      return;
+    }
     if (!subId) {
       navigate(ROUTES.wallet, { replace: true });
       return;

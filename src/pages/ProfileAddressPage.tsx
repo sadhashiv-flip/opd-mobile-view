@@ -9,6 +9,15 @@ import {
   setPatientAddressPrimary,
   type PatientAddressRecord,
 } from "@/api/patientAddress";
+import {
+  AddressAddIcon,
+  AddressDeleteIcon,
+  AddressEditIcon,
+  AddressEmptyPinIcon,
+  AddressSetPrimaryIcon,
+  AddressTagIcon,
+  AddressVerifiedIcon,
+} from "@/components/address/addressBookIcons";
 import { DeleteAddressConfirmModal } from "@/components/address/DeleteAddressConfirmModal";
 import { useAppConfirm } from "@/components/dialog/AppConfirmDialog";
 import { ROUTES } from "@/constants";
@@ -16,66 +25,6 @@ import { clearSelectedAddress } from "@/constants/selectedAddressStorage";
 import { useToast } from "@/hooks/useToast";
 import "./ProfileManagePage.css";
 import "./ProfileAddressPage.css";
-
-function HomeTagIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 10.5L12 4l8 6.5V20a1 1 0 01-1 1h-5v-6H10v6H5a1 1 0 01-1-1v-9.5z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function WorkTagIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 20V8l8-4 8 4v12M9 20v-5h6v5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function LocationTagIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 21s7-4.5 7-10a7 7 0 10-14 0c0 5.5 7 10 7 10z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function TagIcon({ tag }: Readonly<{ tag: string }>) {
-  const t = tag.trim().toUpperCase();
-  if (t === "HOME") return <HomeTagIcon />;
-  if (t === "WORK") return <WorkTagIcon />;
-  return <LocationTagIcon />;
-}
-
-function VerifiedIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 2l2.4 4.8 5.4.8-3.9 3.8.9 5.4L12 14.8 7.2 17l.9-5.4L4.2 7.6l5.4-.8L12 2z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 type AddressBookCardProps = Readonly<{
   address: PatientAddressRecord;
@@ -98,7 +47,7 @@ function AddressBookCard({ address, busy, onSetPrimary, onDelete }: AddressBookC
           className={`addr-book-card__icon${isPrimary ? " addr-book-card__icon--primary" : ""}`}
           aria-hidden
         >
-          <TagIcon tag={address.tag} />
+          <AddressTagIcon tag={address.tag} />
         </span>
         <div className="addr-book-card__head-text">
           <div className="addr-book-card__title-row">
@@ -119,14 +68,7 @@ function AddressBookCard({ address, busy, onSetPrimary, onDelete }: AddressBookC
               onClick={onSetPrimary}
             >
               <span className="addr-book-chip__icon" aria-hidden>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 2l2.2 6.7H21l-5.5 4 2.1 6.6L12 15.8 6.4 19.3l2.1-6.6L3 8.7h6.8L12 2z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <AddressSetPrimaryIcon />
               </span>
               Set Primary
             </button>
@@ -137,15 +79,7 @@ function AddressBookCard({ address, busy, onSetPrimary, onDelete }: AddressBookC
             aria-label="Edit address"
           >
             <span className="addr-book-chip__icon" aria-hidden>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M4 16.5V20h3.5L17.5 10 14 6.5 4 16.5zM14 6.5l2-2 3.5 3.5-2 2"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <AddressEditIcon />
             </span>
             Edit
           </Link>
@@ -156,21 +90,13 @@ function AddressBookCard({ address, busy, onSetPrimary, onDelete }: AddressBookC
             onClick={onDelete}
           >
             <span className="addr-book-chip__icon" aria-hidden>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M4 7h16M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V5h6v2"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <AddressDeleteIcon />
             </span>
             Delete
           </button>
           {isPrimary ? (
             <span className="addr-book-card__verified" aria-label="Primary address">
-              <VerifiedIcon />
+              <AddressVerifiedIcon />
             </span>
           ) : null}
         </div>
@@ -290,16 +216,7 @@ export function ProfileAddressPage() {
           <span className="addr-book-empty__dot addr-book-empty__dot--2" />
           <span className="addr-book-empty__dot addr-book-empty__dot--3" />
           <span className="addr-book-empty__pin">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 21s7-4.5 7-10a7 7 0 10-14 0c0 5.5 7 10 7 10z"
-                fill="currentColor"
-                fillOpacity="0.15"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <circle cx="12" cy="11" r="2.5" fill="currentColor" />
-            </svg>
+            <AddressEmptyPinIcon />
             <span className="addr-book-empty__pin-badge" />
           </span>
         </div>
@@ -311,7 +228,7 @@ export function ProfileAddressPage() {
         </p>
         <button type="button" className="addr-book-empty__cta" onClick={goAddAddress}>
           <span className="addr-book-empty__cta-icon" aria-hidden>
-            +
+            <AddressAddIcon />
           </span>
           Add Address
         </button>
@@ -362,14 +279,7 @@ export function ProfileAddressPage() {
       <footer className="addr-book-page__footer">
         <button type="button" className="addr-book-page__add-new" onClick={goAddAddress}>
           <span className="addr-book-page__add-new-icon" aria-hidden>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 5v14M5 12h14"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
+            <AddressAddIcon size={18} />
           </span>
           Add New Address
         </button>
