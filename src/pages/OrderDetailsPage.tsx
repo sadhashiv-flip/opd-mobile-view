@@ -144,6 +144,14 @@ import {
   showConsultationScanQrButton,
 } from "@/lib/consultationOrderDetail";
 import { isSparseServiceRequestInvoicePayload } from "@/lib/orderDetailCarryForward";
+import {
+  firstRefundAnchorId,
+  groupInvoicePayments,
+  orderDetailPaymentDomId,
+  orderDetailRefundDomId,
+  refundAnchorIdForRow,
+  type InvoicePaymentGroup,
+} from "@/lib/orderDetailPayments";
 import { showServiceRequestCompletePaymentBar } from "@/lib/serviceRequestOrderDetail";
 import { useToast } from "@/hooks/useToast";
 import {
@@ -279,7 +287,205 @@ function BannerIcon({
 
 type PaymentRowProps = Readonly<{
   p: InvoiceDetailModel["payments"][number];
+  variant: "payment" | "refund";
+  domId: string;
+  linkedPaymentId?: string | null;
+  linkedRefundDomId?: string | null;
 }>;
+
+function RefundLinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M13.7071 1.29289C14.0976 1.68342 14.0976 2.31658 13.7071 2.70711L12.4053 4.00896C17.1877 4.22089 21 8.16524 21 13C21 17.9706 16.9706 22 12 22C7.02944 22 3 17.9706 3 13C3 12.4477 3.44772 12 4 12C4.55228 12 5 12.4477 5 13C5 16.866 8.13401 20 12 20C15.866 20 19 16.866 19 13C19 9.2774 16.0942 6.23349 12.427 6.01281L13.7071 7.29289C14.0976 7.68342 14.0976 8.31658 13.7071 8.70711C13.3166 9.09763 12.6834 9.09763 12.2929 8.70711L9.29289 5.70711C9.10536 5.51957 9 5.26522 9 5C9 4.73478 9.10536 4.48043 9.29289 4.29289L12.2929 1.29289C12.6834 0.902369 13.3166 0.902369 13.7071 1.29289Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function PaymentEntryCard({
+  p,
+  variant,
+  domId,
+  linkedPaymentId,
+  linkedRefundDomId,
+}: PaymentRowProps) {
+  const isRefund = variant === "refund";
+  const method = p.title.trim() || "—";
+  const source = p.paymentSrc?.trim() || "—";
+  const txnDisplay = formatTxnIdDisplay(isRefund ? p.refundId ?? p.paymentId : p.paymentId);
+  const statusText = p.statusLabel?.trim() ?? "";
+  const amountClass = paymentAmountClassName(p.statusLabel);
+  const noteFromApi = p.paymentNote?.trim();
+  const subtitle = p.subtitle?.trim();
+  const linkedPaymentDisplay = linkedPaymentId ? formatTxnIdDisplay(linkedPaymentId) : null;
+
+  return (
+    <article
+      id={domId}
+      className={`od-pay-card${isRefund ? " od-pay-card--refund" : " od-pay-card--payment"}`}
+    >
+      <div className="od-pay-card__head">
+        {txnDisplay ? (
+          <p className="od-pay-card__txn" title={isRefund ? p.refundId ?? p.paymentId ?? undefined : p.paymentId ?? undefined}>
+            <span className="od-pay-card__txn-label">{isRefund ? "Refund" : "Payment"}</span>
+            {txnDisplay}
+          </p>
+        ) : null}
+        {!isRefund && linkedRefundDomId ? (
+          <a className="od-pay-card__anchor-link" href={`#${linkedRefundDomId}`}>
+            View refund
+          </a>
+        ) : null}
+        {isRefund && linkedPaymentDisplay ? (
+          <a
+            className="od-pay-card__anchor-link"
+            href={`#${orderDetailPaymentDomId(linkedPaymentId!.trim())}`}
+          >
+            For payment {linkedPaymentDisplay}
+          </a>
+        ) : null}
+      </div>
+      <div className="od-pay-card__body">
+        <div className="od-pay-card__cols">
+          <dl className="od-pay-card__kv">
+            <div className="od-pay-card__kv-row">
+              <dt>Method</dt>
+              <dd>{method}</dd>
+            </div>
+            <div className="od-pay-card__kv-row">
+              <dt>Source</dt>
+              <dd>{source}</dd>
+            </div>
+            {subtitle ? (
+              <div className="od-pay-card__kv-row">
+                <dt>{isRefund ? "Details" : "Reference"}</dt>
+                <dd>{subtitle}</dd>
+              </div>
+            ) : null}
+          </dl>
+          <div className="od-pay-card__right">
+            <span className={amountClass}>{p.amountFormatted}</span>
+            {statusText ? <span className="od-pay-card__status">{statusText}</span> : null}
+          </div>
+        </div>
+        {noteFromApi ? (
+          <p className="od-pay-card__note">{isRefund ? "Reason" : "Note"}: {noteFromApi}</p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+type PaymentGroupRowProps = Readonly<{
+  group: InvoicePaymentGroup;
+}>;
+
+function PaymentGroupRow({ group }: PaymentGroupRowProps) {
+  const { payment, refunds, hasEmbeddedRefund, anchorId, isRefundOnly } = group;
+  const paymentDomId = orderDetailPaymentDomId(anchorId);
+  const firstRefundAnchor = firstRefundAnchorId(group);
+  const linkedRefundDomId = firstRefundAnchor
+    ? orderDetailRefundDomId(firstRefundAnchor)
+    : null;
+  const showConnector = !isRefundOnly && (refunds.length > 0 || hasEmbeddedRefund);
+
+  if (isRefundOnly) {
+    const refundAnchor = orderDetailRefundDomId(anchorId);
+    return (
+      <li className="od-pay-group">
+        <PaymentEntryCard
+          p={payment}
+          variant="refund"
+          domId={refundAnchor}
+          linkedPaymentId={payment.linkedPaymentId}
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li className="od-pay-group">
+      <PaymentEntryCard
+        p={payment}
+        variant="payment"
+        domId={paymentDomId}
+        linkedRefundDomId={linkedRefundDomId}
+      />
+
+      {showConnector ? (
+        <div className="od-pay-group__bridge" aria-hidden>
+          <span className="od-pay-group__bridge-line" />
+          <span className="od-pay-group__bridge-meta">
+            <RefundLinkIcon />
+            <span className="od-pay-group__bridge-label">Refund linked to this payment</span>
+          </span>
+        </div>
+      ) : null}
+
+      {refunds.map((r, i) => {
+        const refundAnchor = refundAnchorIdForRow(r, anchorId, i);
+        return (
+          <PaymentEntryCard
+            key={r.refundId ?? r.paymentId ?? `${anchorId}-ref-${i}`}
+            p={r}
+            variant="refund"
+            domId={orderDetailRefundDomId(refundAnchor)}
+            linkedPaymentId={payment.paymentId ?? anchorId}
+          />
+        );
+      })}
+
+      {hasEmbeddedRefund ? (
+        <article
+          id={orderDetailRefundDomId(`${anchorId}-embedded`)}
+          className="od-pay-card od-pay-card--refund od-pay-card--embedded"
+        >
+          <div className="od-pay-card__head">
+            <p className="od-pay-card__txn">
+              <span className="od-pay-card__txn-label">Refund</span>
+              {payment.refundId ? formatTxnIdDisplay(payment.refundId) : "Partial refund"}
+            </p>
+            {payment.paymentId ? (
+              <a className="od-pay-card__anchor-link" href={`#${paymentDomId}`}>
+                For payment {formatTxnIdDisplay(payment.paymentId)}
+              </a>
+            ) : null}
+          </div>
+          <div className="od-pay-card__body">
+            <div className="od-pay-card__cols">
+              <dl className="od-pay-card__kv">
+                <div className="od-pay-card__kv-row">
+                  <dt>Amount refunded</dt>
+                  <dd>{payment.refundAmountFormatted ?? "—"}</dd>
+                </div>
+              </dl>
+              <div className="od-pay-card__right">
+                <span className="od-pay-card__amount od-pay-card__amount--refunded">
+                  {payment.refundAmountFormatted ?? payment.amountFormatted}
+                </span>
+                <span className="od-pay-card__status">refunded</span>
+              </div>
+            </div>
+            {payment.refundLines.length > 0 ? (
+              <dl className="od-pay-card__refund-kv">
+                {payment.refundLines.map((line) => (
+                  <div key={`${line.label}-${line.value}`} className="od-pay-card__kv-row">
+                    <dt>{line.label}</dt>
+                    <dd>{line.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+          </div>
+        </article>
+      ) : null}
+    </li>
+  );
+}
 
 /** Maps / “directions” affordance (navigation pointer, not a generic pin). */
 function NavMapIcon() {
@@ -341,45 +547,6 @@ function paymentAmountClassName(statusLabel: string | null): string {
   if (mod === "refunded") return "od-pay-card__amount od-pay-card__amount--refunded";
   if (mod === "success") return "od-pay-card__amount od-pay-card__amount--success";
   return "od-pay-card__amount";
-}
-
-function PaymentRow({ p }: PaymentRowProps) {
-  const method = p.title.trim() || "—";
-  const source = p.paymentSrc?.trim() || "—";
-  const txnDisplay = formatTxnIdDisplay(p.paymentId);
-  const statusText = p.statusLabel?.trim() ?? "";
-  const amountClass = paymentAmountClassName(p.statusLabel);
-
-  const noteFromApi = p.paymentNote?.trim();
-
-  return (
-    <li className="od-pay-card">
-      {txnDisplay ? (
-        <p className="od-pay-card__txn" title={p.paymentId ?? undefined}>
-          {txnDisplay}
-        </p>
-      ) : null}
-      <div className="od-pay-card__body">
-        <div className="od-pay-card__cols">
-          <dl className="od-pay-card__kv">
-            <div className="od-pay-card__kv-row">
-              <dt>Method</dt>
-              <dd>{method}</dd>
-            </div>
-            <div className="od-pay-card__kv-row">
-              <dt>Source</dt>
-              <dd>{source}</dd>
-            </div>
-          </dl>
-          <div className="od-pay-card__right">
-            <span className={amountClass}>{p.amountFormatted}</span>
-            {statusText ? <span className="od-pay-card__status">{statusText}</span> : null}
-          </div>
-        </div>
-        {noteFromApi ? <p className="od-pay-card__note">Note: {noteFromApi}</p> : null}
-      </div>
-    </li>
-  );
 }
 
 function doctorInitial(name: string): string {
@@ -1471,6 +1638,11 @@ export function OrderDetailsPage() {
     [detail],
   );
 
+  const paymentGroups = useMemo(
+    () => (detail?.payments.length ? groupInvoicePayments(detail.payments) : []),
+    [detail?.payments],
+  );
+
   const showJoinCallFooter =
     !showPayConfirmBooking &&
     Boolean(detail?.canJoinOnlineConsultation && detail.videoAppointmentId?.trim());
@@ -2435,12 +2607,12 @@ export function OrderDetailsPage() {
               />
             ) : null}
 
-            {detail.payments.length > 0 ? (
+            {paymentGroups.length > 0 ? (
               <section className="od-card od-card--payments" aria-label="Payment details">
                 <h3 className="od-payment-details__title">Payment Details</h3>
                 <ul className="od-payment-details__list">
-                  {detail.payments.map((p, i) => (
-                    <PaymentRow key={p.paymentId ?? `${p.title}-${i}`} p={p} />
+                  {paymentGroups.map((group, i) => (
+                    <PaymentGroupRow key={group.anchorId || `pay-group-${i}`} group={group} />
                   ))}
                 </ul>
               </section>

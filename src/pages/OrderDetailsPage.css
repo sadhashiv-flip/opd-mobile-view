@@ -87,14 +87,14 @@
   padding: 14px 20px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, #ff5224 0%, #e8461c 100%);
+  background: linear-gradient(135deg, #111111 0%, #111111 100%);
   color: #ffffff;
   font-family: var(--font-family-app);
   font-size: 0.9375rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(255, 82, 36, 0.35);
+  box-shadow: 0 4px 14px rgba(17, 17, 17, 0.35);
 }
 
 .od-follow-footer__btn:active {
@@ -292,7 +292,44 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+.od-pay-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.od-pay-group__bridge {
+  display: grid;
+  grid-template-columns: 2px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin: 2px 0 6px 18px;
+  min-height: 28px;
+}
+
+.od-pay-group__bridge-line {
+  align-self: stretch;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #e6a000 0%, #fde68a 100%);
+}
+
+.od-pay-group__bridge-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #b45309;
+}
+
+.od-pay-group__bridge-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .od-pay-card {
@@ -301,10 +338,47 @@
   border-radius: 12px;
   border: 1px solid #eeeeee;
   background: #ffffff;
+  scroll-margin-top: 88px;
+}
+
+.od-pay-card--payment {
+  border-color: #eeeeee;
+}
+
+.od-pay-card--refund {
+  margin-left: 18px;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.od-pay-card--embedded {
+  margin-top: 0;
+}
+
+.od-pay-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.od-pay-card__anchor-link {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.od-pay-card__anchor-link:hover {
+  text-decoration: underline;
 }
 
 .od-pay-card__txn {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 0.6875rem;
   font-weight: 500;
   color: #888888;
@@ -312,6 +386,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.od-pay-card__txn-label {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #666666;
+  background: #f3f4f6;
+}
+
+.od-pay-card--refund .od-pay-card__txn-label {
+  color: #b45309;
+  background: #fef3c7;
 }
 
 .od-pay-card__body {
@@ -397,6 +490,20 @@
   font-size: 0.6875rem;
   line-height: 1.4;
   color: #888888;
+}
+
+.od-pay-card__refund-kv {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid #f2f2f2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.od-pay-card--refund .od-pay-card__note,
+.od-pay-card--refund .od-pay-card__refund-kv {
+  border-top-color: #fde68a;
 }
 
 .od-card--order-patient .od-row {

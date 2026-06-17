@@ -752,6 +752,12 @@ export type InvoicePaymentRow = Readonly<{
   amountRefunded: number;
   refundAmountFormatted: string | null;
   refundLines: readonly InvoiceRefundDetailLine[];
+  /** Separate refund row in `payments` (status/type contains refund). */
+  isRefundEntry: boolean;
+  /** Parent payment id when this row is a refund entry. */
+  linkedPaymentId: string | null;
+  /** Refund transaction id (refund row id or nested `refunded.id`). */
+  refundId: string | null;
 }>;
 
 export type ConsultationAttachmentRow = Readonly<{
@@ -1784,6 +1790,27 @@ function parseInvoicePayments(o: Record<string, unknown>): InvoicePaymentRow[] {
       amountRefunded > 0 && refundedRec != null ? parseRefundedObject(refundedRec) : [];
     const refundAmountFormatted = amountRefunded > 0 ? formatInr(amountRefunded) : null;
 
+    const statusLower = statusLabel?.trim().toLowerCase() ?? "";
+    const typeLower = paymentType?.trim().toLowerCase() ?? "";
+    const isRefundEntry = statusLower.includes("refund") || typeLower.includes("refund");
+    const linkedPaymentId =
+      str(r.parent_payment_id) ??
+      str(r.parentPaymentId) ??
+      str(r.original_payment_id) ??
+      str(r.originalPaymentId) ??
+      str(r.ref_payment_id) ??
+      str(r.refPaymentId) ??
+      (isRefundEntry ? (str(r.payment_id) ?? str(r.paymentId)) : null);
+    const refundIdFromObject =
+      refundedRec != null
+        ? (str(refundedRec.id) ??
+          str(refundedRec.refund_id) ??
+          str(refundedRec.refundId) ??
+          str(refundedRec.transaction_id) ??
+          str(refundedRec.transactionId))
+        : null;
+    const refundId = isRefundEntry ? paymentId : refundIdFromObject;
+
     out.push({
       title,
       subtitle,
@@ -1796,6 +1823,9 @@ function parseInvoicePayments(o: Record<string, unknown>): InvoicePaymentRow[] {
       amountRefunded,
       refundAmountFormatted,
       refundLines,
+      isRefundEntry,
+      linkedPaymentId,
+      refundId,
     });
   }
   return out;
