@@ -293,14 +293,14 @@ function MedicalRecordsPageContent({ category }: Readonly<{ category: MedicalRec
         ) : null}
       </main>
 
-      <button
+      {/* <button
         type="button"
         className="mr-refresh-fab"
         aria-label="Refresh records"
         onClick={() => void load(category)}
       >
         ↻
-      </button>
+      </button> */}
 
       <HomeBottomNav />
     </div>
