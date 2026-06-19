@@ -418,11 +418,11 @@ button.mr-health-card:active {
   margin-top: 8px;
   padding: 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: 12px 12px 0 0;
   font-size: 0.95rem;
   font-weight: 600;
   color: #fff;
-  background: var(--color-primary, #ff5224);
+  background: var(--color-primary, #111111);
   cursor: pointer;
 }
 
